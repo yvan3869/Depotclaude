@@ -10,8 +10,13 @@ l'installation (ils changent). Compter 1 h pour la premiere mise en place.
 
 ## 2. Pod
 - Deploy > GPU : RTX 4090 (24 Go) pour commencer, RTX 5090 (32 Go) pour le 720p.
-- Community Cloud = moins cher, peut etre interrompu. Suffisant ici.
-- Template : un template ComfyUI officiel RunPod. Attacher le volume (monte sur /workspace).
+- Un volume reseau ne s'attache qu'a un pod Secure Cloud (pas Community Cloud).
+  Rester en Secure Cloud : ~0,89 $/h pour une 4090 au lieu de ~0,34 $/h, mais les 70 Go
+  de modeles ne sont pas a retelecharger a chaque session.
+- Console : + New > Pod. Dans le panneau Compute, choisir le volume dans le filtre
+  "Network volume" : seuls les GPU du meme centre de donnees restent proposes.
+  (Le type de cloud se regle dans Filter > Cloud type.)
+- Template : un template ComfyUI officiel RunPod. Le volume est monte sur /workspace.
 - Ports : 8188 (ComfyUI), 8888 (Jupyter pour le terminal).
 - Toujours "Terminate" en fin de session (pas "Stop") : le volume conserve tout.
 
