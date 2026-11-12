@@ -10,9 +10,12 @@ orchestre, il ne contient pas de contenu explicite.
 - OnlyFans : refuse les comptes entierement IA (le contenu doit montrer le createur verifie).
 - Fansly : interdit l'IA photorealiste, meme etiquetee.
 - Instagram / TikTok : label "contenu IA" obligatoire.
-- DM : pas de bot autonome ; brouillons IA relus par un humain.
+- DM : sur Fanvue, messagerie IA autorisee via ses outils integres ou son API officielle.
 
 ## Structure
+- `docs/accounts-setup.md` comptes a creer, acces, regles Fanvue verifiees
+- `docs/runpod-setup.md`  installation ComfyUI + Wan 2.2, LoRA
+- `tools/triage/`         interface de tri : `python tools/triage/triage.py --dir <sorties>`
 - `persona/bible.yaml`   identite, gestuelle, routine, regles de coherence
 - `pipeline/plan_week.py` genere le planning de la semaine via l'API Claude
 - `docs/compliance.md`   regles non negociables

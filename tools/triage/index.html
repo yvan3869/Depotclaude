@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tri des clips</title>
+<style>
+  :root { --bg:#111417; --panel:#1b2026; --text:#e8eaed; --muted:#8b949e; --line:#2c333b;
+          --soft:#3fa7d6; --paid:#c77dff; --redo:#e0a030; --reject:#e5534b; }
+  * { box-sizing:border-box; }
+  html,body { height:100%; margin:0; }
+  body { background:var(--bg); color:var(--text); font:15px/1.4 system-ui,sans-serif;
+         display:flex; flex-direction:column; }
+  header { display:flex; flex-wrap:wrap; gap:8px 20px; align-items:center;
+           padding:10px 16px; border-bottom:1px solid var(--line); }
+  header strong { font-size:16px; }
+  #name { color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+          max-width:40ch; font-variant-numeric:tabular-nums; }
+  #counts { margin-left:auto; display:flex; gap:14px; color:var(--muted);
+            font-variant-numeric:tabular-nums; }
+  #counts b { color:var(--text); }
+  main { flex:1; min-height:0; display:flex; align-items:center; justify-content:center; padding:12px; }
+  main video, main img { max-width:100%; max-height:100%; border-radius:6px; background:#000; }
+  #empty { color:var(--muted); text-align:center; }
+  footer { display:grid; grid-template-columns:repeat(4,1fr) auto; gap:8px; padding:12px 16px;
+           border-top:1px solid var(--line); background:var(--panel); }
+  button { font:inherit; color:var(--text); background:transparent; border:1px solid var(--line);
+           border-radius:6px; padding:12px 8px; cursor:pointer; }
+  button:hover { background:#252b33; }
+  button:focus-visible { outline:2px solid var(--text); outline-offset:2px; }
+  button kbd { display:inline-block; min-width:1.6em; margin-right:6px; padding:1px 5px;
+               border:1px solid currentColor; border-radius:4px; font:12px ui-monospace,monospace; }
+  button[data-to=soft] { border-color:var(--soft); color:var(--soft); }
+  button[data-to=paid] { border-color:var(--paid); color:var(--paid); }
+  button[data-to=redo] { border-color:var(--redo); color:var(--redo); }
+  button[data-to=reject] { border-color:var(--reject); color:var(--reject); }
+  button:disabled { opacity:.4; cursor:default; }
+  @media (max-width:640px) { footer { grid-template-columns:repeat(2,1fr); } #undo { grid-column:1/-1; } }
+</style>
+</head>
+<body>
+<header>
+  <strong>Tri</strong>
+  <span id="pos"></span>
+  <span id="name"></span>
+  <div id="counts"></div>
+</header>
+<main id="stage"><p id="empty">Chargement...</p></main>
+<footer>
+  <button data-to="soft"><kbd>S</kbd>Short soft</button>
+  <button data-to="paid"><kbd>P</kbd>Page payante</button>
+  <button data-to="redo"><kbd>R</kbd>A refaire</button>
+  <button data-to="reject"><kbd>X</kbd>Rejeter</button>
+  <button id="undo"><kbd>Z</kbd>Annuler</button>
+</footer>
+<script>
+const stage = document.getElementById('stage');
+const LABELS = {soft:'Soft', paid:'Payant', redo:'A refaire', reject:'Rejetes'};
+let files = [], i = 0, busy = false;
+
+async function api(path, body) {
+  const r = await fetch(path, body ? {method:'POST', headers:{'Content-Type':'application/json'},
+                                      body:JSON.stringify(body)} : undefined);
+  return r.json();
+}
+
+async function refresh(keep) {
+  const d = await api('/api/list');
+  files = d.files;
+  if (!keep || i >= files.length) i = Math.min(i, Math.max(0, files.length - 1));
+  document.getElementById('counts').replaceChildren(...Object.entries(d.counts).map(([k, v]) => {
+    const s = document.createElement('span');
+    const b = document.createElement('b');
+    b.textContent = v;
+    s.append(LABELS[k] + ' ', b);
+    return s;
+  }));
+  document.getElementById('undo').disabled = !d.undo;
+  show();
+}
+
+function show() {
+  const name = files[i];
+  document.querySelectorAll('button[data-to]').forEach(b => b.disabled = !name);
+  document.getElementById('pos').textContent = name ? `${i + 1} / ${files.length}` : '';
+  document.getElementById('name').textContent = name || '';
+  if (!name) {
+    const p = document.createElement('p');
+    p.id = 'empty';
+    p.textContent = 'Rien a trier. Les nouveaux fichiers apparaissent au rechargement.';
+    return stage.replaceChildren(p);
+  }
+  const src = '/file/' + encodeURIComponent(name);
+  const isVideo = /\.(mp4|webm|mov)$/i.test(name);
+  const el = document.createElement(isVideo ? 'video' : 'img');
+  el.src = src;
+  if (isVideo) Object.assign(el, {autoplay:true, loop:true, muted:true, controls:true, playsInline:true});
+  else el.alt = name;
+  stage.replaceChildren(el);
+}
+
+async function decide(to) {
+  const name = files[i];
+  if (!name || busy) return;
+  busy = true;
+  try { await api('/api/move', {name, to}); await refresh(true); }
+  finally { busy = false; }
+}
+
+async function undo() {
+  if (busy) return;
+  busy = true;
+  try {
+    const d = await api('/api/undo', {});
+    await refresh(true);
+    if (d.name) { const k = files.indexOf(d.name); if (k >= 0) { i = k; show(); } }
+  } finally { busy = false; }
+}
+
+function step(n) { if (files.length) { i = (i + n + files.length) % files.length; show(); } }
+
+document.querySelectorAll('button[data-to]').forEach(b => b.onclick = () => decide(b.dataset.to));
+document.getElementById('undo').onclick = undo;
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  const k = e.key.toLowerCase();
+  const map = {s:'soft', p:'paid', r:'redo', x:'reject'};
+  if (map[k]) decide(map[k]);
+  else if (k === 'z') undo();
+  else if (k === 'arrowright') step(1);
+  else if (k === 'arrowleft') step(-1);
+  else if (k === ' ') { const v = stage.querySelector('video'); if (v) { e.preventDefault(); v.paused ? v.play() : v.pause(); } }
+});
+refresh();
+</script>
+</body>
+</html>
