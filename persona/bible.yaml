@@ -1,0 +1,32 @@
+# Bible du personnage - a completer. Source unique de verite pour tous les prompts.
+identity:
+  name: ""                 # prenom fictif
+  age: 26                  # adulte, apparence clairement adulte (jamais < 25 en apparence)
+  city: ""
+  job: ""                  # ex: graphiste freelance, barista le week-end
+  disclosure: "Personnage cree par IA"   # affiche dans bio + chaque post
+  real_person_likeness: false            # ne jamais copier un visage/corps reel
+
+appearance:                # fixe : sert au LoRA et aux prompts
+  face: ""
+  hair: ""
+  skin: ""
+  body: ""
+  signature_details: []    # grain de beaute, tatouage, bijou recurrent
+
+mannerisms:                # ce qui la rend unique et reconnaissable
+  movement: ""             # ex: marche lente, rejette les cheveux d'une main
+  habits: []               # ex: mordille son stylo, rit avant la fin de ses phrases
+  voice: ""                # ton, rythme, expressions favorites
+
+life:
+  routine: {}              # jour de semaine / week-end
+  places: []               # 4-6 decors recurrents (appart, cafe, salle de sport...)
+  wardrobe: []
+  relationships: []        # amis, animal, famille (fictifs)
+  arcs: []                 # petits fils narratifs sur 4-6 semaines
+
+content_rules:
+  soft_channels: "Instagram/TikTok : tenues et ton suggestifs, pas de nudite"
+  paid_channel: "Fanvue : contenu adulte autorise par la plateforme, personnage adulte uniquement"
+  always: ["label IA visible", "personnage adulte", "aucune personne reelle"]
