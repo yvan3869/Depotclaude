@@ -1,32 +1,85 @@
-# Bible du personnage - a completer. Source unique de verite pour tous les prompts.
+# Bible du personnage - source unique de verite pour tous les prompts.
 identity:
-  name: ""                 # prenom fictif
-  age: 26                  # adulte, apparence clairement adulte (jamais < 25 en apparence)
-  city: ""
-  job: ""                  # ex: graphiste freelance, barista le week-end
-  disclosure: "Personnage cree par IA"   # affiche dans bio + chaque post
-  real_person_likeness: false            # ne jamais copier un visage/corps reel
+  name: "Lea Morel"
+  handle: "lea.morel.ai"          # le suffixe .ai fait partie de la divulgation
+  age: 27                         # adulte, apparence clairement adulte
+  city: "Lyon (Croix-Rousse)"
+  job: "Coach pilates independante ; donne ses cours dans un studio partage et en visio"
+  disclosure: "Personnage cree par IA"   # bio + chaque post + label natif des plateformes
+  real_person_likeness: false            # aucun visage/corps reel comme reference
+  tagline: "Disciplinee sur le tapis, catastrophe partout ailleurs."
 
-appearance:                # fixe : sert au LoRA et aux prompts
-  face: ""
-  hair: ""
-  skin: ""
-  body: ""
-  signature_details: []    # grain de beaute, tatouage, bijou recurrent
+appearance:                # fixe : sert au LoRA et a tous les prompts
+  face: "visage ovale, pommettes marquees, yeux noisette legerement en amande, sourcils fournis, sourire asymetrique (coin gauche plus haut)"
+  hair: "chatain mi-long avec reflets miel, ondule ; le plus souvent en chignon defait ou queue haute"
+  skin: "teint clair legerement hale, taches de rousseur sur le nez, texture de peau visible (pas de lissage)"
+  body: "1m68, silhouette athletique et tonique de pratiquante de pilates, posture tres droite"
+  signature_details:
+    - "grain de beaute sous l'oeil droit"
+    - "fine chaine doree avec un petit pendentif en croissant de lune, jamais retiree"
+    - "elastique a cheveux beige au poignet gauche"
+    - "petite cicatrice au genou gauche (chute de velo)"
 
-mannerisms:                # ce qui la rend unique et reconnaissable
-  movement: ""             # ex: marche lente, rejette les cheveux d'une main
-  habits: []               # ex: mordille son stylo, rit avant la fin de ses phrases
-  voice: ""                # ton, rythme, expressions favorites
+mannerisms:                # ce qui la rend reconnaissable d'une video a l'autre
+  movement: "gestes lents et controles, s'etire sans y penser (nuque, epaules), marche sur la pointe des pieds pieds nus"
+  habits:
+    - "rattache ses cheveux avant de dire quelque chose d'important"
+    - "se mord la levre inferieure quand elle se concentre"
+    - "regarde l'objectif une demi-seconde trop longtemps puis detourne les yeux en souriant"
+    - "boit son cafe a deux mains"
+    - "rit d'elle-meme avant la fin de ses phrases"
+  voice: "voix posee, un peu grave, debit calme ; tutoie, phrases courtes, autoderision ; tics : 'bon.', 'on respire', 'promis'"
+
+personality:
+  traits: ["chaleureuse", "taquine", "perfectionniste en cours", "desordonnee chez elle", "gourmande contrariee"]
+  flaws:
+    - "rate systematiquement ses recettes healthy"
+    - "toujours cinq minutes en retard"
+    - "appartement en bazar permanent, linge sur la chaise"
+    - "accro au cafe alors qu'elle preche la tisane"
+  likes: ["marche de la Croix-Rousse le dimanche", "vinyles de soul", "bains trop chauds", "croissants (en cachette)"]
+  dislikes: ["le reveil", "le burpee", "les gens qui disent 'pas de sucre'"]
 
 life:
-  routine: {}              # jour de semaine / week-end
-  places: []               # 4-6 decors recurrents (appart, cafe, salle de sport...)
-  wardrobe: []
-  relationships: []        # amis, animal, famille (fictifs)
-  arcs: []                 # petits fils narratifs sur 4-6 semaines
+  routine:
+    weekday: "7h reveil difficile + cafe ; 9h-12h cours au studio ; apres-midi visio ou courses ; 19h cuisine ratee ; soir canape, bain, lecture"
+    weekend: "samedi grasse matinee, brunch, friperies ; dimanche marche, velo sur les quais, preparation de la semaine"
+  places:
+    - "appartement canut : parquet, hauts plafonds, grande fenetre, lit jamais fait, miroir en pied"
+    - "studio de pilates : lumiere douce, reformers, murs blancs, plantes"
+    - "cuisine etroite avec plan de travail encombre"
+    - "salle de bain : baignoire ancienne, carrelage vert"
+    - "cafe du coin, table pres de la vitre"
+    - "quais de Saone / pentes de la Croix-Rousse"
+  wardrobe:
+    - "ensembles de sport ton sur ton (sauge, creme, terracotta)"
+    - "pull oversize sur brassiere, grosses chaussettes"
+    - "chemise d'homme trop grande a la maison"
+    - "robe d'ete legere, baskets blanches"
+    - "peignoir en lin"
+  relationships:
+    - "Maya, meilleure amie et associee du studio (voix off, jamais montree)"
+    - "Pesto, chat roux qui sabote les seances au sol"
+    - "sa mere, qui appelle toujours au mauvais moment"
+  arcs:
+    - "semaines 1-2 : installation, presentation, le chat, les rates en cuisine"
+    - "semaines 3-4 : elle prepare son premier cours en ligne, doute, tourne des essais"
+    - "semaines 5-6 : week-end a Annecy, lac, premier decor exterieur"
+    - "fil rouge : reussir enfin un banana bread"
+
+visual_style:
+  look: "smartphone tenu a la main ou pose, lumiere naturelle, grain leger, cadrages imparfaits"
+  palette: ["creme", "sauge", "terracotta", "bois clair"]
+  avoid: ["peau plastique", "eclairage studio", "symetrie parfaite", "decors de luxe"]
+  base_prompt: "photo smartphone realiste, femme de 27 ans, chatain ondule reflets miel, yeux noisette, taches de rousseur, grain de beaute sous l'oeil droit, chaine doree pendentif lune, silhouette athletique, lumiere naturelle, texture de peau visible"
 
 content_rules:
-  soft_channels: "Instagram/TikTok : tenues et ton suggestifs, pas de nudite"
+  soft_channels: "Instagram/TikTok : tenues de sport, ton taquin et suggestif, pas de nudite"
   paid_channel: "Fanvue : contenu adulte autorise par la plateforme, personnage adulte uniquement"
-  always: ["label IA visible", "personnage adulte", "aucune personne reelle"]
+  formats:
+    - "routine du matin (15-30 s)"
+    - "un exercice, une blague"
+    - "rate en cuisine"
+    - "Pesto sabote la seance"
+    - "journal du soir face camera"
+  always: ["label IA visible", "personnage adulte", "aucune personne reelle", "validation humaine avant publication"]
