@@ -20,6 +20,11 @@ Les versions marquees (proposition) ont ete traduites par l'assistant et restent
 - FR : Bon. Un message, et moi qui sors à peine de cours, cheveux en vrac et café à la main. Tu tombes bien. Moi c'est Léa : pilates le matin, catastrophes en cuisine le soir. Et toi, tu fais quoi de tes journées ?
 - EN : Bon. A message, and I've just walked out of class, messy hair and coffee in hand. Good timing. I'm Léa: pilates in the morning, kitchen disasters at night. What about you, what do your days look like?
 
+## Images de profil
+- Avatar : `persona/profile/avatar.png` (1024x1024, lumiere de fin de journee).
+- Banniere : `persona/profile/banniere.png` (1536x640, studio de pilates).
+Generees le 13/11/2026 avec le LoRA v30 ; dimensions a adapter selon ce que demande la plateforme.
+
 ## Generation automatique
 `pipeline/profile_texts.py` produit des variantes (bio, messages automatiques, legendes) et la
 fiche « Creator Personality » complete, en FR et EN, a partir de `persona/bible.yaml`. Les textes
