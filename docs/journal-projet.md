@@ -30,6 +30,10 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
   Version conseillee : 30 (`leamorel_t2v_low_v1-000030.safetensors`, dans `/workspace/lea_lora`).
 - 13/11 : premiers clips video (Wan 2.2 I2V + lightx2v 4 pas, 81 images a 16 i/s) : fenetre,
   studio, cuisine. 480x832 en ~40-60 s, 720x1280 en ~190 s sur RTX 4090.
+- 13/11 : controle automatique des clips (`tools/qc/qc_clip.py`) et pilote GPU (`server/pilot/`)
+  valide de bout en bout : 2 images + 2 clips en 17 min pour 0,20 $.
+- 13/11 : comptes : Gmail cree ; Instagram suspendu des la creation ; Fanvue en cours d'inscription.
+  Textes de profil enregistres (`persona/profile_texts.md`).
 
 ## Etat de l'infrastructure
 - RunPod : volume `lea-models` (id `0h86zhlu0v`), template ComfyUI `6uf2r3i7sy`. Aucun pod permanent.
@@ -54,6 +58,11 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
 - L'entrainement exige `--fp8_scaled`, sinon manque de memoire au chargement sur 32 Go.
 - Docker + Tailscale : ecouter directement sur l'adresse Tailscale (reseau host).
 - Toujours prevoir un arret automatique du pod.
+- Un compte Instagram neuf peut etre suspendu des la creation : creer depuis le telephone,
+  laisser vieillir l'adresse e-mail, ne pas enchainer les inscriptions le meme jour.
+- Certains gestes passent mal en video (attacher ses cheveux : meches deformees) ; preferer des
+  gestes simples et garder le tri.
+- Le pilote doit tolerer les coupures reseau passageres (reprises automatiques).
 - En video, partir d'une image ou le visage est de face : depuis un profil, le modele invente
   le visage quand elle se tourne et l'identite derive.
 - Un disque conteneur de 60 Go (au lieu de 150) donne acces a plus de machines disponibles.
@@ -66,9 +75,17 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
 - Volume : ~0,35 $/jour. Sessions de generation : 0,20 a 0,30 $ chacune.
 - Entrainement du LoRA : ~3 $ (RTX 5090 a 1,39 $/h, ~2 h 15 installation comprise).
 
+## Comptes (13/11/2026)
+- Gmail `lea.morel.ai@gmail.com` (nom affiche Lea Morel).
+- Instagram : suspendu a la creation, contestation a faire, ne pas recreer de compte tout de suite.
+- TikTok : a creer depuis le telephone, un autre jour.
+- Fanvue : inscription en cours (Fully AI, NSFW, verification d'identite du proprietaire).
+
 ## Limites et points ouverts
 - Rendu encore trop lisse ("studio") ; grain smartphone a travailler.
 - Clips de 5 s sans son : montage et voix a construire.
 - Le contenu explicite n'est pas produit par l'assistant : a piloter soi-meme dans ComfyUI.
-- A faire : comparaison des versions du LoRA, premier clip video, pilote GPU sur le serveur,
-  montage, comptes Fanvue / Instagram / TikTok, publication.
+- Generateur de textes de profil (`pipeline/profile_texts.py`) ecrit, non teste (pas de cle API
+  Anthropic dans l'environnement de developpement).
+- A faire : LoRA d'animation a valider, planification du pilote, branchement du controle qualite,
+  montage et voix, contestation Instagram, compte TikTok, fin d'inscription Fanvue, publication.

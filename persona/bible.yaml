@@ -10,6 +10,13 @@ identity:
   real_person_likeness: false            # aucun visage/corps reel comme reference
   tagline: "Disciplinee sur le tapis, catastrophe partout ailleurs."
 
+accounts:                  # etat au 13/11/2026 ; aucun mot de passe ici
+  email: "lea.morel.ai@gmail.com"        # nom affiche : Lea Morel
+  instagram: "cree puis suspendu par le filtre automatique ; contestation a faire, ne pas recreer tout de suite"
+  tiktok: "pas encore cree ; a faire depuis le telephone, un autre jour"
+  fanvue: "inscription en cours (Fully AI, NSFW coche, verification d'identite au nom du proprietaire)"
+  profile_texts: "persona/profile_texts.md"
+
 appearance:                # fixe : sert au LoRA et a tous les prompts
   face: "visage ovale, pommettes marquees, yeux verts legerement en amande, sourcils fournis, sourire asymetrique (coin gauche plus haut)"
   hair: "auburn mi-long, ondule, reflets cuivres a la lumiere ; le plus souvent en chignon defait ou queue haute"
