@@ -15,7 +15,7 @@ accounts:                  # etat au 13/11/2026 ; aucun mot de passe ici
   email: "lea.morel.ai@gmail.com"        # nom affiche : Lea Morel
   instagram: "cree puis suspendu par le filtre automatique ; contestation a faire, ne pas recreer tout de suite"
   tiktok: "pas encore cree ; a faire depuis le telephone, un autre jour"
-  fanvue: "Fully AI, NSFW coche ; verification d'identite envoyee (13/11/2026) ; fiche Creator Personality saisie ; section des coordonnees bancaires introuvable pour l'instant (probablement apres validation)"
+  fanvue: "Fully AI, NSFW coche ; verification d'identite envoyee (13/11/2026) ; fiche Creator Personality complete ; coordonnees bancaires renseignees ; en attente de validation du compte"
   profile_texts: "persona/profile_texts.md"
 
 appearance:                # fixe : sert au LoRA et a tous les prompts

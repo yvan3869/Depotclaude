@@ -85,7 +85,8 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
 - Gmail `lea.morel.ai@gmail.com` (nom affiche Lea Morel).
 - Instagram : suspendu a la creation, contestation a faire, ne pas recreer de compte tout de suite.
 - TikTok : a creer depuis le telephone, un autre jour.
-- Fanvue : inscription en cours (Fully AI, NSFW, verification d'identite du proprietaire).
+- Fanvue : Fully AI, NSFW ; verification d'identite envoyee, fiche Creator Personality complete,
+  coordonnees bancaires renseignees ; en attente de validation du compte.
 
 ## Limites et points ouverts
 - Rendu encore trop lisse ("studio") ; grain smartphone a travailler.
