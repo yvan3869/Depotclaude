@@ -25,6 +25,9 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
 - 13/11 : image maitre (tatouages, pendentif), jeu de reference de 40 images + 14 sans maquillage.
 - 13/11 : entrainement du LoRA `leamorel_t2v_low_v1` (47 images, 1 880 pas, RTX 5090).
 - 13/11 : interface de tri installee sur le serveur Oracle (port 8790, Tailscale).
+- 13/11 : LoRA termine ; comparaison des versions (`persona/reference/lora_v1_comparaison.jpg`).
+  Identite acquise des la version 10 ; la version 40 sur-apprend (tatouage imprime sur les vetements).
+  Version conseillee : 30 (`leamorel_t2v_low_v1-000030.safetensors`, dans `/workspace/lea_lora`).
 
 ## Etat de l'infrastructure
 - RunPod : volume `lea-models` (id `0h86zhlu0v`), template ComfyUI `6uf2r3i7sy`. Aucun pod permanent.
@@ -47,6 +50,10 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
 - L'entrainement exige `--fp8_scaled`, sinon manque de memoire au chargement sur 32 Go.
 - Docker + Tailscale : ecouter directement sur l'adresse Tailscale (reseau host).
 - Toujours prevoir un arret automatique du pod.
+- Surveiller le remplissage du volume (150 Go) : un disque plein fait echouer copies et sauvegardes
+  sans message clair. Supprimer les modeles d'entrainement apres usage (retelechargeables en 1 min).
+- Sur un serveur deja utilise, verifier les noms de services existants avant d'en creer un ;
+  prefixer tout ce qui releve du projet (`girls-ai-...`).
 
 ## Couts constates
 - Volume : ~0,35 $/jour. Sessions de generation : 0,20 a 0,30 $ chacune.
