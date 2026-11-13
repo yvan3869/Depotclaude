@@ -41,7 +41,7 @@ appearance:                # fixe : sert au LoRA et a tous les prompts
 mannerisms:                # ce qui la rend reconnaissable d'une video a l'autre
   movement: "gestes lents et controles, s'etire sans y penser (nuque, epaules), marche sur la pointe des pieds pieds nus"
   habits:
-    - "rattache ses cheveux avant de dire quelque chose d'important"
+    - "rattache ses cheveux avant de dire quelque chose d'important"   # en video : ne pas animer ce geste (rate a chaque essai) ; la montrer deja coiffee
     - "se mord la levre inferieure quand elle se concentre"
     - "regarde l'objectif une demi-seconde trop longtemps puis detourne les yeux en souriant"
     - "boit son cafe a deux mains"

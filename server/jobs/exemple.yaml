@@ -1,5 +1,7 @@
 # Fichier de plans. Chaque plan : une image de depart (still) puis son animation (motion).
 # Partir d'un visage de face : depuis un profil, l'identite derive.
+# Gestes a eviter (rates a chaque essai) : attacher ou nouer ses cheveux. Preferer des gestes
+# simples : boire, rire, s'etirer, pencher la tete, replacer une meche, regarder ailleurs puis revenir.
 name: exemple
 defaults:
   still_size: [720, 1280]
@@ -13,4 +15,4 @@ shots:
     motion: "She takes a sip of coffee from the mug, then looks at the camera and laughs softly."
   - name: studio
     still: "medium shot, standing in a bright pilates studio with white walls and plants, sage green sports bra and matching leggings, hair down, relaxed smile, looking at the camera, wearing makeup"
-    motion: "She raises both arms and ties her hair into a high ponytail, then smiles at the camera."
+    motion: "She tilts her head and stretches her neck with her eyes closed, then opens her eyes and smiles at the camera."

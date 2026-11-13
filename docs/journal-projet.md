@@ -42,6 +42,8 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
   a 83 % par un disque plein ; la version la plus avancee ne change ni les clips ni les mesures
   (ressemblance 0,55 avec et sans). Abandonne et supprime. Cout : ~2 $.
 - 13/11 : pilote valide dans sa version en deux passes (2 images + 2 clips en 9 min).
+- 13/11 : premiere generation lancee depuis le serveur Oracle par le proprietaire : 2 clips arrives
+  dans le tri. Chaine complete validee sans l'assistant. Avatar et banniere Fanvue choisis.
 
 ## Etat de l'infrastructure
 - RunPod : volume `lea-models` (id `0h86zhlu0v`), template ComfyUI `6uf2r3i7sy`. Aucun pod permanent.
@@ -77,8 +79,10 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
   sur le jeu de reference avant de l'ecrire dans un profil public.
 - Un compte Instagram neuf peut etre suspendu des la creation : creer depuis le telephone,
   laisser vieillir l'adresse e-mail, ne pas enchainer les inscriptions le meme jour.
-- Certains gestes passent mal en video (attacher ses cheveux : meches deformees) ; preferer des
-  gestes simples et garder le tri.
+- Attacher ou nouer ses cheveux rate a chaque essai (3 sur 3) : geste retire des plans. Preferer
+  boire, rire, s'etirer, pencher la tete, replacer une meche.
+- Banniere de profil : placer le personnage sur le cote, avec de la marge au-dessus de la tete ;
+  le centre bas est recouvert par l'avatar.
 - Le pilote doit tolerer les coupures reseau passageres (reprises automatiques).
 - En video, partir d'une image ou le visage est de face : depuis un profil, le modele invente
   le visage quand elle se tourne et l'identite derive.
