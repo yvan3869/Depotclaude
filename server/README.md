@@ -21,3 +21,13 @@ Arret : `docker compose down`. A venir : pilote GPU, montage, publication.
 `/home/debian/kb/perso/girls-ai`. Mise a jour horaire par un minuteur systemd nomme
 `kb-docs-sync-girls-ai` (service + timer dans `/etc/systemd/system`). Le serveur heberge
 d'autres services lies a la base : ne jamais creer d'unite sans verifier que le nom est libre.
+
+## Pilote GPU
+Lancement manuel d'un fichier de plans (les clips arrivent dans `data/inbox`, donc dans le tri) :
+```bash
+cd ~/Depotclaude/server && git pull
+docker compose run --rm pilot run jobs/exemple.yaml
+```
+Autres commandes : `pilot pods` (liste les pods du compte), `pilot reap` (supprime les pods
+du projet restes allumes trop longtemps). Le pilote supprime son pod en fin de session ; `reap`
+est le filet de securite si le pilote est interrompu brutalement.

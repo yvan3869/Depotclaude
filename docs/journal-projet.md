@@ -38,6 +38,10 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
   deux tatouages presents, deux tatouages futurs, aucun piercing, surnoms, salutation, emojis, limites).
   Grain de beaute et cicatrice au genou retires : absents des images de reference.
   Verification d'identite Fanvue envoyee.
+- 13/11 : LoRA d'animation (I2V low-noise, entraine sur images fixes) : echec. Entrainement interrompu
+  a 83 % par un disque plein ; la version la plus avancee ne change ni les clips ni les mesures
+  (ressemblance 0,55 avec et sans). Abandonne et supprime. Cout : ~2 $.
+- 13/11 : pilote valide dans sa version en deux passes (2 images + 2 clips en 9 min).
 
 ## Etat de l'infrastructure
 - RunPod : volume `lea-models` (id `0h86zhlu0v`), template ComfyUI `6uf2r3i7sy`. Aucun pod permanent.
@@ -61,7 +65,14 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
 - Les tatouages se recopient parfois au mauvais endroit (dos, vetement) : trier.
 - L'entrainement exige `--fp8_scaled`, sinon manque de memoire au chargement sur 32 Go.
 - Docker + Tailscale : ecouter directement sur l'adresse Tailscale (reseau host).
-- Toujours prevoir un arret automatique du pod.
+- Toujours prevoir un arret automatique du pod, et verifier qu'il tourne reellement.
+- Un LoRA d'animation ne s'entraine pas sur des images fixes : le modele recoit l'image a reproduire
+  en entree, la perte tombe a presque zero et rien d'utile n'est appris. Il faudrait de courts clips
+  du personnage. En attendant, l'identite en video repose sur l'image de depart.
+- Avant tout telechargement ou entrainement, calculer la place restante sur le volume : deux pannes
+  le meme jour pour un disque plein.
+- En plan large, le visage est petit : la mesure de ressemblance baisse et l'identite tient moins bien.
+  Preferer les plans rapproches ou moyens.
 - La bible doit decrire ce que montrent les images, pas l'inverse : verifier chaque signe distinctif
   sur le jeu de reference avant de l'ecrire dans un profil public.
 - Un compte Instagram neuf peut etre suspendu des la creation : creer depuis le telephone,
@@ -80,6 +91,8 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
 ## Couts constates
 - Volume : ~0,35 $/jour. Sessions de generation : 0,20 a 0,30 $ chacune.
 - Entrainement du LoRA : ~3 $ (RTX 5090 a 1,39 $/h, ~2 h 15 installation comprise).
+- Session du 13/11 apres-midi (controle qualite, tests de rendu, LoRA d'animation rate, tests du pilote) : ~2,30 $.
+- Session type du pilote : 2 plans en 9 a 17 min, 0,10 a 0,20 $.
 
 ## Comptes (13/11/2026)
 - Gmail `lea.morel.ai@gmail.com` (nom affiche Lea Morel).
