@@ -1,5 +1,8 @@
 # Configuration de production : infrastructure, modeles, personnage.
 # Pour un autre personnage : copier ce fichier, changer la section character.
+# image_model : zimage (photo realiste, retenu le 13/11/2026) ou wan (ancienne methode, en secours).
+image_model: zimage
+
 infra:
   template_id: "6uf2r3i7sy"
   image: "runpod/comfyui:2.2.0-comfyuiv0.44.0-cuda12.8"
@@ -23,13 +26,23 @@ models:
   i2v_low: "wan2.2_i2v_low_noise_14B_fp8_scaled.safetensors"
   i2v_high_fast_lora: "wan2.2_i2v_lightx2v_4steps_lora_v1_high_noise.safetensors"
   i2v_low_fast_lora: "wan2.2_i2v_lightx2v_4steps_lora_v1_low_noise.safetensors"
+  zimage: "z_image_turbo_bf16.safetensors"
+  zimage_text_encoder: "qwen_3_4b.safetensors"
+  zimage_vae: "ae.safetensors"
 
 character:
   name: "Lea Morel"
   prefix: "leamorel, a woman, "
   lora_still: "leamorel_t2v_low_v1-000030.safetensors"
   lora_still_strength: 1.0
-  lora_clip: null            # LoRA d'animation, a renseigner une fois valide
+  # Z-Image : le LoRA porte les traits du visage ; cheveux, tatouages et pendentif doivent etre
+  # decrits dans le prompt (sans description, le LoRA seul donne des cheveux chatains sans tatouage).
+  lora_still_zimage: "leamorel_zimage_v1_comfy.safetensors"
+  lora_still_zimage_strength: 1.3
+  zimage_prefix: "leamorel, a woman with wavy shoulder-length auburn hair with copper highlights, green eyes, freckles, a small stud earring, a thin gold chain with a small crescent moon pendant, a fine-line black peony branch tattoo on her right collarbone and shoulder, and a tiny black crescent moon tattoo on her sternum, "
+  zimage_suffix: ". Candid amateur smartphone photo, natural unedited look, realistic skin texture with pores, ordinary lighting, slight grain."
+  extra_loras_still: []      # LoRA supplementaires choisis par le proprietaire : [{name: fichier.safetensors, strength: 0.8}]
+  lora_clip: null            # LoRA d'animation (essai sur images fixes : sans effet, abandonne)
   lora_clip_strength: 1.0
   still_suffix: ", candid smartphone photo, natural light, detailed natural skin texture"
   motion_suffix: " Natural subtle movement, handheld smartphone video."

@@ -44,6 +44,15 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
 - 13/11 : pilote valide dans sa version en deux passes (2 images + 2 clips en 9 min).
 - 13/11 : premiere generation lancee depuis le serveur Oracle par le proprietaire : 2 clips arrives
   dans le tri. Chaine complete validee sans l'assistant. Avatar et banniere Fanvue choisis.
+- 13/11 soir : comparaison de trois methodes d'image (Wan actuel, Wan + LoRA "photo de telephone",
+  Z-Image). Z-Image l'emporte nettement sur le realisme (peau, lumiere, cadrage). LoRA de Lea
+  entraine sur Z-Image base (v1, 1 410 pas, ~1 h sur RTX 4090) : traits du visage acquis et peau
+  realiste, mais cheveux et tatouages non appris ; ils reviennent avec une description explicite
+  dans le prompt et un LoRA applique a 1,3. Pilote passe en mode Z-Image et valide (2 images +
+  2 clips en 7 min). Defaut restant : les tatouages decrits par le prompt varient de dessin et de
+  cote. Second entrainement lance (v2 : 2 115 pas, taux double) pour ancrer cheveux et tatouages.
+- 13/11 soir : video d'introduction (3 variantes 720p, ancienne methode) ; avatar et banniere Fanvue
+  en place ; recherche son et dialogue ; feuille de route ; tache de veille bihebdomadaire.
 
 ## Etat de l'infrastructure
 - RunPod : volume `lea-models` (id `0h86zhlu0v`), template ComfyUI `6uf2r3i7sy`. Aucun pod permanent.
@@ -68,6 +77,9 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
 - L'entrainement exige `--fp8_scaled`, sinon manque de memoire au chargement sur 32 Go.
 - Docker + Tailscale : ecouter directement sur l'adresse Tailscale (reseau host).
 - Toujours prevoir un arret automatique du pod, et verifier qu'il tourne reellement.
+- Z-Image : un LoRA entraine sur le modele de base s'applique au modele Turbo a une force de 1,3
+  environ ; convertir le fichier pour ComfyUI (`convert_lora.py --target other`).
+- En video, ne pas faire tourner le dos a la camera : au retour, le visage est reinvente.
 - Un LoRA d'animation ne s'entraine pas sur des images fixes : le modele recoit l'image a reproduire
   en entree, la perte tombe a presque zero et rien d'utile n'est appris. Il faudrait de courts clips
   du personnage. En attendant, l'identite en video repose sur l'image de depart.
