@@ -28,6 +28,8 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
 - 13/11 : LoRA termine ; comparaison des versions (`persona/reference/lora_v1_comparaison.jpg`).
   Identite acquise des la version 10 ; la version 40 sur-apprend (tatouage imprime sur les vetements).
   Version conseillee : 30 (`leamorel_t2v_low_v1-000030.safetensors`, dans `/workspace/lea_lora`).
+- 13/11 : premiers clips video (Wan 2.2 I2V + lightx2v 4 pas, 81 images a 16 i/s) : fenetre,
+  studio, cuisine. 480x832 en ~40-60 s, 720x1280 en ~190 s sur RTX 4090.
 
 ## Etat de l'infrastructure
 - RunPod : volume `lea-models` (id `0h86zhlu0v`), template ComfyUI `6uf2r3i7sy`. Aucun pod permanent.
@@ -39,6 +41,8 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
 - Image fixe : Wan 2.2 T2V low-noise seul + LoRA lightx2v, 8 pas, res_multistep / beta, 864x1152 : ~10 s.
 - Edition : Qwen-Image-Edit 2509 + Lightning 8 pas, image maitre en reference : ~16 s.
 - Sans maquillage : passe d'edition separee avec cette seule consigne.
+- Video : image de depart generee avec le LoRA (720x1280), puis Wan 2.2 I2V high+low + lightx2v,
+  4 pas, shift 5, sortie WEBM convertie en MP4. Le LoRA du personnage n'a aucun effet en I2V.
 - LoRA : musubi-tuner, t2v-A14B low-noise, pas de temps 0-875, rang 32, lr 1e-4, fp8 scaled, 1024 px.
 
 ## Lecons
@@ -50,6 +54,9 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
 - L'entrainement exige `--fp8_scaled`, sinon manque de memoire au chargement sur 32 Go.
 - Docker + Tailscale : ecouter directement sur l'adresse Tailscale (reseau host).
 - Toujours prevoir un arret automatique du pod.
+- En video, partir d'une image ou le visage est de face : depuis un profil, le modele invente
+  le visage quand elle se tourne et l'identite derive.
+- Un disque conteneur de 60 Go (au lieu de 150) donne acces a plus de machines disponibles.
 - Surveiller le remplissage du volume (150 Go) : un disque plein fait echouer copies et sauvegardes
   sans message clair. Supprimer les modeles d'entrainement apres usage (retelechargeables en 1 min).
 - Sur un serveur deja utilise, verifier les noms de services existants avant d'en creer un ;
