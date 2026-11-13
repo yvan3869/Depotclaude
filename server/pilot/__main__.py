@@ -52,6 +52,10 @@ def cmd_run(a):
     report = {"job": job["name"], "shots": []}
     try:
         if not pod_id:
+            # Clips a calculer : carte rapide en premier ; images seules : carte la moins chere.
+            video = not a.stills_only and any(sh.get("motion") for sh in job["shots"])
+            if video and infra.get("gpu_types_video"):
+                infra = {**infra, "gpu_types": infra["gpu_types_video"]}
             pod_id, cost, gpu = runpod.create_pod(infra, f"{PREFIX}{job['name']}-{int(t0)}")
             own = True
             report.update(gpu=gpu, cost_per_hr=cost)
