@@ -39,7 +39,9 @@ character:
   # decrits dans le prompt (sans description, le LoRA seul donne des cheveux chatains sans tatouage).
   lora_still_zimage: "leamorel_zimage_v1_comfy.safetensors"
   lora_still_zimage_strength: 1.3
-  zimage_prefix: "leamorel, a woman with wavy shoulder-length auburn hair with copper highlights, green eyes, freckles, a small stud earring, a thin gold chain with a small crescent moon pendant, a fine-line black peony branch tattoo on her right collarbone and shoulder, and a tiny black crescent moon tattoo on her sternum, "
+  zimage_prefix: "leamorel, a woman with wavy shoulder-length auburn hair with copper highlights, green eyes, freckles, a small stud earring, a thin gold chain with a small crescent moon pendant, "
+  # Ajoute apres zimage_prefix, sauf si le plan porte "tattoos: false" (tenue qui couvre les clavicules).
+  zimage_tattoos: "with one single fine-line black peony branch tattoo on her collarbone on the left side of the picture, bare skin on the other collarbone, and one tiny black crescent moon tattoo on her sternum, "
   zimage_suffix: ". Candid amateur smartphone photo, natural unedited look, realistic skin texture with pores, ordinary lighting, slight grain."
   extra_loras_still: []      # LoRA supplementaires choisis par le proprietaire : [{name: fichier.safetensors, strength: 0.8}]
   lora_clip: null            # LoRA d'animation (essai sur images fixes : sans effet, abandonne)

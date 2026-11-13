@@ -1,0 +1,21 @@
+# Video d'introduction du profil Fanvue : courte, amicale, elle seule, tous publics.
+name: intro
+defaults:
+  still_size: [720, 1280]
+  clip_size: [720, 1280]
+  mode: natural
+  smooth: true
+  grain: true
+  seed: 1521
+shots:
+  - name: fenetre
+    seed: 2000          # tirage choisi a la main (tatouage bien place)
+    still: "medium shot, standing near a tall window in a bright apartment with parquet floor and plants, sage green tank top, hair down, facing the camera with a warm smile, soft daylight"
+    motion: "She waves hello at the camera with one hand, tilts her head and smiles warmly."
+  - name: studio
+    still: "medium shot, sitting cross-legged on a yoga mat in a bright pilates studio with white walls and plants, sage green sports bra and matching leggings, hair down, friendly smile, looking at the camera"
+    motion: "She waves hello at the camera with one hand, then laughs softly and gives a small friendly nod."
+  - name: cuisine
+    tattoos: false
+    still: "medium shot, leaning on the counter of a bright small kitchen, oversized cream knit sweater, holding a coffee mug with both hands, hair down, warm smile, looking at the camera, morning light"
+    motion: "She takes a sip of coffee from the mug, then looks at the camera and laughs softly."

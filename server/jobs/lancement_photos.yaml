@@ -1,0 +1,62 @@
+# Lot de lancement : photos tous publics (regles des medias publics Fanvue, docs/compliance.md).
+# tattoos: false = tenue qui couvre les clavicules.
+name: photos
+defaults:
+  still_size: [864, 1152]
+  clip_size: [480, 832]
+  mode: natural
+  smooth: true
+  grain: true
+  seed: 1300
+shots:
+  - name: marche
+    tattoos: false
+    still: "medium shot, at an outdoor food market on a city square, beige trench coat over a striped top, holding a paper bag of vegetables, hair down, amused smile, looking at the camera, overcast morning light"
+  - name: cafe_terrasse
+    still: "close shot, sitting at a cafe terrace table with an espresso cup, low-cut cream wrap top, chin resting on her hand, teasing smile, looking at the camera, soft daylight"
+  - name: studio_tapis
+    seed: 2001          # tirage choisi a la main (tatouage bien place)
+    still: "medium shot, sitting cross-legged on a yoga mat in a bright pilates studio with white walls and plants, sage green sports bra and matching leggings, hair down, friendly smile, looking at the camera"
+  - name: studio_reformer
+    still: "medium shot, standing next to a pilates reformer machine in a bright studio, black sports top and leggings, one hand on the machine, hair in a low ponytail, confident smile, looking at the camera"
+  - name: miroir_sport
+    still: "mirror selfie holding a smartphone in a bedroom with an unmade bed, sage green sports bra and leggings, hair down, slight smile, daylight from a window"
+  - name: cuisine_cafe
+    tattoos: false
+    still: "medium shot, leaning on the counter of a small cluttered kitchen, oversized white men's shirt buttoned up, holding a coffee mug with both hands, messy hair, sleepy smile, looking at the camera, morning light, no makeup"
+  - name: canape_livre
+    tattoos: false
+    still: "medium shot, curled up on a sofa with a book and a blanket, oversized grey knit sweater, hair down, soft smile, looking up at the camera, warm lamp light in the evening"
+  - name: escaliers
+    tattoos: false
+    still: "medium shot, walking down old stone stairs on a hillside street, denim jacket closed over a green top, hair down, laughing, looking at the camera, overcast daylight"
+  - name: quai
+    still: "medium shot, sitting on a low wall on a river quay with old city buildings behind, low-cut dark green summer dress, hair moved by the wind, relaxed smile, looking at the camera, golden evening light"
+  - name: balcon
+    seed: 1995          # tirage choisi a la main (tatouage bien place)
+    still: "medium shot, standing on a small balcony with plants and rooftops behind, white tank top and jeans, holding a glass of water, hair down, calm smile, looking at the camera, morning sun"
+  - name: selfie_lit
+    still: "selfie taken at arm's length, lying on her stomach on a bed with white sheets, loose off-shoulder beige sweater, messy hair, playful smile, looking at the camera, soft window light, no makeup"
+  - name: boulangerie
+    tattoos: false
+    still: "medium shot, coming out of a bakery holding a baguette in a paper sleeve, camel coat and scarf, hair down, big smile, looking at the camera, cold morning light"
+  - name: etirement
+    still: "medium shot, standing in a bright living room stretching one arm across her chest, black sports bra and grey leggings, hair in a ponytail, focused smile, looking at the camera, daylight"
+  - name: robe_soir
+    still: "medium shot, standing in an apartment hallway in front of a mirror, elegant low-cut black evening dress, hair down, small gold earrings, mischievous smile, looking at the camera, warm indoor light"
+  - name: parc
+    tattoos: false
+    still: "medium shot, sitting on the grass in a city park with trees behind, light hoodie and running shorts, earphones around her neck, hair in a ponytail, out of breath smile, looking at the camera, sunny afternoon"
+  - name: restaurant
+    still: "close shot, sitting at a small restaurant table with a glass of red wine, low-cut burgundy top, hair down, laughing, looking at the camera, warm candle light"
+  - name: salle_de_bain
+    tattoos: false
+    still: "medium shot, standing in a small bathroom in front of the mirror, thick white bathrobe closed, towel wrapped around her hair, holding a toothbrush, funny face, looking at the camera, bright bathroom light, no makeup"
+  - name: librairie
+    tattoos: false
+    still: "medium shot, in a small old bookshop holding an open book, rust-colored turtleneck sweater, hair down, curious smile, looking at the camera, warm indoor light"
+  - name: velo
+    tattoos: false
+    still: "medium shot, standing next to a city bike on a cobbled street, leather jacket zipped up and jeans, hair down, one hand on the handlebar, cheeky smile, looking at the camera, late afternoon light"
+  - name: portrait_fenetre
+    still: "close portrait, standing near a tall window in a bright apartment with parquet floor, sage green tank top, hair down, calm direct look at the camera with a slight smile, soft daylight, no makeup"

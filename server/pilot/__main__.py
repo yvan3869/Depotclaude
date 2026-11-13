@@ -84,7 +84,10 @@ def cmd_run(a):
             try:
                 t = time.time()
                 if cfg.get("image_model", "wan") == "zimage":
-                    prompt = f"{char.get('zimage_prefix', char['prefix'])}{s['still']}{char.get('zimage_suffix', '')}"
+                    # tattoos: false dans un plan = tenue couvrante ; sans cela le modele dessine
+                    # les tatouages par-dessus ou les double.
+                    tat = char.get("zimage_tattoos", "") if s.get("tattoos", True) else ""
+                    prompt = f"{char.get('zimage_prefix', char['prefix'])}{tat}{s['still']}{char.get('zimage_suffix', '')}"
                     graph = workflows.still_zimage(models, char, prompt, *s["still_size"], seed, f"ga_{name}")
                 else:
                     prompt = f"{char['prefix']}{s['still']}{char.get('still_suffix', '')}"
