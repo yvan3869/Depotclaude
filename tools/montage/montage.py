@@ -6,8 +6,10 @@
                       [--caption "Texte affiche en bas"] [--audio musique.mp3]
 
 Chaque clip est mis a l'echelle et recadre au format cible, puis les clips sont enchaines
-en coupe franche. La mention IA est incrustee en haut a gauche (obligation de divulgation) ;
---label "" la retire. Sans --audio, la video est muette. Depend uniquement de ffmpeg.
+en coupe franche. Par defaut, aucune mention n'est incrustee : la divulgation IA passe par le
+label du compte (Fanvue) ou le label natif de la plateforme (Instagram, TikTok). --label
+"Personnage IA" incruste la mention en haut a gauche, utile pour un clip susceptible d'etre
+repris hors plateforme. Sans --audio, la video est muette. Depend uniquement de ffmpeg.
 """
 import argparse
 import os
@@ -35,7 +37,7 @@ def main():
     ap.add_argument("--out", required=True)
     ap.add_argument("--size", default="1080x1920")
     ap.add_argument("--fps", type=int, default=32)
-    ap.add_argument("--label", default="Personnage IA")
+    ap.add_argument("--label", default="", help='mention incrustee, ex. "Personnage IA" (aucune par defaut)')
     ap.add_argument("--caption", default="")
     ap.add_argument("--audio", default="")
     ap.add_argument("--font", default="")
