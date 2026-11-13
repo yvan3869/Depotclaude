@@ -35,6 +35,21 @@ def to_mp4(webm: Path, mp4: Path, smooth: bool, grain: bool):
     subprocess.run(cmd, check=True)
 
 
+def resolve_loras(cfg, wanted):
+    """LoRA supplementaires d'un plan. `wanted` absent : None (on garde extra_loras_still).
+    Sinon une liste dont chaque element est un nom du catalogue (lora_catalog de production.yaml),
+    ou {name: nom_du_catalogue_ou_fichier, strength: 0.8} pour changer la force."""
+    if wanted is None:
+        return None
+    cat = cfg.get("lora_catalog") or {}
+    out = []
+    for w in wanted:
+        w = {"name": w} if isinstance(w, str) else dict(w)
+        ref = cat.get(w["name"], {})
+        out.append({"name": ref.get("file", w["name"]), "strength": float(w.get("strength", ref.get("strength", 1.0)))})
+    return out
+
+
 def cmd_run(a):
     cfg = yaml.safe_load(open(a.config, encoding="utf-8"))
     job = yaml.safe_load(open(a.job, encoding="utf-8"))
@@ -66,12 +81,18 @@ def cmd_run(a):
         lora_key = "lora_still_zimage" if cfg.get("image_model", "wan") == "zimage" else "lora_still"
         if char.get(lora_key) and not c.has_model("loras", char[lora_key]):
             raise RuntimeError(f"LoRA introuvable sur le volume : {char[lora_key]}")
+        for sh in job["shots"]:  # verifier les LoRA supplementaires avant de calculer quoi que ce soit
+            for lo in resolve_loras(cfg, {**d, **sh}.get("loras")) or []:
+                if not c.has_model("loras", lo["name"]):
+                    raise RuntimeError(f"LoRA introuvable sur le volume : {lo['name']}")
         # Deux passes : toutes les images, puis tous les clips. Evite de recharger les modeles
         # (image <-> animation) a chaque plan, ce qui coutait plus d'une minute par plan.
         shots = []
         for i, shot in enumerate(job["shots"]):
             s = {**d, **shot}
-            shots.append((s, f"{job['name']}_{s['name']}", int(s["seed"]) + i, {"name": s["name"]}))
+            # same_seed : meme tirage pour tous les plans (comparaison de LoRA ou de forces).
+            seed = int(s["seed"]) + (0 if s.get("same_seed") else i)
+            shots.append((s, f"{job['name']}_{s['name']}", seed, {"name": s["name"]}))
         report["shots"] = [e for _, _, _, e in shots]
         stills = {}
 
@@ -96,7 +117,8 @@ def cmd_run(a):
                     use_body = s.get("body", s.get("dest") in (char.get("zimage_body_dests") or []))
                     body = char.get("zimage_body", "") if use_body else ""
                     prompt = f"{char.get('zimage_prefix', char['prefix'])}{tat}{body}{s['still']}{char.get('zimage_suffix', '')}"
-                    graph = workflows.still_zimage(models, char, prompt, *s["still_size"], seed, f"ga_{name}")
+                    graph = workflows.still_zimage(models, char, prompt, *s["still_size"], seed, f"ga_{name}",
+                                                   loras=resolve_loras(cfg, s.get("loras")))
                 else:
                     prompt = f"{char['prefix']}{s['still']}{char.get('still_suffix', '')}"
                     graph = workflows.still(models, char, prompt, *s["still_size"], seed, f"ga_{name}")

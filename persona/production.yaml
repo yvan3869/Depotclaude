@@ -64,3 +64,10 @@ character:
   motion_suffix: " Natural subtle movement, handheld smartphone video."
   negative_still: "blurry, soft focus, plastic skin, airbrushed, cgi, 3d render, doll, teenager, young girl, childlike, deformed, text, watermark"
   negative_clip: "blurry, distorted face, deformed hands, extra fingers, morphing, flickering, jerky motion, cartoon, cgi, text, watermark, static image, low quality"
+
+# Catalogue des LoRA supplementaires deposes sur le volume (voir docs/lora-supplementaires.md).
+# Un plan les appelle par leur nom :  loras: [detail]   ou   loras: [{name: detail, strength: 0.8}]
+# Un plan sans ligne "loras" utilise extra_loras_still ; "loras: []" n'en applique aucun.
+# Exemple :
+#   detail: {file: "mon_lora.safetensors", strength: 0.6}
+lora_catalog: {}

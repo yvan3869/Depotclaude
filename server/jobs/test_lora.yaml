@@ -1,0 +1,18 @@
+# Comparer des LoRA supplementaires et des forces sur la meme image (meme tirage partout).
+# Lancer :  docker compose run --rm pilot run jobs/test_lora.yaml --stills-only
+# Les noms viennent de lora_catalog dans persona/production.yaml (ou un nom de fichier complet).
+name: testlora
+defaults:
+  still_size: [864, 1152]
+  seed: 100
+  same_seed: true
+  still: "medium shot, standing near a tall window in a bright apartment, sage green tank top, hair down, slight smile, looking at the camera, soft daylight"
+shots:
+  - name: a_sans
+    loras: []
+  - name: b_detail_04
+    loras: [{name: detail, strength: 0.4}]
+  - name: c_detail_06
+    loras: [{name: detail, strength: 0.6}]
+  - name: d_detail_08
+    loras: [{name: detail, strength: 0.8}]

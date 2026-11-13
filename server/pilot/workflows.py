@@ -32,7 +32,7 @@ def still(m, char, prompt, w, h, seed, prefix, steps=8):
     return g
 
 
-def still_zimage(m, char, prompt, w, h, seed, prefix, steps=9):
+def still_zimage(m, char, prompt, w, h, seed, prefix, steps=9, loras=None):
     """Image fixe : Z-Image-Turbo + LoRA du personnage (entraine sur Z-Image base)."""
     g = {
         "unet": {"class_type": "UNETLoader", "inputs": {"unet_name": m["zimage"], "weight_dtype": "default"}},
@@ -45,7 +45,10 @@ def still_zimage(m, char, prompt, w, h, seed, prefix, steps=9):
     src = "unet"
     if char.get("lora_still_zimage"):
         src = _lora(g, "char", src, char["lora_still_zimage"], char.get("lora_still_zimage_strength", 1.0))
-    for i, extra in enumerate(char.get("extra_loras_still") or []):  # LoRA supplementaires choisis par l'utilisateur
+    # LoRA supplementaires choisis par l'utilisateur : ceux du plan (loras) s'ils sont donnes,
+    # sinon ceux declares pour tous les plans (extra_loras_still).
+    extras = loras if loras is not None else (char.get("extra_loras_still") or [])
+    for i, extra in enumerate(extras):
         src = _lora(g, f"x{i}", src, extra["name"], extra.get("strength", 1.0))
     g["shift"] = {"class_type": "ModelSamplingAuraFlow", "inputs": {"model": [src, 0], "shift": 3.0}}
     g["ks"] = {"class_type": "KSampler", "inputs": {
