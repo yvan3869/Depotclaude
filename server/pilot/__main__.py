@@ -154,7 +154,11 @@ def main():
     k.set_defaults(fn=cmd_reap)
     sub.add_parser("pods", help="liste les pods du compte").set_defaults(fn=cmd_pods)
     a = ap.parse_args()
-    sys.exit(a.fn(a) or 0)
+    try:
+        sys.exit(a.fn(a) or 0)
+    except RuntimeError as e:  # erreur attendue (pas de machine, cle refusee...) : message court
+        log(f"ARRET : {str(e)[:400]}")
+        sys.exit(2)
 
 
 if __name__ == "__main__":
