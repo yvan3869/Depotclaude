@@ -3,6 +3,17 @@
 Non teste depuis ce depot : noms de fichiers et tarifs a verifier au moment de
 l'installation (ils changent). Compter 1 h pour la premiere mise en place.
 
+## Etat au 13/11/2026 (installation faite via l'API RunPod)
+- Volume reseau `lea-models` (id `0h86zhlu0v`), 150 Go, EU-RO-1. Sections 1 a 3 deja realisees.
+- Template `6uf2r3i7sy` (ComfyUI 0.44.0, CUDA 12.8). ComfyUI s'installe sur le volume :
+  `/workspace/runpod-slim/ComfyUI` (premier demarrage ~3 min, modeles dans `models/`).
+- Modeles Wan 2.2 presents (i2v + t2v high/low fp8, umt5, VAE, 4 LoRA lightx2v) : 69 Go,
+  telecharges en 1 min. Script relancable : `/workspace/dl_wan22.sh`.
+- Test valide sur RTX PRO 4500 Blackwell (32 Go, 0,72 $/h) : image fixe T2V 768x1024,
+  4 pas, 118 s chargement des modeles compris. Qualite brute insuffisante (floue) :
+  reglages a faire (pas, LoRA, resolution).
+- Aucun pod ne tourne : seul le volume est facture (~0,35 $/jour).
+
 ## 1. Volume reseau (une seule fois)
 - Storage > Network Volume > 100 Go, dans une region qui propose des RTX 4090/5090.
 - Tout ce qui est modele, LoRA et sortie vit sur ce volume ; le pod, lui, se supprime
