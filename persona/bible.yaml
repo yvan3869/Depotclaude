@@ -15,10 +15,12 @@ appearance:                # fixe : sert au LoRA et a tous les prompts
   skin: "teint clair legerement hale, taches de rousseur sur le nez, texture de peau visible (pas de lissage)"
   body: "1m68, silhouette athletique et tonique de pratiquante de pilates, poitrine genereuse, taille marquee, posture tres droite"
   tattoos:                 # peu nombreux, trait fin, toujours aux memes endroits : reconnaissables et stables en video
-    - "branche de pivoine en trait fin noir, de la clavicule gauche vers l'epaule (visible avec tout decollete)"
+    - "branche de pivoine en trait fin noir, de la clavicule droite vers l'epaule droite (visible avec tout decollete)"
     - "petit croissant de lune au sternum, entre les seins, qui repond au pendentif"
     - "tige de lavande verticale le long des cotes, cote droit"
     - "mot 'respire' en ecriture cursive fine, interieur du poignet droit"
+  tattoo_evolution: "nouveaux tatouages possibles au fil du temps, comme evenement narratif (un par trimestre au plus) ; chaque ajout impose de reentrainer le LoRA avec des images de reference a jour ; on ajoute, on ne retire pas"
+  reference_face: "casting n.29 (seed 659496828), image maitre ref/master_44"
   signature_details:
     - "grain de beaute sous l'oeil droit"
     - "fine chaine doree avec un petit pendentif en croissant de lune, jamais retiree"
@@ -78,7 +80,7 @@ visual_style:
   look: "smartphone tenu a la main ou pose, lumiere naturelle, grain leger, cadrages imparfaits"
   palette: ["creme", "sauge", "terracotta", "bois clair"]
   avoid: ["peau plastique", "eclairage studio", "symetrie parfaite", "decors de luxe"]
-  base_prompt: "photo smartphone realiste, femme de 27 ans, cheveux auburn ondules, yeux verts, taches de rousseur, grain de beaute sous l'oeil droit, chaine doree pendentif lune, tatouage pivoine trait fin clavicule gauche, petit croissant de lune au sternum, silhouette athletique, poitrine genereuse, decollete, lumiere naturelle, texture de peau visible"
+  base_prompt: "photo smartphone realiste, femme de 27 ans, cheveux auburn ondules, yeux verts, taches de rousseur, grain de beaute sous l'oeil droit, chaine doree pendentif lune, tatouage pivoine trait fin clavicule droite, petit croissant de lune au sternum, silhouette athletique, poitrine genereuse, decollete, lumiere naturelle, texture de peau visible"
 
 content_rules:
   soft_channels: "Instagram/TikTok : tenues de sport, ton taquin et suggestif, pas de nudite"

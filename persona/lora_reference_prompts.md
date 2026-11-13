@@ -9,7 +9,7 @@ realistic smartphone photo of a 27 year old woman, wavy shoulder-length auburn h
 with copper highlights, green almond-shaped eyes, full eyebrows, freckles across the
 nose, small beauty mark under the right eye, slightly asymmetric smile, athletic toned
 build with a full bust, thin gold chain with a small crescent moon pendant, fine-line
-black peony tattoo from left collarbone to shoulder, natural light, visible skin
+black peony tattoo from right collarbone to shoulder, natural light, visible skin
 texture, no retouching
 ```
 
@@ -61,7 +61,7 @@ extra fingers, deformed hands, text, watermark, perfectly symmetric face
 - `candlelight, antique bathtub in background`
 
 ## F. Tatouages (4 images de detail, pour les ancrer)
-- `close-up of left collarbone and shoulder, fine-line black peony branch tattoo, gold chain`
+- `close-up of right collarbone and shoulder, fine-line black peony branch tattoo, gold chain`
 - `close-up of neckline, tiny crescent moon tattoo on the sternum echoing the pendant`
 - `side view, arm raised, sports bra, vertical fine-line lavender stem tattoo along right ribs`
 - `close-up of right inner wrist, small cursive word tattoo, hand holding a cup`
