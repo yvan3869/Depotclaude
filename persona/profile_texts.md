@@ -22,7 +22,8 @@ Les versions marquees (proposition) ont ete traduites par l'assistant et restent
 
 ## Images de profil
 - Avatar : `persona/profile/avatar.png` (1024x1024, lumiere de fin de journee).
-- Banniere : `persona/profile/banniere.png` (1536x640, studio de pilates).
+- Banniere : `persona/profile/banniere.png` (1536x640, studio de pilates, personnage a droite pour
+  laisser le centre bas a l'avatar).
 Generees le 13/11/2026 avec le LoRA v30 ; dimensions a adapter selon ce que demande la plateforme.
 
 ## Generation automatique
