@@ -21,7 +21,7 @@
 ## Direction technique
 | Brique | Aujourd'hui | Cible |
 |---|---|---|
-| Images | Z-Image + LoRA v1 (photo realiste, adopte le 13/11) | jeu de reference refait pour que le LoRA porte cheveux et tatouages ; second candidat : Realism by Stable Yogi (MOSS) |
+| Images | Z-Image + LoRA v2 a 1,4 (photo realiste, tatouages portes par le LoRA) | second candidat : Realism by Stable Yogi (MOSS) |
 | Video | Wan 2.2 I2V, 5 s, 480p/720p, mode "mouvement naturel" | 720p + agrandissement + interpolation par IA ; test de LTX-2.5 |
 | Duree | un plan de 5 s | plans continus de 10-20 s par enchainement ; montages de 30-60 s |
 | Decors | inventes a chaque image | decors fixes de Lea (cuisine, studio, chambre, salle de bain) |
@@ -39,8 +39,7 @@ Le formulaire pre-remplit les temps 1 et 2 a partir de la bible ; le pilote gene
 le meme decor et la meme tenue ; le lot arrive au tri classe par destination.
 
 ## Ordre des travaux
-1. Qualite d'image : LoRA Z-Image (fait). Reste : jeu de reference realiste en Z-Image avec
-   tatouages constants, puis nouvel entrainement, pour ne plus dependre du prompt et du tri.
+1. Qualite d'image : LoRA Z-Image v2 a 1,4 (fait ; les tatouages viennent du LoRA, pas du prompt).
 2. Pilote adapte a Z-Image ; decors fixes.
 3. Premier lot de lancement (clips et photos tous publics) ; nouvelle video d'introduction (fait le 13/11).
 4. Enchainement de clips (videos longues) ; formulaire de generation.

@@ -13,7 +13,7 @@ identity:
 
 accounts:                  # etat au 13/11/2026 ; aucun mot de passe ici
   email: "lea.morel.ai@gmail.com"        # nom affiche : Lea Morel
-  instagram: "cree puis suspendu par le filtre automatique ; contestation a faire, ne pas recreer tout de suite"
+  instagram: "suspendu deux fois (13/11/2026) : a la creation, puis apres la verification par selfie, faite avec la photo du proprietaire alors que le profil montre Lea. Ne pas recreer de compte ; voir docs/journal-projet.md"
   tiktok: "pas encore cree ; a faire depuis le telephone, un autre jour"
   fanvue: "Fully AI, NSFW coche ; verification d'identite envoyee (13/11/2026) ; fiche Creator Personality complete ; coordonnees bancaires renseignees ; en attente de validation du compte"
   profile_texts: "persona/profile_texts.md"
@@ -125,3 +125,10 @@ content_rules:
     - "Pesto sabote la seance"
     - "journal du soir face camera"
   always: ["label IA visible", "personnage adulte", "aucune personne reelle", "validation humaine avant publication"]
+
+# Decisions du 13/11/2026
+language:
+  primary: "en"              # publications, legendes et reponses en anglais
+  flavor: "tics et mots en francais (positionnement French girl)"
+profile_media:
+  intro_video: "persona/lot_lancement/intro/intro_fenetre.mp4"

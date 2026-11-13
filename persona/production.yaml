@@ -42,13 +42,14 @@ character:
   prefix: "leamorel, a woman, "
   lora_still: "leamorel_t2v_low_v1-000030.safetensors"
   lora_still_strength: 1.0
-  # Z-Image : le LoRA porte les traits du visage ; cheveux, tatouages et pendentif doivent etre
-  # decrits dans le prompt (sans description, le LoRA seul donne des cheveux chatains sans tatouage).
-  lora_still_zimage: "leamorel_zimage_v1_comfy.safetensors"
-  lora_still_zimage_strength: 1.3
-  zimage_prefix: "leamorel, a woman with wavy shoulder-length auburn hair with copper highlights, green eyes, freckles, a small stud earring, a thin gold chain with a small crescent moon pendant, "
-  # Ajoute apres zimage_prefix, sauf si le plan porte "tattoos: false" (tenue qui couvre les clavicules).
-  zimage_tattoos: "with one single fine-line black peony branch tattoo on her collarbone on the left side of the picture, bare skin on the other collarbone, and one tiny black crescent moon tattoo on her sternum, "
+  # Z-Image : a une force de 1,4 le LoRA v2 porte le visage ET les tatouages (pivoine clavicule
+  # droite, lune au sternum, pendentif), au bon endroit et masques sous un vetement couvrant.
+  # Il ne faut donc PAS decrire les tatouages dans le prompt (cela les double). Seule la couleur
+  # des cheveux doit rester decrite. Verifie sur 6 scenes le 13/11/2026 (6 sur 6 correctes).
+  lora_still_zimage: "leamorel_zimage_v2_comfy.safetensors"
+  lora_still_zimage_strength: 1.4
+  zimage_prefix: "leamorel, a woman with wavy shoulder-length auburn hair with copper highlights and green eyes, "
+  zimage_tattoos: ""         # laisse vide : les tatouages viennent du LoRA
   zimage_suffix: ". Candid amateur smartphone photo, natural unedited look, realistic skin texture with pores, ordinary lighting, slight grain."
   extra_loras_still: []      # LoRA supplementaires choisis par le proprietaire : [{name: fichier.safetensors, strength: 0.8}]
   lora_clip: null            # LoRA d'animation (essai sur images fixes : sans effet, abandonne)

@@ -70,6 +70,10 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
 
 ## Nuit du 13/11/2026 : passage a Z-Image et lot de lancement
 - Z-Image adopte pour les images (bien plus photo realiste que Wan 2.2). Pilote valide dans ce mode.
+- CORRECTION (meme soir, plus tard) : la conclusion ci-dessous etait fausse. Le v2 n'avait ete teste
+  qu'a une force de 1,0. A 1,4, sans decrire les tatouages, il les place lui-meme correctement
+  (6 scenes sur 6). C'est la description des tatouages dans le prompt qui les doublait. Le v2 a 1,4
+  est en production ; le reentrainement prevu (~2 $) est annule.
 - LoRA Z-Image v2 (lr 2e-4, 45 passages, 2115 pas, ~1 h 30) : aucun gain sur le v1. Comme le v1, il
   porte le visage mais ni la couleur des cheveux ni les tatouages, qui doivent rester decrits dans le
   prompt. Le v1 reste en production (force 1,3). Depense sans retour : ~1,30 $.
@@ -130,6 +134,12 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
   sourire, regarder ailleurs puis revenir, respirer, petit signe de tete.
 - Verifier les images de depart sur une planche avant de lancer les clips : 7 s par image contre
   plus de 2 min par clip.
+- Avant de conclure qu'un LoRA n'a pas appris un trait, le tester a plusieurs forces (1,0 a 1,8)
+  et sans description du trait dans le prompt. Decrire un trait que le LoRA connait deja le double.
+- Instagram : la verification "vraie personne" par selfie compare le selfie aux photos du profil.
+  Un compte au nom et au visage d'un personnage IA ne peut pas la passer : ne pas envoyer le selfie
+  du proprietaire, ne pas fabriquer un selfie du personnage.
+- RTX 5090 : 1,39 $/h constate le 13/11 (PRO 4500 : 0,72 $/h ; 4090 : 0,89 $/h).
 ## Couts constates
 - Volume : ~0,35 $/jour. Sessions de generation : 0,20 a 0,30 $ chacune.
 - Entrainement du LoRA : ~3 $ (RTX 5090 a 1,39 $/h, ~2 h 15 installation comprise).
@@ -139,15 +149,18 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
 - Nuit du 13/11 (plafond 10 $) : ~6 $. Pod RTX 4090 a 0,89 $/h pendant ~5 h (deux entrainements
   de LoRA Z-Image, comparaisons, lot de lancement) ~4,50 $ ; sessions de test du debut de soiree ~1,50 $.
 - Cout unitaire constate sur RTX 4090 : photo ~0,002 $ ; clip 5 s en 480p ~0,035 $ ; clip 5 s en 720p ~0,13 $.
+- Hrafnvik (13/11, planches des trois personnages) : ~1 $ en six courtes sessions.
+- Fin de soiree du 13/11 : verification du LoRA v2 sur RTX 5090, ~0,30 $. Total de la soiree : ~7,50 $.
 ## Comptes (13/11/2026)
 - Gmail `lea.morel.ai@gmail.com` (nom affiche Lea Morel).
-- Instagram : suspendu a la creation, contestation a faire, ne pas recreer de compte tout de suite.
+- Instagram : suspendu une seconde fois le 13/11 apres la verification par selfie (photo du
+  proprietaire sur un profil au visage de Lea). Ne pas recreer de compte.
 - TikTok : a creer depuis le telephone, un autre jour.
 - Fanvue : Fully AI, NSFW ; verification d'identite envoyee, fiche Creator Personality complete,
   coordonnees bancaires renseignees ; en attente de validation du compte.
 
 ## Limites et points ouverts
-- Rendu lisse regle par Z-Image. Reste : placement des tatouages non fiable (tri necessaire) ;
+- Rendu lisse regle par Z-Image ; tatouages regles par le LoRA v2 a 1,4 (a confirmer sur un lot entier) ;
   clips en 480p seulement (720p + agrandissement a mettre en place).
 - Clips de 5 s sans son : montage et voix a construire.
 - Le contenu explicite n'est pas produit par l'assistant : a piloter soi-meme dans ComfyUI.
