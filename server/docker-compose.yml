@@ -13,3 +13,17 @@ services:
     volumes:
       - ../tools/triage:/app:ro
       - ${DATA_DIR:-./data}:/data
+
+  # Pilote GPU : ne tourne pas en permanence. Lancement :
+  #   docker compose run --rm pilot run jobs/exemple.yaml
+  pilot:
+    build:
+      context: .
+      dockerfile: Dockerfile.pilot
+    profiles: ["outils"]
+    environment:
+      RUNPOD_API_KEY: ${RUNPOD_API_KEY:-}
+      DATA_DIR: /data
+    volumes:
+      - ..:/repo:ro
+      - ${DATA_DIR:-./data}:/data

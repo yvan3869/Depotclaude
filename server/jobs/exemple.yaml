@@ -1,0 +1,16 @@
+# Fichier de plans. Chaque plan : une image de depart (still) puis son animation (motion).
+# Partir d'un visage de face : depuis un profil, l'identite derive.
+name: exemple
+defaults:
+  still_size: [720, 1280]
+  clip_size: [480, 832]     # 720x1280 possible, ~3 fois plus long
+  mode: natural             # natural (gestes plus vivants) ou fast
+  smooth: true              # 32 images/s
+  grain: true
+shots:
+  - name: cuisine
+    still: "medium shot, leaning on the counter of a small cluttered kitchen, oversized white men's shirt, holding a coffee mug with both hands, messy hair, sleepy smile, looking at the camera, morning light, no makeup, bare natural face"
+    motion: "She takes a sip of coffee from the mug, then looks at the camera and laughs softly."
+  - name: studio
+    still: "medium shot, standing in a bright pilates studio with white walls and plants, sage green sports bra and matching leggings, hair down, relaxed smile, looking at the camera, wearing makeup"
+    motion: "She raises both arms and ties her hair into a high ponytail, then smiles at the camera."
