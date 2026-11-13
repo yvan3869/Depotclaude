@@ -48,6 +48,16 @@ le meme decor et la meme tenue ; le lot arrive au tri classe par destination.
 7. Comptes et lancement : validation Fanvue, prix, messages automatiques, premieres publications ;
    contestation Instagram ; TikTok.
 8. Planification hebdomadaire automatique ; suivi des couts et des revenus.
+9. Publication et animation automatisees (priorite pour que le projet ne devienne pas chronophage) :
+   - Fanvue : programmation des publications par l'API officielle (medias, date de publication),
+     messages groupes, messages automatiques ; reponses aux abonnes par les outils IA de Fanvue
+     (AI Messaging, chatbot en beta) avec reprise humaine pour les demandes sensibles.
+   - Instagram / TikTok : programmation par un outil dedie ; label IA a chaque publication.
+   - Calendrier editorial genere depuis la bible (arcs narratifs, anniversaire, saisons).
+   - Objectif chiffre : mesurer le temps humain par semaine et par personnage, et le reduire.
+10. Etude de niches (sans GPU) : pour une dizaine de pistes, taille du public sur Instagram / TikTok,
+    pouvoir d'achat, concurrence sur Fanvue, difficulte de production ; classement pour choisir le
+    deuxieme personnage, une fois Lea lancee et propre.
 
 ## Personnages futurs (idees du 13/11/2026, apres le lancement de Lea)
 - Personnages de style anime / hentai : autre famille de modeles et de LoRA ; plateformes plus
