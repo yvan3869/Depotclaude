@@ -7,7 +7,7 @@ apprendre l'identite, pas une tenue ni une pose. Objectif : 30 a 40 images reten
 ```
 realistic smartphone photo of a 27 year old woman, wavy shoulder-length auburn hair
 with copper highlights, green almond-shaped eyes, full eyebrows, freckles across the
-nose, small beauty mark under the right eye, slightly asymmetric smile, athletic toned
+nose, slightly asymmetric smile, athletic toned
 build with a full bust, thin gold chain with a small crescent moon pendant, fine-line
 black peony tattoo from right collarbone to shoulder, natural light, visible skin
 texture, no retouching
@@ -67,7 +67,7 @@ extra fingers, deformed hands, text, watermark, perfectly symmetric face
 - `close-up of right inner wrist, small cursive word tattoo, hand holding a cup`
 
 ## Controle avant entrainement
-- [ ] meme visage sur toutes les images (yeux verts, grain de beaute a droite)
+- [ ] meme visage sur toutes les images (yeux verts, taches de rousseur)
 - [ ] tatouages au bon endroit et du bon cote (attention aux images en miroir)
 - [ ] apparence clairement adulte partout
 - [ ] varietes d'angles, de lumieres et de tenues ; aucun doublon

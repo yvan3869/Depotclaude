@@ -34,6 +34,10 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
   valide de bout en bout : 2 images + 2 clips en 17 min pour 0,20 $.
 - 13/11 : comptes : Gmail cree ; Instagram suspendu des la creation ; Fanvue en cours d'inscription.
   Textes de profil enregistres (`persona/profile_texts.md`).
+- 13/11 : fiche « Creator Personality » Fanvue saisie et enregistree ; bible alignee (celibataire,
+  deux tatouages presents, deux tatouages futurs, aucun piercing, surnoms, salutation, emojis, limites).
+  Grain de beaute et cicatrice au genou retires : absents des images de reference.
+  Verification d'identite Fanvue envoyee.
 
 ## Etat de l'infrastructure
 - RunPod : volume `lea-models` (id `0h86zhlu0v`), template ComfyUI `6uf2r3i7sy`. Aucun pod permanent.
@@ -58,6 +62,8 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
 - L'entrainement exige `--fp8_scaled`, sinon manque de memoire au chargement sur 32 Go.
 - Docker + Tailscale : ecouter directement sur l'adresse Tailscale (reseau host).
 - Toujours prevoir un arret automatique du pod.
+- La bible doit decrire ce que montrent les images, pas l'inverse : verifier chaque signe distinctif
+  sur le jeu de reference avant de l'ecrire dans un profil public.
 - Un compte Instagram neuf peut etre suspendu des la creation : creer depuis le telephone,
   laisser vieillir l'adresse e-mail, ne pas enchainer les inscriptions le meme jour.
 - Certains gestes passent mal en video (attacher ses cheveux : meches deformees) ; preferer des
@@ -85,7 +91,10 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
 - Rendu encore trop lisse ("studio") ; grain smartphone a travailler.
 - Clips de 5 s sans son : montage et voix a construire.
 - Le contenu explicite n'est pas produit par l'assistant : a piloter soi-meme dans ComfyUI.
-- Generateur de textes de profil (`pipeline/profile_texts.py`) ecrit, non teste (pas de cle API
-  Anthropic dans l'environnement de developpement).
+- Generateur de textes de profil (`pipeline/profile_texts.py`) : produit aussi la fiche Fanvue complete
+  (17 champs, FR + EN) et signale les manques de la bible. Requete verifiee avec --dry-run ; appel a
+  l'API non teste (pas de cle Anthropic dans l'environnement de developpement).
+- A trancher : l'image maitre et plusieurs images de reference montrent une petite puce a l'oreille
+  droite, alors que la bible dit "aucun piercing".
 - A faire : LoRA d'animation a valider, planification du pilote, branchement du controle qualite,
   montage et voix, contestation Instagram, compte TikTok, fin d'inscription Fanvue, publication.
