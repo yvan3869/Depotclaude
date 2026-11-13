@@ -1,0 +1,14 @@
+# Pile du projet sur le serveur Oracle. Servie uniquement sur l'adresse Tailscale.
+services:
+  triage:
+    image: python:3.13-slim
+    restart: unless-stopped
+    working_dir: /app
+    command: ["python", "triage.py", "--dir", "/data/inbox", "--host", "0.0.0.0", "--port", "8765"]
+    environment:
+      TRIAGE_TOKEN: ${TRIAGE_TOKEN:?definir TRIAGE_TOKEN dans .env}
+    volumes:
+      - ../tools/triage:/app:ro
+      - ${DATA_DIR:-./data}:/data
+    ports:
+      - "${TS_IP:?definir TS_IP dans .env}:8790:8765"

@@ -1,0 +1,4 @@
+server/.env
+server/data/
+plan.json
+__pycache__/
