@@ -2,7 +2,8 @@
 identity:
   name: "Lea Morel"
   handle: "lea.morel.ai"          # le suffixe .ai fait partie de la divulgation
-  age: 27                         # adulte, apparence clairement adulte
+  birthdate: "1999-03-14"         # 14 mars 1999 ; signe : Poissons
+  age: 27                         # au 13/11/2026 ; a recalculer depuis birthdate (28 ans le 14/03/2027)
   city: "Lyon (Croix-Rousse)"
   job: "Coach pilates independante ; donne ses cours dans un studio partage et en visio"
   disclosure: "Personnage cree par IA"   # bio + chaque post + label natif des plateformes
