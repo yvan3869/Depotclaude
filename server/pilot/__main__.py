@@ -59,8 +59,9 @@ def cmd_run(a):
         c = Comfy(pod_id)
         c.wait_ready()
         log("ComfyUI pret")
-        if not c.has_model("loras", char["lora_still"]):
-            raise RuntimeError(f"LoRA introuvable sur le volume : {char['lora_still']}")
+        lora_key = "lora_still_zimage" if cfg.get("image_model", "wan") == "zimage" else "lora_still"
+        if char.get(lora_key) and not c.has_model("loras", char[lora_key]):
+            raise RuntimeError(f"LoRA introuvable sur le volume : {char[lora_key]}")
         # Deux passes : toutes les images, puis tous les clips. Evite de recharger les modeles
         # (image <-> animation) a chaque plan, ce qui coutait plus d'une minute par plan.
         shots = []
@@ -82,8 +83,13 @@ def cmd_run(a):
                 continue
             try:
                 t = time.time()
-                prompt = f"{char['prefix']}{s['still']}{char.get('still_suffix', '')}"
-                files = c.run(workflows.still(models, char, prompt, *s["still_size"], seed, f"ga_{name}"))
+                if cfg.get("image_model", "wan") == "zimage":
+                    prompt = f"{char.get('zimage_prefix', char['prefix'])}{s['still']}{char.get('zimage_suffix', '')}"
+                    graph = workflows.still_zimage(models, char, prompt, *s["still_size"], seed, f"ga_{name}")
+                else:
+                    prompt = f"{char['prefix']}{s['still']}{char.get('still_suffix', '')}"
+                    graph = workflows.still(models, char, prompt, *s["still_size"], seed, f"ga_{name}")
+                files = c.run(graph)
                 stills[name] = c.fetch(files[0])
                 (work / f"{name}.png").write_bytes(stills[name])
                 entry["still_s"] = round(time.time() - t)

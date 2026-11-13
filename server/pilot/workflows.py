@@ -32,6 +32,30 @@ def still(m, char, prompt, w, h, seed, prefix, steps=8):
     return g
 
 
+def still_zimage(m, char, prompt, w, h, seed, prefix, steps=9):
+    """Image fixe : Z-Image-Turbo + LoRA du personnage (entraine sur Z-Image base)."""
+    g = {
+        "unet": {"class_type": "UNETLoader", "inputs": {"unet_name": m["zimage"], "weight_dtype": "default"}},
+        "clip": {"class_type": "CLIPLoader", "inputs": {"clip_name": m["zimage_text_encoder"], "type": "lumina2", "device": "default"}},
+        "vae": {"class_type": "VAELoader", "inputs": {"vae_name": m["zimage_vae"]}},
+        "pos": {"class_type": "CLIPTextEncode", "inputs": {"clip": ["clip", 0], "text": prompt}},
+        "neg": {"class_type": "ConditioningZeroOut", "inputs": {"conditioning": ["pos", 0]}},
+        "lat": {"class_type": "EmptySD3LatentImage", "inputs": {"width": w, "height": h, "batch_size": 1}},
+    }
+    src = "unet"
+    if char.get("lora_still_zimage"):
+        src = _lora(g, "char", src, char["lora_still_zimage"], char.get("lora_still_zimage_strength", 1.0))
+    for i, extra in enumerate(char.get("extra_loras_still") or []):  # LoRA supplementaires choisis par l'utilisateur
+        src = _lora(g, f"x{i}", src, extra["name"], extra.get("strength", 1.0))
+    g["shift"] = {"class_type": "ModelSamplingAuraFlow", "inputs": {"model": [src, 0], "shift": 3.0}}
+    g["ks"] = {"class_type": "KSampler", "inputs": {
+        "model": ["shift", 0], "seed": seed, "steps": steps, "cfg": 1.0, "sampler_name": "res_multistep",
+        "scheduler": "simple", "positive": ["pos", 0], "negative": ["neg", 0], "latent_image": ["lat", 0], "denoise": 1.0}}
+    g["dec"] = {"class_type": "VAEDecode", "inputs": {"samples": ["ks", 0], "vae": ["vae", 0]}}
+    g["save"] = {"class_type": "SaveImage", "inputs": {"images": ["dec", 0], "filename_prefix": prefix}}
+    return g
+
+
 def clip(m, char, image_name, prompt, w, h, seed, prefix, mode="natural", frames=81):
     """Clip : Wan 2.2 I2V. mode 'fast' (4 pas, LoRA rapide partout) ou 'natural'
     (4 pas high-noise sans LoRA rapide avec CFG 3,5, puis 4 pas low-noise rapides)."""
