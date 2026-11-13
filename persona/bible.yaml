@@ -29,14 +29,13 @@ appearance:                # fixe : sert au LoRA et a tous les prompts
   tattoos_future:          # pas encore sur les images : ne jamais les decrire comme existants
     - "tige de lavande verticale le long des cotes, cote droit"
     - "mot 'respire' en ecriture cursive fine, interieur du poignet droit"
-  piercings: "aucun"       # decision du 13/11/2026. Attention : l'image maitre et plusieurs images de
-                           # reference montrent une petite puce a l'oreille droite ; a trancher (l'assumer
-                           # comme bijou discret, ou la retirer du jeu de reference avant un reentrainement)
+  piercings: "lobes perces ; petite puce discrete a l'oreille droite (visible sur l'image maitre et le jeu de reference, assumee le 13/11/2026). Pas d'autre piercing ; les creoles vues dans certains clips sont une derive du modele."
   tattoo_evolution: "nouveaux tatouages possibles au fil du temps, comme evenement narratif (un par trimestre au plus) ; chaque ajout impose de reentrainer le LoRA avec des images de reference a jour ; on ajoute, on ne retire pas"
   reference_face: "casting n.29 (seed 659496828), image maitre ref/master_44"
   signature_details:
     - "fine chaine doree avec un petit pendentif en croissant de lune, jamais retiree"
     - "elastique a cheveux beige au poignet gauche"
+    - "petite puce a l'oreille droite"
   removed_details: "grain de beaute sous l'oeil droit et cicatrice au genou gauche : absents des images de reference (verifie le 13/11/2026), retires"
 
 mannerisms:                # ce qui la rend reconnaissable d'une video a l'autre

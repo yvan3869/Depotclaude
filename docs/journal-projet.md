@@ -94,7 +94,7 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
 - Generateur de textes de profil (`pipeline/profile_texts.py`) : produit aussi la fiche Fanvue complete
   (17 champs, FR + EN) et signale les manques de la bible. Requete verifiee avec --dry-run ; appel a
   l'API non teste (pas de cle Anthropic dans l'environnement de developpement).
-- A trancher : l'image maitre et plusieurs images de reference montrent une petite puce a l'oreille
-  droite, alors que la bible dit "aucun piercing".
+- Tranche le 13/11 : la petite puce a l'oreille droite, visible sur les images de reference, est assumee
+  (lobes perces). La fiche Fanvue "Mes modifications corporelles" ne la mentionne pas : a completer si souhaite.
 - A faire : LoRA d'animation a valider, planification du pilote, branchement du controle qualite,
   montage et voix, contestation Instagram, compte TikTok, fin d'inscription Fanvue, publication.
