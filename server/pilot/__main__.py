@@ -61,38 +61,57 @@ def cmd_run(a):
         log("ComfyUI pret")
         if not c.has_model("loras", char["lora_still"]):
             raise RuntimeError(f"LoRA introuvable sur le volume : {char['lora_still']}")
+        # Deux passes : toutes les images, puis tous les clips. Evite de recharger les modeles
+        # (image <-> animation) a chaque plan, ce qui coutait plus d'une minute par plan.
+        shots = []
         for i, shot in enumerate(job["shots"]):
+            s = {**d, **shot}
+            shots.append((s, f"{job['name']}_{s['name']}", int(s["seed"]) + i, {"name": s["name"]}))
+        report["shots"] = [e for _, _, _, e in shots]
+        stills = {}
+
+        def over():
             if (time.time() - t0) / 60 > max_min:
                 log("duree maximale atteinte, arret")
-                break
-            s = {**d, **shot}
-            name = f"{job['name']}_{s['name']}"
-            seed = int(s["seed"]) + i
-            entry = {"name": s["name"]}
+                return True
+            return False
+
+        for s, name, seed, entry in shots:
+            if over():
+                entry.setdefault("error", "non traite : duree maximale atteinte")
+                continue
             try:
                 t = time.time()
                 prompt = f"{char['prefix']}{s['still']}{char.get('still_suffix', '')}"
                 files = c.run(workflows.still(models, char, prompt, *s["still_size"], seed, f"ga_{name}"))
-                img = c.fetch(files[0])
-                (work / f"{name}.png").write_bytes(img)
+                stills[name] = c.fetch(files[0])
+                (work / f"{name}.png").write_bytes(stills[name])
                 entry["still_s"] = round(time.time() - t)
                 log(f"{name} : image ({entry['still_s']} s)")
-                if not a.stills_only and s.get("motion"):
-                    t = time.time()
-                    up = c.upload(f"ga_{name}.png", img)
-                    files = c.run(workflows.clip(models, char, up, s["motion"] + char.get("motion_suffix", ""),
-                                                 *s["clip_size"], seed, f"ga_{name}", mode=s["mode"]))
-                    webm = work / f"{name}.webm"
-                    webm.write_bytes(c.fetch(files[0]))
-                    entry["clip_s"] = round(time.time() - t)
-                    to_mp4(webm, inbox / f"{name}.mp4", s["smooth"], s["grain"])
-                    log(f"{name} : clip ({entry['clip_s']} s) -> inbox")
-                elif a.stills_only:
+                if a.stills_only:
                     shutil.copy(work / f"{name}.png", inbox / f"{name}.png")
             except Exception as e:  # un plan rate n'arrete pas la session
                 entry["error"] = str(e)[:300]
-                log(f"{name} : ECHEC {entry['error']}")
-            report["shots"].append(entry)
+                log(f"{name} : ECHEC image {entry['error']}")
+        for s, name, seed, entry in shots:
+            if a.stills_only or name not in stills or not s.get("motion"):
+                continue
+            if over():
+                entry.setdefault("error", "clip non traite : duree maximale atteinte")
+                continue
+            try:
+                t = time.time()
+                up = c.upload(f"ga_{name}.png", stills[name])
+                files = c.run(workflows.clip(models, char, up, s["motion"] + char.get("motion_suffix", ""),
+                                             *s["clip_size"], seed, f"ga_{name}", mode=s["mode"]))
+                webm = work / f"{name}.webm"
+                webm.write_bytes(c.fetch(files[0]))
+                entry["clip_s"] = round(time.time() - t)
+                to_mp4(webm, inbox / f"{name}.mp4", s["smooth"], s["grain"])
+                log(f"{name} : clip ({entry['clip_s']} s) -> inbox")
+            except Exception as e:
+                entry["error"] = str(e)[:300]
+                log(f"{name} : ECHEC clip {entry['error']}")
     finally:
         if own and pod_id and not a.keep_pod:
             try:
