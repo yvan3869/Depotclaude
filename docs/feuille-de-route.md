@@ -49,6 +49,18 @@ le meme decor et la meme tenue ; le lot arrive au tri classe par destination.
    contestation Instagram ; TikTok.
 8. Planification hebdomadaire automatique ; suivi des couts et des revenus.
 
+## Personnages futurs (idees du 13/11/2026, apres le lancement de Lea)
+- Personnages de style anime / hentai : autre famille de modeles et de LoRA ; plateformes plus
+  nombreuses (le non photorealiste est accepte au-dela de Fanvue). Vigilance absolue : apparence
+  clairement adulte, aucun theme scolaire ni juvenile, aucun personnage sous droits d'auteur.
+- Personnages "d'aventures" : une Cleopatre, une princesse nubienne. Fictifs, adultes, sans
+  ressemblance avec une actrice ou une personne reelle. Format different : episodes d'une histoire,
+  decors et costumes fixes, voix off. A tester : rendu des peaux foncees et des costumes par les modeles.
+- Methode : un personnage = bible, casting, jeu de reference, LoRA, `production.yaml`. Fanvue autorise
+  jusqu'a 15 comptes IA par identite verifiee.
+- Ordre recommande : lancer Lea, mesurer ce qui rapporte, puis ouvrir un second personnage dans une
+  niche nettement differente.
+
 ## Veille
 Tache planifiee "Veille girls-ai" creee le 13/11/2026 : chaque lundi et jeudi a 9 h 46 (heure de
 Paris), une session recherche les nouveautes (modeles ouverts d'image et de video, voix et dialogue,
