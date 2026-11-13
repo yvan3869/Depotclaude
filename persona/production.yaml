@@ -10,9 +10,9 @@ infra:
   volume_id: "0h86zhlu0v"
   container_disk_gb: 60
   gpu_types:                 # par ordre de preference (rapport prix / vitesse)
-    - "NVIDIA GeForce RTX 4090"
+    - "NVIDIA GeForce RTX 5090"       # demande en premier (choix du proprietaire, 13/11/2026)
     - "NVIDIA RTX PRO 4500 Blackwell"
-    - "NVIDIA GeForce RTX 5090"
+    - "NVIDIA GeForce RTX 4090"
   create_attempts: 6
   create_retry_s: 45
   max_session_min: 90
