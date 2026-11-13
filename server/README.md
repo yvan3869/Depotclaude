@@ -15,3 +15,10 @@ Interface de tri : `http://100.127.244.10:8790/?t=<jeton>` depuis un appareil du
 Les fichiers a trier se deposent dans `server/data/inbox`.
 
 Arret : `docker compose down`. A venir : pilote GPU, montage, publication.
+
+## Base de connaissances
+`server/sync_kb.sh` copie le journal, l'architecture, la conformite et les comptes vers
+`/home/debian/kb/perso/girls-ai`. Mise a jour automatique toutes les heures :
+```bash
+(crontab -l 2>/dev/null; echo "17 * * * * $HOME/Depotclaude/server/sync_kb.sh >> $HOME/sync_kb.log 2>&1") | crontab -
+```
