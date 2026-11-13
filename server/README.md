@@ -18,7 +18,6 @@ Arret : `docker compose down`. A venir : pilote GPU, montage, publication.
 
 ## Base de connaissances
 `server/sync_kb.sh` copie le journal, l'architecture, la conformite et les comptes vers
-`/home/debian/kb/perso/girls-ai`. Mise a jour automatique toutes les heures :
-```bash
-(crontab -l 2>/dev/null; echo "17 * * * * $HOME/Depotclaude/server/sync_kb.sh >> $HOME/sync_kb.log 2>&1") | crontab -
-```
+`/home/debian/kb/perso/girls-ai`. Mise a jour horaire par un minuteur systemd nomme
+`kb-docs-sync-girls-ai` (service + timer dans `/etc/systemd/system`). Le serveur heberge
+d'autres services lies a la base : ne jamais creer d'unite sans verifier que le nom est libre.
