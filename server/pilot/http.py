@@ -1,6 +1,7 @@
 import json
 import os
 import ssl
+import time
 import urllib.error
 import urllib.request
 import uuid
@@ -9,7 +10,11 @@ UA = "curl/8.5.0"  # le proxy RunPod refuse l'agent par defaut de urllib
 _ctx = ssl.create_default_context(cafile=os.environ.get("SSL_CERT_FILE") or None)
 
 
-def request(method, url, data=None, headers=None, timeout=120, raw=False):
+TRANSIENT = (502, 503, 504, 520, 522, 524)
+
+
+def request(method, url, data=None, headers=None, timeout=120, raw=False, retries=None):
+    """Requete HTTP avec reprises sur les erreurs passageres (coupures reseau, 502/503/504)."""
     h = {"User-Agent": UA}
     h.update(headers or {})
     body = None
@@ -18,15 +23,25 @@ def request(method, url, data=None, headers=None, timeout=120, raw=False):
         h.setdefault("Content-Type", "application/json")
     elif data is not None:
         body = data
-    req = urllib.request.Request(url, data=body, method=method, headers=h)
-    try:
-        with urllib.request.urlopen(req, timeout=timeout, context=_ctx) as r:
-            out = r.read()
-    except urllib.error.HTTPError as e:
-        raise RuntimeError(f"{method} {url.split('?')[0]} -> HTTP {e.code}: {e.read()[:300]!r}") from None
-    if raw:
-        return out
-    return json.loads(out) if out else None
+    if retries is None:
+        retries = 5 if method == "GET" else 3
+    last = None
+    for attempt in range(retries):
+        req = urllib.request.Request(url, data=body, method=method, headers=h)
+        try:
+            with urllib.request.urlopen(req, timeout=timeout, context=_ctx) as r:
+                out = r.read()
+            if raw:
+                return out
+            return json.loads(out) if out else None
+        except urllib.error.HTTPError as e:
+            last = RuntimeError(f"{method} {url.split('?')[0]} -> HTTP {e.code}: {e.read()[:300]!r}")
+            if e.code not in TRANSIENT:
+                raise last from None
+        except (urllib.error.URLError, ConnectionError, TimeoutError, OSError) as e:
+            last = RuntimeError(f"{method} {url.split('?')[0]} -> {e}")
+        time.sleep(3 * (attempt + 1))
+    raise last
 
 
 def multipart(fields, file_field, filename, content):
