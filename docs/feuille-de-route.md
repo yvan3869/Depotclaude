@@ -50,6 +50,9 @@ le meme decor et la meme tenue ; le lot arrive au tri classe par destination.
 8. Planification hebdomadaire automatique ; suivi des couts et des revenus.
 
 ## Veille
-Le secteur change vite (modeles, tarifs, regles des plateformes). Tenir une veille reguliere :
-nouveaux modeles ouverts d'image et de video, outils de voix et de dialogue, regles Fanvue /
-Instagram / TikTok. Consigner les trouvailles ici et dans `docs/son-et-dialogue.md`.
+Tache planifiee "Veille girls-ai" creee le 13/11/2026 : chaque lundi et jeudi a 9 h 46 (heure de
+Paris), une session recherche les nouveautes (modeles ouverts d'image et de video, voix et dialogue,
+regles Fanvue / Instagram / TikTok, tarifs RunPod) et ajoute une entree datee en tete de
+`docs/veille.md`. Elle ne lance aucun pod et ne modifie rien d'autre. Premier passage : lundi 16/11.
+Limites connues : la tache n'a pas de connecteur de recherche attache ni de depot pre-attache ; elle
+doit ajouter le depot elle-meme et utiliser la recherche web integree. A verifier apres le premier passage.
