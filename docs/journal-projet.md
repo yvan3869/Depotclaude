@@ -68,6 +68,24 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
   4 pas, shift 5, sortie WEBM convertie en MP4. Le LoRA du personnage n'a aucun effet en I2V.
 - LoRA : musubi-tuner, t2v-A14B low-noise, pas de temps 0-875, rang 32, lr 1e-4, fp8 scaled, 1024 px.
 
+## Nuit du 13/11/2026 : passage a Z-Image et lot de lancement
+- Z-Image adopte pour les images (bien plus photo realiste que Wan 2.2). Pilote valide dans ce mode.
+- LoRA Z-Image v2 (lr 2e-4, 45 passages, 2115 pas, ~1 h 30) : aucun gain sur le v1. Comme le v1, il
+  porte le visage mais ni la couleur des cheveux ni les tatouages, qui doivent rester decrits dans le
+  prompt. Le v1 reste en production (force 1,3). Depense sans retour : ~1,30 $.
+- Tatouages : le modele ne distingue pas la gauche et la droite du personnage. Decrits par position
+  dans l'image ("on the left side of the picture"), ils sont justes environ 3 fois sur 4 ; sinon
+  doubles ou du mauvais cote. Les tirages rates ont ete remplaces a la main (champ `seed` du plan).
+  Un plan peut porter `tattoos: false` (tenue couvrante).
+- Lot de lancement tous publics produit avec le pilote (`server/jobs/lancement_*.yaml`, `intro.yaml`) :
+  20 photos (7 s chacune), 12 clips de 5 s en 480x832 (2 min 20 chacun), 3 essais de video
+  d'introduction en 720x1280 (8 min 30 chacun). Au premier passage, 7 clips sur 12 etaient bons ;
+  les 5 autres refaits avec des gestes plus calmes : 2 recuperes, 3 toujours rates (objet ou sac qui
+  apparait, visage qui derive quand elle tourne la tete). Bilan : 9 clips utilisables sur 12, soit
+  17 calculs pour 9 clips. Pod supprime a 20 h 35 UTC.
+- Decors fixes : reportes (le modele d'edition d'image reintroduit le rendu lisse).
+- Etude de niches : `docs/etude-niches.md`.
+
 ## Lecons
 - Un volume reseau RunPod impose Secure Cloud et lie au centre de donnees.
 - La disponibilite GPU varie d'heure en heure : prevoir plusieurs cartes de repli.
@@ -104,12 +122,23 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
 - Sur un serveur deja utilise, verifier les noms de services existants avant d'en creer un ;
   prefixer tout ce qui releve du projet (`girls-ai-...`).
 
+- Z-Image : entrainer plus longtemps ou plus fort ne fait pas apprendre cheveux et tatouages au
+  LoRA ; c'est le jeu de reference qu'il faudrait refaire (tatouages identiques sur toutes les
+  images, legendes qui ne les decrivent pas). En attendant : description dans le prompt + tri.
+- En video, les gestes amples deforment le visage : main devant le visage, tete renversee, grand
+  rire, cheveux au vent, salut de la main trop pres de l'objectif. Les gestes qui tiennent : boire,
+  sourire, regarder ailleurs puis revenir, respirer, petit signe de tete.
+- Verifier les images de depart sur une planche avant de lancer les clips : 7 s par image contre
+  plus de 2 min par clip.
 ## Couts constates
 - Volume : ~0,35 $/jour. Sessions de generation : 0,20 a 0,30 $ chacune.
 - Entrainement du LoRA : ~3 $ (RTX 5090 a 1,39 $/h, ~2 h 15 installation comprise).
 - Session du 13/11 apres-midi (controle qualite, tests de rendu, LoRA d'animation rate, tests du pilote) : ~2,30 $.
 - Session type du pilote : 2 plans en 9 a 17 min, 0,10 a 0,20 $.
 
+- Nuit du 13/11 (plafond 10 $) : ~6 $. Pod RTX 4090 a 0,89 $/h pendant ~5 h (deux entrainements
+  de LoRA Z-Image, comparaisons, lot de lancement) ~4,50 $ ; sessions de test du debut de soiree ~1,50 $.
+- Cout unitaire constate sur RTX 4090 : photo ~0,002 $ ; clip 5 s en 480p ~0,035 $ ; clip 5 s en 720p ~0,13 $.
 ## Comptes (13/11/2026)
 - Gmail `lea.morel.ai@gmail.com` (nom affiche Lea Morel).
 - Instagram : suspendu a la creation, contestation a faire, ne pas recreer de compte tout de suite.
@@ -118,7 +147,8 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
   coordonnees bancaires renseignees ; en attente de validation du compte.
 
 ## Limites et points ouverts
-- Rendu encore trop lisse ("studio") ; grain smartphone a travailler.
+- Rendu lisse regle par Z-Image. Reste : placement des tatouages non fiable (tri necessaire) ;
+  clips en 480p seulement (720p + agrandissement a mettre en place).
 - Clips de 5 s sans son : montage et voix a construire.
 - Le contenu explicite n'est pas produit par l'assistant : a piloter soi-meme dans ComfyUI.
 - Generateur de textes de profil (`pipeline/profile_texts.py`) : produit aussi la fiche Fanvue complete

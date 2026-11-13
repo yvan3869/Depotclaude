@@ -1,4 +1,5 @@
-# Lot de lancement : clips tous publics. Visage de face, gestes simples.
+# Lot de lancement : clips tous publics. Visage de face, gestes simples et calmes : les gestes
+# amples (main devant le visage, tete renversee, grand rire, cheveux au vent) deforment le visage.
 name: clips
 defaults:
   still_size: [720, 1280]
@@ -18,13 +19,13 @@ shots:
     motion: "She leans slightly toward the camera, laughs softly and gives a small friendly nod."
   - name: studio_etirement
     still: "medium shot, standing in a bright pilates studio with white walls and plants, black sports top and leggings, hair in a low ponytail, relaxed smile, looking at the camera"
-    motion: "She tilts her head and stretches her neck with her eyes closed, then opens her eyes and smiles at the camera."
+    motion: "She takes a slow deep breath with her eyes closed, then opens her eyes and smiles at the camera."
   - name: terrasse
     still: "close shot, sitting at a cafe terrace table with an espresso cup, low-cut cream wrap top, chin resting on her hand, teasing smile, looking at the camera, soft daylight"
     motion: "She raises an eyebrow, smiles and looks away for a moment, then looks back at the camera."
   - name: fenetre
     still: "medium shot, standing near a tall window in a bright apartment with parquet floor and plants, sage green tank top, hair down, facing the camera with a warm smile, soft daylight"
-    motion: "She tilts her head, tucks a strand of hair behind her ear and smiles warmly at the camera."
+    motion: "She tilts her head slightly and smiles warmly at the camera, then glances toward the window."
   - name: canape
     seed: 2002          # tirage choisi a la main (tatouage bien place)
     tattoos: false
@@ -32,11 +33,11 @@ shots:
     motion: "She blows gently on the cup, takes a small sip and smiles at the camera."
   - name: quai
     still: "medium shot, standing on a river quay with old city buildings behind, low-cut dark green summer dress, hair down, relaxed smile, looking at the camera, golden evening light"
-    motion: "The wind moves her hair, she pushes a strand away from her face and laughs at the camera."
+    motion: "A light breeze moves her hair gently, she smiles softly at the camera and glances at the river."
   - name: escaliers
     tattoos: false
     still: "medium shot, standing on old stone stairs on a hillside street, denim jacket closed over a green top, hair down, smiling, looking at the camera, overcast daylight"
-    motion: "She laughs, shrugs her shoulders and waves at the camera."
+    motion: "She smiles at the camera, shrugs her shoulders slightly and laughs softly."
   - name: balcon
     seed: 2003          # tirage choisi a la main (tatouage bien place)
     still: "medium shot, standing on a small balcony with plants and rooftops behind, white tank top and jeans, holding a glass of water, hair down, calm smile, looking at the camera, morning sun"
@@ -52,4 +53,4 @@ shots:
     seed: 2007          # tirage choisi a la main (tatouage bien place)
     tattoos: false
     still: "medium shot, sitting on the grass in a city park with trees behind, light hoodie and running shorts, earphones around her neck, hair in a ponytail, smiling, looking at the camera, sunny afternoon"
-    motion: "She catches her breath, wipes her forehead with the back of her hand and laughs at the camera."
+    motion: "She breathes out slowly, smiles at the camera and nods slightly."
