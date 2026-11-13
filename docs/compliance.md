@@ -8,3 +8,17 @@
 6. Controle qualite humain avant chaque publication.
 7. Forme de la divulgation : sur Fanvue, le label IA du compte suffit (pas d'incrustation dans l'image). Sur Instagram et TikTok, activer le label natif "contenu genere par IA" a chaque publication. L'incrustation "Personnage IA" est facultative (option --label de l'outil de montage), utile pour les clips susceptibles d'etre repris hors plateforme.
 8. Revalider les CGU de chaque plateforme avant lancement : elles changent souvent.
+
+## Medias publics du profil Fanvue (avatar, banniere, video d'introduction)
+Regles lues le 13/11/2026. Ces medias apparaissent sur les pages de decouverte publiques : ils
+doivent rester tous publics.
+- Autorise : habillee, lifestyle, fitness, glamour ; maillot ou lingerie opaques ; photos de type
+  reseau social grand public.
+- Interdit : nudite ou nudite suggeree, tenues transparentes, poses sexuelles explicites, gros
+  plans de type pornographique, toute allusion a un age mineur, image trompeuse (une image IA doit
+  etre divulguee clairement).
+- Video d'introduction : courte, amicale, elle seule, non sexuelle. Pas de mots explicites dans les
+  premieres lignes de la bio.
+- Sanction : retrait du profil de la decouverte jusqu'a correction ; ni suppression de contenu, ni
+  bannissement, ni effet sur les revenus.
+- Repere : ce qu'on publierait sans gene sur un reseau social grand public.
