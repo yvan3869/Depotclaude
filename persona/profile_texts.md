@@ -22,8 +22,9 @@ Les versions marquees (proposition) ont ete traduites par l'assistant et restent
 
 ## Images de profil
 - Avatar : `persona/profile/avatar.png` (1024x1024, lumiere de fin de journee).
-- Banniere : `persona/profile/banniere.png` (1536x640, studio de pilates, personnage a droite pour
-  laisser le centre bas a l'avatar).
+- Banniere : `persona/profile/banniere.png` (2363x955) : version televersee sur Fanvue, avec marges.
+  Fanvue n'affiche que le centre de l'image (environ 65 % en largeur, 67 % en hauteur) : la
+  composition utile (`banniere_source.png`, 1536x640, personnage a droite) est placee au centre.
 Generees le 13/11/2026 avec le LoRA v30 ; dimensions a adapter selon ce que demande la plateforme.
 
 ## Generation automatique

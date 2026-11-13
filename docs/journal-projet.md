@@ -81,8 +81,8 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
   laisser vieillir l'adresse e-mail, ne pas enchainer les inscriptions le meme jour.
 - Attacher ou nouer ses cheveux rate a chaque essai (3 sur 3) : geste retire des plans. Preferer
   boire, rire, s'etirer, pencher la tete, replacer une meche.
-- Banniere de profil : placer le personnage sur le cote, avec de la marge au-dessus de la tete ;
-  le centre bas est recouvert par l'avatar.
+- Banniere de profil Fanvue : personnage sur le cote (le centre bas est recouvert par l'avatar), et
+  image entouree de marges, car Fanvue n'affiche que le centre (environ 65 % x 67 %) sans dezoom possible.
 - Le pilote doit tolerer les coupures reseau passageres (reprises automatiques).
 - En video, partir d'une image ou le visage est de face : depuis un profil, le modele invente
   le visage quand elle se tourne et l'identite derive.
