@@ -50,6 +50,12 @@ character:
   lora_still_zimage_strength: 1.4
   zimage_prefix: "leamorel, a woman with wavy shoulder-length auburn hair with copper highlights and green eyes, "
   zimage_tattoos: ""         # laisse vide : les tatouages viennent du LoRA
+  # Description fixe du corps, a rediger par le proprietaire (en anglais, terminee par ", ").
+  # Toujours la meme phrase, au mot pres : c'est ce qui garde les formes constantes d'une image a
+  # l'autre. Ajoutee seulement aux plans dont la destination est listee dans zimage_body_dests
+  # (temps 2 "abonnes" et temps 3 "payant" du formulaire), ou a un plan qui porte "body: true".
+  zimage_body: ""
+  zimage_body_dests: ["abonnes", "payant"]
   zimage_suffix: ". Candid amateur smartphone photo, natural unedited look, realistic skin texture with pores, ordinary lighting, slight grain."
   extra_loras_still: []      # LoRA supplementaires choisis par le proprietaire : [{name: fichier.safetensors, strength: 0.8}]
   lora_clip: null            # LoRA d'animation (essai sur images fixes : sans effet, abandonne)

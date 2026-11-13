@@ -91,7 +91,11 @@ def cmd_run(a):
                     # tattoos: false dans un plan = tenue couvrante ; sans cela le modele dessine
                     # les tatouages par-dessus ou les double.
                     tat = char.get("zimage_tattoos", "") if s.get("tattoos", True) else ""
-                    prompt = f"{char.get('zimage_prefix', char['prefix'])}{tat}{s['still']}{char.get('zimage_suffix', '')}"
+                    # Description fixe du corps, redigee par le proprietaire : ajoutee aux plans dont
+                    # la destination figure dans zimage_body_dests (ou qui portent body: true).
+                    use_body = s.get("body", s.get("dest") in (char.get("zimage_body_dests") or []))
+                    body = char.get("zimage_body", "") if use_body else ""
+                    prompt = f"{char.get('zimage_prefix', char['prefix'])}{tat}{body}{s['still']}{char.get('zimage_suffix', '')}"
                     graph = workflows.still_zimage(models, char, prompt, *s["still_size"], seed, f"ga_{name}")
                 else:
                     prompt = f"{char['prefix']}{s['still']}{char.get('still_suffix', '')}"
