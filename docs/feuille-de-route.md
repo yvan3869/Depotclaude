@@ -28,7 +28,7 @@
 | Son | aucun | palier 1 ambiance ; palier 2 voix off + sous-titres ; palier 3 Lea parle (InfiniteTalk a tester) |
 | Identite en video | portee par l'image de depart | eventuellement un LoRA d'animation entraine sur de courts clips |
 | Controle | tri humain + controle automatique a la main | controle automatique branche sur le pilote (pre-tri) |
-| Lancement d'une generation | fichier de plans ecrit a la main | formulaire dans l'interface de tri |
+| Lancement d'une generation | formulaire en trois temps dans l'interface de tri (`/nouveau`), lancement par une commande | lancement et suivi depuis l'interface, pre-remplissage depuis la bible |
 
 ## Structure d'un contenu : trois temps
 Une idee de moment de vie produit trois niveaux, qui correspondent au modele economique :

@@ -31,3 +31,13 @@ docker compose run --rm pilot run jobs/exemple.yaml
 Autres commandes : `pilot pods` (liste les pods du compte), `pilot reap` (supprime les pods
 du projet restes allumes trop longtemps). Le pilote supprime son pod en fin de session ; `reap`
 est le filet de securite si le pilote est interrompu brutalement.
+
+## Formulaire "Nouveau lot" (trois temps)
+Dans l'interface de tri, le lien "Nouveau lot" (adresse `/nouveau`) ouvre un formulaire : decor et
+tenue communs, puis trois temps (accroche tous publics, montee pour les abonnes, final prive en champ
+libre). Il ecrit un fichier de plans dans `DATA_DIR/jobs/` et affiche la commande a lancer :
+
+    docker compose run --rm pilot run /data/jobs/<nom>.yaml
+
+Le formulaire ne lance pas le pod lui-meme : la cle RunPod reste dans le conteneur du pilote.
+Apres un `git pull`, redemarrer l'interface : `docker compose restart triage`.

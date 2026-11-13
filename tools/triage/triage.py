@@ -13,6 +13,7 @@ import csv
 import json
 import mimetypes
 import os
+import re
 import shutil
 import time
 from http.cookies import SimpleCookie
@@ -23,6 +24,9 @@ from urllib.parse import parse_qs, unquote, urlparse
 BUCKETS = ("soft", "paid", "redo", "reject")
 EXTS = {".mp4", ".webm", ".mov", ".png", ".jpg", ".jpeg", ".webp"}
 PAGE = (Path(__file__).parent / "index.html").read_bytes()
+
+
+HERE = Path(__file__).resolve().parent
 
 
 class Triage:
@@ -67,6 +71,42 @@ class Triage:
             csv.writer(f).writerow([time.strftime("%Y-%m-%dT%H:%M:%S"), name, decision])
 
 
+def write_job(jobs: Path, b: dict) -> dict:
+    """Ecrit un fichier de plans en trois temps a partir du formulaire (/nouveau).
+
+    Le fichier est du JSON, que le pilote lit comme du YAML. Chaque temps est un plan ; un temps
+    dont la description d'image est vide est omis.
+    """
+    name = re.sub(r"[^a-z0-9_]+", "_", str(b.get("name", "")).lower()).strip("_")
+    if not name:
+        raise ValueError("nom du lot obligatoire")
+    common = ", ".join(x.strip() for x in (str(b.get("decor", "")), str(b.get("tenue", ""))) if x.strip())
+    shots = []
+    for key, dest in (("accroche", "soft"), ("montee", "abonnes"), ("final", "payant")):
+        still = str(b.get(f"{key}_still", "")).strip()
+        if not still:
+            continue
+        shot = {"name": f"{len(shots) + 1}_{key}", "dest": dest,
+                "still": ", ".join(x for x in (still, common) if x)}
+        motion = str(b.get(f"{key}_motion", "")).strip()
+        if motion:
+            shot["motion"] = motion
+        if not b.get(f"{key}_tattoos", True):
+            shot["tattoos"] = False
+        shots.append(shot)
+    if not shots:
+        raise ValueError("au moins un temps doit avoir une description d'image")
+    size = [720, 1280] if b.get("hd") else [480, 832]
+    job = {"name": name, "defaults": {"still_size": [720, 1280], "clip_size": size, "mode": "natural",
+                                      "smooth": True, "grain": True, "seed": int(b.get("seed") or 1)},
+           "shots": shots}
+    jobs.mkdir(parents=True, exist_ok=True)
+    path = jobs / f"{name}.yaml"
+    path.write_text(json.dumps(job, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return {"file": path.name, "shots": len(shots),
+            "command": f"docker compose run --rm pilot run /data/jobs/{path.name}"}
+
+
 def make_handler(t: Triage, token: str):
     class H(BaseHTTPRequestHandler):
         def log_message(self, *a):
@@ -100,6 +140,8 @@ def make_handler(t: Triage, token: str):
             if u.path == "/":
                 extra = {"Set-Cookie": f"t={token}; HttpOnly; SameSite=Strict"} if token else None
                 return self.send(200, PAGE, "text/html; charset=utf-8", extra)
+            if u.path == "/nouveau":
+                return self.send(200, (HERE / "form.html").read_bytes(), "text/html; charset=utf-8")
             if u.path == "/api/list":
                 return self.js({"files": t.inbox(), "counts": t.counts(), "undo": len(t.history)})
             if u.path.startswith("/file/"):
@@ -154,6 +196,8 @@ def make_handler(t: Triage, token: str):
                 if u.path == "/api/move":
                     t.move(str(body["name"]), str(body["to"]))
                     return self.js({"ok": True})
+                if u.path == "/api/job":
+                    return self.js({"ok": True, **write_job(t.root.parent / "jobs", body)})
                 if u.path == "/api/undo":
                     return self.js({"ok": True, "name": t.undo()})
             except (FileNotFoundError, ValueError, KeyError) as e:

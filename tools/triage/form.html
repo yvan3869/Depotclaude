@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nouveau lot</title>
+<style>
+  :root { --bg:#111417; --panel:#1b2026; --text:#e8eaed; --muted:#8b949e; --line:#2c333b; --acc:#3fa7d6; }
+  * { box-sizing:border-box; }
+  body { margin:0; padding:16px; background:var(--bg); color:var(--text); font:15px/1.45 system-ui,sans-serif; }
+  main { max-width:760px; margin:0 auto; }
+  h1 { font-size:20px; margin:0 0 4px; } h2 { font-size:16px; margin:0 0 8px; }
+  p.hint { color:var(--muted); margin:0 0 14px; font-size:13px; }
+  section { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:14px; margin-bottom:14px; }
+  label { display:block; font-size:13px; color:var(--muted); margin:10px 0 4px; }
+  input[type=text], input[type=number], textarea { width:100%; background:#0d1013; color:var(--text);
+    border:1px solid var(--line); border-radius:6px; padding:8px; font:inherit; }
+  textarea { min-height:64px; resize:vertical; }
+  .row { display:flex; gap:16px; flex-wrap:wrap; align-items:center; margin-top:10px; font-size:14px; }
+  button { background:var(--acc); color:#06131a; border:0; border-radius:6px; padding:10px 18px; font:inherit; font-weight:600; cursor:pointer; }
+  a { color:var(--acc); }
+  pre { background:#0d1013; border:1px solid var(--line); border-radius:6px; padding:10px; white-space:pre-wrap; word-break:break-all; }
+  #out { display:none; }
+</style>
+</head>
+<body>
+<main>
+<h1>Nouveau lot en trois temps</h1>
+<p class="hint">Un moment de vie, trois niveaux. Descriptions en anglais. Un temps laissé vide est ignoré. <a href="/">Retour au tri</a></p>
+<form id="f">
+<section>
+  <h2>Le moment</h2>
+  <label>Nom du lot (lettres, chiffres, tirets bas)</label>
+  <input type="text" name="name" required placeholder="matin_cuisine">
+  <label>Décor, commun aux trois temps</label>
+  <input type="text" name="decor" placeholder="small cluttered kitchen, morning light">
+  <label>Tenue, commune aux trois temps</label>
+  <input type="text" name="tenue" placeholder="oversized white men's shirt">
+  <div class="row">
+    <label style="margin:0"><input type="checkbox" name="hd"> Clips en 720p (environ 4 fois plus cher)</label>
+    <label style="margin:0">Tirage <input type="number" name="seed" value="1" style="width:90px"></label>
+  </div>
+</section>
+<section>
+  <h2>1. Accroche, tous publics (short Instagram / TikTok)</h2>
+  <label>Image de départ : cadrage, pose, expression</label>
+  <textarea name="accroche_still" placeholder="medium shot, leaning on the counter, holding a coffee mug, sleepy smile, looking at the camera"></textarea>
+  <label>Mouvement (geste simple et calme)</label>
+  <textarea name="accroche_motion" placeholder="She takes a sip of coffee, then looks at the camera and laughs softly."></textarea>
+  <div class="row"><label style="margin:0"><input type="checkbox" name="accroche_tattoos" checked> Tatouages visibles</label></div>
+</section>
+<section>
+  <h2>2. Montée, suggestive (abonnés)</h2>
+  <label>Image de départ</label>
+  <textarea name="montee_still"></textarea>
+  <label>Mouvement</label>
+  <textarea name="montee_motion"></textarea>
+  <div class="row"><label style="margin:0"><input type="checkbox" name="montee_tattoos" checked> Tatouages visibles</label></div>
+</section>
+<section>
+  <h2>3. Final privé (contenu payant à l'unité)</h2>
+  <p class="hint">Champ libre, rédigé par vous. Le texte est transmis tel quel au pilote.</p>
+  <label>Image de départ</label>
+  <textarea name="final_still"></textarea>
+  <label>Mouvement</label>
+  <textarea name="final_motion"></textarea>
+  <div class="row"><label style="margin:0"><input type="checkbox" name="final_tattoos" checked> Tatouages visibles</label></div>
+</section>
+<button type="submit">Créer le fichier de plans</button>
+</form>
+<section id="out" style="margin-top:14px">
+  <h2 id="msg"></h2>
+  <p class="hint">Commande à lancer sur le serveur, dans le dossier <code>server</code> du dépôt :</p>
+  <pre id="cmd"></pre>
+</section>
+</main>
+<script>
+document.getElementById('f').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target), body = {};
+  for (const [k, v] of fd.entries()) body[k] = v;
+  for (const k of ['hd', 'accroche_tattoos', 'montee_tattoos', 'final_tattoos']) body[k] = fd.has(k);
+  const r = await fetch('/api/job', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+  const d = await r.json();
+  document.getElementById('out').style.display = 'block';
+  document.getElementById('msg').textContent = d.ok ? `Fichier ${d.file} créé (${d.shots} plans)` : `Erreur : ${d.error}`;
+  document.getElementById('cmd').textContent = d.ok ? d.command : '';
+});
+</script>
+</body>
+</html>
