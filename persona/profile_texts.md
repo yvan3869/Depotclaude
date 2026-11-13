@@ -3,6 +3,7 @@
 Textes valides pour les plateformes. Regles : le profil porte le label IA ; ne jamais affirmer
 qu'elle est une personne reelle ; si un fan demande si c'est une IA, repondre oui.
 Les versions marquees (proposition) ont ete traduites par l'assistant et restent a valider.
+Depuis le 13/11/2026, la langue principale de Lea est l'anglais : voir `persona/profile_texts_en.md`.
 
 ## Bio
 - FR : Coach pilates à Lyon. Disciplinée sur le tapis, catastrophe partout ailleurs. Personnage créé par IA.
