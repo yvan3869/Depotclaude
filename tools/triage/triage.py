@@ -81,6 +81,10 @@ def write_job(jobs: Path, b: dict) -> dict:
     if not name:
         raise ValueError("nom du lot obligatoire")
     common = ", ".join(x.strip() for x in (str(b.get("decor", "")), str(b.get("tenue", ""))) if x.strip())
+    # LoRA supplementaires : noms du catalogue (lora_catalog), separes par des virgules. Champ vide :
+    # le plan garde le reglage general (extra_loras_still).
+    names = [x.strip() for x in str(b.get("loras", "")).split(",") if x.strip()]
+    loras = names or None
     shots = []
     for key, dest in (("accroche", "soft"), ("montee", "abonnes"), ("final", "payant")):
         still = str(b.get(f"{key}_still", "")).strip()
@@ -91,8 +95,13 @@ def write_job(jobs: Path, b: dict) -> dict:
         motion = str(b.get(f"{key}_motion", "")).strip()
         if motion:
             shot["motion"] = motion
+        end = str(b.get(f"{key}_end", "")).strip()
+        if end and motion:  # clip debut/fin : le pilote fabrique l'image de fin a partir de la premiere
+            shot["end_edit"] = end
         if not b.get(f"{key}_tattoos", True):
             shot["tattoos"] = False
+        if loras is not None:
+            shot["loras"] = loras
         shots.append(shot)
     if not shots:
         raise ValueError("au moins un temps doit avoir une description d'image")

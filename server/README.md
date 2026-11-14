@@ -41,3 +41,7 @@ libre). Il ecrit un fichier de plans dans `DATA_DIR/jobs/` et affiche la command
 
 Le formulaire ne lance pas le pod lui-meme : la cle RunPod reste dans le conteneur du pilote.
 Apres un `git pull`, redemarrer l'interface : `docker compose restart triage`.
+
+Le formulaire accepte le francais. Champs facultatifs : "Image de fin" (clip debut/fin, voir
+`jobs/exemple_debut_fin.yaml`) et "LoRA supplementaires" (noms de `lora_catalog`, voir
+`docs/lora-supplementaires.md`).

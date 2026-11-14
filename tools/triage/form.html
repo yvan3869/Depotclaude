@@ -26,27 +26,31 @@
 <body>
 <main>
 <h1>Nouveau lot en trois temps</h1>
-<p class="hint">Un moment de vie, trois niveaux. Descriptions en anglais. Un temps laissé vide est ignoré. <a href="/">Retour au tri</a></p>
+<p class="hint">Un moment de vie, trois niveaux. Descriptions en français ou en anglais. Un temps laissé vide est ignoré. <a href="/">Retour au tri</a></p>
 <form id="f">
 <section>
   <h2>Le moment</h2>
   <label>Nom du lot (lettres, chiffres, tirets bas)</label>
   <input type="text" name="name" required placeholder="matin_cuisine">
   <label>Décor, commun aux trois temps</label>
-  <input type="text" name="decor" placeholder="small cluttered kitchen, morning light">
+  <input type="text" name="decor" placeholder="petite cuisine en désordre, lumière du matin">
   <label>Tenue, commune aux trois temps</label>
-  <input type="text" name="tenue" placeholder="oversized white men's shirt">
+  <input type="text" name="tenue" placeholder="chemise blanche d'homme trop grande">
   <div class="row">
     <label style="margin:0"><input type="checkbox" name="hd"> Clips en 720p (environ 4 fois plus cher)</label>
     <label style="margin:0">Tirage <input type="number" name="seed" value="1" style="width:90px"></label>
   </div>
+  <label>LoRA supplémentaires (noms du catalogue de production.yaml, séparés par des virgules ; vide = réglage général)</label>
+  <input type="text" name="loras" placeholder="detail">
 </section>
 <section>
   <h2>1. Accroche, tous publics (short Instagram / TikTok)</h2>
   <label>Image de départ : cadrage, pose, expression</label>
-  <textarea name="accroche_still" placeholder="medium shot, leaning on the counter, holding a coffee mug, sleepy smile, looking at the camera"></textarea>
+  <textarea name="accroche_still" placeholder="plan moyen, appuyée contre le plan de travail, une tasse de café dans les mains, sourire endormi, regard vers l'objectif"></textarea>
   <label>Mouvement (geste simple et calme)</label>
-  <textarea name="accroche_motion" placeholder="She takes a sip of coffee, then looks at the camera and laughs softly."></textarea>
+  <textarea name="accroche_motion" placeholder="Elle boit une gorgée de café, puis regarde l'objectif et rit doucement."></textarea>
+  <label>Image de fin, facultatif : la seule chose qui change entre le début et la fin du clip (pose ou état)</label>
+  <input type="text" name="accroche_end" placeholder="elle est maintenant debout à côté du lit, face à l'objectif">
   <div class="row"><label style="margin:0"><input type="checkbox" name="accroche_tattoos" checked> Tatouages visibles</label></div>
 </section>
 <section>
@@ -55,6 +59,8 @@
   <textarea name="montee_still"></textarea>
   <label>Mouvement</label>
   <textarea name="montee_motion"></textarea>
+  <label>Image de fin, facultatif : la seule chose qui change entre le début et la fin du clip (pose ou état)</label>
+  <input type="text" name="montee_end" placeholder="elle est maintenant debout à côté du lit, face à l'objectif">
   <div class="row"><label style="margin:0"><input type="checkbox" name="montee_tattoos" checked> Tatouages visibles</label></div>
 </section>
 <section>
@@ -64,6 +70,8 @@
   <textarea name="final_still"></textarea>
   <label>Mouvement</label>
   <textarea name="final_motion"></textarea>
+  <label>Image de fin, facultatif : la seule chose qui change entre le début et la fin du clip (pose ou état)</label>
+  <input type="text" name="final_end" placeholder="elle est maintenant debout à côté du lit, face à l'objectif">
   <div class="row"><label style="margin:0"><input type="checkbox" name="final_tattoos" checked> Tatouages visibles</label></div>
 </section>
 <button type="submit">Créer le fichier de plans</button>

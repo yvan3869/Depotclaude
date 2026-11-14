@@ -1,0 +1,17 @@
+# Clip "debut/fin" : le changement de pose est impose par deux images, au lieu d'etre invente.
+# still    : image de depart.
+# end_edit : ce qui change dans l'image de fin (une phrase, une seule chose). Le pilote fabrique
+#            cette image a partir de la premiere : meme personne, meme piece, meme lumiere.
+# motion   : le geste qui relie les deux, en une phrase.
+# Verifier d'abord les deux images :  docker compose run --rm pilot run jobs/exemple_debut_fin.yaml --stills-only
+name: debutfin
+defaults:
+  still_size: [720, 1280]
+  clip_size: [480, 832]
+  mode: natural
+  seed: 810
+shots:
+  - name: lever
+    still: "medium shot, sitting on the edge of a bed in a bright bedroom with white sheets and a window, grey t-shirt and blue jeans, hair down, slight smile, looking at the camera, soft daylight"
+    end_edit: "her pose: she is now standing upright next to the bed, facing the camera, arms relaxed, slight smile."
+    motion: "She stands up from the bed in one smooth motion and stands facing the camera, smiling."

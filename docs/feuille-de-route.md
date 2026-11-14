@@ -23,7 +23,7 @@
 |---|---|---|
 | Images | Z-Image + LoRA v2 a 1,4 (photo realiste, tatouages portes par le LoRA) | second candidat : Realism by Stable Yogi (MOSS) |
 | Video | Wan 2.2 I2V, 5 s, 480p/720p, mode "mouvement naturel" | 720p + agrandissement + interpolation par IA ; test de LTX-2.5 |
-| Duree | un plan de 5 s | plans continus de 10-20 s par enchainement ; montages de 30-60 s |
+| Duree | un plan de 5 s ; clips debut/fin pour les changements de pose (`end_edit`) | plans continus de 10-20 s par enchainement de clips debut/fin ; montages de 30-60 s |
 | Decors | inventes a chaque image | decors fixes de Lea (cuisine, studio, chambre, salle de bain) |
 | Son | aucun | palier 1 ambiance ; palier 2 voix off + sous-titres ; palier 3 Lea parle (InfiniteTalk a tester) |
 | Identite en video | portee par l'image de depart | eventuellement un LoRA d'animation entraine sur de courts clips |

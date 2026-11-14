@@ -132,17 +132,40 @@ def cmd_run(a):
             except Exception as e:  # un plan rate n'arrete pas la session
                 entry["error"] = str(e)[:300]
                 log(f"{name} : ECHEC image {entry['error']}")
+        # Passe intermediaire : image de fin des clips debut/fin (plans qui portent end_edit).
+        ends = {}
+        keep = ("Keep exactly the same person, same face, same hair, same body, same clothes unless stated otherwise, "
+                "same room, same light, same camera position and same photo style. Change only this: ")
+        for s, name, seed, entry in shots:
+            if name not in stills or not s.get("end_edit") or over():
+                continue
+            try:
+                t = time.time()
+                up = c.upload(f"ga_{name}.png", stills[name])
+                files = c.run(workflows.edit_image(models, up, keep + s["end_edit"], *s["still_size"], seed, f"ga_{name}_fin"))
+                ends[name] = c.fetch(files[0])
+                (work / f"{name}_fin.png").write_bytes(ends[name])
+                entry["end_s"] = round(time.time() - t)
+                log(f"{name} : image de fin ({entry['end_s']} s)")
+                if a.stills_only:
+                    shutil.copy(work / f"{name}_fin.png", inbox / f"{name}_fin.png")
+            except Exception as e:
+                entry["error"] = str(e)[:300]
+                log(f"{name} : ECHEC image de fin {entry['error']}")
         for s, name, seed, entry in shots:
             if a.stills_only or name not in stills or not s.get("motion"):
                 continue
+            if s.get("end_edit") and name not in ends:
+                continue  # l'image de fin a echoue : pas de clip plutot qu'un clip sans fin imposee
             if over():
                 entry.setdefault("error", "clip non traite : duree maximale atteinte")
                 continue
             try:
                 t = time.time()
                 up = c.upload(f"ga_{name}.png", stills[name])
+                end = c.upload(f"ga_{name}_fin.png", ends[name]) if name in ends else None
                 files = c.run(workflows.clip(models, char, up, s["motion"] + char.get("motion_suffix", ""),
-                                             *s["clip_size"], seed, f"ga_{name}", mode=s["mode"]))
+                                             *s["clip_size"], seed, f"ga_{name}", mode=s["mode"], end_image_name=end))
                 webm = work / f"{name}.webm"
                 webm.write_bytes(c.fetch(files[0]))
                 entry["clip_s"] = round(time.time() - t)

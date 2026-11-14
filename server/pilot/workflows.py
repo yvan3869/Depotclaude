@@ -59,7 +59,29 @@ def still_zimage(m, char, prompt, w, h, seed, prefix, steps=9, loras=None):
     return g
 
 
-def clip(m, char, image_name, prompt, w, h, seed, prefix, mode="natural", frames=81):
+def edit_image(m, image_name, prompt, w, h, seed, prefix, steps=8):
+    """Variante d'une image par edition (Qwen-Image-Edit + LoRA rapide) : meme personnage, meme decor,
+    pose ou etat different. Sert a fabriquer l'image de fin d'un clip debut/fin."""
+    return {
+        "unet": {"class_type": "UNETLoader", "inputs": {"unet_name": m["edit"], "weight_dtype": "default"}},
+        "fast": {"class_type": "LoraLoaderModelOnly", "inputs": {"model": ["unet", 0], "lora_name": m["edit_fast_lora"], "strength_model": 1.0}},
+        "shift": {"class_type": "ModelSamplingAuraFlow", "inputs": {"model": ["fast", 0], "shift": 3.0}},
+        "norm": {"class_type": "CFGNorm", "inputs": {"model": ["shift", 0], "strength": 1.0}},
+        "clip": {"class_type": "CLIPLoader", "inputs": {"clip_name": m["edit_text_encoder"], "type": "qwen_image", "device": "default"}},
+        "vae": {"class_type": "VAELoader", "inputs": {"vae_name": m["edit_vae"]}},
+        "img": {"class_type": "LoadImage", "inputs": {"image": image_name}},
+        "pos": {"class_type": "TextEncodeQwenImageEditPlus", "inputs": {"clip": ["clip", 0], "vae": ["vae", 0], "image1": ["img", 0], "prompt": prompt}},
+        "neg": {"class_type": "TextEncodeQwenImageEditPlus", "inputs": {"clip": ["clip", 0], "vae": ["vae", 0], "image1": ["img", 0], "prompt": ""}},
+        "lat": {"class_type": "EmptySD3LatentImage", "inputs": {"width": w, "height": h, "batch_size": 1}},
+        "ks": {"class_type": "KSampler", "inputs": {
+            "model": ["norm", 0], "seed": seed, "steps": steps, "cfg": 1.0, "sampler_name": "euler", "scheduler": "simple",
+            "positive": ["pos", 0], "negative": ["neg", 0], "latent_image": ["lat", 0], "denoise": 1.0}},
+        "dec": {"class_type": "VAEDecode", "inputs": {"samples": ["ks", 0], "vae": ["vae", 0]}},
+        "save": {"class_type": "SaveImage", "inputs": {"images": ["dec", 0], "filename_prefix": prefix}},
+    }
+
+
+def clip(m, char, image_name, prompt, w, h, seed, prefix, mode="natural", frames=81, end_image_name=None):
     """Clip : Wan 2.2 I2V. mode 'fast' (4 pas, LoRA rapide partout) ou 'natural'
     (4 pas high-noise sans LoRA rapide avec CFG 3,5, puis 4 pas low-noise rapides)."""
     g = _common(m, prompt, char["negative_clip"])
@@ -67,6 +89,11 @@ def clip(m, char, image_name, prompt, w, h, seed, prefix, mode="natural", frames
     g["i2v"] = {"class_type": "WanImageToVideo", "inputs": {
         "positive": ["pos", 0], "negative": ["neg", 0], "vae": ["vae", 0], "width": w, "height": h,
         "length": frames, "batch_size": 1, "start_image": ["img", 0]}}
+    if end_image_name:  # clip debut/fin : le modele relie l'image de depart a l'image de fin
+        g["img_end"] = {"class_type": "LoadImage", "inputs": {"image": end_image_name}}
+        g["i2v"] = {"class_type": "WanFirstLastFrameToVideo", "inputs": {
+            "positive": ["pos", 0], "negative": ["neg", 0], "vae": ["vae", 0], "width": w, "height": h,
+            "length": frames, "batch_size": 1, "start_image": ["img", 0], "end_image": ["img_end", 0]}}
     g["hi_u"] = {"class_type": "UNETLoader", "inputs": {"unet_name": m["i2v_high"], "weight_dtype": "default"}}
     g["lo_u"] = {"class_type": "UNETLoader", "inputs": {"unet_name": m["i2v_low"], "weight_dtype": "default"}}
     hi = "hi_u" if mode == "natural" else _lora(g, "hi_fast", "hi_u", m["i2v_high_fast_lora"])

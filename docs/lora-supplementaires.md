@@ -12,6 +12,13 @@ explicites sont faits par le proprietaire ; l'assistant ne les produit pas et ne
 - Un LoRA est lie a une famille de modeles. Ceux du projet : Z-Image (images) et Wan 2.2 (video).
   Un LoRA pour Flux, SDXL, Illustrious ou Chroma ne fonctionne pas sur Z-Image.
 
+## Quel modele de base choisir pour un LoRA d'image
+Les images sont generees avec **Z-Image-Turbo** (`z_image_turbo_bf16.safetensors`). Sur Civitai,
+prendre un LoRA dont le modele de base est "Z-Image Turbo" (ou "Z-Image"). Un LoRA entraine sur
+Z-Image de base fonctionne aussi sur Turbo mais demande une force plus elevee : c'est le cas de
+celui de Lea, entraine sur la base et applique a 1,4. Les autres familles (Flux, SDXL, Pony,
+Illustrious, Chroma, Qwen) ne fonctionnent pas.
+
 ## Voie 1 : utiliser un LoRA existant (a essayer en premier, aucun entrainement)
 1. Dans la console RunPod, deployer un pod avec le volume `lea-models` (modele de pod habituel) et
    ouvrir JupyterLab.
@@ -32,6 +39,23 @@ explicites sont faits par le proprietaire ; l'assistant ne les produit pas et ne
    Il s'applique alors a toutes les images du pilote, en plus du LoRA de Lea. Commencer vers 0,6
    a 0,8 : un LoRA supplementaire trop fort deforme le visage de Lea.
 
+## Declarer plusieurs LoRA et les comparer en lot
+Dans `persona/production.yaml`, chaque LoRA depose sur le volume recoit un nom court :
+
+    lora_catalog:
+      detail: {file: "mon_lora.safetensors", strength: 0.6}
+      autre:  {file: "autre_lora.safetensors", strength: 0.8}
+
+Un plan appelle ensuite les LoRA par leur nom : `loras: [detail]`, ou
+`loras: [{name: detail, strength: 0.8}]` pour une autre force, ou `loras: []` pour aucun.
+Sans ligne `loras`, le plan utilise `extra_loras_still`.
+
+Pour comparer : copier `server/jobs/test_lora.yaml`, y mettre sa description et la liste des
+variantes (une par plan), puis lancer avec `--stills-only`. L'option `same_seed: true` donne le
+meme tirage a tous les plans : seule la variante de LoRA change d'une image a l'autre.
+Le pilote verifie avant de calculer que chaque fichier existe sur le volume.
+Dans le formulaire "Nouveau lot", le champ "LoRA supplementaires" prend les memes noms.
+
 ## Voie 2 : entrainer son propre LoRA
 A reserver au cas ou aucun LoRA existant ne convient : compter 30 a 60 images et environ 1 $ a 2 $.
 1. Preparer un dossier de paires `image.png` + `image.txt`. La legende decrit l'image en anglais
@@ -49,8 +73,7 @@ A reserver au cas ou aucun LoRA existant ne convient : compter 30 a 60 images et
    inefficace parce qu'il n'avait ete essaye qu'a 1,0.
 
 ## Limites connues
-- Le formulaire "Nouveau lot" ne permet pas encore de choisir un LoRA par plan : un LoRA declare
-  dans `production.yaml` s'applique a tous les plans.
+- Dans le formulaire "Nouveau lot", les LoRA choisis s'appliquent aux trois temps du lot.
 - Deux LoRA de personnage ou de corps appliques ensemble se disputent le visage : baisser la force
   du second, jamais celle de Lea en dessous de 1,2.
 - Pour la video, l'identite vient de l'image de depart ; un LoRA Wan 2.2 de mouvement se declare

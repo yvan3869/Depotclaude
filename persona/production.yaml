@@ -36,6 +36,11 @@ models:
   zimage: "z_image_turbo_bf16.safetensors"
   zimage_text_encoder: "qwen_3_4b.safetensors"
   zimage_vae: "ae.safetensors"
+  # Edition d'image : fabrique l'image de fin d'un clip debut/fin (champ end_edit d'un plan).
+  edit: "qwen_image_edit_2509_fp8_e4m3fn.safetensors"
+  edit_fast_lora: "Qwen-Image-Edit-2509-Lightning-8steps-V1.0-bf16.safetensors"
+  edit_text_encoder: "qwen_2.5_vl_7b_fp8_scaled.safetensors"
+  edit_vae: "qwen_image_vae.safetensors"
 
 character:
   name: "Lea Morel"

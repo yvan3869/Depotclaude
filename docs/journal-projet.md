@@ -140,6 +140,16 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
   Un compte au nom et au visage d'un personnage IA ne peut pas la passer : ne pas envoyer le selfie
   du proprietaire, ne pas fabriquer un selfie du personnage.
 - RTX 5090 : 1,39 $/h constate le 13/11 (PRO 4500 : 0,72 $/h ; 4090 : 0,89 $/h).
+- Clip "debut/fin" (Wan 2.2, noeud WanFirstLastFrameToVideo, memes modeles I2V) : avec une image
+  de depart et une image de fin imposees, un changement de pose reussit (se lever du lit), alors
+  qu'avec la seule image de depart elle ne se leve jamais. L'image de fin est fabriquee par edition
+  de la premiere (meme piece, meme tenue). Champ `end_edit` d'un plan. Meme duree qu'un clip normal.
+- Regle pour la video : un changement d'etat (pose, tenue, lieu) se fait par une image de fin
+  imposee ou a la coupe entre deux plans, jamais invente dans un plan de 5 s.
+- Le francais est compris directement par Z-Image (images) et par Wan 2.2 (mouvement) : pas de
+  traduction necessaire dans le formulaire. Les cheveux sortent un peu moins cuivres qu'en anglais.
+- Sur certaines machines, le premier chargement de chaque modele depuis le volume prend 2 a 5 min :
+  prevoir des delais d'attente longs.
 ## Couts constates
 - Volume : ~0,35 $/jour. Sessions de generation : 0,20 a 0,30 $ chacune.
 - Entrainement du LoRA : ~3 $ (RTX 5090 a 1,39 $/h, ~2 h 15 installation comprise).
@@ -151,6 +161,8 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
 - Cout unitaire constate sur RTX 4090 : photo ~0,002 $ ; clip 5 s en 480p ~0,035 $ ; clip 5 s en 720p ~0,13 $.
 - Hrafnvik (13/11, planches des trois personnages) : ~1 $ en six courtes sessions.
 - Fin de soiree du 13/11 : verification du LoRA v2 sur RTX 5090, ~0,30 $. Total de la soiree : ~7,50 $.
+- Nuit du 13 au 14/11, fin : essai debut/fin, test du francais et validation dans le pilote, ~0,50 $.
+  Total de la soiree : ~8 $ sur le plafond de 10 $.
 ## Comptes (13/11/2026)
 - Gmail `lea.morel.ai@gmail.com` (nom affiche Lea Morel).
 - Instagram : suspendu une seconde fois le 13/11 apres la verification par selfie (photo du
