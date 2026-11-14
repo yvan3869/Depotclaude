@@ -352,6 +352,8 @@ def make_handler(t: Triage, token: str):
     at = Atelier(t.root.parent, studio.repo, studio)
     from hub import Hub
     hub = Hub(t.root.parent, studio.repo, studio, at)
+    from social import Social
+    soc = Social(t.root.parent, studio.repo, studio, at)
     class H(BaseHTTPRequestHandler):
         def log_message(self, *a):
             pass
@@ -381,9 +383,9 @@ def make_handler(t: Triage, token: str):
             q = parse_qs(u.query)
             if not self.authed(q):
                 return self.send(403, b"forbidden", "text/plain")
-            if u.path in ("/", "/tri", "/test", "/atelier", "/hub"):
+            if u.path in ("/", "/tri", "/test", "/atelier", "/hub", "/social"):
                 extra = {"Set-Cookie": f"t={token}; HttpOnly; SameSite=Strict; Max-Age=31536000; Path=/"} if token else None
-                page = {"/": "home.html", "/tri": "index.html", "/test": "test.html", "/atelier": "atelier.html", "/hub": "hub.html"}[u.path]
+                page = {"/": "home.html", "/tri": "index.html", "/test": "test.html", "/atelier": "atelier.html", "/hub": "hub.html", "/social": "social.html"}[u.path]
                 return self.send(200, (HERE / page).read_bytes(), "text/html; charset=utf-8", extra)
             if u.path in ("/ui.css", "/ui.js"):  # base commune des espaces : jetons, composants, icones
                 return self.send(200, (HERE / u.path[1:]).read_bytes(), ("text/css" if u.path.endswith(".css") else "text/javascript") + "; charset=utf-8")
@@ -399,6 +401,17 @@ def make_handler(t: Triage, token: str):
                 except (FileNotFoundError, ValueError, KeyError, TypeError, RuntimeError) as e:
                     return self.js({"ok": False, "error": str(e)}, 400)
                 return self.js({"ok": True, **res}) if res is not None else self.send(404, b"not found", "text/plain")
+            if u.path.startswith("/api/s/"):
+                try:
+                    res = soc.get(u.path, q)
+                except (FileNotFoundError, ValueError, KeyError, TypeError, RuntimeError) as e:
+                    return self.js({"ok": False, "error": str(e)}, 400)
+                return self.js({"ok": True, **res}) if res is not None else self.send(404, b"not found", "text/plain")
+            if u.path.startswith("/sfile/"):
+                try:
+                    return self.serve_file(soc.fichier(unquote(u.path[7:])))
+                except (FileNotFoundError, ValueError):
+                    return self.send(404, b"not found", "text/plain")
             if u.path.startswith("/afile/"):
                 try:
                     pid, _, name = unquote(u.path[7:]).partition("/")
@@ -474,6 +487,9 @@ def make_handler(t: Triage, token: str):
                     return self.js({"ok": True, **res}) if res is not None else self.send(404, b"not found", "text/plain")
                 if u.path.startswith("/api/h/"):
                     res = hub.post(u.path, body)
+                    return self.js({"ok": True, **res}) if res is not None else self.send(404, b"not found", "text/plain")
+                if u.path.startswith("/api/s/"):
+                    res = soc.post(u.path, body)
                     return self.js({"ok": True, **res}) if res is not None else self.send(404, b"not found", "text/plain")
                 if u.path == "/api/move":
                     t.move(str(body["name"]), str(body["to"]))

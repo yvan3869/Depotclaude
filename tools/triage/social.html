@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Réseaux - selfies tous publics</title>
+<link rel="stylesheet" href="/ui.css">
+<style>
+  .post { display:flex; gap:10px; }
+  .post .im { width:120px; flex:none; aspect-ratio:4/5; border-radius:5px; background:var(--fond); display:flex; align-items:center; justify-content:center;
+              color:var(--mut); font-size:12px; text-align:center; overflow:hidden; }
+  .post .im img { width:100%; height:100%; object-fit:cover; display:block; }
+  .post .g { flex:1; min-width:0; }
+  .post .leg { margin:6px 0 2px; white-space:pre-wrap; overflow-wrap:anywhere; }
+  .jour { margin:16px 0 6px; font-size:15px; }
+  .deux { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+</style></head><body>
+<header><div class="l1"><a href="/">Studio</a><b>Réseaux</b><span class="sp"></span><small id="etat"></small></div>
+  <div class="chips" id="onglets"></div></header>
+<main id="vue"></main>
+<script src="/ui.js"></script>
+<script>
+let E = null, minuteur = null;
+const vue = $('#vue');
+const ONG = [['file', 'À valider', k => ['attente_image', 'calcul', 'echec', 'a_valider'].includes(k.etat)], ['valides', 'À publier', k => k.etat === 'valide'],
+             ['archives', 'Publiés et refusés', k => ['publie', 'refuse'].includes(k.etat)], ['reglages', 'Réglages', null]];
+const ETAT = {attente_image: ['image en attente', 'i'], calcul: ['image en calcul', 'i'], echec: ['image ratée', 'a'], a_valider: ['à valider', ''],
+              valide: ['validée', 'v'], refuse: ['refusée', 'a'], publie: ['publiée', 'v']};
+const onglet = () => (location.hash.slice(2) || 'file');
+const perso = s => E.personnages.find(p => p.slug === s) || {slug: s, nom: s, reglages: {mention: ''}};
+const date = iso => new Date(iso + 'T12:00:00').toLocaleDateString('fr-FR', {weekday: 'long', day: 'numeric', month: 'long'});
+const texte = k => [k.legende, perso(k.perso).reglages.mention, k.hashtags].filter(Boolean).join('\n\n');
+const enRoute = () => E.calcul || E.posts.some(k => ['attente_image', 'calcul'].includes(k.etat)) || E.lots.some(l => l.etat === 'texte');
+
+async function charge() { E = await api('/api/s/etat'); }
+function entete() {
+  $('#onglets').innerHTML = ONG.map(([k, l, f]) => `<a class="chip${onglet() === k ? ' on' : ''}" href="#/${k}">${l}${f ? ` <small>${E.posts.filter(f).length}</small>` : ''}</a>`).join('');
+  $('#etat').textContent = E.calcul ? 'images en calcul' : E.lots.some(l => l.etat === 'texte') ? 'écriture en cours' : '';
+}
+function rendre() {
+  entete();
+  onglet() === 'reglages' ? vueReglages() : vueListe(ONG.find(o => o[0] === onglet()) || ONG[0]);
+}
+
+// --- Listes de publications --------------------------------------------------------------------------
+function carte(k) {
+  const [lab, cls] = ETAT[k.etat], img = k.image ? `/sfile/${k.image}` : '', p = perso(k.perso);
+  const b = (a, icone, t, c = 's') => `<button class="${c}" data-a="${a}" data-id="${k.id}">${ic(icone)}${t}</button>`;
+  const actions = {
+    a_valider: b('valide', 'valider', 'Valider', 's p') + b('refuse', 'fermer', 'Refuser') + b('refaire', 'refaire', 'Refaire l\'image'),
+    echec: b('refaire', 'refaire', 'Refaire l\'image', 's p') + b('refuse', 'fermer', 'Refuser'),
+    valide: b('copier', 'copier', 'Copier le texte', 's p') + (img ? `<a href="${img}" download="${esc(k.perso)}_${k.jour}.png">Télécharger l'image</a>` : '') + b('publie', 'envoyer', 'Marquer publiée') + b('a_valider', 'retour', 'Remettre à valider'),
+    refuse: b('a_valider', 'retour', 'Reprendre'), publie: b('valide', 'retour', 'Remettre à publier'), attente_image: '', calcul: ''}[k.etat];
+  return `<div class="panel" data-post="${k.id}"><div class="post">
+      <div class="im">${img ? `<a href="${img}" target="_blank"><img src="${img.replace('.png', '.jpg')}" loading="lazy" alt=""></a>` : esc(lab)}</div>
+      <div class="g"><b>${esc(k.moment || 'Publication')}</b> <span class="badge ${cls}">${lab}</span>
+        <div class="mut">${E.personnages.length > 1 ? esc(p.nom) + ' · ' : ''}${k.prises.length > 1 ? k.prises.length + ' prises' : ''}</div>
+        ${k.erreur ? `<div class="mut avt">${esc(k.erreur)}</div>` : ''}
+        <div class="leg">${esc(k.legende)}</div><div class="mut">${esc(p.reglages.mention)} · ${esc(k.hashtags)}</div></div></div>
+    <div class="row" style="margin-top:8px">${actions}</div>
+    ${k.etat === 'publie' ? '' : `<details class="pli"><summary>Modifier</summary>
+      <label>Légende<textarea data-m="legende">${esc(k.legende)}</textarea></label>
+      <label>Hashtags<input data-m="hashtags" value="${esc(k.hashtags)}"></label>
+      <div class="deux"><label>Jour prévu<input data-m="jour" type="date" value="${k.jour}"></label><label>Moment<input data-m="moment" value="${esc(k.moment)}"></label></div>
+      <label>Photo (anglais)<textarea data-m="still">${esc(k.still)}</textarea>${aide('Tous publics : tenue de tous les jours. Après une modification, « Refaire l\'image » la recalcule (environ ' + usd(E.cout_image) + ').')}</label>
+      <div class="row"><button class="s p" data-a="modifier" data-id="${k.id}">${ic('valider')}Enregistrer</button><span class="sp"></span>
+        <button class="s d" data-a="supprimer" data-id="${k.id}">${ic('supprimer')}Supprimer</button></div></details>`}</div>`;
+}
+function vueListe([cle, , filtre]) {
+  const l = E.posts.filter(filtre), jours = [...new Set(l.map(k => k.jour))];
+  if (cle === 'archives') jours.reverse();
+  const attente = E.attente && cle === 'file' ? `<div class="panel"><span class="avt">${esc(E.attente)}</span></div>` : '';
+  const route = cle === 'file' && enRoute() ? `<div class="row"><span class="mut">${E.calcul ? 'Images en calcul sur le pod de veille.' : E.lots.some(x => x.etat === 'texte') ? 'Le rédacteur écrit la semaine.' : 'Images en attente de lancement.'}</span><span class="sp"></span><button class="s d" data-a="annuler">${ic('arret')}Arrêter</button></div>` : '';
+  const vide = {file: 'Rien à valider. La semaine se prépare dans « Réglages ».', valides: 'Rien à publier : valider des publications d\'abord.', archives: 'Rien de publié ni de refusé pour l\'instant.'}[cle];
+  const rappel = cle === 'valides' && l.length ? `<div class="panel"><span class="mut">Publication à la main : copier le texte, télécharger l'image, puis activer sur le réseau le label « contenu généré par IA » quand il existe. La mention IA est déjà dans le texte copié. Instagram reste exclu.</span></div>` : '';
+  vue.innerHTML = attente + route + rappel + (jours.map(j => `<h3 class="jour">${date(j)}</h3>` + l.filter(k => k.jour === j).map(carte).join('')).join('') || `<p class="mut">${vide}</p>`);
+}
+
+// --- Reglages ----------------------------------------------------------------------------------------
+function vueReglages() {
+  const sem = s => new Date(E.semaines[s] + 'T12:00:00').toLocaleDateString('fr-FR', {day: 'numeric', month: 'long'});
+  const d = E.depense, lotEtat = {texte: ['écriture', 'i'], fini: ['écrit', 'v'], echec: ['échec', 'a']};
+  vue.innerHTML = `<div class="panel"><span class="mut">Selfies tous publics pour faire vivre les comptes : le rédacteur écrit la semaine, les images se calculent quand rien d'autre ne tourne, et chaque publication attend votre validation. Rien n'est publié d'ici.</span>
+      <div class="mut" style="margin-top:6px">Dépense GPU du jour : ${d ? usd(d.jour) + ' sur ' + usd(d.plafond) : 'illisible'} · cet espace, 7 derniers jours : ${usd(E.depense_7j)} · rédacteur ${E.redacteur ? 'actif' : '<span class="avt">arrêté (publications types à la place)</span>'}</div></div>`
+    + E.personnages.map(p => { const r = p.reglages, cout = usd(E.cout_pod + E.cout_image * r.nb); return `<div class="panel" data-perso="${esc(p.slug)}"><b>${esc(p.nom)}</b>
+      ${p.lora ? '' : '<div class="mut avt">Pas de LoRA de visage : le visage changera d\'une image à l\'autre.</div>'}
+      <label class="c" style="margin-top:8px"><input type="checkbox" data-r="auto"${r.auto ? ' checked' : ''}>Préparer chaque semaine sans moi</label>
+      <div class="deux"><label>Publications par semaine<input data-r="nb" type="number" min="1" max="${E.max_nb}" value="${r.nb}"></label>
+        <label>Jour de préparation<select data-r="jour">${E.jours.map((j, i) => `<option value="${i}"${i === r.jour ? ' selected' : ''}>${j}</option>`).join('')}</select></label></div>
+      <div class="deux"><label>Format<select data-r="format">${E.formats.map(f => `<option${f === r.format ? ' selected' : ''}>${f}</option>`).join('')}</select></label>
+        <label>Mention IA<input data-r="mention" value="${esc(r.mention)}"></label></div>
+      ${aide('En automatique, la semaine suivante se prépare à partir du jour choisi : environ ' + cout + ' par semaine, sous le plafond du jour. La mention est ajoutée au texte à copier.')}
+      <div class="row"><button class="s p" data-a="regler">${ic('valider')}Enregistrer</button></div>
+      <div class="acts" style="margin-top:10px">
+        <div class="act"><button data-a="lot" data-s="suivante">${ic('lancer')}Préparer la semaine du ${sem('suivante')}</button><span class="mut">${r.nb} publication(s), environ ${cout}.</span></div>
+        <div class="act"><button data-a="lot" data-s="courante">${ic('lancer')}Préparer la semaine en cours</button><span class="mut">Les jours qui restent seulement.</span></div></div></div>`; }).join('')
+    + (E.lots.length ? `<div class="panel"><b>Derniers lots</b>${E.lots.map(l => `<div class="row"><span>${esc(perso(l.perso).nom)}, semaine du ${date(l.semaine).replace(/^\S+ /, '')}</span>
+        <span class="badge ${lotEtat[l.etat][1]}">${lotEtat[l.etat][0]}</span><span class="mut">${l.jours.length} publication(s)${l.auto ? ', automatique' : ''}${l.etat === 'fini' && l.secours ? `, ${l.secours} type(s)` : ''}${l.erreur ? ' · ' + esc(l.erreur) : ''}</span></div>`).join('')}</div>` : '');
+}
+
+// --- Actions -----------------------------------------------------------------------------------------
+const maj = async (chemin, corps, msg) => { E = await api(chemin, corps); if (msg) toast(msg, true); rendre(); suivre(); };
+const decider = etat => el => maj('/api/s/decider', {id: el.dataset.id, etat});
+const actions = {
+  valide: decider('valide'), refuse: decider('refuse'), a_valider: decider('a_valider'), publie: decider('publie'),
+  copier: el => copier(texte(E.posts.find(k => k.id === el.dataset.id))),
+  refaire: el => confirm(`Refaire l'image ? Environ ${usd(E.cout_image)}, davantage si le pod de veille est arrêté.`) && maj('/api/s/refaire', {id: el.dataset.id}, 'Image demandée'),
+  supprimer: el => confirm('Supprimer cette publication et ses images ?') && maj('/api/s/supprimer', {id: el.dataset.id}),
+  modifier: el => maj('/api/s/post', {id: el.dataset.id, ...Object.fromEntries($$('[data-m]', el.closest('.panel')).map(i => [i.dataset.m, i.value.trim()]))}, 'Enregistré'),
+  annuler: () => confirm('Arrêter l\'écriture et les images en route ?') && maj('/api/s/annuler', {}),
+  regler: el => maj('/api/s/reglages', reglagesDe(el), 'Réglages enregistrés'),
+  lot: async el => {
+    const r = reglagesDe(el);
+    if (!confirm(`Préparer ${r.nb} publication(s) ? Le rédacteur écrit, puis les images se calculent : environ ${usd(E.cout_pod + E.cout_image * r.nb)}.`)) return;
+    await api('/api/s/reglages', r);
+    await maj('/api/s/lot', {perso: r.perso, semaine: el.dataset.s}, 'Semaine en préparation');
+    location.hash = '#/file';
+  }};
+function reglagesDe(el) {
+  const p = el.closest('[data-perso]');
+  return {perso: p.dataset.perso, ...Object.fromEntries($$('[data-r]', p).map(i => [i.dataset.r, i.type === 'checkbox' ? i.checked : i.value.trim()]))};
+}
+function suivre() {
+  clearTimeout(minuteur);
+  if (!enRoute()) return;
+  minuteur = setTimeout(essai(async () => { await charge(); if (!$('details.pli[open]') && !$('[data-r]:focus')) rendre(); else entete(); suivre(); }), 8000);
+}
+document.addEventListener('click', essai(async e => {
+  const el = e.target.closest('[data-a]'); if (!el) return;
+  await actions[el.dataset.a](el);
+}));
+window.addEventListener('hashchange', rendre);
+essai(async () => { await charge(); rendre(); suivre(); })();
+</script></body></html>

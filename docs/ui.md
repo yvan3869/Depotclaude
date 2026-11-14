@@ -42,7 +42,8 @@ page de reference. Un nouvel espace part de ce squelette :
 
 ## Espaces
 
-`/atelier` (reference), `/hub` (modeles et LoRA : `hub.html`, `hub.py`, API `/api/h/*`).
+`/atelier` (reference), `/hub` (modeles et LoRA : `hub.html`, `hub.py`, API `/api/h/*`),
+`/social` (reseaux grand public : `social.html`, `social.py`, API `/api/s/*`, images par `/sfile/<nom>`).
 
 ## Reste a faire
 
