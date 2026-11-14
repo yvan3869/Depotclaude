@@ -3,6 +3,8 @@
 ## Regles de travail convenues
 - Rentabilite d'abord : chaque depense GPU est annoncee, plafonnee et consignee. Pas de pod sans
   arret automatique. Plafond de la nuit du 13/11 : 10 $.
+- Plafond GPU courant (14/11/2026) : 7,50 $ par jour. Dans ce plafond, l'assistant lance les essais
+  sans redemander, annonce chaque depense et la consigne dans le journal.
 - Partage des roles : l'assistant construit et pilote toute la chaine (infrastructure, LoRA, images
   et videos tous publics ou suggestives, tri, montage, publication, automatisation, documentation).
   Le contenu explicite (prompts, generation, choix des LoRA adultes) est produit par le proprietaire,

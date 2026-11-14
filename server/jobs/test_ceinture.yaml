@@ -1,0 +1,15 @@
+# Trace de ceinture a la taille : force du LoRA de Lea 1,4 / 1,2 / 1,0 a seed constante.
+# Tenues qui laissent la taille nue (tous publics a suggestif).
+# Lancer :  docker compose run --rm pilot run jobs/test_ceinture.yaml --stills-only
+name: ceinture
+defaults:
+  still_size: [864, 1152]
+  seed: 100
+  same_seed: true
+shots:
+  - {name: a_brassiere_14, char_strength: 1.4, still: "medium shot, standing in a bright pilates studio, black sports bra and low-rise black shorts, bare midriff, looking at the camera, soft daylight"}
+  - {name: a_brassiere_12, char_strength: 1.2, still: "medium shot, standing in a bright pilates studio, black sports bra and low-rise black shorts, bare midriff, looking at the camera, soft daylight"}
+  - {name: a_brassiere_10, char_strength: 1.0, still: "medium shot, standing in a bright pilates studio, black sports bra and low-rise black shorts, bare midriff, looking at the camera, soft daylight"}
+  - {name: b_bikini_14, char_strength: 1.4, still: "medium shot, standing on a sunny beach, simple white bikini, bare midriff, slight smile, looking at the camera, natural light"}
+  - {name: b_bikini_12, char_strength: 1.2, still: "medium shot, standing on a sunny beach, simple white bikini, bare midriff, slight smile, looking at the camera, natural light"}
+  - {name: b_bikini_10, char_strength: 1.0, still: "medium shot, standing on a sunny beach, simple white bikini, bare midriff, slight smile, looking at the camera, natural light"}

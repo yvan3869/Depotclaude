@@ -157,6 +157,10 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
   L'image de fin doit garder le meme cadrage ; consigne renforcee dans le pilote, a reverifier.
 - Page Test : pod garde en veille entre deux tests (arret apres 10 min sans test). Mesure du
   14/11 : premier test 163 s, test suivant sur le meme pod 17 s.
+- Essai ceinture (14/11, `server/jobs/test_ceinture.yaml`, seed constante, brassiere + short et bikini) :
+  aucune trace de ceinture sur la taille nue, a 1,4 comme a 1,2 et 1,0. A 1,0, le tatouage d'epaule
+  disparait (bikini) ou palit ; a 1,2, tatouages et visage tiennent. La trace n'apparait donc qu'avec
+  le bas du corps nu : comparaison 1,4 / 1,2 a faire par le proprietaire sur ses plans (`char_strength`).
 ## Couts constates
 - Volume : ~0,35 $/jour. Sessions de generation : 0,20 a 0,30 $ chacune.
 - Entrainement du LoRA : ~3 $ (RTX 5090 a 1,39 $/h, ~2 h 15 installation comprise).
@@ -172,6 +176,7 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
   Total de la soiree : ~8 $ sur le plafond de 10 $.
 - 14/11, 0 h a 0 h 40 : mise au point du studio (depot de LoRA, test d'images, scene en sous-scenes), ~0,45 $.
   Total depuis le 13/11 au soir : ~8,50 $ sur le plafond de 10 $.
+- 14/11 matin : essai ceinture, RTX PRO 4500, 2,4 min, 0,03 $. Plafond courant : 7,50 $/jour.
 ## Comptes (13/11/2026)
 - Gmail `lea.morel.ai@gmail.com` (nom affiche Lea Morel).
 - Instagram : suspendu une seconde fois le 13/11 apres la verification par selfie (photo du
