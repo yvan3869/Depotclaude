@@ -5,6 +5,23 @@ proprietaire. L'agent ecrit des fichiers de plans. Il les depose dans l'Atelier,
 les importe, les calcule et les monte (voie normale), ou il lance lui-meme le pilote pour un essai,
 dont les images arrivent dans le Tri. Rien n'est publie sans validation du proprietaire.
 
+## Vocabulaire
+Les memes mots servent dans la page Atelier, dans les fichiers et dans les echanges avec le proprietaire.
+
+| Terme | Sens |
+|---|---|
+| Projet | Une video entiere : l'idee, le pitch, les textes de publication et les trois temps. Numerote `pNNNN`. |
+| Idee | La phrase de depart, avant ecriture. |
+| Pitch | Le resume du projet en une ou deux phrases, une fois l'idee retenue. |
+| Temps | Une des trois parties du projet : 1 accroche, 2 montee, 3 final. |
+| Scene | Une unite d'un temps : une image, un mouvement eventuel, un texte a l'ecran. |
+| Plan | La scene vue du cote de l'agent : une entree de `shots` dans son fichier. Un plan importe devient une scene. |
+| Depot | Un fichier de plans place dans `server/jobs/atelier/`, pour un projet et un temps. |
+| Prise | Un resultat calcule pour une scene (image ou clip). Il peut y en avoir plusieurs ; le proprietaire choisit. |
+| Montage | La video finale d'un temps, en versions numerotees. |
+
+Ne pas dire "sequence" ni "phase" pour un temps, ni "lot" pour un projet.
+
 ## Regles
 - Personnages fictifs et clairement adultes ; aucune ressemblance avec une personne reelle, aucune
   photo de personne reelle en entree (`docs/compliance.md`, regle 1).
@@ -16,7 +33,7 @@ dont les images arrivent dans le Tri. Rien n'est publie sans validation du propr
 - Ne rien modifier hors de `server/jobs/` (fichiers de plans de l'agent, dont `server/jobs/atelier/`).
   Le reste du depot et `server/data/` se lisent, ils ne s'ecrivent pas.
 
-## Le phasage : une video en trois temps
+## Un projet en trois temps
 Chaque video est un projet de l'Atelier (page `/atelier` du studio), decoupe en trois temps qui se
 suivent dans le meme decor et la meme tenue :
 
@@ -120,5 +137,5 @@ pilote : ne pas le repeter, ni decrire les tatouages (le LoRA les porte ; les de
 ## Resultats et couts
 - Images et clips : `server/data/inbox/<name>_<plan>.png|mp4`, visibles dans le Tri.
 - Rapport : `server/data/work/<name>/report.json`. Registre des depenses : `server/data/depenses.jsonl`.
-- Reperes (RTX PRO 4500, 0,72 $/h) : demarrage du pod ~1 a 5 min ; image ~9 s ; un lot de 20 images
+- Reperes (RTX PRO 4500, 0,72 $/h) : demarrage du pod ~1 a 5 min ; image ~9 s ; 20 images
   coute ~0,05 $. Clip 5 s en 480p ~0,035 $ (RTX 4090).

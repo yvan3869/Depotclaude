@@ -50,7 +50,7 @@ CONTRAINTES TECHNIQUES (modèles d'image et de vidéo)
 - "still" : en anglais, une seule phrase dense : cadrage, lieu, tenue, pose, expression, lumière. Format vertical. Une seule personne à l'image. Ne décris ni le visage, ni les cheveux, ni les tatouages, ni les bijoux : ils sont ajoutés automatiquement. Aucun texte dans l'image.
 - "motion" : en anglais, UN geste simple et lent, en une phrase commençant par "She". Gestes fiables : regarder l'objectif, sourire lentement, pencher la tête, se mordre la lèvre, se pencher vers la caméra, marcher vers la caméra, faire glisser une bretelle, ajuster un décolleté, s'étirer doucement, boire, respirer. Gestes interdits (ils ratent) : tourner le dos, attacher ses cheveux, passer la main devant le visage, renverser la tête, éclater de rire, cheveux au vent, manipuler un objet compliqué, changer de vêtement.
 - "end_edit" : presque toujours "". À remplir seulement si la pose doit changer nettement entre le début et la fin du clip (assise puis debout) : une phrase en anglais qui décrit la pose finale, même cadrage.
-- Continuité : dans une même séquence, répète le lieu et la tenue avec exactement les mêmes mots d'une scène à l'autre.
+- Continuité : dans un même projet, répète le lieu et la tenue avec exactement les mêmes mots d'une scène à l'autre.
 - "texte" : texte incrusté pendant la scène, dans la langue du personnage, 7 mots au plus. Aucun emoji, ni là ni dans l'accroche (la police de montage ne les affiche pas). "voix" : phrase de voix off dans sa voix, 12 mots au plus, ou "".
 - "tattoos" : false si la tenue couvre les épaules et la poitrine (pull, peignoir fermé), sinon true.
 - "role" : "accroche", "montee" ou "chute".

@@ -163,12 +163,12 @@ function vueProjets() {
   const liste = E.projets.filter(x => x.personnage === cur);
   const lab = Object.fromEntries(ETAPES);
   vue.innerHTML = `
-    <div class="row" style="margin-top:0"><button class="p" data-a="nouveau">Nouvelle vidéo</button><button data-a="idees">Trouver des idées</button>
+    <div class="row" style="margin-top:0"><button class="p" data-a="nouveau">Nouveau projet</button><button data-a="idees">Trouver des idées</button>
       <span class="sp" style="flex:1"></span><a href="#/perso/${esc(cur)}">Fiche de ${esc(p.nom.split(' ')[0])}</a></div>
     ${p.lora ? '' : '<p class="mut">Ce personnage n\'a pas de LoRA : son visage variera d\'une image à l\'autre.</p>'}
     <div id="idees"></div>
     ${E.depots.length ? `<h2>Plans déposés par l'agent <small>sans projet</small></h2><div class="panel">${E.depots.map(depotHtml).join('')}</div>` : ''}
-    <h2>Vidéos <small>${liste.length}</small></h2>
+    <h2>Projets <small>${liste.length}</small></h2>
     ${liste.map(x => `<a class="card" href="#/p/${x.id}">
       <div class="th" ${x.vignette ? `style="background-image:url('/afile/${x.id}/${esc(x.vignette)}')"` : ''}></div>
       <div><b>${esc(x.titre)}</b><span class="mut">${esc(x.pitch)}</span>
@@ -245,7 +245,7 @@ function rendreProjet() {
   const p = perso() || {nom: P.personnage}, vide = !P.scenes.some(s => s.temps === 1);
   const SC = P.scenes.filter(s => s.temps === T), dep = D.depots.filter(x => x.temps === T || x.erreur);
   vue.innerHTML = `
-    <div class="row" style="margin-top:0"><a href="#/">Vidéos de ${esc((E.personnages.find(x => x.slug === P.personnage) || p).nom)}</a><span class="sp" style="flex:1"></span><span class="mut">${P.id}</span></div>
+    <div class="row" style="margin-top:0"><a href="#/">Projets de ${esc((E.personnages.find(x => x.slug === P.personnage) || p).nom)}</a><span class="sp" style="flex:1"></span><span class="mut">${P.id}</span></div>
     <input data-k="titre" value="${esc(P.titre)}" style="font-size:18px;font-weight:600;margin-top:8px">
     <div class="steps" id="etapes"></div>
     <div class="chips" style="margin:0 0 4px">${[1, 2, 3].map(t => `<button class="chip ${t === T ? 'on' : ''}" data-a="temps" data-t="${t}">${t}. ${TEMPS[t][0]} <small>${TEMPS[t][1]}, ${P.scenes.filter(s => s.temps === t).length}</small></button>`).join('')}</div>
@@ -453,7 +453,7 @@ window.addEventListener('beforeunload', () => { if (P && tSave) navigator.sendBe
 
 // --- Personnages -----------------------------------------------------------------------------------
 function vuePersos() {
-  vue.innerHTML = `<div class="row" style="margin-top:0"><a href="#/">Retour aux vidéos</a><span class="sp" style="flex:1"></span><button class="p" onclick="location.hash='#/perso'">Nouveau personnage</button></div>
+  vue.innerHTML = `<div class="row" style="margin-top:0"><a href="#/">Retour aux projets</a><span class="sp" style="flex:1"></span><button class="p" onclick="location.hash='#/perso'">Nouveau personnage</button></div>
     <h2>Personnages</h2>` + E.personnages.map(p => `<a class="card" href="#/perso/${esc(p.slug)}"><div><b>${esc(p.nom)}${p.statut === 'archive' ? ' (archivé)' : ''}</b>
       <span class="mut">${esc(p.accroche)}</span><span class="mut">${p.age} ans, publie en ${esc(p.langue)}, ${p.lora ? 'LoRA en place' : 'sans LoRA'}, ${E.projets.filter(x => x.personnage === p.slug).length} vidéo(s)</span></div></a>`).join('');
 }

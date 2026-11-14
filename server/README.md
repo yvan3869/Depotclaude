@@ -104,3 +104,5 @@ Un agent tiers depose ses plans dans `server/jobs/atelier/<nom>.yaml` (bloc `ate
 la page les affiche, avec leurs erreurs, et le bouton "Importer dans le projet" en fait des scenes.
 Un depot du temps 1 peut porter les textes de publication (pitch, accroche, legende, cta, hashtags).
 Les plans importes ne sont pas ecrases par le redacteur. Marche a suivre de l'agent : `docs/agents.md`.
+Vocabulaire commun a la page et a l'agent (projet, idee, pitch, temps, scene, plan, depot, prise, montage) :
+tableau en tete de `docs/agents.md`.
