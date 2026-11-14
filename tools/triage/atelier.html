@@ -1,84 +1,31 @@
 <!doctype html>
 <html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Atelier</title>
+<link rel="stylesheet" href="/ui.css">
 <style>
-  :root { --bg:#111417; --panel:#1b2026; --line:#2c333b; --txt:#e8eaed; --mut:#8b949e; --acc:#3fa7d6; --ok:#4caf7a; --bad:#d9655b; --warn:#d6a23f; }
-  * { box-sizing:border-box; }
-  body { margin:0; background:var(--bg); color:var(--txt); font:15px/1.45 system-ui,sans-serif; }
-  a { color:var(--acc); text-decoration:none; }
-  header { position:sticky; top:0; z-index:5; background:var(--bg); border-bottom:1px solid var(--line); padding:8px 12px; }
-  header .l1 { display:flex; align-items:center; gap:10px; max-width:820px; margin:0 auto; }
-  header .l1 b { font-size:17px; } header .sp { flex:1; }
-  header small { color:var(--mut); white-space:nowrap; }
-  .chips { display:flex; gap:6px; overflow-x:auto; max-width:820px; margin:6px auto 0; padding-bottom:2px; }
-  .chip { flex:none; border:1px solid var(--line); background:var(--panel); color:var(--txt); border-radius:16px; padding:5px 12px; font-size:14px; cursor:pointer; }
-  .chip.on { border-color:var(--acc); color:var(--acc); }
-  main { max-width:820px; margin:0 auto; padding:12px 12px 80px; }
-  h2 { font-size:16px; margin:22px 0 8px; display:flex; align-items:center; gap:8px; }
-  h2 small, .chip small { color:var(--mut); font-weight:400; }
-  .panel { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:12px; margin-bottom:10px; }
-  label { display:block; color:var(--mut); font-size:13px; margin-top:8px; }
-  label.c { display:flex; align-items:center; gap:8px; color:var(--txt); font-size:14px; }
-  input, textarea, select { width:100%; background:#0d1013; color:var(--txt); border:1px solid var(--line); border-radius:6px; padding:8px; font:16px/1.4 system-ui,sans-serif; margin-top:3px; }
-  input[type=checkbox] { width:18px; height:18px; margin:0; flex:none; }
-  textarea { resize:vertical; min-height:44px; field-sizing:content; }
-  input:focus, textarea:focus, select:focus { outline:none; border-color:var(--acc); }
-  button { background:var(--panel); color:var(--txt); border:1px solid var(--line); border-radius:6px; padding:8px 12px; font:14px system-ui,sans-serif; cursor:pointer; }
-  button.p { background:var(--acc); border-color:var(--acc); color:#06131a; font-weight:600; }
-  button.d { color:var(--bad); } button:disabled { opacity:.45; cursor:default; }
-  button.s { padding:5px 9px; font-size:13px; }
-  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:10px; }
-  .row > .g { flex:1; min-width:120px; } .row label { margin-top:0; }
-  .mut { color:var(--mut); font-size:13px; } .err { color:var(--bad); } .rq { margin:6px 0 0; padding-left:18px; font-size:14px; } .rq li { margin:4px 0; } .okc { color:var(--ok); }
-  .aide { display:block; color:var(--mut); font-size:12px; line-height:1.35; margin-top:3px; opacity:.9; }
-  .gt { font-size:11px; letter-spacing:.07em; text-transform:uppercase; color:var(--acc); margin:16px 0 0; }
-  .gt:first-child { margin-top:0; } .gt + label, .gt + .row { margin-top:4px; }
-  .badge.a { background:#3a1f1f; color:var(--bad); } .badge.i { background:#2c2a1c; color:var(--warn); }
-  .steps { display:flex; gap:4px; margin:10px 0; overflow-x:auto; }
-  .steps span { flex:1; text-align:center; font-size:12px; padding:4px 6px; border-radius:4px; background:var(--panel); color:var(--mut); white-space:nowrap; }
-  .steps span.done { background:#1f3a2c; color:var(--ok); } .steps span.cur { background:#173748; color:var(--acc); }
-  .card { display:flex; gap:10px; background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:8px; margin-bottom:8px; color:var(--txt); cursor:pointer; }
-  .card .th { width:54px; height:96px; border-radius:5px; background:#0d1013 center/cover; flex:none; }
-  .card b { display:block; } .card .mut { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
-  .badge { display:inline-block; font-size:12px; border-radius:4px; padding:1px 7px; background:#173748; color:var(--acc); margin-top:4px; }
-  .badge.v { background:#1f3a2c; color:var(--ok); }
   .scene { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:10px; margin-bottom:10px; }
   .scene .sh { display:flex; gap:6px; align-items:center; }
-  .scene .sh b { width:24px; height:24px; border-radius:12px; background:#173748; color:var(--acc); text-align:center; flex:none; font-size:13px; line-height:24px; }
-  .scene .sh input { margin:0; flex:1; min-width:0; } .scene .sh select { width:auto; margin:0; }
+  .scene .sh b { width:24px; height:24px; border-radius:12px; background:var(--acc-bg); color:var(--acc); text-align:center; flex:none; font-size:13px; line-height:24px; }
+  .scene .sh input { margin:0; flex:1; min-width:0; }
   .media { display:flex; gap:10px; margin-top:10px; }
-  .media .pv { width:112px; aspect-ratio:9/16; background:#0d1013; border-radius:6px; overflow:hidden; flex:none; display:flex; align-items:center; justify-content:center; color:var(--mut); font-size:12px; text-align:center; }
+  .media .pv { width:112px; aspect-ratio:9/16; background:var(--fond); border-radius:6px; overflow:hidden; flex:none; display:flex; align-items:center; justify-content:center; color:var(--mut); font-size:12px; text-align:center; }
   .media .pv img, .media .pv video { width:100%; height:100%; object-fit:cover; display:block; }
   .media .side { flex:1; min-width:0; }
   .takes { display:flex; gap:5px; overflow-x:auto; margin:4px 0 8px; }
   .takes img { width:36px; height:64px; object-fit:cover; border-radius:4px; border:2px solid transparent; flex:none; cursor:pointer; opacity:.6; }
   .takes img.on { border-color:var(--acc); opacity:1; }
   .takes button.on { border-color:var(--acc); color:var(--acc); }
-  pre { background:#0d1013; border-radius:6px; padding:8px; margin:8px 0 0; font-size:12px; white-space:pre-wrap; word-break:break-word; color:var(--mut); }
   video.fin { width:100%; max-width:300px; border-radius:8px; display:block; margin:8px auto; background:#000; }
-  details { margin-top:8px; } summary { color:var(--mut); font-size:13px; cursor:pointer; }
-  .var { border-top:1px solid var(--line); padding:8px 0; }
-  #busy { position:fixed; inset:0; background:rgba(8,10,12,.82); z-index:20; display:none; align-items:center; justify-content:center; text-align:center; padding:24px; }
-  #busy.on { display:flex; } #busy b { font-size:17px; display:block; margin-bottom:6px; }
-  #toast { position:fixed; left:12px; right:12px; bottom:14px; z-index:30; background:#2a1c1b; border:1px solid var(--bad); color:var(--txt); border-radius:8px; padding:10px 12px; display:none; max-width:796px; margin:0 auto; }
-  #toast.ok { background:#16271e; border-color:var(--ok); }
-  dialog { background:var(--panel); color:var(--txt); border:1px solid var(--line); border-radius:10px; padding:14px; width:min(92vw,520px); }
-  dialog::backdrop { background:rgba(0,0,0,.6); }
+  .ver { display:flex; gap:8px; align-items:center; padding:4px 0; font-size:14px; }
 </style></head><body>
 <header>
   <div class="l1"><a href="/">Studio</a><b>Atelier</b><span class="sp"></span><small id="sauve"></small><small id="redac"></small><small id="gpu"></small></div>
   <div class="chips" id="persos"></div>
+  <div class="chips" id="onglets" style="display:none"></div>
 </header>
 <main id="vue"></main>
-<div id="busy"><div><b id="busyt"></b><span class="mut" id="busys"></span></div></div>
-<div id="toast"></div>
-<dialog id="dlg"><b id="dlgt"></b><div class="chips" id="dlgc" style="flex-wrap:wrap;margin-top:10px"></div>
-  <textarea id="dlgi" rows="2" placeholder="Consigne libre"></textarea>
-  <div class="row"><span class="sp" style="flex:1"></span><button id="dlgn">Annuler</button><button class="p" id="dlgo">Lancer</button></div></dialog>
+<script src="/ui.js"></script>
 <script>
-const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
-const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const usd = x => x == null ? '?' : Number(x).toFixed(2).replace('.', ',') + ' $';
 const vue = $('#vue');
 let E = null, D = null, P = null, cur = localStorage.getItem('perso') || '', autoEcrire = '', timer = null, tSave = null, sig = {}, T = 1;
 const ETAPES = [['idee', 'Idée'], ['ecrit', 'Scénario'], ['images', 'Images'], ['clips', 'Clips'], ['monte', 'Montage'], ['valide', 'Validée']];
@@ -87,48 +34,12 @@ const QUOI = {1: 'Tous publics, pour les réseaux : elle donne envie de voir la 
   2: 'Suggestif poussé : lingerie, nu suggéré, rien d\'explicite. Offert ou réservé aux abonnés, c\'est le temps qui convertit. Le rédacteur IA peut l\'écrire, sauf les scènes qui portent des LoRA.',
   3: 'Nudité explicite, sans acte. Pour l\'abonnement ou un paiement bas. Ce temps est à votre main : le rédacteur IA ne l\'écrit pas, ne le relit pas et ne l\'analyse pas.',
   4: 'Explicite, avec actes. Vendu à l\'unité. Ce temps est à votre main : le rédacteur IA ne l\'écrit pas, ne le relit pas et ne l\'analyse pas.'};
-const aide = t => t ? `<span class="aide">${t}</span>` : '';
 const CONSIGNES_T2 = ['Plus lente, plus intime', 'Plus près de la caméra', 'Tenue plus défaite, toujours suggestif', 'Fin qui annonce mieux la suite payante'];
 const depotHtml = x => `<div class="var"><b>${esc(x.titre || x.fichier)}</b> <span class="mut">${esc(x.fichier)}, ${esc(x.date)}</span>
   ${x.erreur ? `<div class="err">Refusé : ${esc(x.erreur)}</div>` : `<div class="mut">${x.n} plan(s) pour le temps ${x.temps}${x.projet ? '' : ', nouveau projet'}${x.perime ? ' ; écrit d\'après un modèle périmé' : ''}${x.remarques ? ` ; ${x.remarques} remarque(s) au contrôle des plans` : ''}${x.note ? ' ; ' + esc(x.note) : ''}</div>
-  <div class="row" style="margin-top:6px">${x.importe ? '<span class="okc">Importé</span>' : `<button class="p s" data-a="importer" data-n="${esc(x.fichier)}">${x.change ? 'Réimporter (fichier modifié)' : 'Importer dans le projet'}</button>`}</div>`}</div>`;
+  <div class="row" style="margin-top:6px">${x.importe ? '<span class="okc">Importé</span>' : `<button class="p s" data-a="importer" data-n="${esc(x.fichier)}">${ic('importer')}${x.change ? 'Réimporter (fichier modifié)' : 'Importer dans le projet'}</button>`}</div>`}</div>`;
 const CONSIGNES = ['Plus aguicheur, plus de tension', 'Accroche plus forte dès la première seconde', 'Coupe plus frustrante à la fin', 'Plus drôle, plus d\'autodérision', 'Autre lieu, autre tenue', 'Plus court'];
 const CONSIGNES_SCENE = ['Plus sensuelle, toujours suggestive', 'Plus près de la caméra', 'Geste plus simple et plus lent', 'Texte à l\'écran plus percutant', 'Autre tenue'];
-
-async function api(path, body) {
-  const r = await fetch(path, body ? {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)} : {});
-  const j = await r.json().catch(() => ({ok: false, error: 'réponse illisible (' + r.status + ')'}));
-  if (!j.ok) throw new Error(j.error || 'erreur');
-  return j;
-}
-function toast(msg, ok) {
-  const t = $('#toast'); t.textContent = msg; t.className = ok ? 'ok' : ''; t.style.display = 'block';
-  clearTimeout(toast.t); toast.t = setTimeout(() => t.style.display = 'none', ok ? 2500 : 7000);
-}
-const essai = f => async (...a) => { try { return await f(...a); } catch (e) { busy(); toast(e.message); } };
-function busy(msg) {
-  clearInterval(busy.t); $('#busy').className = msg ? 'on' : '';
-  if (!msg) return;
-  const t0 = Date.now(); $('#busyt').textContent = msg;
-  const tick = () => $('#busys').textContent = Math.round((Date.now() - t0) / 1000) + ' s. Vous pouvez verrouiller le téléphone : le résultat sera là au retour.';
-  tick(); busy.t = setInterval(tick, 1000);
-}
-function demander(titre, chips) {
-  return new Promise(res => {
-    const d = $('#dlg'); $('#dlgt').textContent = titre; $('#dlgi').value = '';
-    $('#dlgc').innerHTML = chips.map(c => `<span class="chip">${esc(c)}</span>`).join('');
-    $('#dlgc').onclick = e => { if (e.target.classList.contains('chip')) $('#dlgi').value = e.target.textContent; };
-    $('#dlgo').onclick = () => { d.close(); res($('#dlgi').value.trim()); };
-    $('#dlgn').onclick = () => { d.close(); res(null); };
-    d.oncancel = () => res(null);
-    d.showModal();
-  });
-}
-function copier(txt) {
-  const ta = document.createElement('textarea'); ta.value = txt; document.body.appendChild(ta); ta.select();
-  try { document.execCommand('copy'); toast('Copié', true); } catch (e) { toast('Copie impossible'); }
-  ta.remove();
-}
 
 // --- Etat general, barre du haut -------------------------------------------------------------------
 async function etat() {
@@ -136,7 +47,7 @@ async function etat() {
   const actifs = E.personnages.filter(p => p.statut !== 'archive');
   if (!actifs.some(p => p.slug === cur)) cur = actifs[0]?.slug || '';
   $('#persos').innerHTML = actifs.map(p => `<span class="chip ${p.slug === cur ? 'on' : ''}" data-slug="${esc(p.slug)}">${esc(p.nom)}</span>`).join('')
-    + '<span class="chip" data-h="#/persos">Personnages</span><span class="chip" data-h="#/loras">LoRA</span>';
+    + `<span class="chip" data-h="#/persos">${ic('personnage')} Personnages</span><span class="chip" data-h="#/loras">${ic('lora')} LoRA</span>`;
   $('#gpu').textContent = E.depense ? `GPU ${usd(E.depense.jour)} / ${usd(E.depense.plafond)}` : '';
   $('#redac').innerHTML = E.redacteur ? '<span class="okc">Rédacteur IA</span>' : '<span style="color:var(--warn)">Rédacteur de secours</span>';
 }
@@ -146,6 +57,7 @@ $('#persos').onclick = e => {
   cur = c.dataset.slug; localStorage.setItem('perso', cur);
   if (location.hash === '#/' || !location.hash) route(); else location.hash = '#/';
 };
+$('#onglets').onclick = e => { const b = e.target.closest('[data-t]'); if (b && P) essai(actions.temps)(b); };  // les temps du projet ouvert
 const perso = () => E.personnages.find(p => p.slug === cur);
 
 // --- Routage ---------------------------------------------------------------------------------------
@@ -153,6 +65,7 @@ async function route() {
   clearInterval(timer); timer = null;
   if (P) await sauver();
   D = P = null; sig = {};
+  $('#onglets').style.display = 'none'; $('#persos').style.display = '';
   const h = location.hash.slice(2).split('/');
   try {
     await etat();
@@ -173,8 +86,8 @@ function vueProjets() {
   const liste = E.projets.filter(x => x.personnage === cur);
   const lab = Object.fromEntries(ETAPES);
   vue.innerHTML = `
-    <div class="row" style="margin-top:0"><button class="p" data-a="nouveau">Nouveau projet</button><button data-a="idees">Trouver des idées</button>
-      <span class="sp" style="flex:1"></span><a href="#/perso/${esc(cur)}">Fiche de ${esc(p.nom.split(' ')[0])}</a></div>
+    <div class="row tete"><button class="p" data-a="nouveau">${ic('ajouter')}Nouveau projet</button><button data-a="idees">${ic('idee')}Trouver des idées</button>
+      <span class="sp"></span><a href="#/perso/${esc(cur)}">Fiche de ${esc(p.nom.split(' ')[0])}</a></div>
     ${p.lora ? '' : '<p class="mut">Ce personnage n\'a pas de LoRA : son visage variera d\'une image à l\'autre.</p>'}
     <div id="idees"></div>
     ${E.depots.length ? `<h2>Plans déposés par l'agent <small>sans projet</small></h2><div class="panel">${E.depots.map(depotHtml).join('')}</div>` : ''}
@@ -196,7 +109,7 @@ async function idees() {
   const fin = r => {
     $('#idees').innerHTML = `<h2>Idées <small>${r.moteur === 'secours' ? 'structures types (rédacteur IA arrêté)' : 'classées de la plus vendeuse à la moins vendeuse'}</small></h2>`
       + r.resultat.idees.map((x, i) => `<div class="panel"><b>${esc(x.titre)}</b><div class="mut">${esc(x.pitch)}</div>
-        <div style="margin-top:4px">« ${esc(x.accroche)} »</div><div class="row"><button class="p s" data-a="idee" data-i="${i}">Écrire cette vidéo</button></div></div>`).join('');
+        <div style="margin-top:4px">« ${esc(x.accroche)} »</div><div class="row"><button class="p s" data-a="idee" data-i="${i}">${ic('ecrire')}Écrire cette vidéo</button></div></div>`).join('');
     idees.r = r.resultat.idees;
   };
   ecrire({kind: 'idees', personnage: cur, consigne: theme, n: 8}, fin, 'Recherche d\'idées');
@@ -261,26 +174,30 @@ function rendreProjet() {
   const p = perso() || {nom: P.personnage}, vide = !P.scenes.some(s => s.temps === 1);
   const SC = P.scenes.filter(s => s.temps === T), dep = D.depots.filter(x => x.temps === T || x.erreur), DEF = (E.bibliotheque.defauts || {})[T] || '';
   const LN = E.bibliotheque.loras.map(x => x.name).join(', ');
+  let no = 0;  // numero de section, dans l'ordre de la page
+  const sec = (cle, titre, sous = '', defaut = true) => `<details class="sec" data-sec="${cle}"${ouv(cle, defaut)}><summary><span class="n">${++no}</span>${titre}${sous ? `<small>${sous}</small>` : ''}</summary>`;
+  $('#persos').style.display = 'none'; $('#onglets').style.display = '';
+  $('#onglets').innerHTML = NT.map(t => `<button class="chip ${t === T ? 'on' : ''}" data-t="${t}">${t}. ${TEMPS[t][0]} <small>${TEMPS[t][1]}, ${P.scenes.filter(s => s.temps === t).length}</small></button>`).join('');
   vue.innerHTML = `
-    <div class="row" style="margin-top:0"><a href="#/">Projets de ${esc((E.personnages.find(x => x.slug === P.personnage) || p).nom)}</a><span class="sp" style="flex:1"></span><span class="mut">${P.id}</span></div>
+    <div class="row tete"><a class="lien" href="#/">${ic('retour')}Projets de ${esc((E.personnages.find(x => x.slug === P.personnage) || p).nom)}</a><span class="sp"></span><span class="mut">${P.id}</span></div>
     <input data-k="titre" value="${esc(P.titre)}" style="font-size:18px;font-weight:600;margin-top:8px">
     <div class="steps" id="etapes"></div>
-    <div class="chips" style="margin:0 0 4px">${NT.map(t => `<button class="chip ${t === T ? 'on' : ''}" data-a="temps" data-t="${t}">${t}. ${TEMPS[t][0]} <small>${TEMPS[t][1]}, ${P.scenes.filter(s => s.temps === t).length}</small></button>`).join('')}</div>
-    <div class="panel" id="chaine"></div>
+    <details class="sec" data-sec="chaine"${ouv('chaine', ['en cours', 'pause', 'erreur'].includes(D.chaine.etat))} style="margin-top:6px"><summary>${ic('chaine')}Production en chaîne<small id="chres"></small></summary>
+      <div class="panel" id="chaine"></div></details>
     <div class="panel"><b>${T}. ${TEMPS[T][0]}</b><div class="mut">${QUOI[T]}</div>
       ${T > 2 && P.suite ? `<div style="margin-top:6px">Suite annoncée : ${esc(P.suite)}</div>` : ''}
       ${T > 2 ? '<div class="mut" style="margin-top:6px">Ajouter les scènes ici, ou importer un plan déposé par votre agent dans server/jobs/atelier/.</div>' : ''}
       ${T > 1 ? `<div style="margin-top:8px;font-size:14px">LoRA par défaut de ce temps : ${DEF ? `<b>${esc(DEF)}</b>` : '<span class="mut">aucune</span>'} <a href="#/loras">Bibliothèque</a></div>
         <div class="aide">Posées sur chaque scène ajoutée à ce temps, et sur les plans importés qui ne disent rien des LoRA. Chaque scène reste modifiable.</div>
-        ${DEF && SC.length ? '<div class="row"><button class="s" data-a="poserdefauts">Poser ces LoRA sur les scènes de ce temps</button></div>' : ''}` : ''}</div>
+        ${DEF && SC.length ? `<div class="row"><button class="s" data-a="poserdefauts">${ic('lora')}Poser ces LoRA sur les scènes de ce temps</button></div>` : ''}` : ''}</div>
     ${T === 2 ? `<div class="panel">
       ${f('brief2', 'Consigne pour la montée (facultatif)', P.brief2, {area: 1, rows: 2, aide: 'En français. Ce que ce temps doit montrer de plus que l\'accroche : même lieu, même tenue, un cran plus loin.'})}
       <div class="row"><label class="g">Scènes<select data-k="nb2">${[2, 3, 4, 5, 6].map(n => `<option ${n === P.nb2 ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
-        <button class="p" data-a="ecrire2" ${vide || !E.redacteur ? 'disabled' : ''}>${SC.length ? 'Réécrire la montée' : 'Écrire la montée'}</button></div>
+        <button class="p" data-a="ecrire2" ${vide || !E.redacteur ? 'disabled' : ''}>${ic('ecrire')}${SC.length ? 'Réécrire la montée' : 'Écrire la montée'}</button></div>
       ${vide ? '<div class="mut" style="margin-top:6px">Écrire d\'abord le teaser (temps 1).</div>' : E.redacteur ? '' : '<div class="mut" style="margin-top:6px">Rédacteur IA arrêté : ajouter les scènes à la main.</div>'}</div>` : ''}
     ${dep.length ? `<div class="panel"><b>Plans déposés par l'agent</b>${dep.map(depotHtml).join('')}</div>` : ''}
     ${T === 1 ? `
-    <h2>1. Idée</h2>
+    ${sec('idee', 'Idée', esc(P.brief || ''))}
     <div class="panel">
       ${f('brief', 'Idée de départ', P.brief, {area: 1, rows: 2, ph: 'Elle rentre du sport, trop chaud, elle hésite à enlever son pull devant la caméra',
         aide: 'En français, quelques mots suffisent. Le rédacteur en tire le scénario, les textes et le découpage.'})}
@@ -291,36 +208,37 @@ function rendreProjet() {
         aide: 'Météo, événement, ce qu\'elle vit ces jours-ci. Guide l\'idée, la tenue, la lumière et les textes de tous les temps.'})}
       <div class="mut" style="margin-top:8px">Dates réelles : créé le ${esc(P.cree || '')}, modifié le ${esc(P.modifie || '')}.</div>
       <div class="row"><label class="g">Scènes<select data-k="nb_scenes">${[2, 3, 4, 5, 6].map(n => `<option ${n === P.nb_scenes ? 'selected' : ''}>${n}</option>`).join('')}</select>${aide('3 ou 4 scènes de 5 s tiennent dans une accroche de 15 à 20 s.')}</label>
-        <button class="p" data-a="ecrire">${vide ? 'Écrire le scénario' : 'Tout réécrire'}</button>
-        ${vide ? '' : '<button data-a="retoucher">Retoucher</button>'}</div>
+        <button class="p" data-a="ecrire">${ic('ecrire')}${vide ? 'Écrire le scénario' : 'Tout réécrire'}</button>
+        ${vide ? '' : `<button data-a="retoucher">${ic('retoucher')}Retoucher</button>`}</div>
       <div class="mut" style="margin-top:6px">${E.redacteur ? 'Le rédacteur IA écrit le scénario, les textes et le découpage en scènes.' : 'Rédacteur IA arrêté : un scénario type sera tiré d\'une structure toute faite.'}
         ${vide ? '' : ' « Retoucher » garde les images des scènes inchangées.'}</div>
-    </div>
+    </div></details>
 
-    <h2>2. Textes ${P.pitch ? `<small>${esc(P.pitch)}</small>` : ''}</h2>
+    ${sec('textes', 'Textes', esc(P.accroche || P.pitch || ''))}
     <div class="panel">
       ${f('accroche', 'Accroche', P.accroche, {aide: 'Affichée en haut de la première scène, au-dessus du visage. 44 caractères au plus, deux lignes. Elle doit être vraie dès la première image.'})}
       ${f('legende', 'Légende de la publication', P.legende, {area: 1, aide: 'Le texte posté sous la vidéo. Elle n\'apparaît pas dans l\'image.'})}
-      <div class="row" style="align-items:flex-start"><div class="g">${f('cta', 'Carton de fin', P.cta, {aide: 'Dernière image de l\'accroche : où voir la suite.'})}</div>
+      <div class="row haut"><div class="g">${f('cta', 'Carton de fin', P.cta, {aide: 'Dernière image de l\'accroche : où voir la suite.'})}</div>
         <div class="g">${f('hashtags', 'Mots-dièse', P.hashtags, {aide: 'Copiés avec la légende.'})}</div></div>
-      <div class="row"><button data-a="variantes" ${vide ? 'disabled' : ''}>Proposer des variantes</button><button data-a="copier">Copier légende et mots-dièse</button></div>
+      <div class="row"><button data-a="variantes" ${vide ? 'disabled' : ''}>${ic('idee')}Proposer des variantes</button><button data-a="copier">${ic('copier')}Copier légende et mots-dièse</button></div>
       <div id="variantes"></div>
-    </div>` : ''}
+    </div></details>` : ''}
 
-    <details class="panel"${Object.values(P.continuite).some(Boolean) || P.reference ? ' open' : ''}><summary><b>Continuité</b> <span class="mut">ce qui ne change pas d'une image à l'autre, pour tous les temps</span></summary>
-      <div class="mut" style="margin-top:6px">En anglais. Ces éléments sont ajoutés à la description de chaque image : les écrire ici une seule fois, et ne garder dans chaque scène que le cadrage, la pose et l'expression. Laisser vide ce qui change en cours de vidéo.</div>
+    ${sec('continuite', 'Continuité', 'ce qui ne change pas d\'une image à l\'autre, pour tous les temps', Object.values(P.continuite).some(Boolean) || !!P.reference)}
+    <div class="panel"><div class="mut">En anglais. Ces éléments sont ajoutés à la description de chaque image : les écrire ici une seule fois, et ne garder dans chaque scène que le cadrage, la pose et l'expression. Laisser vide ce qui change en cours de vidéo.</div>
       ${CONT.map(([k, lab, ph, aide]) => f(k, lab, P.continuite[k], {at: 'data-c="1"', ph, aide})).join('')}
       <label>Image de référence<select data-k="reference"><option value="">Aucune : chaque image est créée à partir de sa description</option>
         ${P.scenes.filter((s, i) => s.temps === 1 && s.still && !(s.raccord === 'continu' && P.scenes.slice(0, i).some(x => x.temps === 1))).map(s => `<option value="${s.id}" ${s.id === P.reference ? 'selected' : ''}>Scène ${P.scenes.filter(x => x.temps === 1).indexOf(s) + 1} du temps 1 : ${esc(s.titre)}</option>`).join('')}</select>
         ${aide('Avec une image de référence, les autres images en sont tirées par retouche : même personne, même pièce, même tenue, seule la pose change ; elle garde aussi le cadrage de la référence, donc une scène dont la description contient « close-up » est tirée à part, avec la fiche de continuité. À choisir une fois l\'image de cette scène réussie. Les scènes « libres » et celles qui portent des LoRA gardent leur propre image.')}</label>
-    </details>
+    </div></details>
 
-    <h2>${T === 1 ? '3. ' : ''}Scènes <small>${SC.length}, environ ${Math.round(SC.reduce((a, s) => a + (s.duree || 5), 0) + (T === 1 && P.montage.carton ? 2.6 : 0))} s</small></h2>
+    ${sec('scenes', 'Scènes', `${SC.length}, environ ${Math.round(SC.reduce((a, s) => a + (s.duree || 5), 0) + (T === 1 && P.montage.carton ? 2.6 : 0))} s`)}
+    ${SC.length > 1 ? `<div class="row tete" style="margin-bottom:8px"><button class="s" data-a="plier">${ic('plier')}Replier ou déplier les descriptions</button></div>` : ''}
     ${SC.map((s, i) => `<div class="scene" data-sid="${s.id}">
       <div class="sh"><b>${i + 1}</b><input data-s="${s.id}" data-k="titre" value="${esc(s.titre)}" placeholder="Titre">
-        <select data-s="${s.id}" data-k="role">${[['accroche', 'Accroche'], ['montee', 'Montée'], ['chute', 'Chute']].map(([v, l]) => `<option value="${v}" ${v === s.role ? 'selected' : ''}>${l}</option>`).join('')}</select>
-        <button class="s" data-a="monte" ${i ? '' : 'disabled'}>Haut</button><button class="s" data-a="descend" ${i < SC.length - 1 ? '' : 'disabled'}>Bas</button></div>
+        ${bi('haut', 'Monter la scène', `data-a="monte" ${i ? '' : 'disabled'}`)}${bi('bas', 'Descendre la scène', `data-a="descend" ${i < SC.length - 1 ? '' : 'disabled'}`)}${bi('copier', 'Dupliquer la scène', 'data-a="dupliquer"')}${bi('supprimer', 'Supprimer la scène', 'data-a="supprimer"', 's d')}</div>
       <div class="media" data-sid="${s.id}"></div>
+      <details class="pli" data-sec="sc:${P.id}:${s.id}"${ouv(`sc:${P.id}:${s.id}`)}><summary>Description : image, mouvement, texte, place dans la vidéo</summary>
       <div class="gt">Ce qu'on voit</div>
       ${s.raccord === 'continu' && i ? '' : f('still', 'Image de départ (anglais)', s.still, {area: 1, rows: 3, at: `data-s="${s.id}"`,
         aide: 'Cadrage, pose, expression. Le lieu, la tenue, la coiffure et la lumière viennent de la fiche de continuité : ne pas les répéter ici.'})}
@@ -331,6 +249,7 @@ function rendreProjet() {
       <div class="gt">Ce qui s'affiche</div>
       ${f('texte', 'Texte à l\'écran', s.texte, {at: `data-s="${s.id}"`, aide: '7 mots au plus, sans emoji. Vide : aucun texte sur cette scène.'})}
       <div class="gt">Place dans la vidéo</div>
+      <label>Rôle<select data-s="${s.id}" data-k="role">${[['accroche', 'Accroche'], ['montee', 'Montée'], ['chute', 'Chute']].map(([v, l]) => `<option value="${v}" ${v === s.role ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
       <label>Cran dans la progression<select data-s="${s.id}" data-k="cran">${[0, 1, 2, 3, 4, 5].map(v => `<option value="${v}" ${v === (s.cran || 0) ? 'selected' : ''}>${v ? v + (v === 1 ? ' : anodin' : v === 5 ? ' : le plus osé de ce temps' : '') : 'Non renseigné'}</option>`).join('')}</select>
         ${aide('Sert au contrôle des plans : d\'une scène à l\'autre le cran ne doit pas redescendre.')}</label>
       ${i ? `<label>Raccord avec la scène précédente<select data-s="${s.id}" data-k="raccord">${RACCORDS.map(([v, l]) => `<option value="${v}" ${v === s.raccord ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
@@ -339,7 +258,7 @@ function rendreProjet() {
       <details><summary>Réglages avancés : pose de fin, rognage, tatouages, scène libre, voix off</summary>
         ${f('end_edit', 'Pose de fin du clip (anglais)', s.end_edit, {area: 1, rows: 1, at: `data-s="${s.id}"`,
           aide: 'La pose sur laquelle le clip doit finir. Vide : clip simple, moitié prix.'})}
-        <div class="row" style="align-items:flex-start"><div class="g">${f('debut', 'Début du clip (s)', s.debut, {type: 'number', step: '0.1', at: `data-s="${s.id}"`, aide: 'Secondes coupées au début.'})}</div>
+        <div class="row haut"><div class="g">${f('debut', 'Début du clip (s)', s.debut, {type: 'number', step: '0.1', at: `data-s="${s.id}"`, aide: 'Secondes coupées au début.'})}</div>
           <div class="g">${f('duree', 'Durée gardée (s)', s.duree, {type: 'number', step: '0.1', at: `data-s="${s.id}"`, aide: '0 : tout le clip. Une durée réglée ici n\'est pas raccourcie par la durée visée.'})}</div></div>
         <label class="c" style="margin-top:10px"><input type="checkbox" data-s="${s.id}" data-k="tattoos" ${s.tattoos ? 'checked' : ''}>Épaules et poitrine visibles (tatouages)</label>
         <div class="aide">Décocher quand la tenue couvre les épaules : sinon le modèle dessine les tatouages par-dessus le tissu.</div>
@@ -348,19 +267,20 @@ function rendreProjet() {
         ${f('voix', 'Voix off', s.voix, {at: `data-s="${s.id}"`, aide: 'Gardée pour plus tard : pas encore de synthèse vocale.'})}
         ${s.origine ? `<div class="mut" style="margin-top:6px">Origine : ${esc(s.origine)}</div>` : ''}
       </details>
-      <div class="row">${T < 3 ? '<button class="s" data-a="recrire">Réécrire la scène</button>' : ''}<button class="s" data-a="dupliquer">Dupliquer</button><span class="sp" style="flex:1"></span><button class="s d" data-a="supprimer">Supprimer</button></div>
+      ${T < 3 ? `<div class="row"><button class="s" data-a="recrire">${ic('retoucher')}Réécrire la scène</button></div>` : ''}
+      </details>
     </div>`).join('')}
-    <button data-a="ajouter">Ajouter une scène</button>
+    <button data-a="ajouter">${ic('ajouter')}Ajouter une scène</button></details>
 
-    <h2>${T === 1 ? '4. ' : ''}Images et clips</h2>
+    ${sec('prod', 'Images et clips', TEMPS[T][0].toLowerCase())}
     <div class="panel" id="controle"></div>
-    <div class="panel" id="prod"></div>
+    <div class="panel" id="prod"></div></details>
 
-    <h2>${T === 1 ? '5. ' : ''}Montage <small>${TEMPS[T][0].toLowerCase()}</small></h2>
+    ${sec('montage', 'Montage', TEMPS[T][0].toLowerCase())}
     <div class="panel">
       <div class="mut">Ces réglages valent pour tous les temps du projet. Le montage ne coûte rien : il se refait autant de fois qu'il faut, chaque version est gardée.</div>
       <div class="gt">Image</div>
-      <div class="row" style="align-items:flex-start">
+      <div class="row haut">
         <label class="g">Format<select data-m="1" data-k="format">${[['vertical', 'Vertical 9:16'], ['carre', 'Carré'], ['paysage', 'Paysage 16:9']].map(([v, l]) => `<option value="${v}" ${v === P.montage.format ? 'selected' : ''}>${l}</option>`).join('')}</select>${aide('Vertical pour les réseaux et le téléphone.')}</label>
         <label class="g">Transition<select data-m="1" data-k="transition"><option value="coupe" ${P.montage.transition === 'coupe' ? 'selected' : ''}>Coupe franche</option><option value="fondu" ${P.montage.transition === 'fondu' ? 'selected' : ''}>Fondu</option></select>${aide('Entre deux scènes en raccord « coupe ». Les raccords continus restent collés sans coupe.')}</label>
       </div>
@@ -373,9 +293,9 @@ function rendreProjet() {
         : `<label class="c" style="margin-top:10px"><input type="checkbox" data-m="1" data-k="label" ${P.montage.label ? 'checked' : ''}>Mention « AI character »</label>
           <div class="aide">Petite et semi-transparente, dans un coin. Obligatoire sur l'accroche ; au choix ici.</div>`}
       <div class="gt">Durée et fin</div>
-      <div class="row" style="align-items:flex-start"><label class="g">Durée visée<select data-m="1" data-k="cible">${[[0, 'Tout garder'], [15, '15 s'], [20, '20 s'], [30, '30 s']].map(([v, l]) => `<option value="${v}" ${v === (P.montage.cible || 0) ? 'selected' : ''}>${l}</option>`).join('')}</select>
+      <div class="row haut"><label class="g">Durée visée<select data-m="1" data-k="cible">${[[0, 'Tout garder'], [15, '15 s'], [20, '20 s'], [30, '30 s']].map(([v, l]) => `<option value="${v}" ${v === (P.montage.cible || 0) ? 'selected' : ''}>${l}</option>`).join('')}</select>
         ${aide('Les plans sont raccourcis en proportion (2 s au moins chacun), sans toucher aux raccords continus ni aux durées réglées à la main.')}</label>
-        ${T === 1 ? '<button class="s" data-a="teaser" style="margin-top:20px">Réglages teaser 15 s</button>' : ''}</div>
+        ${T === 1 ? `<button class="s" data-a="teaser" style="margin-top:20px">${ic('valider')}Réglages teaser 15 s</button>` : ''}</div>
       <div class="row">${T === 1 ? `<label class="c"><input type="checkbox" data-m="1" data-k="carton" ${P.montage.carton ? 'checked' : ''}>Carton de fin</label>` : ''}
         <label class="c"><input type="checkbox" data-m="1" data-k="noir" ${P.montage.noir ? 'checked' : ''}>Fin au noir</label></div>
       <div class="aide">${T === 1 ? 'Carton de fin : 2,6 s avec le texte « Carton de fin » de l\'étape 2. ' : ''}Fin au noir : la dernière image s'éteint en fondu au lieu de couper net.</div>
@@ -383,8 +303,8 @@ function rendreProjet() {
       <label>Musique<select data-m="1" data-k="musique"><option value="">Aucune</option>${E.musiques.map(m => `<option ${m === P.montage.musique ? 'selected' : ''}>${esc(m)}</option>`).join('')}</select>
         ${aide(E.musiques.length ? 'Coupée à la durée de la vidéo. Pour en ajouter : déposer des fichiers mp3 dans data/audio sur le serveur.' : 'Aucun fichier : déposer des mp3 dans data/audio sur le serveur.')}</label>
       <div id="mont"></div>
-    </div>
-    <div class="row"><span class="sp" style="flex:1"></span><button class="d" data-a="archiver">Archiver ce projet</button></div>`;
+    </div></details>
+    <div class="row" style="margin-top:24px"><span class="sp"></span><button class="d" data-a="archiver">${ic('archiver')}Archiver ce projet</button></div>`;
   majDyn();
 }
 
@@ -400,8 +320,8 @@ function majDyn() {
     : `<div class="okc">Aucune remarque.</div>`), 'controle');
   const c = D.chaine, occ = D.prod.etat === 'en cours' || c.etat === 'en cours', actif = c.etat === 'en cours' || c.etat === 'pause';
   const ETATS = {'en cours': 'Chaîne en cours', pause: 'Chaîne en pause', termine: 'Chaîne terminée', arretee: 'Chaîne arrêtée', erreur: 'Chaîne en erreur'};
-  set($('#chaine'), `<b>Production en chaîne du projet</b>
-    <div class="mut">Images des temps cochés, puis clips et montage, un temps après l'autre. Ne calcule que ce qui manque. Un devis est affiché avant tout lancement.</div>
+  set($('#chres'), c.etat ? `<span class="${c.etat === 'termine' ? 'okc' : c.etat === 'erreur' ? 'err' : c.etat === 'pause' ? 'avt' : ''}">${ETATS[c.etat].replace('Chaîne ', '')}</span>, temps ${c.temps.join(', ')}` : 'tout le projet, d\'une traite ou avec pause', 'chres');
+  set($('#chaine'), `<div class="mut">Images des temps cochés, puis clips et montage, un temps après l'autre. Ne calcule que ce qui manque. Un devis est affiché avant tout lancement.</div>
     <div class="row">${NT.map(t => `<label class="c"><input type="checkbox" data-ch="t${t}" ${CH['t' + t] ? 'checked' : ''} ${actif ? 'disabled' : ''}>${t}. ${TEMPS[t][0]} (${P.scenes.filter(x => x.temps === t).length})</label>`).join('')}</div>
     <div class="row"><label class="g">Déroulement<select data-ch="mode" ${actif ? 'disabled' : ''}><option value="pause" ${CH.mode === 'pause' ? 'selected' : ''}>Pause après les images, pour choisir les prises</option>
       <option value="complet" ${CH.mode === 'complet' ? 'selected' : ''}>D'une traite, sans pause</option></select>
@@ -409,8 +329,9 @@ function majDyn() {
     <div class="row"><label class="c"><input type="checkbox" data-ch="refaire" ${CH.refaire ? 'checked' : ''} ${actif ? 'disabled' : ''}>Tout refaire (nouvelles prises, les anciennes sont gardées)</label>
       <label class="c"><input type="checkbox" data-ch="hd" ${CH.hd ? 'checked' : ''} ${actif ? 'disabled' : ''}>Clips en 720p</label></div>
     <div class="aide">Tout refaire : recalcule aussi ce qui existe déjà. 720p : quatre fois le prix du 480p, à garder pour la version finale.</div>
-    <div class="row">${c.etat === 'pause' ? '<button class="p" data-a="chainesuite">Continuer : clips et montage</button>' : `<button class="p" data-a="chaine" ${occ || !E.can_run ? 'disabled' : ''}>Lancer la chaîne</button>`}
-      ${actif ? `<button data-a="chainestop" ${c.stop ? 'disabled' : ''}>${c.etat === 'pause' ? 'Abandonner la chaîne' : c.stop ? 'Arrêt demandé' : 'Arrêter après l\'étape en cours'}</button>` : ''}</div>
+    ${c.etat === 'pause' ? `<div class="aide">Réglages verrouillés pendant la pause. Pour refaire des images sans quitter la chaîne : « Refaire les images de ce temps », dans « Images et clips ». Pour changer les réglages : abandonner la chaîne (les images restent), puis la relancer.</div>` : ''}
+    <div class="row">${c.etat === 'pause' ? `<button class="p" data-a="chainesuite">${ic('lancer')}Continuer : clips et montage</button>` : `<button class="p" data-a="chaine" ${occ || !E.can_run ? 'disabled' : ''}>${ic('lancer')}Lancer la chaîne</button>`}
+      ${actif ? `<button data-a="chainestop" ${c.stop ? 'disabled' : ''}>${ic('arret')}${c.etat === 'pause' ? 'Abandonner la chaîne' : c.stop ? 'Arrêt demandé' : 'Arrêter après l\'étape en cours'}</button>` : ''}</div>
     ${c.ailleurs ? `<div class="mut" style="margin-top:6px">Une chaîne tourne sur le projet ${esc(c.ailleurs)} : les lancements attendent sa fin.</div>` : ''}
     ${c.etat ? `<div style="margin-top:8px"><b class="${c.etat === 'termine' ? 'okc' : c.etat === 'erreur' ? 'err' : ''}">${ETATS[c.etat]}</b> <span class="mut">temps ${c.temps.join(', ')} : ${esc(c.etape)}</span>
       ${c.etat === 'erreur' ? `<pre class="err">${esc(c.erreur)}</pre>` : ''}<pre>${esc(c.journal.join('\n'))}</pre></div>` : ''}`, 'chaine');
@@ -425,23 +346,26 @@ function majDyn() {
       <div class="side">
         ${t.images.length > 1 && !cont ? `<div class="mut">Prises</div><div class="takes">${t.images.map(n => `<img src="${u(n)}" loading="lazy" class="${n === c.image ? 'on' : ''}" data-a="prise" data-n="${n}">`).join('')}</div>` : ''}
         ${clips.length > 1 ? `<div class="takes">${clips.map((n, j) => `<button class="s ${n === c.clip ? 'on' : ''}" data-a="priseclip" data-n="${n}">Clip ${j + 1}</button>`).join('')}</div>` : ''}
-        <div class="row" style="margin-top:0">${cont ? '' : `<button class="s" data-a="image" ${occ || !s.still ? 'disabled' : ''}>${c.image ? 'Autre image' : 'Créer l\'image'}</button>`}
-          <button class="s" data-a="clip" ${occ || !(cont ? (D.choix[pv.id] || {}).clip : c.image) || !s.motion ? 'disabled' : ''}>${c.clip ? 'Autre clip' : 'Créer le clip'}</button></div>
+        <div class="row tete">${cont ? '' : `<button class="s" data-a="image" ${occ || !s.still ? 'disabled' : ''}>${ic(c.image ? 'refaire' : 'image')}${c.image ? 'Autre image' : 'Créer l\'image'}</button>`}
+          <button class="s" data-a="clip" ${occ || !(cont ? (D.choix[pv.id] || {}).clip : c.image) || !s.motion ? 'disabled' : ''}>${ic(c.clip ? 'refaire' : 'clip')}${c.clip ? 'Autre clip' : 'Créer le clip'}</button></div>
         <div class="mut" style="margin-top:6px">${c.clip ? 'Clip prêt.' : cont ? ((D.choix[pv.id] || {}).clip ? (t.clips.length ? 'Le clip précédent a changé : ce clip est à refaire.' : 'Suite du clip précédent : prête à lancer.') : 'Suite du clip précédent : créer d\'abord celui-ci.')
           : c.image ? (t.clips.length && !clips.length ? 'L\'image a changé : le clip est à refaire.' : 'Image prête : la vérifier avant de lancer le clip.') : ''}</div>
         ${(rl => rl && rl.image === c.image ? `<div class="${rl.ok ? 'okc' : 'err'}" style="margin-top:6px;font-size:13px">Relecture : ${rl.ok ? 'rien à signaler.' : esc(rl.constat)}${!rl.ok && rl.consigne ? ` <span class="mut">${esc(rl.consigne)}</span>` : ''}</div>` : '')((((D.relecture || {})[s.temps] || {}).scenes || {})[s.id])}
       </div>`, 'm' + s.id);
   }
   const d = D.devis[T], pr = D.prod, R = (D.relecture || {})[T] || {};
-  set($('#prod'), `
-    <div class="row" style="margin-top:0"><button class="p" data-a="chainetemps" ${occ || c.etat === 'pause' || !E.can_run ? 'disabled' : ''}>Tout produire pour ce temps</button>
-      <span class="mut">images, ${CH.mode === 'pause' ? 'pause, ' : ''}clips, montage (réglages : « Production en chaîne », en haut)</span></div>
-    <div class="row"><button class="p" data-a="images" ${occ || !d.images.n ? 'disabled' : ''}>Créer les images manquantes (${d.images.n})</button><span class="mut">${d.images.n ? 'environ ' + usd(d.images.usd) : ''}</span></div>
-    <div class="row"><button class="p" data-a="clips" ${occ || !d.clips.n ? 'disabled' : ''}>Créer les clips manquants (${d.clips.n})</button>
-      <span class="mut">${d.clips.n ? `environ ${usd(d.clips.usd)} en 480p, ${usd(d.clips.usd_hd)} en 720p` : ''}</span></div>
-    ${T < 3 ? `<div class="row"><button data-a="relire" ${R.etat === 'attente' || !E.redacteur || !SCT.some(s => (D.choix[s.id] || {}).image) ? 'disabled' : ''}>${R.etat === 'attente' ? 'Relecture en cours...' : 'Relire les images'}</button>
-      <span class="mut">${E.redacteur ? 'le rédacteur IA cherche les défauts avant les clips (sans GPU ; fait d\'office à la pause de la chaîne)' : 'rédacteur IA arrêté'}</span></div>
-      ${R.etat === 'erreur' ? `<div class="err" style="margin-top:6px">Relecture : ${esc(R.erreur)}</div>` : R.etat === 'pret' ? `<div style="margin-top:6px;font-size:14px"><b>Relecture du ${esc(R.date)}</b> :
+  const RI = aRefaire(), nRI = RI.filter(s => (D.choix[s.id] || {}).image).length;
+  set($('#prod'), `<div class="acts">
+    <div class="act"><button class="p" data-a="chainetemps" ${occ || c.etat === 'pause' || !E.can_run ? 'disabled' : ''}>${ic('lancer')}Tout produire pour ce temps</button>
+      <span class="mut">${c.etat === 'pause' ? 'Indisponible : une chaîne est en pause (« Production en chaîne », en haut).' : `Images, ${CH.mode === 'pause' ? 'pause, ' : ''}clips, montage. Réglages : « Production en chaîne », en haut.`}</span></div>
+    <div class="act"><button data-a="images" ${occ || !d.images.n ? 'disabled' : ''}>${ic('image')}Créer les images manquantes (${d.images.n})</button><span class="mut">${d.images.n ? 'Environ ' + usd(d.images.usd) + '.' : 'Aucune image ne manque.'}</span></div>
+    <div class="act"><button data-a="refaireimages" ${occ || !nRI ? 'disabled' : ''}>${ic('refaire')}Refaire les images de ce temps (${RI.length})</button>
+      <span class="mut">${nRI ? `Environ ${usd(0.003 * RI.length + 0.05)}. Nouvelles prises ; les anciennes restent sélectionnables${c.etat === 'pause' ? ', la chaîne reste en pause' : ''}.` : 'Aucune image à refaire.'}</span></div>
+    <div class="act"><button data-a="clips" ${occ || !d.clips.n ? 'disabled' : ''}>${ic('clip')}Créer les clips manquants (${d.clips.n})</button>
+      <span class="mut">${d.clips.n ? `Environ ${usd(d.clips.usd)} en 480p, ${usd(d.clips.usd_hd)} en 720p.` : 'Aucun clip ne manque.'}</span></div>
+    ${T < 3 ? `<div class="act"><button data-a="relire" ${R.etat === 'attente' || !E.redacteur || !SCT.some(s => (D.choix[s.id] || {}).image) ? 'disabled' : ''}>${ic('relire')}${R.etat === 'attente' ? 'Relecture en cours...' : 'Relire les images'}</button>
+      <span class="mut">${E.redacteur ? 'Le rédacteur IA cherche les défauts avant les clips. Sans GPU ; fait d\'office à la pause de la chaîne.' : 'Rédacteur IA arrêté.'}</span></div>` : ''}</div>
+    ${T < 3 ? `${R.etat === 'erreur' ? `<div class="err" style="margin-top:6px">Relecture : ${esc(R.erreur)}</div>` : R.etat === 'pret' ? `<div style="margin-top:6px;font-size:14px"><b>Relecture du ${esc(R.date)}</b> :
         ${(n => n ? `<span class="err">${n} image(s) à refaire</span>` : '<span class="okc">rien à refaire</span>')(Object.entries(R.scenes).filter(([k, v]) => !v.ok && v.image === (D.choix[k] || {}).image).length)}. ${esc(R.ensemble)}</div>` : ''}` : ''}
     <label class="c" style="margin-top:8px"><input type="checkbox" id="hd" ${sig.hd ? 'checked' : ''}>Clips en 720p (quatre fois plus cher : à garder pour la version finale)</label>
     <div class="mut" style="margin-top:6px">${E.can_run ? 'Chaque lancement passe par le plafond GPU du jour. Les clips démarrent leur propre pod (2 à 5 minutes d\'attente).' : 'Clé RunPod absente : lancement impossible.'}</div>
@@ -449,28 +373,29 @@ function majDyn() {
       ${pr.cout != null ? ` <span class="mut">${usd(pr.cout)}</span>` : ''}${pr.echecs ? ` <span class="err">${pr.echecs} échec(s)</span>` : ''}<pre>${esc(pr.log)}</pre></div>` : ''}`, 'prod');
   const F = D.finals[T], m = D.montage, fin = F.at(-1), u = n => `/afile/${P.id}/${n}`, inf = fin && D.infos[fin], an = (fin && D.analyses[fin]) || {}, pla = fin && (D.planches || {})[fin];
   set($('#mont'), `
-    <div class="row"><button class="p" data-a="monter" ${m.etat === 'en cours' ? 'disabled' : ''}>${m.etat === 'en cours' ? 'Montage en cours...' : fin ? 'Remonter (nouvelle version)' : 'Monter la vidéo'}</button>
+    <div class="row"><button class="p" data-a="monter" ${m.etat === 'en cours' ? 'disabled' : ''}>${ic('montage')}${m.etat === 'en cours' ? 'Montage en cours...' : fin ? 'Remonter (nouvelle version)' : 'Monter la vidéo'}</button>
       <span class="mut">Les scènes sans clip sont montées en image fixe avec un zoom lent.</span></div>
     ${m.etat === 'erreur' ? `<pre class="err">${esc(m.erreur)}</pre>` : ''}
     ${fin ? `<video class="fin" src="${u(fin)}" controls playsinline preload="metadata"></video>
-      <div class="row"><b>${fin.replace('final_', '').replace('.mp4', '').replace('_', ' ')}</b><a href="${u(fin)}" download="${P.id}_${fin}">Télécharger</a><span class="sp" style="flex:1"></span>
-        <button class="s" data-a="tri" data-n="${fin}">Envoyer au Tri</button><button class="s d" data-a="suppfinal" data-n="${fin}">Supprimer</button></div>
+      <div class="row"><b>${fin.replace('final_', '').replace('.mp4', '').replace('_', ' ')}</b><a class="lien" href="${u(fin)}" download="${P.id}_${fin}">${ic('telecharger')}Télécharger</a><span class="sp"></span>
+        <button class="s" data-a="tri" data-n="${fin}">${ic('envoyer')}Envoyer au Tri</button>${bi('supprimer', 'Supprimer cette version', `data-a="suppfinal" data-n="${fin}"`, 's d')}</div>
       ${inf ? `<div class="mut">${inf.duree} s, ${inf.plans} plan(s)${inf.colles ? `, ${inf.colles} raccord(s) sans coupe` : ''}${inf.cible ? `, visée ${inf.cible} s` : ''}${inf.label ? ', mention IA' : ''}, montée le ${esc(inf.date)}</div>` : ''}
-      ${F.length > 1 ? `<div class="mut">Versions précédentes : ${F.slice(0, -1).reverse().map(n => `<a href="${u(n)}" target="_blank">${n.replace('final_', '').replace('.mp4', '').replace('_', ' ')}</a>${D.infos[n] ? ` (${D.infos[n].duree} s, ${esc(D.infos[n].date)})` : ''}`).join(', ')}. Elles s'ouvrent dans un nouvel onglet.</div>` : ''}
+      ${F.length > 1 ? `<details class="pli" data-sec="versions"${ouv('versions')}><summary>Versions précédentes (${F.length - 1})</summary>${F.slice(0, -1).reverse().map(n => `<div class="ver">
+        <a href="${u(n)}" target="_blank">${n.replace('final_', '').replace('.mp4', '').replace('_', ' ')}</a><span class="mut">${D.infos[n] ? `${D.infos[n].duree} s, ${esc(D.infos[n].date)}` : ''}</span>
+        <span class="sp"></span>${bi('supprimer', 'Supprimer ' + n, `data-a="suppfinal" data-n="${n}"`, 's d')}</div>`).join('')}<div class="mut">Elles s'ouvrent dans un nouvel onglet.</div></details>` : ''}
       ${pla ? `<a href="${u(pla)}" target="_blank"><img src="${u(pla)}?${encodeURIComponent(inf ? inf.date : '')}" alt="Planche de contrôle" loading="lazy" style="width:100%;border-radius:6px;margin-top:8px;display:block"></a>
         <div class="mut">Planche de contrôle : début, milieu de chaque scène, avant et après chaque jointure, fin. Toucher pour agrandir. Sans IA ni GPU.</div>`
-        : `<div class="row"><button data-a="planche" data-n="${fin}">Créer la planche de contrôle</button><span class="mut">Les images clés de la vidéo côte à côte, pour vérifier raccords et textes d'un coup d'oeil.</span></div>`}
-      ${T < 3 ? `<div class="row"><button data-a="analyser" data-n="${fin}" ${an.etat === 'attente' || !E.redacteur ? 'disabled' : ''}>${an.etat === 'attente' ? 'Analyse en cours...' : an.etat ? 'Refaire l\'analyse' : 'Analyser la vidéo'}</button>
+        : `<div class="row"><button data-a="planche" data-n="${fin}">${ic('planche')}Créer la planche de contrôle</button><span class="mut">Les images clés de la vidéo côte à côte, pour vérifier raccords et textes d'un coup d'oeil.</span></div>`}
+      ${T < 3 ? `<div class="row"><button data-a="analyser" data-n="${fin}" ${an.etat === 'attente' || !E.redacteur ? 'disabled' : ''}>${ic('analyser')}${an.etat === 'attente' ? 'Analyse en cours...' : an.etat ? 'Refaire l\'analyse' : 'Analyser la vidéo'}</button>
         <span class="mut">Critique du montage par le rédacteur IA, d'après des images extraites de la vidéo. Sans GPU.</span></div>
         ${an.etat === 'erreur' ? `<div class="err">Analyse : ${esc(an.erreur)}</div>` : ''}
         ${an.etat === 'pret' ? `<div style="margin-top:6px"><b class="${an.publiable ? 'okc' : 'err'}">${an.publiable ? 'Analyse : publiable' : 'Analyse : à reprendre'}</b> <span class="mut">${esc(an.date)}</span>
           <div>${esc(an.ensemble)}</div>${an.points.map(x => `<div style="margin-top:6px"><span class="${x.grave ? 'err' : ''}"><b>${esc(x.moment)}</b> : ${esc(x.constat)}</span> <span class="mut">${esc(x.proposition)}</span></div>`).join('')}
           ${an.forces ? `<div class="mut" style="margin-top:6px">À garder : ${esc(an.forces)}</div>` : ''}</div>` : ''}` : ''}
       ${T === 1 && D.publication.length ? `<div style="margin-top:8px">${D.publication.map(x => `<div class="${x.grave ? 'err' : 'mut'}">${x.grave ? 'Bloquant : ' : 'À vérifier : '}${esc(x.msg)}</div>`).join('')}</div>` : ''}
-      ${T === 1 ? `<div class="row"><button class="${P.statut === 'valide' ? '' : 'p'}" data-a="statut" data-v="${P.statut === 'valide' ? '' : 'valide'}" ${!P.statut && D.publication.some(x => x.grave) ? 'disabled' : ''}>${P.statut === 'valide' ? 'Retirer la validation' : 'Valider pour publication'}</button>
+      ${T === 1 ? `<div class="row"><button class="${P.statut === 'valide' ? '' : 'p'}" data-a="statut" data-v="${P.statut === 'valide' ? '' : 'valide'}" ${!P.statut && D.publication.some(x => x.grave) ? 'disabled' : ''}>${P.statut === 'valide' ? '' : ic('valider')}${P.statut === 'valide' ? 'Retirer la validation' : 'Valider pour publication'}</button>
         <button data-a="statut" data-v="${P.statut === 'publie' ? 'valide' : 'publie'}">${P.statut === 'publie' ? 'Publiée (annuler)' : 'Marquer publiée'}</button></div>` : ''}
-      ${F.length > 1 ? `<details><summary>Versions précédentes (${F.length - 1})</summary>${F.slice(0, -1).reverse().map(n => `<div class="row"><a href="${u(n)}" target="_blank">${n}</a>
-        <span class="sp" style="flex:1"></span><button class="s d" data-a="suppfinal" data-n="${n}">Supprimer</button></div>`).join('')}</details>` : ''}` : ''}`, 'mont');
+` : ''}`, 'mont');
 }
 function surveiller() {
   clearInterval(timer); timer = null;
@@ -507,7 +432,15 @@ async function chaine(temps) {
   toast('Chaîne lancée', true);
   await recharger();
 }
+// Scenes du temps affiche qui ont une image a elles (une scene continue part de la fin du clip precedent)
+const aRefaire = () => P.scenes.filter(s => s.temps === T).filter((s, i) => s.still && !(i && s.raccord === 'continu'));
 const actions = {
+  refaireimages: () => {
+    const l = aRefaire();
+    if (confirm(`Refaire les ${l.length} image(s) du temps ${T}, environ ${usd(0.003 * l.length + 0.05)} ?\nLes prises actuelles sont gardées et restent sélectionnables. Les clips faits sur les anciennes images ne seront plus rattachés.`
+      + (D.chaine.etat === 'pause' ? '\nLa chaîne reste en pause : « Continuer » une fois les prises choisies.' : ''))) return produire('images', l.map(s => s.id));
+  },
+  plier: () => { const ds = $$('.scene > details.pli', vue), o = !ds.every(x => x.open); ds.forEach(x => x.open = o); },
   chaine: () => chaine(NT.filter(t => CH['t' + t])),
   chainetemps: () => chaine([T]),
   chainesuite: async () => { await sauver(); await api('/api/a/chaine/continuer', {id: P.id}); toast('Chaîne reprise', true); await recharger(); },
@@ -515,7 +448,7 @@ const actions = {
   nouveau: () => creer('', ''),
   idees,
   idee: el => { const x = idees.r[+el.dataset.i]; return creer(x.titre, `${x.pitch} Accroche : ${x.accroche}`); },
-  temps: el => { T = +el.dataset.t; const hd = sig.hd; sig = {hd}; rendreProjet(); },
+  temps: el => { T = +el.dataset.t; const hd = sig.hd; sig = {hd}; rendreProjet(); window.scrollTo(0, 0); },
   ecrire2: async () => {
     if (P.scenes.some(s => s.temps === 2) && !confirm('Réécrire toute la montée ? Ses images et clips ne seront plus rattachés.')) return;
     const c = await demander('Écrire la montée : une consigne ? (facultatif)', CONSIGNES_T2);
@@ -589,7 +522,7 @@ window.addEventListener('beforeunload', () => { if (P && tSave) navigator.sendBe
 // --- Bibliotheque de LoRA --------------------------------------------------------------------------
 function vueLoras() {
   const B = E.bibliotheque, l = (k, lab, v, o = {}) => `<label>${lab}<input data-l="${k}" type="${o.type || 'text'}" ${o.step ? `step="${o.step}"` : ''} value="${esc(v ?? '')}" placeholder="${esc(o.ph || '')}">${aide(o.aide)}</label>`;
-  vue.innerHTML = `<div class="row" style="margin-top:0"><a href="#/">Retour aux projets</a></div>
+  vue.innerHTML = `<div class="row tete"><a class="lien" href="#/">${ic('retour')}Retour aux projets</a></div>
     <h2>Bibliothèque de LoRA <small>${B.loras.length} inscrite(s)</small></h2>
     <div class="panel"><div class="mut">Une LoRA ajoute au modèle d'image une tenue, une pose ou un style. Elle s'ajoute à la LoRA du visage, qui se règle dans la fiche du personnage.
       Le fichier se dépose sur le volume par « pilot lora add » (docs/lora-supplementaires.md) ; cette page note comment s'en servir : force conseillée, mots déclencheurs, note.
@@ -601,7 +534,7 @@ function vueLoras() {
       <div class="mut" style="word-break:break-all">${esc(x.file)}</div>
       ${x.trigger ? `<div style="font-size:14px;margin-top:4px">Mots déclencheurs : ${esc(x.trigger)}</div>` : ''}
       ${x.note ? `<div style="font-size:14px;margin-top:4px">${esc(x.note)}</div>` : ''}
-      <div class="row"><button class="s" data-a="loracorriger" data-n="${esc(x.name)}">Corriger</button>${x.source ? `<a href="${esc(x.source)}" target="_blank" rel="noopener">Page d'origine</a>` : ''}<span class="sp" style="flex:1"></span>
+      <div class="row"><button class="s" data-a="loracorriger" data-n="${esc(x.name)}">Corriger</button>${x.source ? `<a href="${esc(x.source)}" target="_blank" rel="noopener">Page d'origine</a>` : ''}<span class="sp"></span>
         ${x.ou === 'donnees' ? `<button class="s d" data-a="loraretirer" data-n="${esc(x.name)}">Retirer du catalogue</button>` : '<span class="mut">inscrite dans le dépôt</span>'}</div></div>`).join('')
       || '<p class="mut">Aucune LoRA inscrite.</p>'}
     ${B.hors.length ? `<h2>Sur le volume, non inscrites <small>${B.hors.length}</small></h2><div class="panel"><div class="mut">Fichiers présents sur le volume que le catalogue ne connaît pas. Les inscrire pour pouvoir les nommer dans une scène.</div>
@@ -614,11 +547,11 @@ function vueLoras() {
       ${l('strength', 'Force conseillée', '0.8', {type: 'number', step: '0.05', aide: 'Entre 0,1 et 2. Utilisée quand la scène écrit le nom seul ; « nom:0.6 » dans une scène la remplace. Trop forte, elle déforme le visage.'})}
       ${l('trigger', 'Mots déclencheurs (anglais)', '', {aide: 'Ajoutés d\'office à la fin de la description de l\'image quand la LoRA est utilisée. Vide si la LoRA n\'en demande pas.'})}
       ${l('note', 'Note', '', {aide: 'Pour vous : à quoi elle sert, avec quelles poses, ce qui rate.'})}
-      <div class="row"><button class="p" data-a="lorasauver">Enregistrer la LoRA</button></div></div>
+      <div class="row"><button class="p" data-a="lorasauver">${ic('valider')}Enregistrer la LoRA</button></div></div>
     <h2>LoRA par défaut de chaque temps</h2>
     <div class="panel"><div class="mut">Posées sur chaque scène ajoutée à ce temps, et sur les plans importés qui ne disent rien des LoRA. L'accroche n'en porte pas. Chaque scène reste modifiable.</div>
       ${[2, 3, 4].map(t => `<label>${t}. ${TEMPS[t][0]} <span class="mut">${TEMPS[t][1]}</span><input data-d="${t}" value="${esc((B.defauts || {})[t] || '')}" placeholder="nom:0.6, autre">${aide(t === 2 ? 'Noms inscrits ci-dessus, « nom:force », séparés par des virgules. Vide : aucune.' : '')}</label>`).join('')}
-      <div class="row"><button class="p" data-a="defautssauver">Enregistrer les défauts</button></div></div>`;
+      <div class="row"><button class="p" data-a="defautssauver">${ic('valider')}Enregistrer les défauts</button></div></div>`;
 }
 function loraForm(x) {
   for (const k of ['name', 'label', 'file', 'strength', 'trigger', 'note']) if (x && x[k] != null) $(`[data-l="${k}"]`, vue).value = x[k];
@@ -638,7 +571,7 @@ async function defautsSauver() {
 
 // --- Personnages -----------------------------------------------------------------------------------
 function vuePersos() {
-  vue.innerHTML = `<div class="row" style="margin-top:0"><a href="#/">Retour aux projets</a><span class="sp" style="flex:1"></span><button class="p" onclick="location.hash='#/perso'">Nouveau personnage</button></div>
+  vue.innerHTML = `<div class="row tete"><a class="lien" href="#/">${ic('retour')}Retour aux projets</a><span class="sp"></span><button class="p" onclick="location.hash='#/perso'">${ic('ajouter')}Nouveau personnage</button></div>
     <h2>Personnages</h2>` + E.personnages.map(p => `<a class="card" href="#/perso/${esc(p.slug)}"><div><b>${esc(p.nom)}${p.statut === 'archive' ? ' (archivé)' : ''}</b>
       <span class="mut">${esc(p.accroche)}</span><span class="mut">${p.age} ans, publie en ${esc(p.langue)}, ${p.lora ? 'LoRA en place' : 'sans LoRA'}, ${E.projets.filter(x => x.personnage === p.slug).length} vidéo(s)</span></div></a>`).join('');
 }
@@ -649,10 +582,10 @@ async function vuePerso(slug) {
   const i = (k, lab, v, o = {}) => `<label>${lab}${o.area ? `<textarea data-p="${k}" rows="${o.rows || 2}" placeholder="${esc(o.ph || '')}">${esc(v)}</textarea>`
     : `<input data-p="${k}" type="${o.type || 'text'}" ${o.step ? `step="${o.step}"` : ''} value="${esc(v)}" placeholder="${esc(o.ph || '')}">`}${aide(o.aide)}</label>`;
   const g = p.generation || {}, w = p.ecriture || {};
-  vue.innerHTML = `<div class="row" style="margin-top:0"><a href="#/persos">Personnages</a></div>
+  vue.innerHTML = `<div class="row tete"><a class="lien" href="#/persos">${ic('retour')}Personnages</a></div>
     <h2>${slug ? esc(p.nom) : 'Nouveau personnage'}</h2>
     ${slug ? '' : `<div class="panel"><label>Concept, en une ou deux phrases<textarea id="concept" rows="2" placeholder="Une barmaid de nuit à Marseille, brune, tatouée, grande gueule et tendre"></textarea></label>
-      <div class="row"><button class="p" data-a="persoia" ${E.redacteur ? '' : 'disabled'}>Rédiger la fiche avec l'IA</button><span class="mut">${E.redacteur ? 'La fiche reste modifiable avant enregistrement.' : 'Rédacteur IA arrêté : remplir la fiche à la main.'}</span></div></div>`}
+      <div class="row"><button class="p" data-a="persoia" ${E.redacteur ? '' : 'disabled'}>${ic('ecrire')}Rédiger la fiche avec l'IA</button><span class="mut">${E.redacteur ? 'La fiche reste modifiable avant enregistrement.' : 'Rédacteur IA arrêté : remplir la fiche à la main.'}</span></div></div>`}
     <div class="panel"><input type="hidden" data-p="slug" value="${esc(slug)}">
       <div class="mut">Ce que le rédacteur IA sait d'elle : il s'en sert pour chaque idée, chaque scénario et chaque texte.</div>
       <div class="row"><div class="g">${i('nom', 'Nom', p.nom)}</div><div style="width:84px">${i('age', 'Âge (21 au moins)', p.age, {type: 'number'})}</div>
@@ -666,19 +599,19 @@ async function vuePerso(slug) {
     <h2>Écriture</h2>
     <div class="panel">${i('ecriture.ton', 'Ton', w.ton, {aide: 'Comment elle écrit ses accroches et ses légendes.'})}
       ${i('ecriture.cta', 'Appel à l\'action habituel', w.cta, {aide: 'Proposé comme carton de fin de chaque accroche.'})}
-      <div class="row" style="align-items:flex-start"><div class="g">${i('ecriture.plateforme', 'Plateforme payante', w.plateforme, {aide: 'Où se trouve la suite.'})}</div>
+      <div class="row haut"><div class="g">${i('ecriture.plateforme', 'Plateforme payante', w.plateforme, {aide: 'Où se trouve la suite.'})}</div>
         <div class="g">${i('ecriture.hashtags', 'Mots-dièse', w.hashtags, {aide: 'Proposés pour chaque publication.'})}</div></div>
       ${i('ecriture.interdits', 'À ne jamais écrire ou montrer', w.interdits, {area: 1, aide: 'Rappelé au rédacteur à chaque écriture.'})}</div>
     <h2>Génération <small>réglages envoyés au modèle d'image</small></h2>
     <div class="panel">${i('generation.zimage_prefix', 'Début de chaque description (anglais)', g.zimage_prefix, {area: 1, ph: 'a woman with long dark hair and brown eyes,',
         aide: 'Placé devant chaque description d\'image : mot déclencheur de la LoRA du visage, cheveux, yeux.'})}
-      <div class="row" style="align-items:flex-start"><div class="g">${i('generation.lora', 'Fichier LoRA du visage', g.lora, {aide: 'Vide : le visage change d\'une image à l\'autre. L\'entraînement coûte environ 2 $ et se fait hors de cette page.'})}</div>
+      <div class="row haut"><div class="g">${i('generation.lora', 'Fichier LoRA du visage', g.lora, {aide: 'Vide : le visage change d\'une image à l\'autre. L\'entraînement coûte environ 2 $ et se fait hors de cette page.'})}</div>
         <div style="width:90px">${i('generation.lora_strength', 'Force', g.lora_strength, {type: 'number', step: '0.1', aide: '1 en général.'})}</div></div>
       ${i('generation.corps', 'Corps (anglais)', g.corps, {area: 1, aide: 'À votre main. Ajouté à chaque image.'})}
       ${i('generation.suffixe', 'Fin de chaque description', g.suffixe, {area: 1, rows: 1, aide: 'Qualité, grain, objectif. Vide : réglage commun à tous les personnages.'})}
       ${i('generation.note', 'Note pour le rédacteur', g.note, {area: 1, rows: 1, aide: 'Ce que la LoRA du visage porte déjà (tatouages, piercing), pour qu\'il ne le redécrive pas.'})}
       <div class="mut" style="margin-top:8px">Les LoRA de tenue, de pose ou de style se règlent dans la <a href="#/loras">bibliothèque de LoRA</a>.</div></div>
-    <div class="row"><button class="p" data-a="persosauver">Enregistrer</button><span class="sp" style="flex:1"></span>
+    <div class="row"><button class="p" data-a="persosauver">${ic('valider')}Enregistrer</button><span class="sp"></span>
       ${slug ? (p.statut === 'archive' ? '<button data-a="persoreactiver">Réactiver</button>' : '<button class="d" data-a="persoarchiver">Archiver</button>') : ''}</div>
     <p class="mut">Personnages fictifs, adultes, sans ressemblance avec une personne réelle, présentés comme créés par IA.</p>`;
   vuePerso.statut = p.statut || 'actif';

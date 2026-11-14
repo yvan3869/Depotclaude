@@ -383,6 +383,8 @@ def make_handler(t: Triage, token: str):
                 extra = {"Set-Cookie": f"t={token}; HttpOnly; SameSite=Strict; Max-Age=31536000; Path=/"} if token else None
                 page = {"/": "home.html", "/tri": "index.html", "/test": "test.html", "/atelier": "atelier.html"}[u.path]
                 return self.send(200, (HERE / page).read_bytes(), "text/html; charset=utf-8", extra)
+            if u.path in ("/ui.css", "/ui.js"):  # base commune des espaces : jetons, composants, icones
+                return self.send(200, (HERE / u.path[1:]).read_bytes(), ("text/css" if u.path.endswith(".css") else "text/javascript") + "; charset=utf-8")
             if u.path.startswith("/api/a/"):
                 try:
                     res = at.get(u.path, q)
