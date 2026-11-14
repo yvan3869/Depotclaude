@@ -65,3 +65,9 @@ service `girls-ai-pod-reaper` le supprime de toute facon au-dela de 105 minutes 
 Page Plan : dans le champ Mouvement, plusieurs actions separees par "puis" ou ";" deviennent des
 sous-scenes : pour chacune, le pilote fabrique l'image de fin a partir de la precedente, calcule un
 clip debut/fin, puis met les clips bout a bout. Une action par sous-scene, sans changement de cadrage.
+
+## Plafond de depense GPU (14/11/2026)
+Toute creation de pod (pilote, page Test, `lora add`) passe par un controle : si la depense du jour
+(heure de Paris) atteint `infra.daily_cap_usd` (7,50 $ dans `persona/production.yaml`), le pod
+n'est pas cree. Registre : `data/depenses.jsonl` (creation et suppression de chaque pod, tarif).
+Depense du jour : `docker compose run --rm pilot depenses`. Fiche pour un agent tiers : `docs/agents.md`.

@@ -9,6 +9,7 @@ infra:
   data_center: "EU-RO-1"
   volume_id: "0h86zhlu0v"
   container_disk_gb: 60
+  daily_cap_usd: 7.5   # plafond GPU par jour (heure de Paris), tous lanceurs confondus ; voir docs/agents.md
   # Carte demandee selon le type de session, par ordre de preference (regle du 13/11/2026) :
   # - images seules : le calcul est court, la carte la moins chere suffit ;
   # - clips video et entrainements : le calcul domine, la RTX 5090 (32 Go) est demandee en premier.

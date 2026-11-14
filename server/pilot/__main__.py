@@ -263,6 +263,11 @@ def cmd_reap(a):
     log(f"pods supprimes : {killed or 'aucun'}")
 
 
+def cmd_depenses(a):
+    cfg = yaml.safe_load(open(a.config, encoding="utf-8"))
+    print(f"depense GPU du jour : {runpod.spent_today()} $ sur un plafond de {runpod.daily_cap(cfg['infra'])} $")
+
+
 def cmd_pods(a):
     for p in runpod.list_pods():
         print(p["id"], p.get("name"), p.get("desiredStatus"), p.get("costPerHr"), p.get("createdAt"))
@@ -385,6 +390,7 @@ def main():
     k.add_argument("--max-age-min", type=int)
     k.set_defaults(fn=cmd_reap)
     sub.add_parser("pods", help="liste les pods du compte").set_defaults(fn=cmd_pods)
+    sub.add_parser("depenses", help="depense GPU du jour et plafond").set_defaults(fn=cmd_depenses)
     lo = sub.add_parser("lora", help="LoRA supplementaires : add <adresse Civitai> --name nom | list | remove <nom>")
     lo.add_argument("action", choices=["add", "list", "remove"])
     lo.add_argument("ref", nargs="?", default="")

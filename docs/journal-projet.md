@@ -161,6 +161,9 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
   aucune trace de ceinture sur la taille nue, a 1,4 comme a 1,2 et 1,0. A 1,0, le tatouage d'epaule
   disparait (bikini) ou palit ; a 1,2, tatouages et visage tiennent. La trace n'apparait donc qu'avec
   le bas du corps nu : comparaison 1,4 / 1,2 a faire par le proprietaire sur ses plans (`char_strength`).
+- Plafond GPU applique par le pilote (14/11) : registre `data/depenses.jsonl`, refus de creer un pod
+  au-dela de 7,50 $ par jour, tous lanceurs confondus. Fiche `docs/agents.md` pour un agent tiers
+  (OpenClaw) configure par le proprietaire.
 ## Couts constates
 - Volume : ~0,35 $/jour. Sessions de generation : 0,20 a 0,30 $ chacune.
 - Entrainement du LoRA : ~3 $ (RTX 5090 a 1,39 $/h, ~2 h 15 installation comprise).
