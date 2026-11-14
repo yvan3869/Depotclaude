@@ -13,6 +13,7 @@ est a la main du proprietaire, ou alimente par un plan depose par son agent dans
 Donnees : data/personnages/<slug>.json, data/projets/<id>/ (projet.json, runs/, media/, final_vN.mp4),
 data/ecriture/ (demandes et reponses du redacteur), data/audio/ (musiques deposees par le proprietaire).
 """
+import base64
 import datetime
 import json
 import os
@@ -21,6 +22,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import textwrap
 import threading
 import time
@@ -68,6 +70,22 @@ SCHEMA = ('{"titre": "...", "pitch": "une phrase", "accroche": "texte à l\'écr
           '"scenes": [{"titre": "...", "role": "accroche|montee|chute", "raccord": "coupe|continu", "still": "...", "motion": "...", "end_edit": "", '
           '"texte": "...", "voix": "", "cran": 1, "tattoos": true}], "legende": "légende de la publication, 1 à 2 phrases, avec l\'appel à l\'action", '
           '"cta": "carton de fin, 6 mots au plus", "hashtags": "3 à 5 mots-dièse"}')
+
+
+RELECTEUR = """Tu es chef monteur et tu relis les images fixes d'une vidéo verticale courte avant qu'on paie le calcul des clips. Le personnage est fictif, adulte, généré par IA et présenté comme tel. Chaque image est le point de départ d'un clip de 5 secondes animé par un modèle vidéo.
+
+Tu reçois les images dans l'ordre des scènes, puis la fiche de continuité et la description de chaque scène. Pour chaque image, cherche ce qui gâcherait la vidéo :
+- le personnage n'est pas la même personne que sur les autres images (visage, cheveux, corpulence) ;
+- le lieu, la tenue, la coiffure ou la lumière ne sont pas ceux de la fiche de continuité, ou changent d'une image à l'autre sans que la scène le demande ;
+- un défaut d'anatomie ou de rendu : mains, doigts, membres, dents, regard, objet déformé, texte ou logo parasite, peau plastique ;
+- l'image ne montre pas ce que la scène décrit (cadrage, pose, objet), ou le geste demandé pour le clip ne peut pas partir de cette pose ;
+- le point de vue est incohérent avec celui de la fiche (par exemple un téléphone en main alors que c'est lui qui filme) ;
+- le cadrage vertical est mauvais : visage coupé, sujet trop petit, place manquante en haut pour le texte à l'écran.
+Ne signale que ce qui se voit vraiment. Une image correcte est "ok" : ne cherche pas la petite bête. Tu ne juges ni l'idée ni le registre de la vidéo, seulement la fabrication.
+
+SORTIE
+Un seul objet JSON valide, sans texte autour, sans bloc de code, en français :
+{"scenes": [{"id": "identifiant de la scène", "verdict": "ok" ou "a_refaire", "constat": "ce qui ne va pas, une phrase ; vide si ok", "consigne": "ce qu'il faut faire : autre prise telle quelle, ou ce qu'il faut changer dans la description de l'image ; vide si ok"}], "ensemble": "une ou deux phrases sur la cohérence de la série"}"""
 
 
 RACCORDS = ("coupe", "continu", "arrivee")
@@ -399,7 +417,7 @@ class Atelier:
         return {"projet": p, "choix": {s["id"]: {"image": s["image"], "clip": s["clip"]} for s in e["scenes"]}, "prises": pr,
                 "finals": finals, "etape": self._etape(e, finals[1]), "montage": mt, "prod": self.prod(pid),
                 "devis": {t: self.devis(e, t) for t in TEMPS}, "depots": [x for x in self.depots() if x.get("projet") == pid],
-                "chaine": self.chaine_vue(pid), "controle": {t: controle(p, t) for t in TEMPS}}
+                "chaine": self.chaine_vue(pid), "controle": {t: controle(p, t) for t in TEMPS}, "relecture": self.relecture(pid)}
 
     def liste(self):
         out = []
@@ -614,6 +632,81 @@ class Atelier:
                 if p and p.get("attente") == rid:
                     p["attente"] = ""
                     _dump(self.dj / req["projet"] / "projet.json", p)
+
+    # --- Relecture des images ---------------------------------------------------------------------
+    def relire(self, b):
+        """Fait relire par le redacteur IA les images retenues d'un temps, avant les clips. Jamais le temps 3, ni les
+        scenes qui portent des LoRA supplementaires : ces images sont a la main du proprietaire."""
+        pid, t = b["id"], int(b.get("temps") or 1)
+        if t not in (1, 2):
+            raise ValueError("le temps 3 est à votre main : il n'est pas relu")
+        if not self.redacteur_actif():
+            raise ValueError("le rédacteur IA ne répond pas (service girls-ai-writer)")
+        p = self._raw(pid)
+        d = self._pdir(pid)
+        sc = [s for s in self._eff(p)["scenes"] if s["temps"] == t]
+        vus = [(i, s) for i, s in enumerate(sc, 1) if s["image"] and not s["loras"]][:8]
+        if not vus:
+            raise ValueError("aucune image à relire dans ce temps")
+        images = []
+        with tempfile.TemporaryDirectory() as tmp:
+            for _, s in vus:
+                _ff("-i", d / "media" / s["image"], "-vf", "scale=-2:768", "-q:v", "5", Path(tmp) / "i.jpg")
+                images.append({"scene": s["id"], "jpeg": base64.b64encode((Path(tmp) / "i.jpg").read_bytes()).decode()})
+        c = p["continuite"]
+        demande = ("FICHE DE CONTINUITÉ (anglais)\n" + "\n".join(f"- {k} : {c[k] or 'non précisé'}" for k in CONT) + "\n\nSCÈNES RELUES\n"
+                   + "\n".join(f"- {s['id']} (scène {i}{', scène libre : hors fiche de continuité' if s['libre'] else ''}"
+                               f"{', suite sans coupe de la scène précédente : image tirée de la fin de son clip' if i > 1 and s['raccord'] == 'continu' else ''})\n"
+                               f"  image : {s['still'] or 'non décrite'}\n  geste du clip : {s['motion'] or 'aucun (image fixe)'}\n  texte à l'écran : {s['texte'] or 'aucun'}"
+                               for i, s in vus)
+                   + "\n\nRelis ces images et réponds au format demandé, avec une entrée par scène, dans l'ordre.")
+        rid = f"{time.strftime('%Y%m%d%H%M%S')}{random.randint(100, 999)}"
+        _dump(self.de / f"{rid}.req.json", {"systeme": RELECTEUR, "demande": demande, "images": images, "kind": "relecture", "projet": pid, "temps": t})
+        os.chmod(self.de / f"{rid}.req.json", 0o666)
+        with self.lock:
+            r = _load(d / "relecture.json", {})
+            r[str(t)] = {"etat": "attente", "rid": rid, "date": time.strftime("%Y-%m-%d %H:%M"), "vues": {s["id"]: s["image"] for _, s in vus}}
+            _dump(d / "relecture.json", r)
+        return {"etat": "attente"}
+
+    def relecture(self, pid):
+        """Relectures du projet, par temps. Releve au passage la reponse du redacteur quand elle est arrivee."""
+        d = self._pdir(pid)
+        r = _load(d / "relecture.json", {})
+        for t, x in r.items():
+            if x.get("etat") != "attente":
+                continue
+            rid = x["rid"]
+            req, res, err = self.de / f"{rid}.req.json", self.de / f"{rid}.res.txt", self.de / f"{rid}.err.txt"
+            if not res.exists() and not err.exists():
+                age = time.time() - req.stat().st_mtime if req.exists() else 1e9
+                if age < 60 or (self.redacteur_actif() and age < 400):
+                    continue
+                maj = {"etat": "erreur", "erreur": "le rédacteur IA n'a pas répondu"}
+            else:
+                try:
+                    if err.exists():
+                        raise ValueError(err.read_text(encoding="utf-8", errors="replace")[:300])
+                    out = _json_de(res.read_text(encoding="utf-8"))
+                    sc = {}
+                    for y in out.get("scenes") or []:
+                        if isinstance(y, dict) and y.get("id") in x["vues"]:
+                            sc[y["id"]] = {"image": x["vues"][y["id"]], "ok": y.get("verdict") != "a_refaire",
+                                           "constat": _s(y.get("constat"), 400), "consigne": _s(y.get("consigne"), 700)}
+                    if not sc:
+                        raise ValueError("réponse sans scène")
+                    maj = {"etat": "pret", "ensemble": _s(out.get("ensemble"), 600), "scenes": sc}
+                except (ValueError, KeyError, TypeError, AttributeError) as e:
+                    maj = {"etat": "erreur", "erreur": str(e)[:300]}
+            for f in self.de.glob(f"{rid}.*"):
+                f.unlink(missing_ok=True)
+            with self.lock:
+                r2 = _load(d / "relecture.json", {})
+                if (r2.get(t) or {}).get("rid") == rid:
+                    r2[t] = {"date": x["date"], **maj}
+                    _dump(d / "relecture.json", r2)
+                r[t] = r2.get(t) or {}
+        return {t: {k: v for k, v in x.items() if k not in ("rid", "vues")} for t, x in r.items()}
 
     # --- Plans deposes par l'agent ----------------------------------------------------------------
     def _existe(self, pid):
@@ -979,6 +1072,12 @@ class Atelier:
                     if c["stop"]:
                         return c.update(etat="arretee", etape="arrêtée après les images")
                     if c["mode"] == "pause":
+                        for t in c["temps"]:  # relecture des images pendant la pause ; elle ne bloque jamais la chaine
+                            try:
+                                if t < 3:
+                                    self.relire({"id": pid, "temps": t})
+                            except Exception:
+                                pass
                         self._pas(c, "pause : choisir les prises, puis Continuer")
                         return c.update(etat="pause")
             for t in c["temps"]:
@@ -1081,6 +1180,8 @@ class Atelier:
             return self.ecrire(b)
         if path == "/api/a/produire":
             return self.produire(b)
+        if path == "/api/a/relire":
+            return self.relire(b)
         if path == "/api/a/monter":
             return self.monter(b)
         if path == "/api/a/chaine":

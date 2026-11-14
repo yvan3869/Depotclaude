@@ -88,7 +88,9 @@ Page `/atelier` du studio (`tools/triage/atelier.py`, `atelier.html`). Tout se f
   floute avec l'appel a l'action, coupe ou fondu, musique deposee dans `data/audio/`. Versions `final_vN.mp4`.
 
 Redacteur IA : service hote `girls-ai-writer` (`server/writer/`), qui lit les demandes dans
-`data/ecriture/` et appelle `claude -p` sans outils, avec l'abonnement Claude du compte `debian`.
+`data/ecriture/` et appelle `claude -p` sans outils ni connecteurs (`--tools "" --strict-mcp-config`), avec
+l'abonnement Claude du compte `debian`. Apres une modification de `girls_ai_writer.py` :
+`sudo systemctl restart girls-ai-writer`.
 Aucune cle dans le conteneur. S'il est arrete, la page bascule sur des structures types (`moteur_local.py`).
 
     sudo cp server/writer/girls-ai-writer.service /etc/systemd/system/
@@ -137,3 +139,8 @@ Controle des plans (14/11/2026) : chaque projet et chaque depot est relu avant c
 (regles fixes, sans GPU ni IA) : fiche de continuite, point de vue, premier plan, un geste par clip, texte a l'ecran,
 progression (`cran` de 1 a 5 par scene), duree, raccords. Les remarques s'affichent au-dessus de "Images et clips" ;
 elles ne bloquent rien.
+
+Relecture des images (14/11/2026) : apres les images, le redacteur IA relit les images retenues des temps 1 et 2
+(`relire()` dans `atelier.py`, bouton "Relire les images", d'office a la pause de la chaine). Les images, reduites
+en JPEG, voyagent dans la demande elle-meme ; le service les joint au message, toujours sans outil. Resultat dans
+`data/projets/<id>/relecture.json`. Jamais le temps 3 ni les scenes a LoRA supplementaires.

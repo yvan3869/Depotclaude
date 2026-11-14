@@ -131,6 +131,13 @@ Rien n'est bloque, mais un depot sans remarque est l'objectif. Ce qui est verifi
 Lire la fiche et l'image de reference du projet dans `projet.json` (`continuite`, `reference`) avant
 d'ecrire les temps 2 et 3 : elles s'appliquent a eux aussi.
 
+## Relecture des images
+Apres les images et avant les clips, le redacteur IA relit les images retenues des temps 1 et 2 (bouton
+"Relire les images", ou d'office a la pause de la chaine) : meme personne, lieu et tenue de la fiche, defauts
+d'anatomie, image conforme au `still`, pose d'ou le `motion` peut partir, place pour le texte. Ses remarques
+s'affichent sous chaque image et valent tant que l'image retenue est celle relue. Le temps 3 et les plans
+qui portent des `loras` ne sont jamais relus : leur verification reste au proprietaire.
+
 ## Deposer des plans dans l'atelier
 1. **Lire le projet** : `server/data/projets/pNNNN/projet.json` (lecture seule). On y trouve le
    personnage, le pitch, la date du personnage (`date_perso`), le `contexte` et les scenes deja

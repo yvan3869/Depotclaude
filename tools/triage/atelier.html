@@ -350,6 +350,7 @@ function majDyn() {
   const set = (el, html, k) => { if (el && sig[k] !== html) { sig[k] = html; el.innerHTML = html; } };
   const i = ETAPES.findIndex(e => e[0] === D.etape);
   set($('#etapes'), ETAPES.map((e, j) => `<span class="${j < i ? 'done' : j === i ? 'cur' : ''}">${e[1]}</span>`).join(''), 'etapes');
+  const SCT = P.scenes.filter(s => s.temps === T);
   const rq = (D.controle || {})[T] || [], nSc = sid => P.scenes.filter(s => s.temps === T).findIndex(s => s.id === sid) + 1;
   set($('#controle'), `<b>Contrôle des plans</b> <span class="mut">avant de payer un calcul</span>` + (rq.length
     ? `<ul class="rq">${rq.map(x => `<li class="${x.grave ? 'err' : ''}">${x.scene ? `<b>Scène ${nSc(x.scene)}</b> : ` : ''}${esc(x.msg)}</li>`).join('')}</ul>`
@@ -383,15 +384,20 @@ function majDyn() {
           <button class="s" data-a="clip" ${occ || !(cont ? (D.choix[pv.id] || {}).clip : c.image) || !s.motion ? 'disabled' : ''}>${c.clip ? 'Autre clip' : 'Créer le clip'}</button></div>
         <div class="mut" style="margin-top:6px">${c.clip ? 'Clip prêt.' : cont ? ((D.choix[pv.id] || {}).clip ? (t.clips.length ? 'Le clip précédent a changé : ce clip est à refaire.' : 'Suite du clip précédent : prête à lancer.') : 'Suite du clip précédent : créer d\'abord celui-ci.')
           : c.image ? (t.clips.length && !clips.length ? 'L\'image a changé : le clip est à refaire.' : 'Image prête : la vérifier avant de lancer le clip.') : ''}</div>
+        ${(rl => rl && rl.image === c.image ? `<div class="${rl.ok ? 'okc' : 'err'}" style="margin-top:6px;font-size:13px">Relecture : ${rl.ok ? 'rien à signaler.' : esc(rl.constat)}${!rl.ok && rl.consigne ? ` <span class="mut">${esc(rl.consigne)}</span>` : ''}</div>` : '')((((D.relecture || {})[s.temps] || {}).scenes || {})[s.id])}
       </div>`, 'm' + s.id);
   }
-  const d = D.devis[T], pr = D.prod;
+  const d = D.devis[T], pr = D.prod, R = (D.relecture || {})[T] || {};
   set($('#prod'), `
     <div class="row" style="margin-top:0"><button class="p" data-a="chainetemps" ${occ || c.etat === 'pause' || !E.can_run ? 'disabled' : ''}>Tout produire pour ce temps</button>
       <span class="mut">images, ${CH.mode === 'pause' ? 'pause, ' : ''}clips, montage (réglages : « Production en chaîne », en haut)</span></div>
     <div class="row"><button class="p" data-a="images" ${occ || !d.images.n ? 'disabled' : ''}>Créer les images manquantes (${d.images.n})</button><span class="mut">${d.images.n ? 'environ ' + usd(d.images.usd) : ''}</span></div>
     <div class="row"><button class="p" data-a="clips" ${occ || !d.clips.n ? 'disabled' : ''}>Créer les clips manquants (${d.clips.n})</button>
       <span class="mut">${d.clips.n ? `environ ${usd(d.clips.usd)} en 480p, ${usd(d.clips.usd_hd)} en 720p` : ''}</span></div>
+    ${T < 3 ? `<div class="row"><button data-a="relire" ${R.etat === 'attente' || !E.redacteur || !SCT.some(s => (D.choix[s.id] || {}).image) ? 'disabled' : ''}>${R.etat === 'attente' ? 'Relecture en cours...' : 'Relire les images'}</button>
+      <span class="mut">${E.redacteur ? 'le rédacteur IA cherche les défauts avant les clips (sans GPU ; fait d\'office à la pause de la chaîne)' : 'rédacteur IA arrêté'}</span></div>
+      ${R.etat === 'erreur' ? `<div class="err" style="margin-top:6px">Relecture : ${esc(R.erreur)}</div>` : R.etat === 'pret' ? `<div style="margin-top:6px;font-size:14px"><b>Relecture du ${esc(R.date)}</b> :
+        ${(n => n ? `<span class="err">${n} image(s) à refaire</span>` : '<span class="okc">rien à refaire</span>')(Object.entries(R.scenes).filter(([k, v]) => !v.ok && v.image === (D.choix[k] || {}).image).length)}. ${esc(R.ensemble)}</div>` : ''}` : ''}
     <label class="c" style="margin-top:8px"><input type="checkbox" id="hd" ${sig.hd ? 'checked' : ''}>Clips en 720p (quatre fois plus cher : à garder pour la version finale)</label>
     <div class="mut" style="margin-top:6px">${E.can_run ? 'Chaque lancement passe par le plafond GPU du jour. Les clips démarrent leur propre pod (2 à 5 minutes d\'attente).' : 'Clé RunPod absente : lancement impossible.'}</div>
     ${pr.etat ? `<div style="margin-top:8px"><b class="${pr.etat === 'en cours' ? '' : pr.etat === 'termine' ? 'okc' : 'err'}">${{'en cours': 'Calcul en cours', termine: 'Dernier calcul terminé', arrete: 'Dernier calcul arrêté', interrompu: 'Dernier calcul interrompu'}[pr.etat]}</b>
@@ -411,16 +417,17 @@ function majDyn() {
 }
 function surveiller() {
   clearInterval(timer); timer = null;
-  if (!D || (D.prod.etat !== 'en cours' && D.montage.etat !== 'en cours' && D.chaine.etat !== 'en cours')) return;
+  const lu = d => Object.values(d.relecture || {}).some(x => x.etat === 'attente');
+  if (!D || (D.prod.etat !== 'en cours' && D.montage.etat !== 'en cours' && D.chaine.etat !== 'en cours' && !lu(D))) return;
   timer = setInterval(async () => {
     if (!P) return clearInterval(timer);
     try {
       const n = await api('/api/a/projet?id=' + P.id), avant = D.prod.etat, avantCh = D.chaine.etat;
-      for (const k of ['choix', 'prises', 'finals', 'etape', 'montage', 'prod', 'devis', 'depots', 'chaine', 'controle']) D[k] = n[k];
+      for (const k of ['choix', 'prises', 'finals', 'etape', 'montage', 'prod', 'devis', 'depots', 'chaine', 'controle', 'relecture']) D[k] = n[k];
       majDyn();
       if (avant === 'en cours' && n.prod.etat !== 'en cours') etat();
       if (avantCh === 'en cours' && n.chaine.etat !== 'en cours') toast({pause: 'Images prêtes : choisir les prises, puis Continuer', termine: 'Chaîne terminée', arretee: 'Chaîne arrêtée', erreur: 'Chaîne en erreur'}[n.chaine.etat] || '', n.chaine.etat !== 'erreur');
-      if (n.prod.etat !== 'en cours' && n.montage.etat !== 'en cours' && n.chaine.etat !== 'en cours') { clearInterval(timer); timer = null; }
+      if (n.prod.etat !== 'en cours' && n.montage.etat !== 'en cours' && n.chaine.etat !== 'en cours' && !lu(n)) { clearInterval(timer); timer = null; }
     } catch (e) {}
   }, 4000);
 }
@@ -487,6 +494,7 @@ const actions = {
   image: (el, sid) => produire('images', [sid]),
   clip: (el, sid) => produire('clips', [sid]),
   images: () => produire('images'),
+  relire: async () => { await api('/api/a/relire', {id: P.id, temps: T}); toast('Relecture demandée', true); await recharger(); },
   clips: () => {
     const d = D.devis[T].clips, hd = $('#hd').checked;
     if (confirm(`Lancer ${d.n} clip(s), environ ${usd(hd ? d.usd_hd : d.usd)} ? Vérifier d'abord que les images conviennent.`)) return produire('clips');
