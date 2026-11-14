@@ -118,3 +118,18 @@ sauf "Tout refaire" (nouvelles prises, anciennes gardees). Le devis est affiche 
 depasse le reste du plafond du jour. Le bouton "Tout produire pour ce temps" fait la meme chose pour un seul temps.
 L'etat de la chaine est en memoire : un redemarrage de `triage` l'arrete (et laisse orphelin le pod d'un calcul en
 cours). Un depot du temps 1 sans idee remplit le champ "Idee" avec son pitch.
+
+### Continuite et raccords (14/11/2026)
+Trois reglages par projet pour qu'une video garde le meme lieu, la meme tenue et la meme personne.
+- **Fiche de continuite** (panneau "Continuite") : lieu, tenue, coiffure, lumiere, point de vue, en anglais. Elle est
+  ajoutee a la description de chaque image au moment du calcul ; les scenes ne decrivent plus que le cadrage, la pose
+  et l'expression. Le redacteur IA la remplit avec le scenario. Une scene "libre" (case dans ses details) l'ignore.
+- **Image de reference** : une scene choisie dans le meme panneau. Les autres images sont tirees de la sienne par
+  retouche (Qwen-Edit : meme personne, meme piece, meme tenue, nouvelle pose) au lieu d'un nouveau tirage. Les scenes
+  libres ou avec LoRA gardent leur tirage. Changer de reference ne refait pas les images deja calculees.
+- **Raccord** de chaque scene avec la precedente : "coupe" (image propre), "continu" (pas d'image : le clip part de la
+  derniere image du clip precedent ; au montage les deux clips sont colles, l'image en double retiree, jamais de fondu
+  entre eux), "arrivee" (le clip precedent finit sur l'image de cette scene, clip debut/fin). Refaire le clip d'amont
+  rend le clip continu "a refaire" : la page le dit et le bouton "Creer les clips manquants" le reprend. Une jointure
+  n'est propre que si la fin du clip d'amont et le debut du clip continu ne sont pas rognes.
+Pilote : champs de plan `edit` (avec `image`), `suite_de`, `end_image` (`server/jobs/modele.yaml`, modele 2026-11-14e).

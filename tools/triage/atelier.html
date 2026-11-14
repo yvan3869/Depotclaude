@@ -238,6 +238,9 @@ function echanger(sid, sens) {  // avec la scene voisine du meme temps
   const m = P.scenes.filter(s => s.temps === T), k = m.findIndex(s => s.id === sid), a = P.scenes.indexOf(m[k]), b = P.scenes.indexOf(m[k + sens]);
   if (b >= 0) [P.scenes[a], P.scenes[b]] = [P.scenes[b], P.scenes[a]];
 }
+const CONT = [['lieu', 'Lieu', 'in a small Parisian bathroom with white tiles and a round mirror'], ['tenue', 'Tenue', 'wearing a white ribbed tank top and grey cotton shorts'],
+  ['cheveux', 'Coiffure du jour', 'hair in a loose bun'], ['lumiere', 'Lumière', 'soft morning window light'], ['pdv', 'Point de vue', 'shot at eye level on a phone']];
+const RACCORDS = [['coupe', 'Coupe : la scène a sa propre image'], ['continu', 'Continu : suite du clip précédent, sans coupe visible'], ['arrivee', 'Arrivée : le clip précédent finit sur l\'image de cette scène']];
 const CH = {t1: true, t2: true, t3: true, mode: 'pause', refaire: false, hd: false};  // reglages de la chaine de production
 const dfr = d => d ? new Date(d + 'T12:00').toLocaleDateString('fr-FR', {weekday: 'short', day: 'numeric', month: 'long', year: 'numeric'}) : '';
 const f = (k, lab, v, o = {}) => `<label>${lab}${o.area ? `<textarea ${o.at || ''} rows="${o.rows || 2}" placeholder="${esc(o.ph || '')}">${esc(v)}</textarea>`
@@ -285,12 +288,23 @@ function rendreProjet() {
       <div id="variantes"></div>
     </div>` : ''}
 
+    <details class="panel"${Object.values(P.continuite).some(Boolean) || P.reference ? ' open' : ''}><summary><b>Continuité</b> <span class="mut">ce qui ne change pas d'une image à l'autre, pour les trois temps</span></summary>
+      <div class="mut" style="margin-top:6px">En anglais. Ces éléments sont ajoutés à la description de chaque image : les écrire ici une seule fois, et ne garder dans chaque scène que le cadrage, la pose et l'expression. Laisser vide ce qui change en cours de vidéo.</div>
+      ${CONT.map(([k, lab, ph]) => f(k, lab, P.continuite[k], {at: 'data-c="1"', ph})).join('')}
+      <label>Image de référence<select data-k="reference"><option value="">Aucune : chaque image est créée à partir de sa description</option>
+        ${P.scenes.filter((s, i) => s.temps === 1 && s.still && !(s.raccord === 'continu' && P.scenes.slice(0, i).some(x => x.temps === 1))).map(s => `<option value="${s.id}" ${s.id === P.reference ? 'selected' : ''}>Scène ${P.scenes.filter(x => x.temps === 1).indexOf(s) + 1} du temps 1 : ${esc(s.titre)}</option>`).join('')}</select></label>
+      <div class="mut" style="margin-top:6px">Avec une image de référence, les autres images en sont tirées par retouche : même personne, même pièce, même tenue, seule la pose change. À choisir une fois l'image de cette scène réussie. Les scènes « libres » et celles qui portent des LoRA gardent leur propre image.</div>
+    </details>
+
     <h2>${T === 1 ? '3. ' : ''}Scènes <small>${SC.length}, environ ${Math.round(SC.reduce((a, s) => a + (s.duree || 5), 0) + (T === 1 && P.montage.carton ? 2.6 : 0))} s</small></h2>
     ${SC.map((s, i) => `<div class="scene" data-sid="${s.id}">
       <div class="sh"><b>${i + 1}</b><input data-s="${s.id}" data-k="titre" value="${esc(s.titre)}" placeholder="Titre">
         <select data-s="${s.id}" data-k="role">${[['accroche', 'Accroche'], ['montee', 'Montée'], ['chute', 'Chute']].map(([v, l]) => `<option value="${v}" ${v === s.role ? 'selected' : ''}>${l}</option>`).join('')}</select>
         <button class="s" data-a="monte" ${i ? '' : 'disabled'}>Haut</button><button class="s" data-a="descend" ${i < SC.length - 1 ? '' : 'disabled'}>Bas</button></div>
       <div class="media" data-sid="${s.id}"></div>
+      ${i ? `<label>Raccord avec la scène précédente<select data-s="${s.id}" data-k="raccord">${RACCORDS.map(([v, l]) => `<option value="${v}" ${v === s.raccord ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+        ${s.raccord === 'continu' ? '<div class="mut" style="margin-top:4px">Pas d\'image propre : le clip part de la dernière image du clip précédent et le montage les colle sans coupe. Si le clip précédent est refait, celui-ci est à refaire. Ne pas rogner la fin du clip précédent ni le début de celui-ci.</div>'
+          : s.raccord === 'arrivee' ? '<div class="mut" style="margin-top:4px">Le clip précédent se termine sur l\'image de cette scène (clip début/fin, deux fois le prix d\'un clip simple). Créer cette image avant le clip précédent ; si elle change, il est à refaire.</div>' : ''}` : ''}
       ${f('texte', 'Texte à l\'écran', s.texte, {at: `data-s="${s.id}"`})}
       ${f('still', 'Image de départ (anglais)', s.still, {area: 1, rows: 3, at: `data-s="${s.id}"`})}
       ${f('motion', 'Mouvement du clip (anglais, un seul geste lent)', s.motion, {area: 1, at: `data-s="${s.id}"`})}
@@ -301,6 +315,7 @@ function rendreProjet() {
           <div class="g">${f('duree', 'Durée gardée (s, 0 = tout)', s.duree, {type: 'number', step: '0.1', at: `data-s="${s.id}"`})}</div></div>
         ${T > 1 ? f('loras', 'LoRA supplémentaires (noms du catalogue, « nom:force », séparés par des virgules)', s.loras, {at: `data-s="${s.id}"`}) : ''}
         <label class="c" style="margin-top:10px"><input type="checkbox" data-s="${s.id}" data-k="tattoos" ${s.tattoos ? 'checked' : ''}>Épaules et poitrine visibles (tatouages)</label>
+        <label class="c" style="margin-top:10px"><input type="checkbox" data-s="${s.id}" data-k="libre" ${s.libre ? 'checked' : ''}>Scène libre (autre lieu ou autre tenue : sans la fiche de continuité ni l'image de référence)</label>
         ${s.origine ? `<div class="mut" style="margin-top:6px">Origine : ${esc(s.origine)}</div>` : ''}
       </details>
       <div class="row">${T < 3 ? '<button class="s" data-a="recrire">Réécrire la scène</button>' : ''}<button class="s" data-a="dupliquer">Dupliquer</button><span class="sp" style="flex:1"></span><button class="s d" data-a="supprimer">Supprimer</button></div>
@@ -346,18 +361,21 @@ function majDyn() {
     ${c.ailleurs ? `<div class="mut" style="margin-top:6px">Une chaîne tourne sur le projet ${esc(c.ailleurs)} : les lancements attendent sa fin.</div>` : ''}
     ${c.etat ? `<div style="margin-top:8px"><b class="${c.etat === 'termine' ? 'okc' : c.etat === 'erreur' ? 'err' : ''}">${ETATS[c.etat]}</b> <span class="mut">temps ${c.temps.join(', ')} : ${esc(c.etape)}</span>
       ${c.etat === 'erreur' ? `<pre class="err">${esc(c.erreur)}</pre>` : ''}<pre>${esc(c.journal.join('\n'))}</pre></div>` : ''}`, 'chaine');
+  const der = {};
   for (const s of P.scenes) {
     const c = D.choix[s.id] || {}, t = D.prises[s.id] || {images: [], clips: [], source: {}}, u = n => `/afile/${P.id}/${n}`;
-    const clips = t.clips.filter(x => t.source[x] === c.image);
+    const clips = t.clips.filter(x => t.source[x] === c.image), pv = der[s.temps], cont = pv && s.raccord === 'continu';
+    der[s.temps] = s;
     set($(`.media[data-sid="${s.id}"]`), `
       <div class="pv">${c.clip ? `<video src="${u(c.clip)}" poster="${u(c.image)}" muted loop playsinline controls preload="none"></video>`
         : c.image ? `<a href="${u(c.image)}" target="_blank"><img src="${u(c.image)}" loading="lazy"></a>` : 'pas encore d\'image'}</div>
       <div class="side">
-        ${t.images.length > 1 ? `<div class="mut">Prises</div><div class="takes">${t.images.map(n => `<img src="${u(n)}" loading="lazy" class="${n === c.image ? 'on' : ''}" data-a="prise" data-n="${n}">`).join('')}</div>` : ''}
+        ${t.images.length > 1 && !cont ? `<div class="mut">Prises</div><div class="takes">${t.images.map(n => `<img src="${u(n)}" loading="lazy" class="${n === c.image ? 'on' : ''}" data-a="prise" data-n="${n}">`).join('')}</div>` : ''}
         ${clips.length > 1 ? `<div class="takes">${clips.map((n, j) => `<button class="s ${n === c.clip ? 'on' : ''}" data-a="priseclip" data-n="${n}">Clip ${j + 1}</button>`).join('')}</div>` : ''}
-        <div class="row" style="margin-top:0"><button class="s" data-a="image" ${occ || !s.still ? 'disabled' : ''}>${c.image ? 'Autre image' : 'Créer l\'image'}</button>
-          <button class="s" data-a="clip" ${occ || !c.image || !s.motion ? 'disabled' : ''}>${c.clip ? 'Autre clip' : 'Créer le clip'}</button></div>
-        <div class="mut" style="margin-top:6px">${c.clip ? 'Clip prêt.' : c.image ? 'Image prête : la vérifier avant de lancer le clip.' : ''}</div>
+        <div class="row" style="margin-top:0">${cont ? '' : `<button class="s" data-a="image" ${occ || !s.still ? 'disabled' : ''}>${c.image ? 'Autre image' : 'Créer l\'image'}</button>`}
+          <button class="s" data-a="clip" ${occ || !(cont ? (D.choix[pv.id] || {}).clip : c.image) || !s.motion ? 'disabled' : ''}>${c.clip ? 'Autre clip' : 'Créer le clip'}</button></div>
+        <div class="mut" style="margin-top:6px">${c.clip ? 'Clip prêt.' : cont ? ((D.choix[pv.id] || {}).clip ? (t.clips.length ? 'Le clip précédent a changé : ce clip est à refaire.' : 'Suite du clip précédent : prête à lancer.') : 'Suite du clip précédent : créer d\'abord celui-ci.')
+          : c.image ? (t.clips.length && !clips.length ? 'L\'image a changé : le clip est à refaire.' : 'Image prête : la vérifier avant de lancer le clip.') : ''}</div>
       </div>`, 'm' + s.id);
   }
   const d = D.devis[T], pr = D.prod;
@@ -485,7 +503,8 @@ vue.addEventListener('input', e => {
   if (t.dataset.ch) { CH[t.dataset.ch] = t.type === 'checkbox' ? t.checked : t.value; delete sig.prod; return majDyn(); }
   if (!k || !P) return;
   const v = t.type === 'checkbox' ? t.checked : t.type === 'number' || k === 'nb_scenes' || k === 'nb2' ? +t.value : t.value;
-  if (t.dataset.s) sc(t.dataset.s)[k] = v; else if (t.dataset.m) P.montage[k] = v; else P[k] = v;
+  if (t.dataset.s) sc(t.dataset.s)[k] = v; else if (t.dataset.m) P.montage[k] = v; else if (t.dataset.c) P.continuite[k] = v; else P[k] = v;
+  if (k === 'raccord' || k === 'reference') return essai(structure)(() => {});  // le devis et les boutons en dependent
   planifier();
 });
 window.addEventListener('beforeunload', () => { if (P && tSave) navigator.sendBeacon?.('/api/a/projet', new Blob([JSON.stringify(P)], {type: 'application/json'})); });

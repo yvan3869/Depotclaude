@@ -48,10 +48,11 @@ CE QUI FAIT CLIQUER
 
 CONTRAINTES TECHNIQUES (modèles d'image et de vidéo)
 - Chaque scène = une image de départ, puis un clip de 5 secondes animé à partir de cette image.
-- "still" : en anglais, une seule phrase dense : cadrage, lieu, tenue, pose, expression, lumière. Format vertical. Une seule personne à l'image. Ne décris ni le visage, ni les cheveux, ni les tatouages, ni les bijoux : ils sont ajoutés automatiquement. Aucun texte dans l'image.
+- "continuite" : la fiche de continuité du projet, en anglais, écrite une seule fois et ajoutée automatiquement à la fin de chaque "still". "lieu" (commence par "in"/"on" : pièce, mobilier, couleurs), "tenue" (commence par "wearing"), "cheveux" (coiffure du jour, ou ""), "lumiere", "pdv" (point de vue de la caméra, par exemple "shot at eye level on a phone"). Un champ ne contient que ce qui reste identique pendant toute la vidéo ; si un élément change en cours de route (elle change de pièce, elle retire une veste), laisse ce champ vide et écris l'élément dans chaque "still".
+- "still" : en anglais, une seule phrase dense : cadrage, pose, expression, et rien de ce qui est déjà dans la fiche de continuité. Format vertical. Une seule personne à l'image. Ne décris ni le visage, ni les cheveux, ni les tatouages, ni les bijoux : ils sont ajoutés automatiquement. Aucun texte dans l'image.
 - "motion" : en anglais, UN geste simple et lent, en une phrase commençant par "She". Gestes fiables : regarder l'objectif, sourire lentement, pencher la tête, se mordre la lèvre, se pencher vers la caméra, marcher vers la caméra, faire glisser une bretelle, ajuster un décolleté, s'étirer doucement, boire, respirer. Gestes interdits (ils ratent) : tourner le dos, attacher ses cheveux, passer la main devant le visage, renverser la tête, éclater de rire, cheveux au vent, manipuler un objet compliqué, changer de vêtement.
 - "end_edit" : presque toujours "". À remplir seulement si la pose doit changer nettement entre le début et la fin du clip (assise puis debout) : une phrase en anglais qui décrit la pose finale, même cadrage.
-- Continuité : dans un même projet, répète le lieu et la tenue avec exactement les mêmes mots d'une scène à l'autre.
+- "raccord" : "coupe" (la scène a sa propre image, le montage coupe : changement de cadrage ou d'angle) ou "continu" (la scène prolonge la précédente sans coupe visible : son clip démarre sur la dernière image du clip précédent, même cadrage, le geste s'enchaîne). Utilise "continu" quand deux gestes se suivent dans le même cadre ; pas plus de deux scènes continues de suite, et jamais sur la première scène. Le "still" d'une scène continue décrit quand même l'image attendue à cet instant.
 - "texte" : texte incrusté pendant la scène, dans la langue du personnage, 7 mots au plus. Aucun emoji, ni là ni dans l'accroche (la police de montage ne les affiche pas). "voix" : phrase de voix off dans sa voix, 12 mots au plus, ou "".
 - "tattoos" : false si la tenue couvre les épaules et la poitrine (pull, peignoir fermé), sinon true.
 - "role" : "accroche", "montee" ou "chute".
@@ -61,9 +62,30 @@ SORTIE
 Un seul objet JSON valide, sans texte autour, sans bloc de code. Les champs "titre" et "pitch" sont en français ; les textes publiés (accroche, texte, voix, legende, cta, hashtags) sont dans la langue du personnage."""
 
 SCHEMA = ('{"titre": "...", "pitch": "une phrase", "accroche": "texte à l\'écran de la première seconde", '
-          '"scenes": [{"titre": "...", "role": "accroche|montee|chute", "still": "...", "motion": "...", "end_edit": "", '
+          '"continuite": {"lieu": "...", "tenue": "...", "cheveux": "", "lumiere": "...", "pdv": "..."}, '
+          '"scenes": [{"titre": "...", "role": "accroche|montee|chute", "raccord": "coupe|continu", "still": "...", "motion": "...", "end_edit": "", '
           '"texte": "...", "voix": "", "tattoos": true}], "legende": "légende de la publication, 1 à 2 phrases, avec l\'appel à l\'action", '
           '"cta": "carton de fin, 6 mots au plus", "hashtags": "3 à 5 mots-dièse"}')
+
+
+RACCORDS = ("coupe", "continu", "arrivee")
+# Fiche de continuite d'un projet : ce qui ne doit pas changer d'une image a l'autre. Texte anglais, ajoute a chaque "still".
+CONT = ("lieu", "tenue", "cheveux", "lumiere", "pdv")
+JOINT = 1 / 32  # a un raccord continu, la premiere image du clip suivant repete la derniere du precedent : elle est retiree
+
+
+def _cont(d):
+    d = d if isinstance(d, dict) else {}
+    return {k: _s(d.get(k), 300) for k in CONT}
+
+
+def _prec(p):
+    """Scene precedente de chaque scene dans son temps (None pour la premiere)."""
+    out, der = {}, {}
+    for s in p["scenes"]:
+        out[s["id"]] = der.get(s["temps"])
+        der[s["temps"]] = s
+    return out
 
 
 def _load(p, default=None):
@@ -231,6 +253,9 @@ class Atelier:
             raise FileNotFoundError(pid)
         for s in p.get("scenes") or []:  # projets d'avant les trois temps
             s.setdefault("temps", 1), s.setdefault("loras", ""), s.setdefault("origine", "")
+            s.setdefault("raccord", "coupe"), s.setdefault("libre", False)
+        p["continuite"] = _cont(p.get("continuite"))
+        p.setdefault("reference", "")
         p.setdefault("brief2", ""), p.setdefault("nb2", 3), p.setdefault("depots", {})
         p.setdefault("date_perso", ""), p.setdefault("contexte", "")
         return p
@@ -243,6 +268,7 @@ class Atelier:
         return {"id": sid, "titre": _s(d.get("titre"), 80), "role": d.get("role") if d.get("role") in ("accroche", "montee", "chute") else "montee",
                 "temps": int(d.get("temps") or 1) if str(d.get("temps") or 1) in ("1", "2", "3") else 1,
                 "loras": _loras(d.get("loras")), "origine": _s(d.get("origine"), 120),
+                "raccord": d.get("raccord") if d.get("raccord") in RACCORDS else "coupe", "libre": bool(d.get("libre")),
                 "still": _s(d.get("still"), 1200), "motion": _s(d.get("motion"), 600), "end_edit": _s(d.get("end_edit"), 600),
                 "texte": _s(d.get("texte"), 120), "voix": _s(d.get("voix"), 240), "tattoos": bool(d.get("tattoos", True)),
                 "seed": int(d.get("seed") or random.randint(1, 999999)), "image": _s(d.get("image"), 80), "clip": _s(d.get("clip"), 80),
@@ -267,7 +293,7 @@ class Atelier:
                  "brief": _s(b.get("brief", old.get("brief")), 1500), "suite": _s(b.get("suite", old.get("suite")), 600),
                  "nb_scenes": max(2, min(int(b.get("nb_scenes", old.get("nb_scenes")) or 3), 8)),
                  "brief2": _s(b.get("brief2", old.get("brief2")), 1500), "nb2": max(2, min(int(b.get("nb2", old.get("nb2")) or 3), 6)),
-                 "depots": old.get("depots") or {},
+                 "depots": old.get("depots") or {}, "continuite": _cont(b.get("continuite", old.get("continuite"))),
                  # date_perso : date fictive, celle du jour ou le personnage vit la scene ; cree et modifie : dates reelles
                  "date_perso": _date(b.get("date_perso", old.get("date_perso"))), "contexte": _s(b.get("contexte", old.get("contexte")), 400),
                  "pitch": _s(b.get("pitch", old.get("pitch")), 400), "accroche": _s(b.get("accroche", old.get("accroche")), 120),
@@ -278,36 +304,60 @@ class Atelier:
                              "textes": bool(m.get("textes", True)), "carton": bool(m.get("carton", True)),
                              "label": bool(m.get("label", False)), "musique": _s(m.get("musique"), 120)}}
             p["scenes"] = [self._scene(s, p) for s in (b["scenes"] if "scenes" in b else old.get("scenes") or [])][:30]
+            ref = b.get("reference", old.get("reference"))
+            p["reference"] = ref if ref in [s["id"] for s in p["scenes"] if s["temps"] == 1] else ""
             _dump(self.dj / pid / "projet.json", p)
             return p
 
     def prises(self, pid):
-        """Prises de chaque scene, de la plus ancienne a la plus recente. "source" : image dont un clip est tire."""
+        """Prises de chaque scene, de la plus ancienne a la plus recente. "source" : image dont un clip est tire ;
+        "depuis" : clip dont une image est la derniere image (scene continue) ; "fin" : image sur laquelle un clip arrive."""
         d, out, runs = self._pdir(pid), {}, {}
         for f in sorted((d / "media").iterdir(), key=lambda f: f.stat().st_mtime):
             m = re.fullmatch(rf"{pid}(r\d+)_(s\d+)\.(png|mp4)", f.name)
             if not m:
                 continue
-            t = out.setdefault(m.group(2), {"images": [], "clips": [], "source": {}})
+            if m.group(1) not in runs:
+                runs[m.group(1)] = {x["name"]: x for x in (_load(d / "runs" / f"{m.group(1)}.json") or {}).get("shots", [])}
+            sh = runs[m.group(1)].get(m.group(2)) or {}
+            t = out.setdefault(m.group(2), {"images": [], "clips": [], "source": {}, "depuis": {}, "fin": {}})
             if m.group(3) == "png":
                 t["images"].append(f.name)
+                if sh.get("depuis"):
+                    t["depuis"][f.name] = sh["depuis"]
                 continue
-            if m.group(1) not in runs:
-                runs[m.group(1)] = {x["name"]: Path(x.get("image") or "").name for x in (_load(d / "runs" / f"{m.group(1)}.json") or {}).get("shots", [])}
             t["clips"].append(f.name)
-            t["source"][f.name] = runs[m.group(1)].get(m.group(2), "")
+            t["source"][f.name] = f"{pid}{m.group(1)}_{m.group(2)}.png" if sh.get("suite_de") else Path(sh.get("image") or "").name
+            if sh.get("end_image"):
+                t["fin"][f.name] = Path(sh["end_image"]).name
         return out
 
     def _choix(self, p, pr=None):
         """Prise retenue pour chaque scene : celle choisie si elle existe encore, sinon la derniere.
-        Un clip ne compte que s'il a ete tire de l'image retenue."""
+        Un clip ne compte que s'il a ete tire de l'image retenue. Raccords : l'image d'une scene continue ne compte que si
+        elle sort du clip retenu de la scene precedente ; le clip qui precede une scene "arrivee" ne compte que s'il finit
+        sur l'image retenue de cette scene. Changer une prise en amont rend donc la suite a refaire."""
         pr = pr if pr is not None else self.prises(p["id"])
-        out = {}
-        for s in p["scenes"]:
-            t = pr.get(s["id"], {"images": [], "clips": [], "source": {}})
-            img = s["image"] if s["image"] in t["images"] else (t["images"][-1] if t["images"] else "")
-            clips = [c for c in t["clips"] if t["source"].get(c) == img]
-            out[s["id"]] = {"image": img, "clip": s["clip"] if s["clip"] in clips else (clips[-1] if clips else "")}
+        vide = {"images": [], "clips": [], "source": {}, "depuis": {}, "fin": {}}
+        prec, out = _prec(p), {}
+        cont = {s["id"]: bool(prec[s["id"]]) and s["raccord"] == "continu" for s in p["scenes"]}
+        for s in p["scenes"]:  # images des scenes qui ont la leur
+            if not cont[s["id"]]:
+                t = pr.get(s["id"], vide)
+                out[s["id"]] = {"image": s["image"] if s["image"] in t["images"] else (t["images"][-1] if t["images"] else ""), "clip": ""}
+        suiv = {prec[s["id"]]["id"]: s for s in p["scenes"] if prec[s["id"]]}
+        for s in p["scenes"]:  # dans l'ordre : le clip d'une scene decide de l'image de la scene continue qui la suit
+            t = {**vide, **pr.get(s["id"], vide)}
+            if cont[s["id"]]:
+                amont = out[prec[s["id"]]["id"]]["clip"]
+                imgs = [i for i in t["images"] if amont and t["depuis"].get(i) == amont]
+                out[s["id"]] = {"image": s["image"] if s["image"] in imgs else (imgs[-1] if imgs else ""), "clip": ""}
+            img = out[s["id"]]["image"]
+            clips = [c for c in t["clips"] if img and t["source"].get(c) == img]
+            nx = suiv.get(s["id"])
+            if nx and nx["raccord"] == "arrivee" and out[nx["id"]]["image"]:
+                clips = [c for c in clips if t["fin"].get(c) == out[nx["id"]]["image"]]
+            out[s["id"]]["clip"] = s["clip"] if s["clip"] in clips else (clips[-1] if clips else "")
         return out
 
     def _eff(self, p, pr=None):
@@ -326,7 +376,8 @@ class Atelier:
             return "monte"
         if all(s["clip"] for s in sc):
             return "clips"
-        if all(s["image"] for s in sc):
+        prec = _prec(p)
+        if all(s["image"] or (prec[s["id"]] and s["raccord"] == "continu") for s in sc):
             return "images"
         return "ecrit"
 
@@ -401,9 +452,9 @@ class Atelier:
 
     def _texte_projet(self, p, temps=1):
         """Texte d'un temps du projet pour le redacteur. Le temps 3 ne lui est jamais envoye."""
-        keep = ("id", "titre", "role", "still", "motion", "end_edit", "texte", "voix", "tattoos")
+        keep = ("id", "titre", "role", "raccord", "still", "motion", "end_edit", "texte", "voix", "tattoos")
         tete = {k: p.get(k) for k in ("titre", "pitch", "accroche", "legende", "cta", "hashtags")} if temps == 1 else {}
-        return json.dumps(tete | {"scenes": [{k: s[k] for k in keep} for s in p["scenes"] if s["temps"] == temps]}, ensure_ascii=False, indent=1)
+        return json.dumps(tete | {"continuite": p["continuite"], "scenes": [{k: s[k] for k in keep} for s in p["scenes"] if s["temps"] == temps]}, ensure_ascii=False, indent=1)
 
     def _voisins(self, slug, dp, proj=None):
         """Projets du meme personnage les plus proches dans sa chronologie, pour la continuite."""
@@ -443,17 +494,17 @@ class Atelier:
                 raise ValueError("le temps 3 est à votre main : le rédacteur IA ne l'écrit pas")
             prompt = (f"PERSONNAGE\n{self._fiche(perso)}\n\n{moment}SCÉNARIO\n{self._texte_projet(proj, sc['temps'])}\n\nCOMMANDE\nRéécris uniquement la scène \"{sc['id']}\" "
                       f"selon la consigne : {consigne or 'plus forte, plus sensuelle, toujours suggestive'}\n\nFORMAT\n"
-                      '{"titre": "...", "role": "...", "still": "...", "motion": "...", "end_edit": "", "texte": "...", "voix": "", "tattoos": true}')
+                      '{"titre": "...", "role": "...", "raccord": "coupe|continu", "still": "...", "motion": "...", "end_edit": "", "texte": "...", "voix": "", "tattoos": true}')
         elif kind == "temps2":
             if not [s for s in proj["scenes"] if s["temps"] == 1]:
                 raise ValueError("écrire d'abord le teaser (temps 1) : la montée en est la suite")
             prompt = (f"PERSONNAGE\n{self._fiche(perso)}\n\n{moment}TEASER PUBLIC (temps 1, déjà écrit)\n{self._texte_projet(proj)}\n\nCOMMANDE\n"
                       f"Écris le temps 2 : la suite réservée aux abonnés, en {proj['nb2']} scènes. Ce n'est plus une publicité, c'est la récompense de "
                       "l'abonnement : elle reprend à l'instant où le teaser a coupé et va un cran plus loin à chaque scène (plus près, plus lente, plus "
-                      "intime, regard plus appuyé, tenue plus défaite). Même lieu et même tenue que le teaser, avec exactement les mêmes mots dans "
-                      "\"still\". Même registre : suggestif, jamais explicite. Pas d'appel à l'action ; la dernière scène laisse seulement entendre "
+                      "intime, regard plus appuyé, tenue plus défaite). Même lieu et même tenue que le teaser : la fiche de continuité du projet est "
+                      "ajoutée automatiquement à chaque \"still\", ne la répète pas et ne la renvoie pas. Même registre : suggestif, jamais explicite. Pas d'appel à l'action ; la dernière scène laisse seulement entendre "
                       f"qu'un final privé existe, sans le décrire.\n{'Consigne : ' + (consigne or proj.get('brief2')) if (consigne or proj.get('brief2')) else ''}\n\nFORMAT\n"
-                      '{"scenes": [{"titre": "...", "role": "accroche|montee|chute", "still": "...", "motion": "...", "end_edit": "", "texte": "...", "voix": "", "tattoos": true}]}')
+                      '{"scenes": [{"titre": "...", "role": "accroche|montee|chute", "raccord": "coupe|continu", "still": "...", "motion": "...", "end_edit": "", "texte": "...", "voix": "", "tattoos": true}]}')
         elif kind == "legendes":
             prompt = (f"PERSONNAGE\n{self._fiche(perso)}\n\n{moment}SCÉNARIO\n{self._texte_projet(proj)}\n\nCOMMANDE\nPropose {min(n, 5)} variantes d'accroche, de légende "
                       f"et de carton de fin pour cette vidéo, d'angles différents (défi, confidence, humour, promesse, urgence). {consigne}\n\nFORMAT\n"
@@ -501,24 +552,28 @@ class Atelier:
             if kind == "scene":
                 for i, s in enumerate(p["scenes"]):
                     if s["id"] == sid:
-                        p["scenes"][i] = self._scene({**s, **{k: res[k] for k in ("titre", "role", "still", "motion", "end_edit", "texte", "voix", "tattoos") if k in res}}, p)
+                        p["scenes"][i] = self._scene({**s, **{k: res[k] for k in ("titre", "role", "raccord", "still", "motion", "end_edit", "texte", "voix", "tattoos") if k in res}}, p)
             else:
                 t = 2 if kind == "temps2" else 1  # les scenes des autres temps ne bougent pas
                 old = {s["id"]: s for s in p["scenes"] if s["temps"] == t}
                 for k in ("pitch", "accroche", "legende", "cta", "hashtags") if t == 1 else ():
                     p[k] = _s(res.get(k), 600)
+                if t == 1 and isinstance(res.get("continuite"), dict) and any(_cont(res["continuite"]).values()):
+                    p["continuite"] = _cont(res["continuite"])
                 if t == 1 and res.get("titre") and (kind == "retouche" or p.get("titre") in ("", "Sans titre")):
                     p["titre"] = _s(res["titre"], 100)
                 scenes = []
                 for d in res.get("scenes") or []:
                     o = old.get(d.get("id")) or {}
-                    scenes.append(self._scene({**{k: o[k] for k in ("id", "seed", "image", "clip", "debut", "duree") if k in o}, **d,
+                    scenes.append(self._scene({**{k: o[k] for k in ("id", "seed", "image", "clip", "debut", "duree", "raccord", "libre") if k in o}, **d,
                                                **({"id": o["id"]} if o else {"id": None}), "temps": t, "loras": o.get("loras", ""), "origine": ""}, p))
                 if not scenes:
                     raise ValueError("le rédacteur n'a renvoyé aucune scène")
                 # les plans deposes par l'agent (origine) ne sont jamais ecrases par le redacteur
                 garde = [s for s in p["scenes"] if s["temps"] != t or (kind == "temps2" and s["origine"])]
                 p["scenes"] = sorted(scenes[:10] + garde, key=lambda s: s["temps"])
+                if p["reference"] not in [s["id"] for s in p["scenes"]]:
+                    p["reference"] = ""
             p["modifie"] = time.strftime("%Y-%m-%d %H:%M")
             _dump(self.dj / pid / "projet.json", p)
             return p
@@ -582,12 +637,16 @@ class Atelier:
             noms.add(nom)
             if not _s(sh.get("still")):
                 raise ValueError(f"plan {nom} : \"still\" obligatoire")
-            if sh.get("steps") or sh.get("image"):
-                raise ValueError(f"plan {nom} : \"steps\" et \"image\" ne sont pas repris par l'atelier")
+            if [k for k in ("steps", "image", "edit", "suite_de", "end_image") if sh.get(k)]:
+                raise ValueError(f"plan {nom} : \"steps\", \"image\", \"edit\", \"suite_de\" et \"end_image\" ne sont pas repris par l'atelier "
+                                 "(raccords : champ \"raccord\" ; image de référence : \"atelier.reference\")")
+            if sh.get("raccord", "coupe") not in RACCORDS:
+                raise ValueError(f"plan {nom} : \"raccord\" vaut coupe, continu ou arrivee")
             seed = sh.get("seed") or (int(d["seed"]) + (0 if d.get("same_seed") else i) if d.get("seed") else 0)
             scenes.append({"titre": sh.get("titre") or nom, "role": sh.get("role"), "temps": a["temps"], "still": sh["still"], "motion": sh.get("motion"),
                            "end_edit": sh.get("end_edit"), "texte": sh.get("texte"), "voix": sh.get("voix"), "tattoos": sh.get("tattoos", True),
-                           "loras": sh.get("loras", d.get("loras")), "seed": seed, "origine": f"{f.name}:{nom}"})
+                           "loras": sh.get("loras", d.get("loras")), "seed": seed, "origine": f"{f.name}:{nom}",
+                           "raccord": sh.get("raccord"), "libre": bool(sh.get("libre"))})
         # textes de publication : seulement avec le temps 1, et seulement ceux qui sont remplis
         lim = {"pitch": 400, "accroche": 120, "legende": 600, "cta": 120, "hashtags": 200}
         textes = {k: _s(a.get(k), n) for k, n in lim.items() if a["temps"] == 1 and _s(a.get(k), n)}
@@ -598,9 +657,17 @@ class Atelier:
                 textes["date_perso"] = _date(a["date_perso"])
         if a["temps"] == 1 and _s(a.get("contexte"), 400):
             textes["contexte"] = _s(a.get("contexte"), 400)
+        # fiche de continuite et image de reference : au projet entier, donc portees par le depot du temps 1
+        if a.get("continuite") is not None and not isinstance(a["continuite"], dict):
+            raise ValueError(f'"atelier.continuite" : un bloc de champs ({", ".join(CONT)})')
+        if a["temps"] == 1 and any(_cont(a.get("continuite")).values()):
+            textes["continuite"] = _cont(a["continuite"])
+        ref = str(a.get("reference") or "")
+        if ref and ref not in [str(sh["name"]) for i, sh in enumerate(shots) if not (i and sh.get("raccord") == "continu")]:
+            raise ValueError('"atelier.reference" : nom d\'un plan de ce fichier qui a sa propre image (pas un plan continu)')
         return {"projet": str(a.get("projet") or ""), "temps": a["temps"], "personnage": str(a.get("personnage") or ""),
                 "titre": _s(a.get("titre"), 100), "note": _s(a.get("note"), 300), "modele": str(j.get("modele") or ""), "scenes": scenes,
-                "textes": textes}
+                "textes": textes, "reference": ref if a["temps"] == 1 else ""}
 
     def depots(self):
         import yaml
@@ -663,6 +730,10 @@ class Atelier:
                 raise ValueError("trop de scènes dans ce projet")
             p["scenes"] = sorted(reste + neuves, key=lambda s: s["temps"])
             p.update(pl["textes"])
+            if pl["reference"]:
+                p["reference"] = next(s["id"] for s in neuves if s["origine"] == f"{f.name}:{pl['reference']}")
+            elif p["reference"] not in [s["id"] for s in p["scenes"]]:
+                p["reference"] = ""
             if pl["temps"] == 1 and not p["brief"]:  # l'idee de depart d'un projet depose est son pitch
                 p["brief"] = p["pitch"]
             p.setdefault("depots", {})[f.name] = int(f.stat().st_mtime)
@@ -671,13 +742,50 @@ class Atelier:
         return {"id": pid, "temps": pl["temps"], "scenes": len(neuves)}
 
     # --- Production (pilote) ----------------------------------------------------------------------
+    def _still(self, p, s):
+        """Description envoyee au modele d'image : celle de la scene, suivie de la fiche de continuite du projet."""
+        c = [v.strip(" .,") for v in (p.get("continuite") or {}).values() if v]
+        return s["still"] if s["libre"] or not c else s["still"].rstrip(" .,") + ", " + ", ".join(c)
+
+    def _a_imager(self, p, ch, temps, refaire=False):
+        """Scenes d'un ou plusieurs temps dont l'image est a calculer (une scene continue n'a pas d'image a elle)."""
+        prec = _prec(p)
+        return [s["id"] for s in p["scenes"] if s["temps"] in temps and s["still"] and not (prec[s["id"]] and s["raccord"] == "continu")
+                and (refaire or not ch[s["id"]]["image"])]
+
+    def _a_cliper(self, p, ch, temps, want=None, neuves=()):
+        """Scenes dont le clip est a calculer, dans l'ordre. Une scene continue suit le sort de la precedente : si le clip
+        de celle-ci est refait, le sien l'est aussi. `neuves` : scenes dont l'image va etre refaite avant."""
+        prec, out = _prec(p), []
+        for s in p["scenes"]:
+            pv = prec[s["id"]]
+            cont = bool(pv) and s["raccord"] == "continu"
+            if not s["motion"]:
+                continue
+            choisi = s["id"] in want if want else s["temps"] == temps and (s["id"] in neuves or not ch[s["id"]]["clip"])
+            if not choisi and not (cont and pv["id"] in out):
+                continue
+            if (pv["id"] in out or ch[pv["id"]]["clip"]) if cont else (ch[s["id"]]["image"] or s["id"] in neuves):
+                out.append(s["id"])
+        return out
+
     def devis(self, p, temps=1):
         """Cout estime des deux lancements d'un temps, d'apres les couts constates (docs/journal-projet.md)."""
-        img = [s for s in p["scenes"] if s["temps"] == temps and s["still"] and not s["image"]]
-        clp = [s for s in p["scenes"] if s["temps"] == temps and s["image"] and s["motion"] and not s["clip"]]
+        ch = {s["id"]: s for s in p["scenes"]}
+        img = self._a_imager(p, ch, (temps,))
+        clp = [ch[i] for i in self._a_cliper(p, ch, temps)]
         return {"images": {"n": len(img), "usd": round(0.003 * len(img) + (0 if self.studio.pod() else 0.05), 2)},
                 "clips": {"n": len(clp), "usd": round(sum(0.07 if s["end_edit"] else 0.035 for s in clp) + 0.12, 2),
                           "usd_hd": round(sum(0.26 if s["end_edit"] else 0.13 for s in clp) + 0.12, 2)}}
+
+    def _fin_clip(self, clip, dest):
+        """Derniere image d'un clip deja produit : celle gardee par le pilote, sinon tiree du fichier mp4."""
+        run = clip.split("_")[0]
+        src = self.data / "work" / run / f"{clip[:-4]}_fin.png"
+        if src.is_file():
+            shutil.copy(src, dest)
+        else:
+            _ff("-sseof", "-0.5", "-i", dest.parent / clip, "-update", "1", dest)
 
     def produire(self, b, chaine=False):
         pid, quoi = b["id"], b.get("quoi")
@@ -697,26 +805,43 @@ class Atelier:
             want = set(b.get("scenes") or [])
             d = self._pdir(pid)
             n = len(list((d / "runs").glob("r*.json"))) + 1 if (d / "runs").is_dir() else 1
-            shots = []
-            for s in p["scenes"]:
-                if (want and s["id"] not in want) or (not want and s["temps"] != int(b.get("temps") or 1)):
-                    continue
-                c = ch[s["id"]]
-                if quoi == "images":
-                    if not s["still"] or (not want and c["image"]):
-                        continue
-                    if c["image"]:  # nouvelle prise demandee : autre tirage
+            shots, media, prec, ch_s = [], d / "media", _prec(p), {s["id"]: s for s in p["scenes"]}
+            if quoi == "images":
+                ids = [i for i in self._a_imager(p, ch, {s["temps"] for s in p["scenes"]} if want else (int(b.get("temps") or 1),), bool(want))
+                       if not want or i in want]
+                # image de reference : les autres images en sont tirees par retouche (meme personne, meme lieu, meme tenue)
+                ref = p.get("reference") if not (prec.get(p.get("reference")) and ch_s[p["reference"]]["raccord"] == "continu") else ""
+                base = f"{pid}r{n}_{ref}.png" if ref in ids else ch.get(ref, {}).get("image") if ref else ""
+                for s in sorted((s for s in p["scenes"] if s["id"] in ids), key=lambda s: s["id"] != ref):
+                    if ch[s["id"]]["image"]:  # nouvelle prise demandee : autre tirage
                         s["seed"] = random.randint(1, 999999)
                     s["image"], s["clip"] = "", ""  # la prise retenue sera la nouvelle
-                    shots.append({"name": s["id"], "still": s["still"], "seed": s["seed"], "tattoos": s["tattoos"],
-                                  "body": bool((perso.get("generation") or {}).get("corps"))}
-                                 | ({"loras": _loras_plan(s["loras"])} if s["loras"] else {}))
-                else:
-                    if not c["image"] or not s["motion"] or (not want and c["clip"]):
+                    if base and s["id"] != ref and not s["libre"] and not s["loras"]:
+                        shots.append({"name": s["id"], "image": str(media / base), "edit": self._still(p, s), "seed": s["seed"]})
+                    else:
+                        shots.append({"name": s["id"], "still": self._still(p, s), "seed": s["seed"], "tattoos": s["tattoos"],
+                                      "body": bool((perso.get("generation") or {}).get("corps"))}
+                                     | ({"loras": _loras_plan(s["loras"])} if s["loras"] else {}))
+            else:
+                ids = self._a_cliper(p, ch, int(b.get("temps") or 1), want)
+                suiv = {prec[s["id"]]["id"]: s for s in p["scenes"] if prec[s["id"]]}
+                for s in p["scenes"]:
+                    if s["id"] not in ids:
                         continue
-                    sh = {"name": s["id"], "image": str(d / "media" / c["image"]), "still": s["still"], "motion": s["motion"],
-                          "seed": s["seed"] + len(pr.get(s["id"], {}).get("clips", []))}
-                    if s["end_edit"]:
+                    sh = {"name": s["id"], "still": s["still"], "motion": s["motion"], "seed": s["seed"] + len(pr.get(s["id"], {}).get("clips", []))}
+                    pv, nx = prec[s["id"]], suiv.get(s["id"])
+                    if pv and s["raccord"] == "continu":  # depart : derniere image du clip de la scene precedente
+                        if pv["id"] in ids:
+                            sh |= {"suite_de": pv["id"], "depuis": f"{pid}r{n}_{pv['id']}.mp4"}
+                        else:
+                            self._fin_clip(ch[pv["id"]]["clip"], media / f"{pid}r{n}_{s['id']}.png")
+                            sh |= {"image": str(media / f"{pid}r{n}_{s['id']}.png"), "depuis": ch[pv["id"]]["clip"]}
+                        s["image"] = ""
+                    else:
+                        sh["image"] = str(media / ch[s["id"]]["image"])
+                    if nx and nx["raccord"] == "arrivee" and ch[nx["id"]]["image"]:  # le clip arrive sur l'image de la scene suivante
+                        sh["end_image"] = str(media / ch[nx["id"]]["image"])
+                    elif s["end_edit"]:
                         sh["end_edit"] = s["end_edit"]
                     s["clip"] = ""
                     shots.append(sh)
@@ -758,18 +883,16 @@ class Atelier:
             return {"etat": "", "ailleurs": c["projet"] if self.chaine_active() else ""}
         return {k: c[k] for k in ("projet", "temps", "mode", "refaire", "hd", "etat", "etape", "erreur", "journal", "stop")}
 
-    def _images_chaine(self, p, ch, temps, refaire):
-        return [s["id"] for s in p["scenes"] if s["temps"] in temps and s["still"] and (refaire or not ch[s["id"]]["image"])]
-
     def devis_chaine(self, pid, temps, refaire, hd):
         """Ce que la chaine va calculer et son cout estime (memes couts unitaires que devis())."""
         p = self._raw(pid)
         ch = self._choix(p)
-        img = self._images_chaine(p, ch, temps, refaire)
+        img = self._a_imager(p, ch, temps, refaire)
         usd, clips, montages = (0.003 * len(img) + (0 if self.studio.pod() else 0.05)) if img else 0, 0, 0
         for t in temps:
             sc = [s for s in p["scenes"] if s["temps"] == t]
-            c = [s for s in sc if s["still"] and s["motion"] and (s["id"] in img or not ch[s["id"]]["clip"])]
+            ok = self._a_cliper(p, ch, t, neuves=img)
+            c = [s for s in sc if s["id"] in ok]
             if c:  # un lancement de clips par temps : chacun demarre son pod
                 usd += sum(((0.26 if s["end_edit"] else 0.13) if hd else (0.07 if s["end_edit"] else 0.035)) for s in c) + 0.12
             clips += len(c)
@@ -841,7 +964,7 @@ class Atelier:
         try:
             if not suite:
                 p = self._raw(pid)
-                ids = self._images_chaine(p, self._choix(p), c["temps"], c["refaire"])
+                ids = self._a_imager(p, self._choix(p), c["temps"], c["refaire"])
                 if ids:
                     self._pas(c, f"images ({len(ids)})")
                     self._lancer_chaine(c, "images", scenes=ids)
@@ -1014,7 +1137,8 @@ def monter(p, media, tmp, out, audio_dir, plateforme=""):
     fin = f"fps={fps},setsar=1,format=yuv420p"
     enc = ["-an", "-c:v", "libx264", "-crf", "18", "-preset", "veryfast", "-video_track_timescale", "16384"]
     label = _texte(tmp, "label", "AI character", 0.016, 0.045, w, h) if m["label"] else []
-    segs, durs, derniere = [], [], None
+    segs, durs, derniere = [], [], None  # segs : groupes de segments ; rien ne separe les segments d'un meme groupe
+    prec = _prec(p)
     scenes = [s for s in p["scenes"] if s["clip"] or s["image"]]
     for i, s in enumerate(scenes):
         txt = []
@@ -1028,14 +1152,24 @@ def monter(p, media, tmp, out, audio_dir, plateforme=""):
             total = _duree(src)
             deb = min(s["debut"], max(0, total - 1))
             dur = min(s["duree"] or total, total - deb)
-            _ff("-ss", f"{deb:.2f}", "-t", f"{dur:.2f}", "-i", src, "-vf", ",".join([base, fin] + txt + label), *enc, seg)
+            # raccord continu ou arrivee : la premiere image du clip est la derniere du precedent. Si les deux clips sont
+            # entiers a la jointure, l'image en double est retiree et les deux segments restent colles (ni fondu ni coupe visible).
+            colle = bool(derniere and s["raccord"] != "coupe" and prec[s["id"]] is derniere and derniere["clip"]
+                         and not s["debut"] and not derniere["duree"])
+            if colle:
+                deb, dur = JOINT, dur - JOINT
+            _ff("-ss", f"{deb:.3f}", "-t", f"{dur:.3f}", "-i", src, "-vf", ",".join([base, fin] + txt + label), *enc, seg)
         else:  # pas encore de clip : image avec un zoom lent
             dur = s["duree"] or 3.0
             nb = round(dur * fps)
             zoom = (f"scale={w * 3 // 2}:{h * 3 // 2}:force_original_aspect_ratio=increase:flags=lanczos,crop={w * 3 // 2}:{h * 3 // 2},"
                     f"zoompan=z='1+0.07*on/{nb}':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d={nb}:s={w}x{h}:fps={fps}")
             _ff("-i", media / s["image"], "-vf", ",".join([zoom, "setsar=1,format=yuv420p"] + txt + label), "-frames:v", nb, *enc, seg)
-        segs.append(seg)
+            colle = False
+        if colle:
+            segs[-1].append(seg)
+        else:
+            segs.append([seg])
         durs.append(_duree(seg))
         derniere = s
     if m["carton"] and p.get("cta"):
@@ -1047,10 +1181,21 @@ def monter(p, media, tmp, out, audio_dir, plateforme=""):
         txt = _texte(tmp, "cta", p["cta"], 0.044, 0.46, w, h, boite=False) + _texte(tmp, "plat", plateforme, 0.022, 0.56, w, h, boite=False)
         seg = tmp / "carton.mp4"
         _ff("-loop", "1", "-t", "2.6", "-i", fond, "-vf", ",".join([base, "boxblur=28:3,eq=brightness=-0.22:saturation=0.8", fin] + txt + label), *enc, seg)
-        segs.append(seg)
+        segs.append([seg])
         durs.append(_duree(seg))
     muet = tmp / "muet.mp4" if m.get("musique") else out
+
+    def coller(fichiers, sortie, *opts):
+        liste = tmp / f"{sortie.stem}.txt"
+        liste.write_text("".join(f"file '{s}'\n" for s in fichiers), encoding="utf-8")
+        _ff("-f", "concat", "-safe", "0", "-i", liste, "-c", "copy", *opts, sortie)
+
     if m["transition"] == "fondu" and len(segs) > 1:
+        for i, g in enumerate(segs):  # un groupe continu devient un seul segment : le fondu ne passe qu'entre les groupes
+            if len(g) > 1:
+                coller(g, tmp / f"groupe{i}.mp4")
+                segs[i] = [tmp / f"groupe{i}.mp4"]
+        segs, durs = [g[0] for g in segs], [_duree(g[0]) for g in segs]
         args, fc, acc, prev = [], [], 0.0, "0:v"
         for seg in segs:
             args += ["-i", seg]
@@ -1062,9 +1207,7 @@ def monter(p, media, tmp, out, audio_dir, plateforme=""):
             "-pix_fmt", "yuv420p", "-movflags", "+faststart", muet)
         total = sum(durs) - x * (len(segs) - 1)
     else:
-        liste = tmp / "liste.txt"
-        liste.write_text("".join(f"file '{s}'\n" for s in segs), encoding="utf-8")
-        _ff("-f", "concat", "-safe", "0", "-i", liste, "-c", "copy", "-movflags", "+faststart", muet)
+        coller([s for g in segs for s in g], muet, "-movflags", "+faststart")
         total = sum(durs)
     if m.get("musique"):
         src = (audio_dir / m["musique"]).resolve()

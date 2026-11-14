@@ -11,14 +11,17 @@
 #   2026-11-14b  depot dans l'atelier : bloc "atelier", champs de plan titre, texte, voix, role.
 #   2026-11-14c  bloc "atelier" : textes de publication du temps 1 (pitch, accroche, legende, cta, hashtags).
 #   2026-11-14d  bloc "atelier" : date du personnage (date_perso, fictive) et contexte du moment, avec le temps 1.
+#   2026-11-14e  continuite : bloc "atelier" continuite et reference, champs de plan raccord et libre (atelier) ;
+#                champs de plan edit, suite_de et end_image (pilote).
 
-modele: "2026-11-14d"
+modele: "2026-11-14e"
 name: monlot                 # prefixe des fichiers produits (lettres, chiffres, _), unique par lancement
 
 # --- Facultatif : plans deposes dans l'atelier (docs/agents.md, "Deposer des plans") --------------
 # Uniquement pour un fichier place dans server/jobs/atelier/. Le pilote ignore ce bloc ; c'est la
 # page Atelier qui le lit quand le proprietaire importe le fichier. Dans ce cas : 1 a 10 plans,
-# "still" obligatoire dans chacun, pas de "steps" ni de "image", pas de "character".
+# "still" obligatoire dans chacun, pas de "character", ni de "steps", "image", "edit", "suite_de",
+# "end_image" (les raccords se demandent par "raccord", l'image de reference par "reference").
 # atelier:
 #   projet: p0001            # projet auquel ajouter les plans ; "" ou absent : nouveau projet
 #   temps: 3                 # 1 accroche tous publics, 2 montee pour les abonnes, 3 final prive
@@ -35,6 +38,14 @@ name: monlot                 # prefixe des fichiers produits (lettres, chiffres,
 #   date_perso: "2026-12-19" # date FICTIVE, entre guillemets, AAAA-MM-JJ : le jour ou le personnage vit la scene.
 #                            # Ce n'est ni la date d'ecriture, ni celle du calcul, ni celle du depot.
 #   contexte: ""             # contexte du moment, une ligne en francais (meteo, fete proche, ce qu'elle vit)
+#   # Continuite du projet, lue seulement avec temps: 1 (elle vaut pour les trois temps). Absente : celle du projet.
+#   continuite:              # ce qui ne change pas d'une image a l'autre ; en anglais ; ajoute a la fin de chaque "still"
+#     lieu: "in a small Parisian bathroom with white tiles and a round mirror"
+#     tenue: "wearing a white ribbed tank top and grey cotton shorts"
+#     cheveux: "hair in a loose bun"        # coiffure du jour, ou ""
+#     lumiere: "soft morning window light"
+#     pdv: "shot at eye level on a phone"   # point de vue de la camera
+#   reference: plan01        # nom d'un plan de ce fichier : les autres images du projet en sont tirees par retouche
 
 # --- Facultatif : autre personnage que celui de persona/production.yaml --------------------------
 # Un champ absent garde la valeur de production.yaml. Bloc a supprimer pour Lea.
@@ -68,6 +79,11 @@ shots:
     # texte: "Don't blink."  # texte incruste au montage
     # voix: ""               # voix off (pas encore produite)
     # role: montee           # accroche, montee ou chute
+    # raccord: coupe         # lien avec le plan precedent du meme temps : coupe (defaut, le plan a sa propre image),
+    #                        # continu (pas d'image propre : le clip part de la derniere image du clip precedent et le
+    #                        # montage les colle sans coupe ; "still" reste obligatoire et decrit l'image attendue),
+    #                        # arrivee (le clip precedent se termine sur l'image de ce plan ; cout double pour lui)
+    # libre: false           # true : autre lieu ou autre tenue, sans la fiche de continuite ni l'image de reference
 
   # 2. Image puis clip de 5 s : un seul geste lent, phrase en anglais commencant par "She".
   - name: clip01
@@ -92,6 +108,24 @@ shots:
   #    Chemin relatif au dossier de donnees (server/data) ou absolu dans le conteneur (/data/...).
   - name: clip04
     image: "inbox/monlot_img01.png"
+    motion: "She ..."
+
+  # 6. Image tiree d'une image existante par retouche : meme personne, meme lieu, meme tenue, nouvelle pose.
+  #    "edit" remplace "still" ; il decrit toute l'image voulue. Pas de LoRA supplementaire.
+  - name: img02
+    image: "inbox/monlot_img01.png"
+    edit: "medium shot, she leans on the sink and looks at the camera over her shoulder, amused"
+
+  # 7. Clip continu : il part de la derniere image du clip d'un plan place avant lui dans le meme fichier.
+  #    Les deux clips se montent bout a bout sans coupe visible. La derive s'accumule : deux de suite au plus.
+  - name: clip05
+    suite_de: clip01
+    motion: "She ..."
+
+  # 8. Clip qui se termine sur une image existante (clip debut/fin, cout double).
+  - name: clip06
+    still: "..."
+    end_image: "inbox/monlot_img02.png"
     motion: "She ..."
 
   # Champs reserves au proprietaire : body (description du corps) et dest (abonnes, payant).

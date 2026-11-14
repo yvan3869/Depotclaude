@@ -14,7 +14,7 @@ from .comfy import Comfy
 
 ROOT = Path(__file__).resolve().parents[2]
 PREFIX = "girls-ai-"
-MODELE = "2026-11-14d"  # version du format des plans : la meme que dans server/jobs/modele.yaml
+MODELE = "2026-11-14e"  # version du format des plans : la meme que dans server/jobs/modele.yaml
 INTERP = "minterpolate=fps=32:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1"
 
 
@@ -34,6 +34,13 @@ def to_mp4(webm: Path, mp4: Path, smooth: bool, grain: bool):
         cmd += ["-vf", ",".join(vf)]
     cmd += ["-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "18", "-movflags", "+faststart", str(mp4)]
     subprocess.run(cmd, check=True)
+
+
+def last_frame(video: Path, png: Path):
+    """Derniere image d'un clip : image de depart du plan qui le prolonge ("suite_de")."""
+    ff = os.environ.get("FFMPEG_BIN") or shutil.which("ffmpeg")
+    subprocess.run([ff, "-y", "-loglevel", "error", "-sseof", "-1", "-i", str(video), "-update", "1", str(png)], check=True)
+    return png.read_bytes()
 
 
 def concat(mp4s, out: Path):
@@ -124,7 +131,9 @@ def cmd_run(a):
             seed = int(s["seed"]) + (0 if s.get("same_seed") else i)
             shots.append((s, f"{job['name']}_{s['name']}", seed, {"name": s["name"]}))
         report["shots"] = [e for _, _, _, e in shots]
-        stills = {}
+        stills, fins = {}, {}
+        keep_ref = ("Keep exactly the same person, same face, same hair, same body, same tattoos, same clothes, same room, same furniture, "
+                    "same light and same photo style. New photo of her in the same place, a moment later: ")
 
         def over():
             if (time.time() - t0) / 60 > max_min:
@@ -138,10 +147,20 @@ def cmd_run(a):
                 continue
             try:
                 t = time.time()
+                if s.get("suite_de"):  # image de depart = derniere image du clip d'un plan precedent : passe des clips
+                    continue
                 if s.get("image"):  # image deja produite et choisie (atelier) : pas de nouveau tirage
                     src = Path(s["image"])
                     stills[name] = (src if src.is_absolute() else data / src).read_bytes()
+                    if s.get("edit"):  # nouvelle image tiree de celle-ci par retouche : meme personne, meme lieu, meme tenue
+                        up = c.upload(f"ga_{name}_ref.png", stills[name])
+                        files = c.run(workflows.edit_image(models, up, keep_ref + s["edit"], *s["still_size"], seed, f"ga_{name}"))
+                        stills[name] = c.fetch(files[0])
+                        entry["still_s"] = round(time.time() - t)
+                        log(f"{name} : image par retouche ({entry['still_s']} s)")
                     (work / f"{name}.png").write_bytes(stills[name])
+                    if s.get("edit") and a.stills_only:
+                        shutil.copy(work / f"{name}.png", inbox / f"{name}.png")
                     continue
                 if cfg.get("image_model", "wan") == "zimage":
                     # tattoos: false dans un plan = tenue couvrante ; sans cela le modele dessine
@@ -186,32 +205,35 @@ def cmd_run(a):
                 return [{"end": s["end_edit"], "motion": s["motion"]}]
             return []
 
+        def ends_of(s, name, seed):
+            imgs = [stills[name]]
+            for k, st in enumerate(steps_of(s), 1):
+                if over():
+                    raise RuntimeError("duree maximale atteinte")
+                t = time.time()
+                up = c.upload(f"ga_{name}_e{k - 1}.png", imgs[-1])
+                files = c.run(workflows.edit_image(models, up, keep + st["end"], *s["still_size"], seed + k, f"ga_{name}_e{k}"))
+                imgs.append(c.fetch(files[0]))
+                (work / f"{name}_e{k}.png").write_bytes(imgs[-1])
+                log(f"{name} : image de fin {k} ({round(time.time() - t)} s)")
+                if a.stills_only:
+                    shutil.copy(work / f"{name}_e{k}.png", inbox / f"{name}_e{k}.png")
+            return imgs
+
         chains = {}
         for s, name, seed, entry in shots:
             if name not in stills or not steps_of(s):
                 continue
-            imgs = [stills[name]]
             try:
-                for k, st in enumerate(steps_of(s), 1):
-                    if over():
-                        raise RuntimeError("duree maximale atteinte")
-                    t = time.time()
-                    up = c.upload(f"ga_{name}_e{k - 1}.png", imgs[-1])
-                    files = c.run(workflows.edit_image(models, up, keep + st["end"], *s["still_size"], seed + k, f"ga_{name}_e{k}"))
-                    imgs.append(c.fetch(files[0]))
-                    (work / f"{name}_e{k}.png").write_bytes(imgs[-1])
-                    log(f"{name} : image de fin {k} ({round(time.time() - t)} s)")
-                    if a.stills_only:
-                        shutil.copy(work / f"{name}_e{k}.png", inbox / f"{name}_e{k}.png")
-                chains[name] = imgs
+                chains[name] = ends_of(s, name, seed)
             except Exception as e:
                 entry["error"] = str(e)[:300]
                 log(f"{name} : ECHEC image de fin {entry['error']}")
         for s, name, seed, entry in shots:
-            if a.stills_only or name not in stills:
+            if a.stills_only or (name not in stills and not s.get("suite_de")):
                 continue
             steps = steps_of(s)
-            if steps and name not in chains:
+            if steps and name not in chains and not s.get("suite_de"):
                 continue  # une image de fin a echoue : pas de clip plutot qu'un clip sans fin imposee
             if not steps and not s.get("motion"):
                 continue
@@ -220,6 +242,15 @@ def cmd_run(a):
                 continue
             try:
                 t = time.time()
+                if s.get("suite_de"):  # plan continu : il part de la derniere image du clip du plan nomme
+                    src = f"{job['name']}_{s['suite_de']}"
+                    if src not in fins:
+                        raise RuntimeError(f"suite_de : le clip du plan {s['suite_de']} manque (il doit etre place avant et reussir)")
+                    stills[name] = fins[src]
+                    (work / f"{name}.png").write_bytes(stills[name])
+                    shutil.copy(work / f"{name}.png", inbox / f"{name}.png")
+                    if steps:
+                        chains[name] = ends_of(s, name, seed)
                 suffix = char.get("motion_suffix", "")
                 parts = []
                 if steps:
@@ -234,11 +265,16 @@ def cmd_run(a):
                         log(f"{name} : sous-scene {k}/{len(steps)}")
                 else:
                     up = c.upload(f"ga_{name}.png", stills[name])
+                    end = None
+                    if s.get("end_image"):  # clip debut/fin vers une image existante (celle du plan suivant)
+                        src = Path(s["end_image"])
+                        end = c.upload(f"ga_{name}_end.png", (src if src.is_absolute() else data / src).read_bytes())
                     files = c.run(workflows.clip(models, char, up, s["motion"] + suffix, *s["clip_size"], seed,
-                                                 f"ga_{name}", mode=s["mode"]))
+                                                 f"ga_{name}", mode=s["mode"], end_image_name=end))
                     webm = work / f"{name}.webm"
                     webm.write_bytes(c.fetch(files[0]))
                     parts.append(webm)
+                fins[name] = last_frame(parts[-1], work / f"{name}_fin.png")
                 entry["clip_s"] = round(time.time() - t)
                 if len(parts) == 1:
                     to_mp4(parts[0], inbox / f"{name}.mp4", s["smooth"], s["grain"])

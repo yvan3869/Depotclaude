@@ -1,4 +1,4 @@
-# Piloter la generation depuis un autre agent (14/11/2026, revu le 14/11 : trois temps, depot dans l'atelier, date du personnage)
+# Piloter la generation depuis un autre agent (14/11/2026, revu le 14/11 : trois temps, depot dans l'atelier, date du personnage, continuite et raccords)
 
 Fiche destinee a un agent installe sur le serveur Oracle (par exemple OpenClaw) et configure par le
 proprietaire. L'agent ecrit des fichiers de plans. Il les depose dans l'Atelier, ou le proprietaire
@@ -19,6 +19,9 @@ Les memes mots servent dans la page Atelier, dans les fichiers et dans les echan
 | Depot | Un fichier de plans place dans `server/jobs/atelier/`, pour un projet et un temps. |
 | Prise | Un resultat calcule pour une scene (image ou clip). Il peut y en avoir plusieurs ; le proprietaire choisit. |
 | Montage | La video finale d'un temps, en versions numerotees. |
+| Fiche de continuite | Ce qui ne change pas d'une image a l'autre dans un projet : lieu, tenue, coiffure, lumiere, point de vue. Bloc `continuite`. |
+| Image de reference | L'image d'une scene dont les autres images du projet sont tirees par retouche. Champ `reference`. |
+| Raccord | Lien d'une scene avec la precedente du meme temps : `coupe`, `continu` ou `arrivee`. |
 | Date du personnage | Date fictive du projet : le jour ou le personnage vit la scene. Champ `date_perso`, `AAAA-MM-JJ`. |
 | Contexte du moment | Une ligne libre du proprietaire sur ce que le personnage vit ces jours-la. Champ `contexte`. |
 | Dates reelles | `cree` et `modifie` dans `projet.json` : quand le projet a ete cree et modifie sur le serveur. Sans effet sur le contenu. |
@@ -88,11 +91,38 @@ meme `personnage`) pour ne pas contredire ni repeter ce qu'elle a fait ces jours
 Si `date_perso` est vide dans le projet et que le proprietaire n'a rien dit, la lui demander plutot
 que de prendre la date du jour.
 
+## Continuite et raccords
+Trois outils evitent qu'une video change de piece, de tenue ou de personne d'une scene a l'autre.
+
+- **Fiche de continuite** (`continuite`, au projet) : cinq champs en anglais, `lieu` ("in ..."), `tenue`
+  ("wearing ..."), `cheveux`, `lumiere`, `pdv` (point de vue de la camera). L'atelier les ajoute a la fin
+  de chaque `still` au moment du calcul. Consequence pour l'ecriture : **un `still` ne contient plus que le
+  cadrage, la pose et l'expression** ; ne pas y repeter le lieu ni la tenue. Un champ ne contient que ce
+  qui vaut pour toute la video ; ce qui change en route (elle retire une veste) reste dans les `still` et
+  le champ correspondant reste vide. Un plan qui se passe ailleurs porte `libre: true`.
+- **Image de reference** (`reference`, au projet) : une fois choisie, les autres images sont fabriquees a
+  partir d'elle par retouche (meme personne, meme piece, meme tenue, nouvelle pose). Prendre le plan le
+  plus large, celui qui montre le mieux le lieu et la tenue. Les plans `libre` et ceux qui portent des
+  LoRA supplementaires gardent leur propre tirage.
+- **Raccord** (`raccord`, par plan, par rapport au plan precedent du meme temps) :
+  - `coupe` (defaut) : le plan a sa propre image, le montage coupe. Pour un changement de cadrage ou d'angle.
+  - `continu` : le plan n'a pas d'image propre. Son clip demarre sur la derniere image du clip precedent et
+    le montage colle les deux sans coupe visible. A utiliser quand deux gestes se suivent dans le meme
+    cadre ("elle sourit" puis "elle se penche"). Le `motion` reprend la ou le precedent s'arrete. La derive
+    s'accumule : deux plans continus de suite au plus. `still` reste obligatoire (il decrit l'image attendue).
+  - `arrivee` : le clip precedent se termine exactement sur l'image de ce plan (cout double pour ce clip).
+    Pour amener un mouvement de camera ou de pose vers un cadre precis.
+  Le premier plan d'un temps est toujours une coupe.
+
+Lire la fiche et l'image de reference du projet dans `projet.json` (`continuite`, `reference`) avant
+d'ecrire les temps 2 et 3 : elles s'appliquent a eux aussi.
+
 ## Deposer des plans dans l'atelier
 1. **Lire le projet** : `server/data/projets/pNNNN/projet.json` (lecture seule). On y trouve le
    personnage, le pitch, la date du personnage (`date_perso`), le `contexte` et les scenes deja
-   ecrites, chacune avec son `temps`. Reprendre dans chaque
-   `still` exactement les memes mots de lieu et de tenue que les scenes du temps 1, et repartir de
+   ecrites, chacune avec son `temps`, ainsi que la fiche de continuite (`continuite`). Si la fiche est
+   remplie, ne pas repeter le lieu ni la tenue dans les `still` ; si elle est vide, reprendre dans chaque
+   `still` exactement les memes mots de lieu et de tenue que les scenes du temps 1. Repartir de
    l'instant ou le temps precedent s'arrete. Fiches des personnages : `persona/personnages/<slug>.json`
    (versions modifiees dans la page : `server/data/personnages/`).
 2. **Ecrire le fichier** `server/jobs/atelier/<nom>.yaml` d'apres `server/jobs/modele.yaml` (voir
@@ -115,6 +145,13 @@ que de prendre la date du jour.
          # avec temps: 1 seulement, facultatifs (absents : ceux du projet sont gardes) :
          date_perso: "2026-12-19"   # date du personnage, fictive, entre guillemets
          contexte: ""               # contexte du moment, une ligne en francais
+         continuite:                # avec temps: 1 seulement ; voir "Continuite et raccords"
+           lieu: "in ..."
+           tenue: "wearing ..."
+           cheveux: ""
+           lumiere: "..."
+           pdv: "..."
+         reference: plan01          # avec temps: 1 seulement : nom d'un plan de ce fichier
        defaults:
          seed: 100
          loras: []            # noms du catalogue : docker compose run --rm pilot lora list
@@ -124,10 +161,11 @@ que de prendre la date du jour.
            still: "..."       # obligatoire
            motion: "She ..."  # facultatif : sans lui, la scene reste une image fixe
            texte: ""          # texte incruste au montage (facultatif)
+           raccord: coupe     # coupe, continu ou arrivee (facultatif)
 
    Champs repris par plan : `name`, `still`, `motion`, `end_edit`, `tattoos`, `loras`, `seed`,
-   `titre`, `texte`, `voix`, `role`. De 1 a 10 plans par fichier. `steps`, `image` et `character`
-   ne sont pas repris ; `body` et `dest` sont inutiles (le temps et la fiche du personnage en
+   `titre`, `texte`, `voix`, `role`, `raccord`, `libre`. De 1 a 10 plans par fichier. `steps`, `image`,
+   `edit`, `suite_de`, `end_image` et `character` ne sont pas repris (un depot qui en porte est refuse) ; `body` et `dest` sont inutiles (le temps et la fiche du personnage en
    tiennent lieu). Un fichier par projet et par temps.
    Video entiere : trois fichiers. Deposer d'abord celui du temps 1 sans `projet` (avec `personnage`
    et `titre`) ; une fois importe, le proprietaire donne le numero du projet cree, a reporter dans

@@ -57,6 +57,10 @@ le meme decor et la meme tenue ; le lot arrive au tri classe par destination.
    dans `server/jobs/atelier/` ; le proprietaire les importe depuis la page (`docs/agents.md`).
    Chaque projet porte une date du personnage (fictive) et un contexte du moment : saison, calendrier
    et projets voisins guident l'ecriture ; la liste des projets suit cette chronologie (fait le 14/11).
+4 quater. Continuite et raccords (14/11) : fiche de continuite du projet (lieu, tenue, cheveux, lumiere,
+   point de vue), image de reference dont les autres images sont tirees par retouche, raccords entre
+   scenes (coupe, continu, arrivee) pour des enchainements sans coupe visible. Suite prevue : controle
+   des plans avant calcul, controle visuel apres les images, montage avec regles, analyse du montage.
 5. Pilote ouvert aux LoRA choisis par le proprietaire, avec la procedure pour les deposer sur le volume.
 6. Son : voix de Lea, voix off, puis essai d'InfiniteTalk.
 7. Comptes et lancement : validation Fanvue, prix, messages automatiques, premieres publications ;
