@@ -223,3 +223,8 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
   avec vignettes, categories liees aux temps, retenues, chargement sur le volume au clic, veille
   (`docs/veille-modeles.md`). Verifie en service : recherche, retenir, regler, retirer, quatre onglets a 390 px.
   Non essaye (payant) : le chargement sur le volume et une LoRA video dans un clip. Aucune depense.
+- 14/11, nuit : espace reseaux en service (`/social`, commit de7446a) : semaine de selfies tous publics ecrite par le
+  redacteur puis calculee sur le pod de veille, file a valider, texte (legende, mention IA, hashtags) et image prets
+  a publier a la main. Automatique par personnage, desactive par defaut. Essai reel : semaine du 16/11 de Lea,
+  7 textes puis 7 images en 3,8 min, environ 0,17 $ veille du pod comprise. Depense du jour : 2,80 $ sur 7,50 $.
+  Les 7 publications attendent dans la file.
