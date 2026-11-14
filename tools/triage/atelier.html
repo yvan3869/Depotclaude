@@ -140,7 +140,9 @@ function attendre(rid, fin, msg) {
 }
 
 // --- Projet ----------------------------------------------------------------------------------------
+async function hubAtt() { try { HUBATT = (await api('/api/h/etat')).retenues.filter(x => !x.chargee).map(x => x.label); } catch (e) { HUBATT = []; } if (HUBATT.length && P) rendreProjet(); }
 async function ouvrirProjet(id) {
+  if (HUBATT === null) { HUBATT = []; hubAtt(); }
   if (ouvrirProjet.id !== id) T = 1;
   ouvrirProjet.id = id;
   D = await api('/api/a/projet?id=' + id); P = D.projet;
@@ -181,6 +183,7 @@ const f = (k, lab, v, o = {}) => `<label>${lab}${o.area ? `<textarea ${o.at || '
 const LP = k => ((P.loras || {})[k] || '').split(', ').filter(Boolean).map(x => { const [n, f] = x.split(':'); return {n, f}; });
 const LN = k => LP(String(k)).length;
 const lpSet = (k, l) => structure(() => P.loras = {...(P.loras || {}), [k]: l.map(x => x.f ? `${x.n}:${x.f}` : x.n).join(', ')});
+let HUBATT = null;  // LoRA retenues dans le hub mais pas encore chargees (lu une fois)
 function lorasBloc(k, titre, liste) {
   const B = E.bibliotheque, sel = LP(k), fiche = n => B.loras.find(x => x.name === n), reste = liste.filter(x => !sel.some(y => y.n === x.name) && !(k !== '0' && LP('0').some(y => y.n === x.name)));
   const quoi = x => `${esc(B.categories[x.cat].label)}, ${x.famille === 'wan22' ? 'clip' : 'image'}${k === '0' && x.temps_min > 1 ? `, à partir du temps ${x.temps_min}` : ''}`;
@@ -214,6 +217,7 @@ function rendreProjet() {
       <div class="mut">Une LoRA ne se charge que si elle est choisie ici (ou sur une scène) : jamais d'après la description. Ses mots déclencheurs sont ajoutés tout seuls à la description de l'image, ou au mouvement pour une LoRA de clip ; « nsfw » est ajouté d'office dès le temps 2.</div>
       ${lorasBloc('0', 'Tout le projet', E.bibliotheque.loras)}
       ${lorasBloc(String(T), `Ce temps seulement : ${T}. ${TEMPS[T][0]}`, LT)}
+      ${HUBATT && HUBATT.length ? `<div class="aide avt">${HUBATT.length} LoRA retenue(s) dans le hub ne sont pas encore chargées, donc pas proposées ici : ${HUBATT.map(esc).join(', ')}. <a href="/hub#/retenues">Les charger</a>.</div>` : ''}
       <div class="aide">Une LoRA d'image fait créer l'image à part, sans la tirer de l'image de référence (la retouche ne sait pas charger de LoRA). Pour en ajouter au catalogue : <a href="/hub">Hub</a>. Force et mots déclencheurs conseillés : <a href="#/loras">Bibliothèque</a>.</div>
     </div></details>
     ${T === 2 ? `<div class="panel">

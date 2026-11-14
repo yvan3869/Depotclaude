@@ -346,3 +346,9 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
   5 LoRA seulement, dont 2 de la categorie nu, sans mot declencheur note, aucune de pose ou d'acte, aucune LoRA de
   clip pour adultes : c'est la cause probable des gestes non rendus aux temps 3 et 4. Verifie sur p0004 (LoRA
   effectives par temps, capture), remis a vide. Aucune depense.
+- 15/11 : hub, chargement des LoRA retenues. Le chargement du 14/11 a 23 h 12 (2 LoRA de Civitai) avait echoue :
+  HTTP 400 du stockage vers lequel Civitai redirige, parce que la cle de Civitai suivait la redirection. `pilot/http.py`
+  ne transmet plus l'en-tete Authorization a un autre hote ; verifie sans pod sur les 5 fiches retenues (premiers
+  octets de chaque fichier). Page Hub : les LoRA en attente sont dans le lot d'office (case a decocher, retenue d'une
+  visite a l'autre) au lieu de cases a recocher a chaque visite. Atelier : le panneau LoRA nomme les LoRA retenues pas
+  encore chargees, avec un lien pour les charger. Le pod du chargement rate a coute environ 0,01 $.

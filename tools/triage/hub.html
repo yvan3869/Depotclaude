@@ -22,9 +22,10 @@
 <main id="vue"></main>
 <script src="/ui.js"></script>
 <script>
-let E = null, R = {resultats: [], suite: '', mots: ''}, F = {source: 'civitai', famille: 'zimage', cat: 'realisme', q: ''}, coche = new Set();
+let E = null, R = {resultats: [], suite: '', mots: ''}, F = {source: 'civitai', famille: 'zimage', cat: 'realisme', q: ''}, coche = new Set(), exclu = new Set();
 const vue = $('#vue'), ONG = [['catalogue', 'Catalogue'], ['retenues', 'Retenues'], ['liste', 'Notre liste'], ['veille', 'Veille des modèles']];
 try { F = {...F, ...JSON.parse(localStorage.getItem('hub:filtres') || '{}'), q: ''}; } catch (e) {}
+try { exclu = new Set(JSON.parse(localStorage.getItem('hub:exclu') || '[]')); } catch (e) {}
 const onglet = () => (location.hash.slice(2) || 'catalogue');
 const nb = n => n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1).replace('.', ',') + ' k' : String(n);
 const temps = c => `<span class="temps">${[1, 2, 3, 4].map(t => `<span class="badge ${t >= E.categories[c].temps ? 'v' : 'off'}">${t}</span>`).join('')}</span>`;
@@ -76,15 +77,15 @@ async function chercher(suite) {
 async function retenir(el) {
   const x = R.resultats[+el.dataset.i];
   E = await api('/api/h/retenir', {source: x.source, ref: x.ref, famille: x.famille, cat: F.cat});
-  x.retenue = true; entete(); resultats(); toast('Retenue dans la catégorie « ' + E.categories[F.cat].label + ' »', true);
+  x.retenue = true; entete(); resultats(); toast('Retenue. À charger ensuite dans l\'onglet Retenues', true);
 }
 
 // --- Retenues ----------------------------------------------------------------------------------------
 function vueRetenues() {
   const att = E.retenues.filter(x => !x.chargee), ok = E.retenues.filter(x => x.chargee);
-  [...coche].forEach(c => att.some(x => x.cle === c) || coche.delete(c));
+  coche = new Set(att.filter(x => !exclu.has(x.cle)).slice(0, E.max_lot).map(x => x.cle));  // dans le lot sauf décochée
   const mo = att.filter(x => coche.has(x.cle)).reduce((s, x) => s + x.mo, 0);
-  const bloque = E.en_cours ? 'Un chargement est en cours.' : E.occupe ? 'Un calcul est en cours : attendre sa fin.' : !E.can_run ? 'Clé RunPod absente.' : !coche.size ? 'Cocher les LoRA à charger.' : '';
+  const bloque = E.en_cours ? 'Un chargement est en cours.' : E.occupe ? 'Un calcul est en cours : attendre sa fin.' : !E.can_run ? 'Clé RunPod absente.' : !coche.size ? 'Cocher au moins une LoRA.' : '';
   const carte = x => `<div class="panel"><div class="ret">${vg(x.vignette)}<div class="g">
       <b>${esc(x.label)}</b> ${x.chargee ? `<span class="badge ${x.volume === false ? 'a' : 'v'}">${x.volume === false ? 'absente du volume' : 'chargée'}</span>` : '<span class="badge">à charger</span>'}
       <div class="mut">${esc(E.familles[x.famille].label)} · ${x.mo ? x.mo + ' Mo' : 'taille ?'} · <span class="${x.commercial ? '' : 'avt'}">${esc(x.licence)}</span></div>
@@ -98,8 +99,9 @@ function vueRetenues() {
       <label>Mots déclencheurs (anglais)<input data-r="trigger" value="${esc(x.trigger)}">${aide('Ajoutés d\'office à la description quand la LoRA sert.')}</label>
       <div class="row"><button class="s p" data-a="regler" data-c="${esc(x.cle)}">${ic('valider')}Enregistrer</button><span class="sp"></span>
         <button class="s d" data-a="retirer" data-c="${esc(x.cle)}">${ic('supprimer')}Retirer</button></div></details>
-    ${x.chargee ? '' : `<label class="c" style="margin-top:8px"><input type="checkbox" data-k="${esc(x.cle)}"${coche.has(x.cle) ? ' checked' : ''}>${x.commercial ? 'À charger dans le prochain lot' : 'À charger dans le prochain lot. Licence : usage commercial non admis, à vos risques pour une vidéo publiée.'}</label>`}</div>`;
+    ${x.chargee ? '' : `<label class="c" style="margin-top:8px"><input type="checkbox" data-k="${esc(x.cle)}"${coche.has(x.cle) ? ' checked' : ''}>${x.commercial ? 'Dans le prochain chargement' : 'Dans le prochain chargement. Licence : usage commercial non admis, à vos risques pour une vidéo publiée.'}</label>`}</div>`;
   vue.innerHTML = `<details class="sec" data-sec="hub-att"${ouv('hub-att', true)}><summary><span class="n">1</span>À charger<small>${att.length} LoRA</small></summary>
+      ${att.length ? '<div class="mut">Retenues, mais pas encore utilisables : elles ne le sont qu\'une fois chargées sur le volume, par le bouton en bas de cette liste.</div>' : ''}
       ${att.map(carte).join('') || '<p class="mut">Rien à charger. Retenir des fiches dans le catalogue.</p>'}
       ${att.length ? `<div class="panel"><div class="acts"><div class="act"><button class="p" data-a="charger"${bloque ? ' disabled' : ''}>${ic('telecharger')}Charger sur le volume</button>
         <span class="mut">${bloque || `${coche.size} LoRA, ${mo} Mo. Un pod pour le lot, supprimé à la fin : environ 0,05 à 0,15 $.`} ${E.max_lot} par lot au plus.</span></div></div>
@@ -120,7 +122,7 @@ async function retirer(el) {
 }
 async function charger() {
   if (!confirm(`Charger ${coche.size} LoRA sur le volume ? Un pod est loué le temps du dépôt (environ 0,05 à 0,15 $), puis supprimé.`)) return;
-  await api('/api/h/charger', {cles: [...coche]}); coche.clear(); toast('Chargement lancé', true); await charge(); rendre(); suivre();
+  await api('/api/h/charger', {cles: [...coche]}); toast('Chargement lancé', true); await charge(); rendre(); suivre();
 }
 let minuteur = null;
 function suivre() {
@@ -174,7 +176,8 @@ document.addEventListener('click', essai(async e => {
 }));
 document.addEventListener('change', essai(async e => {
   const el = e.target;
-  if (el.dataset.k) { el.checked && coche.size >= E.max_lot ? (el.checked = false, toast(E.max_lot + ' LoRA par lot au plus')) : el.checked ? coche.add(el.dataset.k) : coche.delete(el.dataset.k); vueRetenues(); }
+  if (el.dataset.k) { el.checked && coche.size >= E.max_lot ? toast(E.max_lot + ' LoRA par lot au plus') : el.checked ? exclu.delete(el.dataset.k) : exclu.add(el.dataset.k);
+    try { localStorage.setItem('hub:exclu', JSON.stringify([...exclu])); } catch (e) {} vueRetenues(); }
   else if (el.dataset.ic) await classer(el);
   else if (el.dataset.f && el.dataset.f !== 'q') { F[el.dataset.f] = el.value; F.q = ''; R = {resultats: [], suite: '', mots: ''}; vueCatalogue(); }
 }));

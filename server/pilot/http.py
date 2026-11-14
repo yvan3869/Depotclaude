@@ -3,6 +3,7 @@ import os
 import ssl
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 import uuid
 
@@ -11,6 +12,20 @@ _ctx = ssl.create_default_context(cafile=os.environ.get("SSL_CERT_FILE") or None
 
 
 TRANSIENT = (502, 503, 504, 520, 522, 524)
+
+
+class _Redirection(urllib.request.HTTPRedirectHandler):
+    """Une redirection vers un autre hote ne recoit pas l'en-tete Authorization : Civitai renvoie vers un stockage
+    qui refuse la requete (HTTP 400) si elle porte la cle de Civitai."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        new = super().redirect_request(req, fp, code, msg, headers, newurl)
+        if new is not None and urllib.parse.urlsplit(newurl).hostname != urllib.parse.urlsplit(req.full_url).hostname:
+            new.headers = {k: v for k, v in new.headers.items() if k.lower() != "authorization"}
+        return new
+
+
+_opener = urllib.request.build_opener(urllib.request.HTTPSHandler(context=_ctx), _Redirection())
 
 
 def request(method, url, data=None, headers=None, timeout=120, raw=False, retries=None):
@@ -29,7 +44,7 @@ def request(method, url, data=None, headers=None, timeout=120, raw=False, retrie
     for attempt in range(retries):
         req = urllib.request.Request(url, data=body, method=method, headers=h)
         try:
-            with urllib.request.urlopen(req, timeout=timeout, context=_ctx) as r:
+            with _opener.open(req, timeout=timeout) as r:
                 out = r.read()
             if raw:
                 return out
