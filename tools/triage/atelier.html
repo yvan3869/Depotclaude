@@ -15,6 +15,7 @@
   .takes img { width:36px; height:64px; object-fit:cover; border-radius:4px; border:2px solid transparent; flex:none; cursor:pointer; opacity:.6; }
   .takes img.on { border-color:var(--acc); opacity:1; }
   .takes button.on { border-color:var(--acc); color:var(--acc); }
+  .lsel { margin-top:8px; padding:8px 10px; border:1px solid var(--line); border-radius:var(--r); } .lsel input { width:76px; flex:none; } .lsel .row { margin:0; align-items:center; }
   .vd { display:flex; flex-wrap:wrap; gap:5px; margin-top:4px; }
   .vd button { border-radius:16px; } .vd button.on { border-color:var(--warn); color:var(--warn); } .vd button.on[data-c=ok] { border-color:var(--ok); color:var(--ok); }
   video.fin { width:100%; max-width:300px; border-radius:8px; display:block; margin:8px auto; background:#000; }
@@ -176,6 +177,20 @@ const dfr = d => d ? new Date(d + 'T12:00').toLocaleDateString('fr-FR', {weekday
 const f = (k, lab, v, o = {}) => `<label>${lab}${o.area ? `<textarea ${o.at || ''} rows="${o.rows || 2}" placeholder="${esc(o.ph || '')}">${esc(v)}</textarea>`
   : `<input ${o.at || ''} type="${o.type || 'text'}" ${o.step ? `step="${o.step}"` : ''} value="${esc(v)}" placeholder="${esc(o.ph || '')}">`}${aide(o.aide)}</label>`.replace('<textarea ', `<textarea data-k="${k}" `).replace('<input ', `<input data-k="${k}" `);
 
+const LP = k => ((P.loras || {})[k] || '').split(', ').filter(Boolean).map(x => { const [n, f] = x.split(':'); return {n, f}; });
+const LN = k => LP(String(k)).length;
+const lpSet = (k, l) => structure(() => P.loras = {...(P.loras || {}), [k]: l.map(x => x.f ? `${x.n}:${x.f}` : x.n).join(', ')});
+function lorasBloc(k, titre, liste) {
+  const B = E.bibliotheque, sel = LP(k), fiche = n => B.loras.find(x => x.name === n), reste = liste.filter(x => !sel.some(y => y.n === x.name));
+  const quoi = x => `${esc(B.categories[x.cat].label)}, ${x.famille === 'wan22' ? 'clip' : 'image'}${k === '0' && x.temps_min > 1 ? `, à partir du temps ${x.temps_min}` : ''}`;
+  return `<div class="gt">${titre}</div>
+    ${sel.map(y => { const x = fiche(y.n); return `<div class="lsel"><div class="row"><b>${esc(x ? x.label : y.n)}</b><span class="sp"></span>
+      <input type="number" step="0.05" min="0" max="2" data-lf="${k}" data-n="${esc(y.n)}" value="${y.f || (x ? x.strength : 1)}" title="Force">
+      <button class="i" data-a="loramoins" data-k="${k}" data-n="${esc(y.n)}" title="Retirer">${ic('supprimer')}</button></div>
+      <div class="aide">${x ? `${quoi(x)}. ${x.trigger ? `Mots ajoutés d'office : « ${esc(x.trigger)} »` : 'Aucun mot déclencheur noté : si elle en demande, les écrire dans la Bibliothèque.'}${x.volume === false ? ' <span class="err">Fichier absent du volume.</span>' : ''}` : '<span class="err">Absente du catalogue.</span>'}</div></div>`; }).join('')}
+    ${reste.length ? `<div class="chips" style="margin:6px 0 0">${reste.map(x => `<button class="chip" data-a="loraproj" data-k="${k}" data-n="${esc(x.name)}">${ic('ajouter')}${esc(x.label)} <small>${quoi(x)}</small></button>`).join('')}</div>`
+      : sel.length ? '' : '<div class="aide">Aucune LoRA admise à ce temps dans le catalogue.</div>'}`;
+}
 function rendreProjet() {
   const p = perso() || {nom: P.personnage}, vide = !P.scenes.some(s => s.temps === 1);
   const SC = P.scenes.filter(s => s.temps === T), dep = D.depots.filter(x => x.temps === T || x.erreur), DEF = (E.bibliotheque.defauts || {})[T] || '';
@@ -193,9 +208,13 @@ function rendreProjet() {
     <div class="panel"><b>${T}. ${TEMPS[T][0]}</b><div class="mut">${QUOI[T]}</div>
       ${T > 2 && P.suite ? `<div style="margin-top:6px">Suite annoncée : ${esc(P.suite)}</div>` : ''}
       ${T > 2 ? '<div class="mut" style="margin-top:6px">Ajouter les scènes ici, ou importer un plan déposé par votre agent dans server/jobs/atelier/.</div>' : ''}
-      ${`<div style="margin-top:8px;font-size:14px">LoRA par défaut de ce temps : ${DEF ? `<b>${esc(DEF)}</b>` : '<span class="mut">aucune</span>'} <a href="#/loras">Bibliothèque</a> · <a href="/hub">Hub</a></div>
-        <div class="aide">Posées sur chaque scène ajoutée à ce temps et sur les plans importés qui ne disent rien des LoRA. Au calcul, une scène sans LoRA prend celles de son temps ; celles d'une scène priment. Une LoRA ne se charge jamais d'après la description : elle doit être nommée ici ou sur la scène.</div>
-        ${DEF && SC.length ? `<div class="row"><button class="s" data-a="poserdefauts">${ic('lora')}Poser ces LoRA sur les scènes de ce temps</button></div>` : ''}`}</div>
+      </div>
+    <details class="sec" data-sec="loras"${ouv('loras', true)}><summary>${ic('lora')}LoRA<small>${LP('0').filter(y => ((E.bibliotheque.loras.find(x => x.name === y.n) || {}).temps_min || 1) <= T).length + LN(T)} appliquée(s) à ce temps</small></summary><div class="panel">
+      <div class="mut">Une LoRA ne se charge que si elle est choisie ici (ou sur une scène) : jamais d'après la description. Ses mots déclencheurs sont ajoutés tout seuls à la description de l'image, ou au mouvement pour une LoRA de clip ; « nsfw » est ajouté d'office dès le temps 2.</div>
+      ${lorasBloc('0', 'Tout le projet', E.bibliotheque.loras)}
+      ${lorasBloc(String(T), `Ce temps seulement : ${T}. ${TEMPS[T][0]}`, LT)}
+      <div class="aide">Une LoRA d'image fait créer l'image à part, sans la tirer de l'image de référence (la retouche ne sait pas charger de LoRA). Pour en ajouter au catalogue : <a href="/hub">Hub</a>. Force et mots déclencheurs conseillés : <a href="#/loras">Bibliothèque</a>.</div>
+    </div></details>
     ${T === 2 ? `<div class="panel">
       ${f('brief2', 'Consigne pour la montée (facultatif)', P.brief2, {area: 1, rows: 2, aide: 'En français. Ce que ce temps doit montrer de plus que l\'accroche : même lieu, un cran plus loin ; la tenue peut se défaire.'})}
       <div class="row"><label class="g">Scènes<select data-k="nb2">${[2, 3, 4, 5, 6].map(n => `<option ${n === P.nb2 ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
@@ -255,8 +274,8 @@ function rendreProjet() {
           : 'Cadrage, pose, expression. Le lieu, la tenue, la coiffure et la lumière viennent de la fiche de continuité : ne pas les répéter ici.'})}
       ${f('motion', 'Mouvement du clip (anglais)', s.motion, {area: 1, at: `data-s="${s.id}"`,
         aide: 'Un seul geste lent, sans mouvement de caméra : un clip dure 5 s. Vide : la scène reste une image fixe de 2 s avec un zoom lent, sans coût de clip.'})}
-      ${f('loras', 'LoRA supplémentaires', s.loras, {at: `data-s="${s.id}"`, ph: 'nom:0.6, autre',
-        aide: `Noms de la bibliothèque, « nom:force », séparés par des virgules. Vide : aucune, en plus de celle du visage. Seules les LoRA que leur catégorie admet au temps ${T} sont acceptées. Une LoRA d'image fait tirer l'image directement, sans retouche depuis l'image de référence ; une LoRA vidéo s'applique au clip.`})}
+      ${f('loras', 'LoRA de cette scène seulement (rare)', s.loras, {at: `data-s="${s.id}"`, ph: 'nom:0.6, autre',
+        aide: `En plus de celles du projet et du temps, choisies en haut de la page. « nom:force », séparés par des virgules. Seules les LoRA que leur catégorie admet au temps ${T} sont acceptées. Une LoRA d'image fait tirer l'image directement, sans retouche depuis l'image de référence ; une LoRA vidéo s'applique au clip.`})}
       ${LT.length ? `<div class="chips" style="margin:6px 0 0">${LT.map(x => `<button class="chip" data-a="loraplus" data-n="${esc(x.name)}" title="${esc(x.label)}">${ic('ajouter')}${esc(x.name)} <small>${esc(E.bibliotheque.categories[x.cat].label)}${x.famille === 'wan22' ? ', vidéo' : ''}</small></button>`).join('')}</div>` : `<div class="aide">Aucune LoRA admise à ce temps dans la bibliothèque. En retenir dans le <a href="/hub">hub</a>.</div>`}
       <div class="gt">Ce qui s'affiche</div>
       ${f('texte', 'Texte à l\'écran', s.texte, {at: `data-s="${s.id}"`, aide: '7 mots au plus, sans emoji. Vide : aucun texte sur cette scène.'})}
@@ -506,8 +525,10 @@ const actions = {
   }, 'Recherche de variantes'),
   variante: el => structure(() => { const v = actions.v[+el.dataset.i]; P.accroche = v.accroche; P.legende = v.legende; P.cta = v.cta; }),
   copier: () => copier([P.legende, P.hashtags].filter(Boolean).join('\n\n')),
-  ajouter: () => structure(() => P.scenes.push({titre: '', role: 'montee', temps: T, still: '', motion: '', texte: '', tattoos: true, loras: (E.bibliotheque.defauts || {})[T] || ''})),
+  ajouter: () => structure(() => P.scenes.push({titre: '', role: 'montee', temps: T, still: '', motion: '', texte: '', tattoos: true, loras: ''})),
   poserdefauts: () => { const d = (E.bibliotheque.defauts || {})[T] || ''; if (d && confirm(`Poser « ${d} » sur toutes les scènes du temps ${T} ? Les LoRA déjà notées sur ces scènes sont remplacées.`)) return structure(() => P.scenes.filter(s => s.temps === T).forEach(s => s.loras = d)); },
+  loraproj: el => lpSet(el.dataset.k, [...LP(el.dataset.k), {n: el.dataset.n}]),
+  loramoins: el => lpSet(el.dataset.k, LP(el.dataset.k).filter(x => x.n !== el.dataset.n)),
   loraplus: (el, sid) => structure(() => { const x = sc(sid), l = (x.loras || '').split(',').map(v => v.trim()).filter(Boolean); if (!l.some(v => v.split(':')[0] === el.dataset.n)) l.push(el.dataset.n); x.loras = l.join(', '); }),
   lorasauver: loraSauver, loraretirer: loraRetirer, loracorriger: el => loraForm(E.bibliotheque.loras.find(x => x.name === el.dataset.n)), lorainscrire: el => loraForm({file: el.dataset.n}), defautssauver: defautsSauver,
   dupliquer: (el, sid) => structure(() => { const i = P.scenes.findIndex(s => s.id === sid); P.scenes.splice(i + 1, 0, {...P.scenes[i], id: null, seed: 0, image: '', clip: '', origine: ''}); }),
@@ -550,6 +571,7 @@ vue.addEventListener('input', e => {
   const t = e.target, k = t.dataset.k;
   if (t.id === 'hd') return sig.hd = t.checked;
   if (t.dataset.ch) { CH[t.dataset.ch] = t.type === 'checkbox' ? t.checked : t.value; delete sig.prod; return majDyn(); }
+  if (t.dataset.lf && P) { P.loras = {...(P.loras || {}), [t.dataset.lf]: LP(t.dataset.lf).map(x => x.n === t.dataset.n ? `${x.n}:${t.value}` : x.f ? `${x.n}:${x.f}` : x.n).join(', ')}; return planifier(); }
   if (t.dataset.tir && P) { P.tirage = {...(P.tirage || {}), [t.dataset.tir]: t.value}; return essai(structure)(() => {}); }
   if (!k || !P) return;
   const v = t.type === 'checkbox' ? t.checked : t.type === 'number' || k === 'nb_scenes' || k === 'nb2' || k === 'cran' || k === 'cible' ? +t.value : t.value;
@@ -590,11 +612,7 @@ function vueLoras() {
       <label>Modèle de base<select data-l="famille">${Object.entries(B.familles).map(([k, c]) => `<option value="${k}">${esc(c.label)} (${c.usage})</option>`).join('')}</select></label>
       ${l('trigger', 'Mots déclencheurs (anglais)', '', {aide: 'Ajoutés d\'office à la fin de la description de l\'image quand la LoRA est utilisée. Vide si la LoRA n\'en demande pas.'})}
       ${l('note', 'Note', '', {aide: 'Pour vous : à quoi elle sert, avec quelles poses, ce qui rate.'})}
-      <div class="row"><button class="p" data-a="lorasauver">${ic('valider')}Enregistrer la LoRA</button></div></div>
-    <h2>LoRA par défaut de chaque temps</h2>
-    <div class="panel"><div class="mut">Posées sur chaque scène ajoutée à ce temps, et sur les plans importés qui ne disent rien des LoRA. Une LoRA n'est admise qu'à partir du temps de sa catégorie. Chaque scène reste modifiable.</div>
-      ${[1, 2, 3, 4].map(t => `<label>${t}. ${TEMPS[t][0]} <span class="mut">${TEMPS[t][1]}</span><input data-d="${t}" value="${esc((B.defauts || {})[t] || '')}" placeholder="nom:0.6, autre">${aide(t === 1 ? 'Noms inscrits ci-dessus, « nom:force », séparés par des virgules. Vide : aucune.' : '')}</label>`).join('')}
-      <div class="row"><button class="p" data-a="defautssauver">${ic('valider')}Enregistrer les défauts</button></div></div>`;
+      <div class="row"><button class="p" data-a="lorasauver">${ic('valider')}Enregistrer la LoRA</button></div></div>`;
 }
 function loraForm(x) {
   for (const k of ['name', 'label', 'file', 'strength', 'trigger', 'note', 'cat', 'famille']) if (x && x[k] != null) $(`[data-l="${k}"]`, vue).value = x[k];

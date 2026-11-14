@@ -242,6 +242,16 @@ def _loras(x):
     return ", ".join(p for p in (re.sub(r"[^A-Za-z0-9_.:-]", "", p) for p in str(x or "").split(",")) if p)[:300]
 
 
+def _fusion(*txts):
+    """Reunit des listes de LoRA en texte ("nom:0.6, autre") ; pour un meme nom, la derniere force l'emporte."""
+    d = {}
+    for txt in txts:
+        for x in str(txt or "").split(", "):
+            if x:
+                d[x.partition(":")[0]] = x
+    return ", ".join(d.values())
+
+
 def _loras_plan(txt):
     out = []
     for p in txt.split(", ") if txt else []:
@@ -337,6 +347,14 @@ class Atelier:
                     raise ValueError(f"« {n} » (catégorie {tmin[n][1]}) n'est admise qu'à partir du temps {tmin[n][0]} : "
                                      f"la retirer de la scène « {s.get('titre') or s.get('id')} » du temps {s['temps']}")
 
+    def _loras_scene(self, p, s, tmin=None):
+        """LoRA effectives d'une scene : celles de tout le projet, puis de son temps, puis les siennes (la derniere force
+        l'emporte). Une LoRA que sa categorie n'admet pas a ce temps est laissee de cote, sans erreur."""
+        tmin = self._lib()["tmin"] if tmin is None else tmin
+        lp = p.get("loras") or {}
+        ok = lambda txt: ", ".join(x for x in str(txt or "").split(", ") if x and tmin.get(x.partition(":")[0], (1,))[0] <= s["temps"])
+        return _fusion(ok(lp.get("0")), ok(lp.get(str(s["temps"]))), s.get("loras"))
+
     def _lora_image(self, s):
         """Vrai si la scene porte une LoRA d'image : son image est alors tiree directement, pas par retouche de la reference."""
         return any(v.get("famille") != "wan22" for v in self._fiches(s))
@@ -353,7 +371,8 @@ class Atelier:
                 "bas": {k: str(v["file_low"]) for k, v in brut.items() if v.get("file_low")}, "cat": cat, "volume": set(vol["fichiers"]) if isinstance(vol.get("fichiers"), list) else None, "date": vol.get("date", "")}
 
     def _ctl(self, p, t):
-        return controle(p, t, self._lib())
+        lib = self._lib()
+        return controle({**p, "scenes": [{**s, "loras": self._loras_scene(p, s, lib["tmin"])} for s in p.get("scenes") or []]}, t, lib)
 
     def bibliotheque(self):
         """LoRA supplementaires connues : catalogue, presence sur le volume d'apres le dernier inventaire, defauts par temps."""
@@ -559,6 +578,8 @@ class Atelier:
                              "noir": bool(m.get("noir", True)), "simage": bool(m.get("simage", True)),
                              "rendu": m.get("rendu") if m.get("rendu") in RENDUS else "net" if old.get("montage") else "main",  # nouveau projet : tenu a la main
                              "style": m.get("style") if m.get("style") in STYLES else "doux"}}
+            # LoRA du projet : "0" = tout le projet, "1" a "4" = un temps ; s'ajoutent a celles d'une scene (_loras_scene)
+            p["loras"] = {k: _loras((b.get("loras", old.get("loras")) or {}).get(k)) for k in ("0", "1", "2", "3", "4")}
             p["tirage"] = {str(k): _tirage({"tirage": b.get("tirage", old.get("tirage"))}, k) for k in TEMPS}
             p["scenes"] = [self._scene(s, p) for s in (b["scenes"] if "scenes" in b else old.get("scenes") or [])][:30]
             ref = b.get("reference", old.get("reference"))
@@ -1315,7 +1336,7 @@ class Atelier:
             d = self._pdir(pid)
             n = len(list((d / "runs").glob("r*.json"))) + 1 if (d / "runs").is_dir() else 1
             shots, media, prec, ch_s = [], d / "media", _prec(p), {s["id"]: s for s in p["scenes"]}
-            defauts = self._defauts()  # LoRA du temps, pour une scene qui n'en nomme aucune
+            tmin = self._lib()["tmin"]
             if quoi == "images":
                 ids = [i for i in self._a_imager(p, ch, {s["temps"] for s in p["scenes"]} if want else (int(b.get("temps") or 1),), bool(want))
                        if not want or i in want]
@@ -1323,7 +1344,7 @@ class Atelier:
                 ref = p.get("reference") if not (prec.get(p.get("reference")) and ch_s[p["reference"]]["raccord"] == "continu") else ""
                 base = f"{pid}r{n}_{ref}.png" if ref in ids else ch.get(ref, {}).get("image") if ref else ""
                 for s in sorted((s for s in p["scenes"] if s["id"] in ids), key=lambda s: s["id"] != ref):
-                    lo = s["loras"] or defauts.get(s["temps"], "")  # scene sans LoRA : celles de son temps
+                    lo = self._loras_scene(p, s, tmin)  # LoRA du projet, du temps et de la scene
                     if ch[s["id"]]["image"]:  # nouvelle prise demandee : autre tirage
                         s["seed"] = random.randint(1, 999999)
                     s["image"], s["clip"] = "", ""  # la prise retenue sera la nouvelle
@@ -1356,7 +1377,7 @@ class Atelier:
                         sh["end_image"] = str(media / ch[nx["id"]]["image"])
                     elif s["end_edit"]:
                         sh["end_edit"] = s["end_edit"]
-                    lo = s["loras"] or defauts.get(s["temps"], "")  # LoRA video (famille Wan 2.2) : le pilote trie
+                    lo = self._loras_scene(p, s, tmin)  # LoRA video (famille Wan 2.2) : le pilote trie
                     if lo:
                         sh["loras"] = _loras_plan(lo)
                     s["clip"] = ""
