@@ -38,6 +38,11 @@ def _get(url, tok=""):
         raise RuntimeError(f"source injoignable ({str(e)[:80]})") from None
 
 
+# Les sources ne marquent pas toutes leurs fiches pour adultes (Hugging Face surtout) : le nom tranche aussi.
+_ADULTE = re.compile(r"nsfw|nud[ei]|naked|porn|sex|hentai|erotic|xxx|uncensor|lewd|topless|breast|boob|nipple|pussy|penis|cock|dick|"
+                     r"blowjob|handjob|cum|orgasm|fetish|bdsm|undress|strip|onlyfans|18\+|r18|adult", re.I)
+
+
 def _niveau(cat):
     """Niveau maximal des vignettes montrees pour une categorie (echelle Civitai : 1 tous publics, 2, 4, 8, 16)."""
     return {1: 2, 2: 4}.get(temps_min(cat), 32)
@@ -81,7 +86,7 @@ def _civitai(m, famille):
             "version": str(vs[0].get("name") or "")[:60], "base": str(vs[0].get("baseModel") or ""), "famille": famille,
             "fichiers": _fichiers(noms), "telechargements": (m.get("stats") or {}).get("downloadCount") or 0,
             "licence": "usage commercial admis" if any(x in com for x in ("Image", "Rent", "Sell")) else "usage commercial non admis",
-            "commercial": any(x in com for x in ("Image", "Rent", "Sell")), "adulte": bool(m.get("nsfw")),
+            "commercial": any(x in com for x in ("Image", "Rent", "Sell")), "adulte": bool(m.get("nsfw")) or bool(_ADULTE.search(str(m.get("name") or ""))),
             "trigger": ", ".join(str(w) for w in (vs[0].get("trainedWords") or [])[:6])[:200],
             "page": f"https://civitai.com/models/{m['id']}?modelVersionId={vs[0]['id']}",
             "images": [{"u": _vignette(str(i["url"]), i.get("type") == "video"), "n": int(i.get("nsfwLevel") or 32)}
@@ -99,7 +104,7 @@ def _hf(m, famille):
             for s in sib if str(s.get("rfilename") or "").endswith(".safetensors")]
     if not noms or not re.fullmatch(r"[\w.\-]+/[\w.\-]+", rid):
         return None
-    adulte = "not-for-all-audiences" in tags
+    adulte = "not-for-all-audiences" in tags or bool(_ADULTE.search(rid))
     return {"cle": f"hf:{rid}", "source": "hf", "ref": rid, "titre": rid.split("/")[1][:120], "version": rid.split("/")[0][:60],
             "base": next((b for b in FAMILLES[famille]["hf"] if any(b in t for t in tags)), FAMILLES[famille]["hf"][0]), "famille": famille,
             "fichiers": _fichiers(noms), "telechargements": m.get("downloads") or 0,
