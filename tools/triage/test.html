@@ -68,7 +68,7 @@ async function loadStudio() {
     (studio.lists[k].map(x => `<label class="${x.perso ? 'perso' : ''}"><input type="checkbox" data-l="${k}" value="${esc(x.t)}" ${checked[k + '|' + x.t] ? 'checked' : ''}> ${esc(x.t)}` +
       (x.perso ? `<span class="del" data-l="${k}" data-t="${esc(x.t)}">supprimer</span>` : '') + `</label>`).join('') || '<span class="hint">Liste vide : ajoutez vos éléments ci-dessous.</span>') +
     `</div><div class="add"><input type="text" placeholder="Ajouter à cette liste" data-add="${k}"><button class="small" data-addbtn="${k}">Ajouter</button></div></div>`).join('');
-  if (studio.loras.length) $('loras').innerHTML = studio.loras.map(l => `<div class="lora"><label><input type="checkbox" data-lora="${esc(l.name)}"> ${esc(l.name)}</label>` +
+  if (studio.loras.length) $('loras').innerHTML = studio.loras.map(l => `<div class="lora"><label><input type="checkbox" data-lora="${esc(l.name)}"> ${esc(l.label)}</label>` +
     `force <input type="number" step="0.05" min="0" max="2" value="${l.strength}" data-force="${esc(l.name)}">` + (l.trigger ? `<span class="hint">déclencheur : ${esc(l.trigger)}</span>` : '') + `</div>`).join('');
   if (!studio.can_run) $('msg').textContent = "Lancement automatique indisponible ici : une commande à lancer sera affichée.";
 }
@@ -102,7 +102,8 @@ async function loadTests() {
   $('state').textContent = d.running ? 'Un test est en cours...' : '';
   const only = $('onlyok').checked;
   $('tests').innerHTML = tests.filter(t => !only || t.verdict === true).map(t => {
-    const lor = (t.params.loras || []).map(l => `${l.name} à ${l.strength}`).join(', ') || 'aucun';
+    const lab = (n) => ((studio && studio.loras.find(x => x.name === n)) || {label:n}).label;
+    const lor = (t.params.loras || []).map(l => `${lab(l.name)} à ${l.strength}`).join(', ') || 'aucun';
     return `<div class="test ${t.verdict === true ? 'ok' : t.verdict === false ? 'no' : ''}"><b>${esc(t.date)}</b> · ${t.images.length}/${t.prompts.length} images · ${esc(t.status)} · LoRA : ${esc(lor)}` +
       (t.status !== 'termine' && t.log ? `<pre>${esc(t.log)}</pre>` : '') +
       `<div class="imgs">` + t.images.map((f, i) => `<figure><img loading="lazy" src="/tfile/${t.id}/${encodeURIComponent(f)}" data-zoom><figcaption>${esc(f.replace(/^test_[0-9_]+_/, '').replace('.png', ''))}</figcaption></figure>`).join('') + `</div>` +

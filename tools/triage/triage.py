@@ -180,7 +180,8 @@ class Studio:
         extra = self.data / "lora_catalog.yaml"
         if extra.exists():
             cat.update(yaml.safe_load(extra.read_text(encoding="utf-8")) or {})
-        return [{"name": k, "strength": v.get("strength", 0.6), "trigger": v.get("trigger", "")} for k, v in cat.items()]
+        return [{"name": k, "label": v.get("label", k), "strength": v.get("strength", 0.6), "trigger": v.get("trigger", "")}
+                for k, v in cat.items()]
 
     def running(self):
         return self.proc is not None and self.proc.poll() is None

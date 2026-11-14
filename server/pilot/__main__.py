@@ -277,7 +277,7 @@ def cmd_lora(a):
     cat = (yaml.safe_load(catp.read_text(encoding="utf-8")) or {}) if catp.exists() else {}
     if a.action == "list":
         for k, v in {**(yaml.safe_load(open(a.config, encoding="utf-8")).get("lora_catalog") or {}), **cat}.items():
-            print(f"{k:20} {v.get('file')}  force {v.get('strength', 1.0)}  {v.get('base', '')}  {v.get('trigger', '')}")
+            print(f"{v.get('label', k)}\n    nom court : {k} | fichier : {v.get('file')} | force {v.get('strength', 1.0)} | {v.get('base', '')} {v.get('trigger', '')}")
         return 0
     if a.action == "remove":
         if cat.pop(a.ref, None) is None:
@@ -285,8 +285,8 @@ def cmd_lora(a):
         catp.write_text(yaml.safe_dump(cat, allow_unicode=True, sort_keys=False), encoding="utf-8")
         log(f"{a.ref} retire du catalogue (le fichier reste sur le volume)")
         return 0
-    if not a.name or not re.fullmatch(r"[a-z0-9_]+", a.name):
-        raise RuntimeError("--name obligatoire : lettres minuscules, chiffres, tirets bas")
+    if a.name and not re.fullmatch(r"[a-z0-9_]+", a.name):
+        raise RuntimeError("--name : lettres minuscules, chiffres, tirets bas")
     tok = os.environ.get("CIVITAI_TOKEN", "")
     hdr = {"Authorization": f"Bearer {tok}"} if tok else {}
     m = re.search(r"models/(\d+)", a.ref) or re.fullmatch(r"(\d+)", a.ref)
@@ -316,6 +316,9 @@ def cmd_lora(a):
         raise RuntimeError("refuse : " + " ; ".join(problems) + " (--force pour passer outre)")
     for pb in problems:
         log(f"ATTENTION : {pb}")
+    label = f"{info.get('name')} ({v.get('name')})"
+    if not a.name:  # sans --name : nom court tire du nom du LoRA sur Civitai
+        a.name = re.sub(r"[^a-z0-9]+", "_", f"{info.get('name')} {v.get('name')}".lower()).strip("_")[:48].strip("_")
     blob = request("GET", f["downloadUrl"], headers=hdr, raw=True, timeout=900)
     if len(blob) < 100000:
         raise RuntimeError("telechargement refuse par Civitai : definir CIVITAI_TOKEN dans server/.env")
@@ -357,7 +360,7 @@ def cmd_lora(a):
         if own and pod_id:
             runpod.delete_pod(pod_id)
             log(f"pod {pod_id} supprime")
-    cat[a.name] = {"file": fname, "strength": a.strength, "base": v.get("baseModel"),
+    cat[a.name] = {"label": label, "file": fname, "strength": a.strength, "base": v.get("baseModel"),
                    "trigger": ", ".join(v.get("trainedWords") or []), "source": f"https://civitai.com/models/{m.group(1)}?modelVersionId={v['id']}"}
     data.mkdir(parents=True, exist_ok=True)
     catp.write_text(yaml.safe_dump(cat, allow_unicode=True, sort_keys=False), encoding="utf-8")

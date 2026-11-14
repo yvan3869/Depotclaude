@@ -23,10 +23,12 @@ Illustrious, Chroma, Qwen) ne fonctionnent pas.
 Dans `server/`, apres avoir mis `CIVITAI_TOKEN=<cle>` dans `server/.env` :
 
     docker compose run --rm pilot lora add "https://civitai.com/models/<numero>?modelVersionId=<numero>" --name detail --strength 0.6
-    docker compose run --rm pilot lora add "modelVersionId=<numero>" --name autre
+    docker compose run --rm pilot lora add "modelVersionId=<numero>"
     docker compose run --rm pilot lora list
     docker compose run --rm pilot lora remove detail
 
+Sans `--name`, le LoRA est inscrit sous son nom Civitai (un nom court en est tire pour les fichiers
+de plans) ; les listes et la page Test l'affichent sous ce nom d'origine.
 La commande lit la fiche Civitai, puis refuse si le modele de base n'est pas Z-Image ou Z-Image
 Turbo, si le fichier n'est pas un `.safetensors`, ou si la licence n'autorise pas l'usage
 commercial des images (`--force` passe outre, a vos risques). Elle demarre un pod, depose le

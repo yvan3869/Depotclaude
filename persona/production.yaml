@@ -78,4 +78,4 @@ character:
 lora_catalog:
   # Ajoute le 14/11/2026 a la demande du proprietaire (Civitai 2183555, version 2740476, base
   # Z-Image Turbo, licence : usage commercial des images autorise). Non teste par l'assistant.
-  anatomie: {file: "anatomie.safetensors", strength: 0.6}
+  better_nipples_and_pussy_v2_0: {label: "better nipples and pussy (v2.0)", file: "anatomie.safetensors", strength: 0.6}
