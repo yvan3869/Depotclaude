@@ -280,3 +280,7 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
   calage sur le mouvement, approximatif. Essai sur p0004 : deux bruits (gorgee, tasse posee), `final_v7.mp4`, le
   premier cale sur le geste a 5,12 s, le second par defaut (image fixe). Non juge a l'oreille par l'assistant.
   Depense : 0,02 $ (pod de 1,3 min). Depense du jour : 3,24 $ sur 7,50 $.
+- 14/11, nuit : licences. Decision du proprietaire : ne plus bloquer sur la licence des LoRA et des modeles. Le hub
+  charge desormais une LoRA dont la licence n'admet pas l'usage commercial ; la mention reste affichee sur la
+  fiche et a cote de la case de chargement. Le risque (retrait, reclamation) est celui du proprietaire pour toute
+  video publiee ; les essais prives restent sans enjeu.
