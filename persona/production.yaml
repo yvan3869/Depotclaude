@@ -79,3 +79,11 @@ lora_catalog:
   # Ajoute le 14/11/2026 a la demande du proprietaire (Civitai 2183555, version 2740476, base
   # Z-Image Turbo, licence : usage commercial des images autorise). Non teste par l'assistant.
   better_nipples_and_pussy_v2_0: {label: "better nipples and pussy (v2.0)", file: "anatomie.safetensors", strength: 0.6}
+  # Ajoute le 14/11/2026 sur decision du proprietaire, malgre l'alerte : la licence Civitai de ce
+  # LoRA (411088, version 2709983, base Z-Image) n'autorise PAS l'usage commercial des images.
+  # Mots declencheurs : 3 des 10 donnes par l'auteur, pour ne pas alourdir chaque prompt.
+  detailed_perfection_zib_v1:
+    label: "Detailed Perfection style (Perfection zib v1.0)"
+    file: "detailed_perfection_style_hands_feet_face_body_a.safetensors"
+    strength: 0.6
+    trigger: "ultra detailed, detailed skin pore, realistic style"
