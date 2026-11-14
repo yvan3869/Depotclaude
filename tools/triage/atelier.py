@@ -204,6 +204,11 @@ class Atelier:
         self.montages = {}  # id du projet -> fil de montage en cours
         self.job = None     # {"projet", "quoi", "log"} : dernier lancement du pilote par l'atelier
         self.ch = None      # chaine de production en cours ou derniere chaine (voir chaine())
+        c = _load(data / "chaine.json")  # une chaine en pause survit au redemarrage de l'interface
+        if c and c.get("etat") == "pause":
+            self.ch = c
+        elif c and c.get("etat") == "en cours":
+            self.ch = {**c, "etat": "erreur", "erreur": "interface redémarrée pendant la chaîne : la relancer, elle ne recalcule que ce qui manque"}
         self._dep = (0, None)
 
     # --- Personnages ------------------------------------------------------------------------------
@@ -1042,6 +1047,7 @@ class Atelier:
             raise ValueError("aucune chaîne à arrêter pour ce projet")
         if c["etat"] == "pause":
             c.update(etat="arretee", etape="arrêtée à la pause")
+            _dump(self.data / "chaine.json", c)
         else:
             c["stop"] = True  # prise en compte a la fin de l'etape en cours
         return {"etat": c["etat"]}
@@ -1061,6 +1067,13 @@ class Atelier:
             raise RuntimeError(f"{quoi} : " + (f"{r['echecs']} échec(s)" if r["etat"] == "termine" else "calcul " + r["etat"]) + ". " + r["log"][-300:])
 
     def _chaine(self, c, suite):
+        _dump(self.data / "chaine.json", c)
+        try:
+            self._chaine_pas(c, suite)
+        finally:
+            _dump(self.data / "chaine.json", c)
+
+    def _chaine_pas(self, c, suite):
         pid = c["projet"]
         try:
             if not suite:
