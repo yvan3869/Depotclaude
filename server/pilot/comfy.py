@@ -18,15 +18,19 @@ class Comfy:
                 time.sleep(10)
         raise RuntimeError("ComfyUI n'a pas demarre a temps")
 
-    def has_model(self, folder, name):
+    def models(self, folder):
+        """Fichiers d'un dossier de modeles du volume, tels que ComfyUI les liste."""
         # Juste apres le demarrage, le relais RunPod repond parfois 404 quelques secondes : reessayer.
         for k in range(6):
             try:
-                return name in request("GET", f"{self.base}/models/{folder}")
+                return list(request("GET", f"{self.base}/models/{folder}"))
             except Exception:
                 if k == 5:
                     raise
                 time.sleep(10)
+
+    def has_model(self, folder, name):
+        return name in self.models(folder)
 
     def upload(self, name, content):
         body, h = multipart({"overwrite": "true"}, "image", name, content)

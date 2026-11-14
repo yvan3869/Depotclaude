@@ -90,6 +90,14 @@ A reserver au cas ou aucun LoRA existant ne convient : compter 30 a 60 images et
 5. Tester plusieurs forces (1,0 a 1,8) avant de conclure : lecon du LoRA de Lea, juge a tort
    inefficace parce qu'il n'avait ete essaye qu'a 1,0.
 
+## Bibliotheque de LoRA dans l'atelier (14/11/2026)
+La page `/atelier#/loras` (puce "LoRA" en haut de l'atelier) montre le catalogue, dit pour chaque LoRA si son
+fichier est sur le volume (d'apres le dernier lancement du pilote), et liste les fichiers du volume qui ne sont pas
+encore inscrits. On y regle le libelle, la force conseillee, les mots declencheurs (ajoutes d'office au prompt
+d'image) et une note. On y choisit aussi les LoRA par defaut des temps 2, 3 et 4, modifiables ensuite scene par scene.
+La page n'envoie pas de fichier : le `.safetensors` se depose toujours par `pilot lora add` ou a la main.
+Avant un calcul, le controle des plans signale une LoRA absente du catalogue ou du volume.
+
 ## Limites connues
 - Dans le formulaire "Nouveau lot", les LoRA choisis s'appliquent aux trois temps du lot.
 - Deux LoRA de personnage ou de corps appliques ensemble se disputent le visage : baisser la force

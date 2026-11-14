@@ -97,7 +97,7 @@ Aucune cle dans le conteneur. S'il est arrete, la page bascule sur des structure
     sudo systemctl daemon-reload && sudo systemctl enable --now girls-ai-writer
     journalctl -u girls-ai-writer -n 20
 
-### Trois temps et plans deposes par un agent (14/11/2026)
+### Trois temps et plans deposes par un agent (14/11/2026 ; quatre temps depuis : voir plus bas)
 Un projet porte maintenant trois temps, en onglets : 1 accroche tous publics, 2 montee pour les abonnes,
 3 final prive. Chaque temps a ses scenes, son devis, sa production et son montage (`final_vN.mp4`,
 `final_t2_vN.mp4`, `final_t3_vN.mp4`). Le redacteur IA ecrit le temps 1 et, sur demande, le temps 2
@@ -143,13 +143,13 @@ elles ne bloquent rien.
 Relecture des images (14/11/2026) : apres les images, le redacteur IA relit les images retenues des temps 1 et 2
 (`relire()` dans `atelier.py`, bouton "Relire les images", d'office a la pause de la chaine). Les images, reduites
 en JPEG, voyagent dans la demande elle-meme ; le service les joint au message, toujours sans outil. Resultat dans
-`data/projets/<id>/relecture.json`. Jamais le temps 3 ni les scenes a LoRA supplementaires.
+`data/projets/<id>/relecture.json`. Jamais les temps 3 et 4 ni les scenes a LoRA supplementaires.
 
 Montage (14/11/2026) : `monter()` dans `atelier.py`. Duree visee (15, 20 ou 30 s) : les plans sont raccourcis en
 proportion, 2 s au moins chacun, jamais du cote d'un raccord colle ni sur une duree reglee a la main. Sur la premiere
 scene l'accroche s'affiche d'abord, le texte de la scene ensuite (jamais deux textes a la fois). L'accroche est calee
 en haut de l'image, au-dessus de la tete : deux lignes au plus, la police retrecit pour y tenir (44 caracteres conseilles). Fin en fondu au noir.
-La mention "AI character" est toujours incrustee sur le temps 1 (facultative sur les temps 2 et 3). Chaque montage
+La mention "AI character" est toujours incrustee sur le temps 1 (facultative sur les autres temps). Chaque montage
 laisse sa fiche dans `data/projets/<id>/finals.json` (duree, debut de chaque plan, raccords colles, prises montees).
 "Valider pour publication" est refuse s'il n'y a pas de video ou si la derniere ne porte pas la mention ; la page
 avertit aussi quand la video ne correspond plus aux prises retenues, dure plus de 21 s, ou n'a ni legende ni carton.
@@ -166,5 +166,22 @@ controle" pour une video montee avant cette date.
 Analyse du montage (14/11/2026) : bouton "Analyser la video" sous la video montee des temps 1 et 2 (`analyser()`).
 Des images sont extraites de la video (debut, milieu de chaque scene, avant et apres chaque jointure, fin) et envoyees
 au redacteur IA avec la fiche du montage et le scenario ; il rend un verdict et six points au plus, chacun avec une
-correction. Il ne voit ni le mouvement ni le son. Resultat dans `data/projets/<id>/analyse.json`. Jamais le temps 3
+correction. Il ne voit ni le mouvement ni le son. Resultat dans `data/projets/<id>/analyse.json`. Jamais les temps 3 et 4
 ni un temps qui contient une scene a LoRA supplementaires.
+
+### Quatre temps et bibliotheque de LoRA (14/11/2026)
+Un projet porte quatre temps : 1 accroche tous publics, 2 montee (suggestif pousse), 3 devoile (nudite, sans
+acte), 4 final (l'ancien temps 3). Au demarrage, `_migrer()` convertit une fois chaque projet d'avant (marque
+`"v": 4` dans `projet.json`) : scenes du temps 3 passees en 4, `final_t3_*` et `planche_t3_*` renommes en `_t4_`,
+`finals.json`, `analyse.json`, `montage.json` et la chaine en pause (`chaine.json`) mis a jour. Un depot ecrit avec un
+modele anterieur a `2026-11-14f` et `temps: 3` est lu comme temps 4. Le redacteur, le relecteur et l'analyste IA ne
+recoivent jamais les temps 3 et 4.
+Bibliotheque (`/atelier#/loras`, `bibliotheque()`) : le catalogue du pilote (`persona/production.yaml` puis
+`data/lora_catalog.yaml`, que la page ecrit par `save_lora()`), la presence de chaque fichier sur le volume d'apres
+`data/lora_volume.json` (ecrit par le pilote a chaque lancement, `inventaire()`), les fichiers du volume hors
+catalogue, et les LoRA par defaut des temps 2 a 4 (`data/lora_defauts.json`, `save_defauts()`). Les defauts sont poses
+sur une scene ajoutee a la main et sur un plan depose sans `loras`. Le controle (`controle.py`) signale comme grave
+une LoRA absente du catalogue ou du volume. La page n'envoie aucun fichier : un `.safetensors` se depose par
+`pilot lora add`.
+Formulaires : chaque reglage porte une ligne d'explication ; la scene est rangee en "Ce qu'on voit", "Ce qui
+s'affiche", "Place dans la video" et "Reglages avances" ; le montage en Image, Texte, Duree et fin, Son.

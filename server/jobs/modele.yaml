@@ -13,8 +13,11 @@
 #   2026-11-14d  bloc "atelier" : date du personnage (date_perso, fictive) et contexte du moment, avec le temps 1.
 #   2026-11-14e  continuite : bloc "atelier" continuite et reference, champs de plan raccord, libre et cran (atelier) ;
 #                champs de plan edit, suite_de et end_image (pilote).
+#   2026-11-14f  quatre temps : "atelier.temps" va de 1 a 4. Le 3 est maintenant le devoile (nudite, sans acte) et le
+#                final prive passe en 4. Un plan depose avec un modele plus ancien et temps: 3 est lu comme temps: 4.
+#                "loras" absent d'un plan depose : l'atelier pose les LoRA par defaut du temps ; "loras: []" : aucune.
 
-modele: "2026-11-14e"
+modele: "2026-11-14f"
 name: monlot                 # prefixe des fichiers produits (lettres, chiffres, _), unique par lancement
 
 # --- Facultatif : plans deposes dans l'atelier (docs/agents.md, "Deposer des plans") --------------
@@ -24,7 +27,7 @@ name: monlot                 # prefixe des fichiers produits (lettres, chiffres,
 # "end_image" (les raccords se demandent par "raccord", l'image de reference par "reference").
 # atelier:
 #   projet: p0001            # projet auquel ajouter les plans ; "" ou absent : nouveau projet
-#   temps: 3                 # 1 accroche tous publics, 2 montee pour les abonnes, 3 final prive
+#   temps: 3                 # 1 accroche tous publics, 2 montee suggestive, 3 devoile (nudite, sans acte), 4 final prive
 #   personnage: lea          # seulement pour un nouveau projet (fiche de persona/personnages/)
 #   titre: ""                # seulement pour un nouveau projet
 #   note: ""                 # une ligne pour le proprietaire, affichee dans la page
@@ -38,7 +41,7 @@ name: monlot                 # prefixe des fichiers produits (lettres, chiffres,
 #   date_perso: "2026-12-19" # date FICTIVE, entre guillemets, AAAA-MM-JJ : le jour ou le personnage vit la scene.
 #                            # Ce n'est ni la date d'ecriture, ni celle du calcul, ni celle du depot.
 #   contexte: ""             # contexte du moment, une ligne en francais (meteo, fete proche, ce qu'elle vit)
-#   # Continuite du projet, lue seulement avec temps: 1 (elle vaut pour les trois temps). Absente : celle du projet.
+#   # Continuite du projet, lue seulement avec temps: 1 (elle vaut pour les quatre temps). Absente : celle du projet.
 #   continuite:              # ce qui ne change pas d'une image a l'autre ; en anglais ; ajoute a la fin de chaque "still"
 #     lieu: "in a small Parisian bathroom with white tiles and a round mirror"
 #     tenue: "wearing a white ribbed tank top and grey cotton shorts"
@@ -64,7 +67,8 @@ defaults:
   seed: 100                  # tirage ; chaque plan ajoute son rang, sauf same_seed: true
   same_seed: false           # true : meme tirage pour tous les plans (comparaisons)
   char_strength: 1.4         # force du LoRA du personnage (1,2 a 1,4 ; en dessous, l'identite faiblit)
-  loras: []                  # LoRA supplementaires : [nom] ou [{name: nom, strength: 0.6}] ; voir "pilot lora list"
+  loras: []                  # LoRA supplementaires : [nom] ou [{name: nom, strength: 0.6}] ; voir "pilot lora list".
+                             # Plan depose dans l'atelier : retirer la ligne pour recevoir les LoRA par defaut du temps.
   mode: natural              # rendu du clip : natural (qualite) ou fast (4 pas, essais de mouvement)
   smooth: true               # interpolation a 32 images/s
   grain: true                # leger grain, moins "image de synthese"

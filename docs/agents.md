@@ -1,4 +1,4 @@
-# Piloter la generation depuis un autre agent (14/11/2026, revu le 14/11 : trois temps, depot dans l'atelier, date du personnage, continuite et raccords)
+# Piloter la generation depuis un autre agent (14/11/2026, revu le 14/11 : quatre temps, bibliotheque de LoRA, depot dans l'atelier, date du personnage, continuite et raccords)
 
 Fiche destinee a un agent installe sur le serveur Oracle (par exemple OpenClaw) et configure par le
 proprietaire. L'agent ecrit des fichiers de plans. Il les depose dans l'Atelier, ou le proprietaire
@@ -10,10 +10,10 @@ Les memes mots servent dans la page Atelier, dans les fichiers et dans les echan
 
 | Terme | Sens |
 |---|---|
-| Projet | Une video entiere : l'idee, le pitch, les textes de publication et les trois temps. Numerote `pNNNN`. |
+| Projet | Une video entiere : l'idee, le pitch, les textes de publication et les quatre temps. Numerote `pNNNN`. |
 | Idee | La phrase de depart, avant ecriture. |
 | Pitch | Le resume du projet en une ou deux phrases, une fois l'idee retenue. |
-| Temps | Une des trois parties du projet : 1 accroche, 2 montee, 3 final. |
+| Temps | Une des quatre parties du projet : 1 accroche, 2 montee, 3 devoile, 4 final. |
 | Scene | Une unite d'un temps : une image, un mouvement eventuel, un texte a l'ecran. |
 | Plan | La scene vue du cote de l'agent : une entree de `shots` dans son fichier. Un plan importe devient une scene. |
 | Depot | Un fichier de plans place dans `server/jobs/atelier/`, pour un projet et un temps. |
@@ -21,6 +21,7 @@ Les memes mots servent dans la page Atelier, dans les fichiers et dans les echan
 | Montage | La video finale d'un temps, en versions numerotees. |
 | Fiche de continuite | Ce qui ne change pas d'une image a l'autre dans un projet : lieu, tenue, coiffure, lumiere, point de vue. Bloc `continuite`. |
 | Image de reference | L'image d'une scene dont les autres images du projet sont tirees par retouche. Champ `reference`. |
+| Bibliotheque de LoRA | Page `/atelier#/loras` : les LoRA du catalogue, leur presence sur le volume, et les LoRA par defaut de chaque temps. |
 | Raccord | Lien d'une scene avec la precedente du meme temps : `coupe`, `continu` ou `arrivee`. |
 | Date du personnage | Date fictive du projet : le jour ou le personnage vit la scene. Champ `date_perso`, `AAAA-MM-JJ`. |
 | Contexte du moment | Une ligne libre du proprietaire sur ce que le personnage vit ces jours-la. Champ `contexte`. |
@@ -39,22 +40,30 @@ Ne pas dire "sequence" ni "phase" pour un temps, ni "lot" pour un projet.
 - Ne rien modifier hors de `server/jobs/` (fichiers de plans de l'agent, dont `server/jobs/atelier/`).
   Le reste du depot et `server/data/` se lisent, ils ne s'ecrivent pas.
 
-## Un projet en trois temps
-Chaque video est un projet de l'Atelier (page `/atelier` du studio), decoupe en trois temps qui se
+## Un projet en quatre temps
+Chaque video est un projet de l'Atelier (page `/atelier` du studio), decoupe en quatre temps qui se
 suivent dans le meme decor et la meme tenue :
 
 | Temps | Contenu | Public | Registre |
 |---|---|---|---|
 | 1. Accroche | teaser de 15 a 20 s, 3 scenes environ, coupe avant la suite, appel a l'action | reseaux, tous publics | suggestif au plus : il doit passer la moderation des reseaux |
-| 2. Montee | la suite du teaser, un cran plus loin a chaque scene, sans appel a l'action | abonnes | suggestif |
-| 3. Final | la fin de la scene | prive, payant | fixe par le proprietaire |
+| 2. Montee | la suite du teaser, un cran plus loin a chaque scene, sans appel a l'action | gratuit ou abonnes : il sert a convertir | suggestif pousse (lingerie, nu suggere), rien d'explicite |
+| 3. Devoile | la suite, nudite montree | abonnes ou paiement bas | nudite explicite, sans acte ; fixe par le proprietaire |
+| 4. Final | la fin de la scene | prive, paiement a l'unite | explicite ; fixe par le proprietaire |
 
 Chaque temps a ses scenes, ses images, ses clips et son montage (`final_vN.mp4` pour le temps 1,
-`final_t2_vN.mp4`, `final_t3_vN.mp4`).
+`final_t2_vN.mp4`, `final_t3_vN.mp4`, `final_t4_vN.mp4`).
 
-**Role de l'agent** : il peut ecrire une video entiere, c'est-a-dire les trois temps, ou seulement
-ceux que le proprietaire lui demande. Sans consigne, il ecrit le temps 3 et laisse les temps 1 et 2
-au redacteur de l'atelier. Le redacteur de l'atelier, lui, n'ecrit jamais le temps 3. Dans tous les
+**Changement du 14/11/2026.** Jusqu'au modele `2026-11-14e`, il y avait trois temps et le 3 etait le final.
+Le final est maintenant le temps 4, et le 3 est le devoile. Les projets existants ont ete convertis
+(scenes, montages `final_t3_*` renommes en `final_t4_*`). Un depot ecrit avec un modele anterieur a
+`2026-11-14f` et `temps: 3` est lu comme `temps: 4` ; avec le modele en cours, `temps: 3` veut dire devoile.
+Ne pas reprendre un ancien fichier sans relire son `temps`.
+
+**Role de l'agent** : il peut ecrire une video entiere, c'est-a-dire les quatre temps, ou seulement
+ceux que le proprietaire lui demande. Sans consigne, il ecrit les temps 3 et 4 et laisse les temps 1 et 2
+au redacteur de l'atelier. Le redacteur de l'atelier, lui, n'ecrit, ne relit et n'analyse jamais les temps 3
+et 4, ni une scene qui porte des `loras`. Dans tous les
 cas l'agent depose ; le proprietaire importe, lance le calcul depuis la page, choisit les prises et monte.
 
 Le temps 1 porte en plus les textes de publication : `pitch` (resume en francais), `accroche`
@@ -72,7 +81,7 @@ Un projet porte deux sortes de dates, a ne jamais confondre.
 - **Dates reelles** (`cree`, `modifie`) : horodatage du serveur. Elles ne disent rien de la scene et
   ne servent jamais a ecrire. Le jour ou l'agent travaille ne compte pas non plus.
 
-Ce que la date du personnage impose, sur les trois temps du projet :
+Ce que la date du personnage impose, sur les quatre temps du projet :
 - la saison (hemisphere nord, le personnage vit en France sauf mention contraire dans sa fiche) :
   tenue, meteo, activite, et dans chaque `still` une lumiere et une heure du jour plausibles (nuit a
   17 h 30 en decembre, jour jusqu'a 21 h 30 en juin) ;
@@ -129,21 +138,39 @@ Rien n'est bloque, mais un depot sans remarque est l'objectif. Ce qui est verifi
 - raccords possibles (un plan continu suit un plan qui a un `motion` ; pas trois continus de suite).
 
 Lire la fiche et l'image de reference du projet dans `projet.json` (`continuite`, `reference`) avant
-d'ecrire les temps 2 et 3 : elles s'appliquent a eux aussi.
+d'ecrire les temps 2, 3 et 4 : elles s'appliquent a eux aussi.
 
 ## Relecture des images
 Apres les images et avant les clips, le redacteur IA relit les images retenues des temps 1 et 2 (bouton
 "Relire les images", ou d'office a la pause de la chaine) : meme personne, lieu et tenue de la fiche, defauts
 d'anatomie, image conforme au `still`, pose d'ou le `motion` peut partir, place pour le texte. Ses remarques
-s'affichent sous chaque image et valent tant que l'image retenue est celle relue. Le temps 3 et les plans
+s'affichent sous chaque image et valent tant que l'image retenue est celle relue. Les temps 3 et 4 et les plans
 qui portent des `loras` ne sont jamais relus : leur verification reste au proprietaire.
+
+## LoRA supplementaires et bibliotheque
+Les LoRA supplementaires (hors LoRA du personnage) se gerent dans la page `/atelier#/loras` :
+
+- **Catalogue** : chaque LoRA a un nom court (celui qu'on ecrit dans `loras`), un fichier `.safetensors`, une force
+  conseillee, des mots declencheurs et une note du proprietaire. Il se lit dans `persona/production.yaml`
+  (`lora_catalog`) et `server/data/lora_catalog.yaml`, ou par `docker compose run --rm pilot lora list`.
+- **Mots declencheurs** : le pilote les ajoute d'office a la fin du prompt d'image. Ne pas les recopier dans `still`.
+- **Force** : `loras: [nom]` prend la force conseillee ; `loras: [{name: nom, strength: 0.6}]` la remplace.
+- **LoRA par defaut d'un temps** : le proprietaire en fixe pour les temps 2, 3 et 4. Un plan depose **sans** champ
+  `loras` (ni dans le plan ni dans `defaults`) les recoit a l'import ; `loras: []` veut dire aucune ; une liste
+  ecrite est prise telle quelle. A un nouvel import, une scene deja importee garde les LoRA que le proprietaire
+  lui a posees dans la page tant que le plan n'en dit rien. Le temps 1 n'a pas de LoRA par defaut.
+- **Presence sur le volume** : a chaque lancement, le pilote note les fichiers du volume dans
+  `server/data/lora_volume.json`. Le controle des plans signale comme grave une LoRA absente du catalogue ou dont le
+  fichier n'est pas sur le volume : le calcul s'arreterait au demarrage du pod. N'employer que des noms du catalogue.
+- Le choix des LoRA et leur inscription restent au proprietaire. L'agent ne modifie ni le catalogue ni les defauts ;
+  s'il lui manque une LoRA, il le dit dans `note`.
 
 ## Montage
 Le montage vise une duree (15 s conseille pour l'accroche) en raccourcissant les plans, sauf du cote d'un raccord
 `continu` ou `arrivee`. Consequences pour l'ecriture : le geste important d'un plan se place au milieu du clip, pas
 dans la premiere seconde ; sur le premier plan, l'accroche du projet s'affiche d'abord et le `texte` du plan ensuite,
 donc un `texte` de premier plan doit pouvoir se lire en 2 secondes. La mention "AI character" est incrustee d'office
-sur le temps 1 : ne pas l'ecrire dans les textes.
+sur le temps 1 (au choix du proprietaire sur les autres) : ne pas l'ecrire dans les textes.
 
 L'accroche doit etre vraie des la premiere scene : ce qu'elle annonce se voit dans l'image de la scene 1 (tenue,
 lieu, objet, geste), pas seulement plus tard. Une accroche qui parle d'un peignoir alors que la scene 1 montre un
@@ -170,7 +197,7 @@ pour juger raccords et textes.
        name: p0001_final
        atelier:
          projet: p0001        # projet vise ; "" ou absent : la page cree un nouveau projet
-         temps: 3             # 1, 2 ou 3
+         temps: 3             # 1, 2, 3 ou 4 (voir "Un projet en quatre temps")
          personnage: lea      # seulement pour un nouveau projet
          titre: ""            # seulement pour un nouveau projet
          note: "une ligne pour le proprietaire"
@@ -192,7 +219,7 @@ pour juger raccords et textes.
          reference: plan01          # avec temps: 1 seulement : nom d'un plan de ce fichier
        defaults:
          seed: 100
-         loras: []            # noms du catalogue : docker compose run --rm pilot lora list
+         # loras: [nom]       # noms du catalogue ; ligne absente : LoRA par defaut du temps ; [] : aucune
        shots:
          - name: plan01       # unique dans le fichier, lettres, chiffres et _
            titre: "..."       # nom de la scene dans la page (facultatif)
@@ -206,9 +233,9 @@ pour juger raccords et textes.
    `titre`, `texte`, `voix`, `role`, `raccord`, `libre`, `cran`. De 1 a 10 plans par fichier. `steps`, `image`,
    `edit`, `suite_de`, `end_image` et `character` ne sont pas repris (un depot qui en porte est refuse) ; `body` et `dest` sont inutiles (le temps et la fiche du personnage en
    tiennent lieu). Un fichier par projet et par temps.
-   Video entiere : trois fichiers. Deposer d'abord celui du temps 1 sans `projet` (avec `personnage`
+   Video entiere : quatre fichiers. Deposer d'abord celui du temps 1 sans `projet` (avec `personnage`
    et `titre`) ; une fois importe, le proprietaire donne le numero du projet cree, a reporter dans
-   `projet` pour les fichiers des temps 2 et 3. Ne pas deviner ce numero.
+   `projet` pour les fichiers des temps 2, 3 et 4. Ne pas deviner ce numero.
    Date du personnage : pour un nouveau projet, la mettre dans le fichier du temps 1 (celle donnee par
    le proprietaire) ; sans elle, la page prend le jour de l'import. Pour un projet existant, ne pas la
    remettre : celle du projet fait foi. Une date mal formee bloque le depot.

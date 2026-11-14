@@ -6,9 +6,11 @@ L'ecriture est confiee au redacteur IA (server/writer, file d'attente dans data/
 repond pas, un redacteur de secours (moteur_local.py) tire un scenario d'une structure toute faite.
 Les images et les clips passent par le pilote, donc par le plafond GPU du jour.
 
-Un projet couvre trois temps (docs/feuille-de-route.md) : 1 accroche tous publics, 2 montee pour les
-abonnes, 3 final prive. Chaque scene porte son temps. Le redacteur ecrit les temps 1 et 2 ; le temps 3
-est a la main du proprietaire, ou alimente par un plan depose par son agent dans server/jobs/atelier/.
+Un projet couvre quatre temps : 1 accroche tous publics, 2 montee suggestive, 3 devoile (nudite, sans
+acte), 4 final prive. Chaque scene porte son temps. Le redacteur ecrit les temps 1 et 2 ; les temps 3 et 4
+sont a la main du proprietaire, ou alimentes par un plan depose par son agent dans server/jobs/atelier/.
+Bibliotheque de LoRA : catalogue du pilote (production.yaml et data/lora_catalog.yaml), LoRA par defaut de
+chaque temps (data/lora_defauts.json), inventaire du volume releve par le pilote (data/lora_volume.json).
 
 Donnees : data/personnages/<slug>.json, data/projets/<id>/ (projet.json, runs/, media/, final_vN.mp4),
 data/ecriture/ (demandes et reponses du redacteur), data/audio/ (musiques deposees par le proprietaire).
@@ -34,7 +36,9 @@ from controle import CIBLE, controle
 AGE_MIN = 21
 ETAPES = ("idee", "ecrit", "images", "clips", "monte", "valide")
 FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
-TEMPS = {1: "accroche", 2: "montee", 3: "final"}
+TEMPS = {1: "accroche", 2: "montee", 3: "devoile", 4: "final"}
+V = 4            # version des donnees : 4 = quatre temps (l'ancien temps 3, le final, est devenu le temps 4)
+MODELE_4T = "2026-11-14f"  # premier modele de plans a quatre temps : avant lui, "temps: 3" designait le final
 FORMATS = {"vertical": (1080, 1920), "carre": (1080, 1080), "paysage": (1920, 1080)}
 
 SYSTEME = """Tu es scénariste, dialoguiste et monteur de teasers vidéo courts pour un personnage fictif, adulte, généré par IA et présenté comme tel. Tu écris pour vendre : la vidéo doit arrêter le pouce dans la première seconde, faire monter l'envie, couper juste avant la suite et envoyer vers la page payante du personnage.
@@ -233,12 +237,135 @@ class Atelier:
         self.montages = {}  # id du projet -> fil de montage en cours
         self.job = None     # {"projet", "quoi", "log"} : dernier lancement du pilote par l'atelier
         self.ch = None      # chaine de production en cours ou derniere chaine (voir chaine())
+        self._migrer()
         c = _load(data / "chaine.json")  # une chaine en pause survit au redemarrage de l'interface
         if c and c.get("etat") == "pause":
             self.ch = c
         elif c and c.get("etat") == "en cours":
             self.ch = {**c, "etat": "erreur", "erreur": "interface redémarrée pendant la chaîne : la relancer, elle ne recalcule que ce qui manque"}
         self._dep = (0, None)
+
+    def _migrer(self):
+        """Passage de trois a quatre temps (14/11/2026) : dans les donnees d'avant, le temps 3 etait le final. Il devient
+        le temps 4 (scenes, videos montees, planches, fiches de montage, chaine en pause). Fait une fois par projet."""
+        for d in sorted(self.dj.glob("p[0-9][0-9][0-9][0-9]")):
+            p = _load(d / "projet.json")
+            if not p or p.get("v") == V:
+                continue
+            for s in p.get("scenes") or []:
+                if s.get("temps") == 3:
+                    s["temps"] = 4
+            for f in sorted(d.glob("final_t3_v*.mp4")) + sorted(d.glob("planche_t3_v*.jpg")):
+                f.rename(d / f.name.replace("_t3_", "_t4_", 1))
+            for nom in ("finals.json", "analyse.json"):
+                j = _load(d / nom)
+                if j:
+                    _dump(d / nom, {k.replace("final_t3_", "final_t4_"): v for k, v in j.items()})
+            m = _load(d / "montage.json")
+            if m and str(m.get("fichier") or "").startswith("final_t3_"):
+                _dump(d / "montage.json", m | {"fichier": m["fichier"].replace("final_t3_", "final_t4_")})
+            _dump(d / "projet.json", p | {"v": V})
+        c = _load(self.data / "chaine.json")
+        if c and c.get("v") != V:
+            _dump(self.data / "chaine.json", c | {"v": V, "temps": [4 if t == 3 else t for t in c.get("temps") or []]})
+
+    # --- Bibliotheque de LoRA ---------------------------------------------------------------------
+    def _catalogue(self):
+        """Catalogue du pilote : production.yaml, puis data/lora_catalog.yaml qui prime (ecrit par "pilot lora add" et par la page)."""
+        import yaml
+        cat = {}
+        for f, src in ((self.repo / "persona" / "production.yaml", "depot"), (self.data / "lora_catalog.yaml", "donnees")):
+            if f.is_file():
+                j = yaml.safe_load(f.read_text(encoding="utf-8")) or {}
+                for k, v in ((j.get("lora_catalog") or {}) if src == "depot" else j).items():
+                    if isinstance(v, dict):
+                        cat[str(k)] = {**cat.get(str(k), {}), **v, "ou": src}
+        return cat
+
+    def _defauts(self):
+        d = _load(self.data / "lora_defauts.json", {})
+        return {t: _loras(d.get(str(t))) for t in TEMPS if t > 1}
+
+    def _lib(self):
+        """Ce que le controle des plans doit savoir des LoRA : fichier de chaque nom du catalogue, fichiers du volume (None si inconnu)."""
+        try:
+            cat = {k: str(v.get("file") or k) for k, v in self._catalogue().items()}
+        except Exception:
+            cat = {}
+        vol = _load(self.data / "lora_volume.json", {})
+        return {"cat": cat, "volume": set(vol["fichiers"]) if isinstance(vol.get("fichiers"), list) else None, "date": vol.get("date", "")}
+
+    def _ctl(self, p, t):
+        return controle(p, t, self._lib())
+
+    def bibliotheque(self):
+        """LoRA supplementaires connues : catalogue, presence sur le volume d'apres le dernier inventaire, defauts par temps."""
+        try:
+            cat = self._catalogue()
+        except Exception:
+            cat = {}
+        vol = _load(self.data / "lora_volume.json", {})
+        fichiers = vol["fichiers"] if isinstance(vol.get("fichiers"), list) else None
+        visages = {(x.get("generation") or {}).get("lora") for x in self.persos().values()}
+        try:
+            import yaml
+            visages |= {v for v in (yaml.safe_load((self.repo / "persona" / "production.yaml").read_text(encoding="utf-8")).get("character") or {}).values()
+                        if isinstance(v, str) and v.endswith(".safetensors")}
+        except Exception:
+            pass
+        connus = {str(v.get("file") or k) for k, v in cat.items()}
+        return {"loras": [{"name": k, "label": str(v.get("label") or k), "file": str(v.get("file") or ""), "strength": float(v.get("strength", 1.0)),
+                           "trigger": str(v.get("trigger") or ""), "note": str(v.get("note") or ""), "base": str(v.get("base") or ""),
+                           "source": str(v.get("source") or ""), "ou": v["ou"],
+                           "volume": None if fichiers is None else str(v.get("file") or k) in fichiers} for k, v in cat.items()],
+                "inventaire": vol.get("date", ""),
+                "hors": sorted(f for f in fichiers or [] if f not in connus and f not in visages),
+                "defauts": self._defauts()}
+
+    def save_lora(self, b):
+        """Inscrit ou corrige une LoRA du catalogue (force conseillee, mots declencheurs, note), ou la retire. Ecrit dans
+        data/lora_catalog.yaml, le fichier que lit le pilote. Le fichier .safetensors, lui, se depose par "pilot lora add"."""
+        import yaml
+        nom = str(b.get("name") or "")
+        if not re.fullmatch(r"[a-z0-9_]{1,40}", nom):
+            raise ValueError("nom court : lettres minuscules, chiffres, tirets bas")
+        f = self.data / "lora_catalog.yaml"
+        with self.lock:
+            cat = (yaml.safe_load(f.read_text(encoding="utf-8")) or {}) if f.is_file() else {}
+            if b.get("supprimer"):
+                if nom not in cat:
+                    raise ValueError("cette LoRA est inscrite dans persona/production.yaml : elle se retire dans ce fichier")
+                del cat[nom]
+            else:
+                fichier = str(b.get("file") or "").strip()
+                if not re.fullmatch(r"[A-Za-z0-9_.\-/ ]{1,200}\.safetensors", fichier):
+                    raise ValueError("fichier : nom du .safetensors tel qu'il est sur le volume")
+                try:
+                    force = float(b.get("strength") or 0)
+                except (TypeError, ValueError):
+                    force = 0
+                if not 0 < force <= 2:
+                    raise ValueError("force conseillée : entre 0,1 et 2")
+                cat[nom] = {**self._catalogue().get(nom, {}), **cat.get(nom, {}), "label": _s(b.get("label"), 80) or nom, "file": fichier,
+                            "strength": round(force, 2), "trigger": _s(b.get("trigger"), 200), "note": _s(b.get("note"), 300)}
+                cat[nom].pop("ou", None)
+            f.write_text(yaml.safe_dump(cat, allow_unicode=True, sort_keys=False), encoding="utf-8")
+        return self.bibliotheque()
+
+    def save_defauts(self, b):
+        """LoRA par defaut de chaque temps (2 a 4) : posees sur les scenes ajoutees a la main ou importees sans "loras"."""
+        lib, out = self._lib(), {}
+        for t in TEMPS:
+            txt = _loras((b.get("defauts") or {}).get(str(t)))
+            if t == 1 or not txt:
+                continue
+            for x in _loras_plan(txt):
+                n = x["name"] if isinstance(x, dict) else x
+                if n not in lib["cat"] and not n.endswith(".safetensors"):
+                    raise ValueError(f"temps {t} : « {n} » n'est pas dans le catalogue")
+            out[str(t)] = txt
+        _dump(self.data / "lora_defauts.json", out)
+        return self.bibliotheque()
 
     # --- Personnages ------------------------------------------------------------------------------
     def persos(self):
@@ -305,7 +432,7 @@ class Atelier:
         p = _load(self._pdir(pid) / "projet.json")
         if not p:
             raise FileNotFoundError(pid)
-        for s in p.get("scenes") or []:  # projets d'avant les trois temps
+        for s in p.get("scenes") or []:  # projets d'avant le decoupage en temps
             s.setdefault("temps", 1), s.setdefault("loras", ""), s.setdefault("origine", "")
             s.setdefault("raccord", "coupe"), s.setdefault("libre", False), s.setdefault("cran", 0)
         p["continuite"] = _cont(p.get("continuite"))
@@ -320,7 +447,7 @@ class Atelier:
             sid = f"s{proj['next']}"
             proj["next"] += 1
         return {"id": sid, "titre": _s(d.get("titre"), 80), "role": d.get("role") if d.get("role") in ("accroche", "montee", "chute") else "montee",
-                "temps": int(d.get("temps") or 1) if str(d.get("temps") or 1) in ("1", "2", "3") else 1,
+                "temps": int(d.get("temps") or 1) if str(d.get("temps") or 1) in ("1", "2", "3", "4") else 1,
                 "loras": _loras(d.get("loras")), "origine": _s(d.get("origine"), 120),
                 "raccord": d.get("raccord") if d.get("raccord") in RACCORDS else "coupe", "libre": bool(d.get("libre")),
                 "cran": min(5, max(0, int(d.get("cran") or 0))) if str(d.get("cran") or 0).isdigit() else 0,
@@ -342,7 +469,7 @@ class Atelier:
                 old = {"id": pid, "personnage": b["personnage"], "cree": time.strftime("%Y-%m-%d %H:%M"), "next": 1,
                        "date_perso": time.strftime("%Y-%m-%d")}
             m = b.get("montage") or old.get("montage") or {}
-            p = {"id": pid, "personnage": old["personnage"], "cree": old.get("cree"), "modifie": time.strftime("%Y-%m-%d %H:%M"),
+            p = {"id": pid, "v": V, "personnage": old["personnage"], "cree": old.get("cree"), "modifie": time.strftime("%Y-%m-%d %H:%M"),
                  "next": int(old.get("next") or 1), "titre": _s(b.get("titre", old.get("titre")), 100) or "Sans titre",
                  "statut": b.get("statut", old.get("statut")) if b.get("statut", old.get("statut")) in ("", "valide", "publie", "archive") else "",
                  "brief": _s(b.get("brief", old.get("brief")), 1500), "suite": _s(b.get("suite", old.get("suite")), 600),
@@ -483,7 +610,7 @@ class Atelier:
         return {"projet": p, "choix": {s["id"]: {"image": s["image"], "clip": s["clip"]} for s in e["scenes"]}, "prises": pr,
                 "finals": finals, "etape": self._etape(e, finals[1]), "montage": mt, "prod": self.prod(pid),
                 "devis": {t: self.devis(e, t) for t in TEMPS}, "depots": [x for x in self.depots() if x.get("projet") == pid],
-                "chaine": self.chaine_vue(pid), "controle": {t: controle(p, t) for t in TEMPS}, "relecture": self.relecture(pid),
+                "chaine": self.chaine_vue(pid), "controle": {t: self._ctl(p, t) for t in TEMPS}, "relecture": self.relecture(pid),
                 "publication": self.publication(p), "analyses": self.analyses(pid), "infos": _load(self._pdir(pid) / "finals.json", {}),
                 "planches": {n: _nom_planche(n) for n in sum(finals.values(), []) if (self._pdir(pid) / _nom_planche(n)).is_file()}}
 
@@ -525,6 +652,7 @@ class Atelier:
                                 for p in self.persos().values()],
                 "projets": self.liste(), "depots": [x for x in self.depots() if not self._existe(x.get("projet"))], "redacteur": self.redacteur_actif(), "depense": self.depense(),
                 "occupe": self.studio.running(), "can_run": self.studio.can_run(),
+                "bibliotheque": self.bibliotheque(),
                 "musiques": sorted(f.name for f in self.da.iterdir() if f.suffix.lower() in (".mp3", ".m4a", ".wav", ".ogg"))}
 
     # --- Ecriture ---------------------------------------------------------------------------------
@@ -540,10 +668,12 @@ class Atelier:
                            "ecriture": p.get("ecriture"), "note_generation": (p.get("generation") or {}).get("note")}, ensure_ascii=False, indent=1)
 
     def _texte_projet(self, p, temps=1):
-        """Texte d'un temps du projet pour le redacteur. Le temps 3 ne lui est jamais envoye."""
+        """Texte d'un temps du projet pour le redacteur. Les temps 3 et 4 ne lui sont jamais envoyes, ni une scene a LoRA supplementaires."""
+        if temps not in (1, 2):
+            raise ValueError("les temps 3 et 4 sont à votre main : le rédacteur IA ne les lit pas")
         keep = ("id", "titre", "role", "raccord", "cran", "still", "motion", "end_edit", "texte", "voix", "tattoos")
         tete = {k: p.get(k) for k in ("titre", "pitch", "accroche", "legende", "cta", "hashtags")} if temps == 1 else {}
-        return json.dumps(tete | {"continuite": p["continuite"], "scenes": [{k: s[k] for k in keep} for s in p["scenes"] if s["temps"] == temps]}, ensure_ascii=False, indent=1)
+        return json.dumps(tete | {"continuite": p["continuite"], "scenes": [{k: s[k] for k in keep} for s in p["scenes"] if s["temps"] == temps and not s["loras"]]}, ensure_ascii=False, indent=1)
 
     def _voisins(self, slug, dp, proj=None):
         """Projets du meme personnage les plus proches dans sa chronologie, pour la continuite."""
@@ -579,8 +709,10 @@ class Atelier:
             sc = next((s for s in proj["scenes"] if s["id"] == b.get("scene")), None)
             if not sc:
                 raise ValueError("scène inconnue")
-            if sc["temps"] == 3:
-                raise ValueError("le temps 3 est à votre main : le rédacteur IA ne l'écrit pas")
+            if sc["temps"] not in (1, 2):
+                raise ValueError("les temps 3 et 4 sont à votre main : le rédacteur IA ne les écrit pas")
+            if sc["loras"]:
+                raise ValueError("scène à LoRA supplémentaires : elle reste à votre main")
             prompt = (f"PERSONNAGE\n{self._fiche(perso)}\n\n{moment}SCÉNARIO\n{self._texte_projet(proj, sc['temps'])}\n\nCOMMANDE\nRéécris uniquement la scène \"{sc['id']}\" "
                       f"selon la consigne : {consigne or 'plus forte, plus sensuelle, toujours suggestive'}\n\nFORMAT\n"
                       '{"titre": "...", "role": "...", "raccord": "coupe|continu", "still": "...", "motion": "...", "end_edit": "", "texte": "...", "voix": "", "cran": 1, "tattoos": true}')
@@ -588,11 +720,12 @@ class Atelier:
             if not [s for s in proj["scenes"] if s["temps"] == 1]:
                 raise ValueError("écrire d'abord le teaser (temps 1) : la montée en est la suite")
             prompt = (f"PERSONNAGE\n{self._fiche(perso)}\n\n{moment}TEASER PUBLIC (temps 1, déjà écrit)\n{self._texte_projet(proj)}\n\nCOMMANDE\n"
-                      f"Écris le temps 2 : la suite réservée aux abonnés, en {proj['nb2']} scènes. Ce n'est plus une publicité, c'est la récompense de "
-                      "l'abonnement : elle reprend à l'instant où le teaser a coupé et va un cran plus loin à chaque scène (plus près, plus lente, plus "
+                      f"Écris le temps 2 : la suite du teaser, en {proj['nb2']} scènes, offerte ou réservée aux abonnés. Ce n'est plus une publicité, c'est ce que "
+                      "le teaser promettait : elle reprend à l'instant où le teaser a coupé et va un cran plus loin à chaque scène (plus près, plus lente, plus "
                       "intime, regard plus appuyé, tenue plus défaite). Même lieu et même tenue que le teaser : la fiche de continuité du projet est "
-                      "ajoutée automatiquement à chaque \"still\", ne la répète pas et ne la renvoie pas. Même registre : suggestif, jamais explicite. Pas d'appel à l'action ; la dernière scène laisse seulement entendre "
-                      f"qu'un final privé existe, sans le décrire.\n{'Consigne : ' + (consigne or proj.get('brief2')) if (consigne or proj.get('brief2')) else ''}\n\nFORMAT\n"
+                      "ajoutée automatiquement à chaque \"still\", ne la répète pas et ne la renvoie pas. Registre : suggestif poussé, jamais explicite. La tenue peut se défaire jusqu'à la lingerie, la nudité peut être suggérée "
+                      "(dos nu, épaule, drap, serviette, cadrage coupé, contre-jour) mais rien d'intime n'est visible et il n'y a aucun acte. Pas d'appel à l'action ; "
+                      f"la dernière scène laisse seulement entendre qu'une suite plus dévoilée existe, sans la décrire.\n{'Consigne : ' + (consigne or proj.get('brief2')) if (consigne or proj.get('brief2')) else ''}\n\nFORMAT\n"
                       '{"scenes": [{"titre": "...", "role": "accroche|montee|chute", "raccord": "coupe|continu", "still": "...", "motion": "...", "end_edit": "", "texte": "...", "voix": "", "cran": 1, "tattoos": true}]}')
         elif kind == "legendes":
             prompt = (f"PERSONNAGE\n{self._fiche(perso)}\n\n{moment}SCÉNARIO\n{self._texte_projet(proj)}\n\nCOMMANDE\nPropose {min(n, 5)} variantes d'accroche, de légende "
@@ -703,11 +836,11 @@ class Atelier:
 
     # --- Relecture des images ---------------------------------------------------------------------
     def relire(self, b):
-        """Fait relire par le redacteur IA les images retenues d'un temps, avant les clips. Jamais le temps 3, ni les
+        """Fait relire par le redacteur IA les images retenues d'un temps, avant les clips. Jamais les temps 3 et 4, ni les
         scenes qui portent des LoRA supplementaires : ces images sont a la main du proprietaire."""
         pid, t = b["id"], int(b.get("temps") or 1)
         if t not in (1, 2):
-            raise ValueError("le temps 3 est à votre main : il n'est pas relu")
+            raise ValueError("les temps 3 et 4 sont à votre main : ils ne sont pas relus")
         if not self.redacteur_actif():
             raise ValueError("le rédacteur IA ne répond pas (service girls-ai-writer)")
         p = self._raw(pid)
@@ -790,12 +923,12 @@ class Atelier:
 
     def analyser(self, b):
         """Fait critiquer par le redacteur IA une video montee, d'apres des images qui en sont extraites (debut, milieu de
-        chaque scene, de part et d'autre de chaque jointure, fin). Jamais le temps 3 ni une video qui contient une scene a
+        chaque scene, de part et d'autre de chaque jointure, fin). Jamais les temps 3 et 4 ni une video qui contient une scene a
         LoRA supplementaires : celles-la sont a la main du proprietaire."""
         pid, nom = b["id"], str(b.get("fichier"))
         m = re.fullmatch(r"final_(t2_)?v\d+\.mp4", nom)
         if not m:
-            raise ValueError("le temps 3 est à votre main : il n'est pas analysé" if nom.startswith("final_t3_") else "fichier invalide")
+            raise ValueError("les temps 3 et 4 sont à votre main : ils ne sont pas analysés" if re.match(r"final_t[34]_", nom) else "fichier invalide")
         if not self.redacteur_actif():
             raise ValueError("le rédacteur IA ne répond pas (service girls-ai-writer)")
         t = 2 if m.group(1) else 1
@@ -879,8 +1012,10 @@ class Atelier:
         if not isinstance(j, dict) or not isinstance(j.get("atelier"), dict):
             raise ValueError('bloc "atelier" absent')
         a, d, shots = j["atelier"], j.get("defaults") or {}, j.get("shots")
-        if a.get("temps") not in (1, 2, 3):
-            raise ValueError('"atelier.temps" doit valoir 1, 2 ou 3')
+        if a.get("temps") not in (1, 2, 3, 4) or isinstance(a.get("temps"), bool):
+            raise ValueError('"atelier.temps" doit valoir 1, 2, 3 ou 4')
+        if a["temps"] == 3 and str(j.get("modele") or "") < MODELE_4T:  # plan ecrit avant les quatre temps : son temps 3 etait le final
+            a = a | {"temps": 4}
         if not isinstance(shots, list) or not 1 <= len(shots) <= 10:
             raise ValueError("de 1 à 10 plans par fichier")
         scenes, noms = [], set()
@@ -933,7 +1068,7 @@ class Atelier:
             modele = str(yaml.safe_load((self.dd.parent / "modele.yaml").read_text(encoding="utf-8"))["modele"])
         except Exception:
             modele = ""
-        vus, out = {}, []
+        vus, out, lib = {}, [], self._lib()
         for f in sorted(self.dd.glob("*.yaml"), key=lambda f: f.stat().st_mtime, reverse=True)[:60]:
             x = {"fichier": f.name, "mtime": int(f.stat().st_mtime), "date": time.strftime("%d/%m %H:%M", time.localtime(f.stat().st_mtime))}
             try:
@@ -945,7 +1080,7 @@ class Atelier:
                     x["projet"] = self._rattache(f.name)
                 fiche = pl["textes"].get("continuite") or (self._raw(x["projet"])["continuite"] if x["projet"] and self._existe(x["projet"]) else {})
                 x["remarques"] = len(controle({"continuite": fiche, "accroche": pl["textes"].get("accroche"), "scenes": [
-                    {**s, "id": str(i)} for i, s in enumerate(pl["scenes"])]}, pl["temps"]))
+                    {**s, "id": str(i), "loras": _loras(s["loras"])} for i, s in enumerate(pl["scenes"])]}, pl["temps"], lib))
                 if x["projet"] and not self._existe(x["projet"]):
                     x["erreur"] = f"projet {x['projet']} inconnu"
                 elif x["projet"]:
@@ -978,9 +1113,11 @@ class Atelier:
         with self.lock:
             p = self._raw(pid)
             old = {s["origine"]: s for s in p["scenes"] if s["origine"].startswith(f.name + ":")}
-            neuves = []
+            neuves, defaut = [], self._defauts().get(pl["temps"], "")
             for d in pl["scenes"]:
                 o = old.get(d["origine"]) or {}
+                if d["loras"] is None:  # le plan ne dit rien des LoRA : celles deja posees sur la scene, sinon celles du temps
+                    d = d | {"loras": o["loras"] if o else defaut}
                 garde = ("id", "seed", "image", "clip", "debut", "duree") if o and o["still"] == _s(d["still"], 1200) else ("id",) if o else ()
                 neuves.append(self._scene({**d, **{k: o[k] for k in garde}, "seed": (o.get("seed") if "seed" in garde else 0) or d["seed"],
                                            "id": o.get("id")}, p))
@@ -1240,7 +1377,7 @@ class Atelier:
                     if c["mode"] == "pause":
                         for t in c["temps"]:  # relecture des images pendant la pause ; elle ne bloque jamais la chaine
                             try:
-                                if t < 3:
+                                if t in (1, 2):
                                     self.relire({"id": pid, "temps": t})
                             except Exception:
                                 pass
@@ -1319,14 +1456,14 @@ class Atelier:
             self.montages.pop(pid, None)
 
     def supprimer_final(self, pid, name):
-        if not re.fullmatch(r"final_(t[23]_)?v\d+\.mp4", str(name)):
+        if not re.fullmatch(r"final_(t[234]_)?v\d+\.mp4", str(name)):
             raise ValueError("fichier invalide")
         (self._pdir(pid) / name).unlink(missing_ok=True)
         (self._pdir(pid) / _nom_planche(name)).unlink(missing_ok=True)
 
     def planche(self, pid, name):
         """Cree la planche de controle d'une video montee avant que la planche soit faite d'office."""
-        if not re.fullmatch(r"final_(t[23]_)?v\d+\.mp4", str(name)):
+        if not re.fullmatch(r"final_(t[234]_)?v\d+\.mp4", str(name)):
             raise ValueError("fichier invalide")
         d = self._pdir(pid)
         if not (d / name).is_file():
@@ -1336,7 +1473,7 @@ class Atelier:
 
     def vers_tri(self, pid, name):
         """Copie une video montee dans la boite du Tri (validation humaine avant publication)."""
-        if not re.fullmatch(r"final_(t[23]_)?v\d+\.mp4", str(name)):
+        if not re.fullmatch(r"final_(t[234]_)?v\d+\.mp4", str(name)):
             raise ValueError("fichier invalide")
         p = self._raw(pid)
         dest = self.data / "inbox" / f"{pid}_{re.sub(r'[^a-z0-9]+', '_', p['titre'].lower()).strip('_')[:30]}_{name[6:]}"
@@ -1361,7 +1498,7 @@ class Atelier:
             return {"personnage": self.save_perso(b)}
         if path == "/api/a/projet":
             p = self.save_projet(b)
-            return {"projet": p, "controle": {t: controle(p, t) for t in TEMPS}}
+            return {"projet": p, "controle": {t: self._ctl(p, t) for t in TEMPS}}
         if path == "/api/a/ecrire":
             return self.ecrire(b)
         if path == "/api/a/produire":
@@ -1380,6 +1517,10 @@ class Atelier:
             return self.chaine_stop(b)
         if path == "/api/a/depot/importer":
             return self.importer(b)
+        if path == "/api/a/lora":
+            return {"bibliotheque": self.save_lora(b)}
+        if path == "/api/a/lora/defauts":
+            return {"bibliotheque": self.save_defauts(b)}
         if path == "/api/a/final/supprimer":
             self.supprimer_final(b["id"], b["fichier"])
             return {}

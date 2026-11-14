@@ -14,7 +14,7 @@ from .comfy import Comfy
 
 ROOT = Path(__file__).resolve().parents[2]
 PREFIX = "girls-ai-"
-MODELE = "2026-11-14e"  # version du format des plans : la meme que dans server/jobs/modele.yaml
+MODELE = "2026-11-14f"  # version du format des plans : la meme que dans server/jobs/modele.yaml
 INTERP = "minterpolate=fps=32:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1"
 
 
@@ -83,6 +83,17 @@ def resolve_loras(cfg, wanted):
     return out
 
 
+def inventaire(c, data):
+    """Note les LoRA presentes sur le volume dans data/lora_volume.json : la bibliotheque de l'atelier s'en sert pour
+    signaler une LoRA absente avant de lancer un calcul. Rend la liste ; un echec d'ecriture n'arrete rien."""
+    fichiers = sorted(c.models("loras"))
+    try:
+        (Path(data) / "lora_volume.json").write_text(json.dumps({"date": time.strftime("%d/%m/%Y %H:%M"), "fichiers": fichiers}), encoding="utf-8")
+    except OSError as e:
+        log(f"inventaire des LoRA non ecrit : {e}")
+    return fichiers
+
+
 def cmd_run(a):
     cfg = load_config(a)
     job = yaml.safe_load(open(a.job, encoding="utf-8"))
@@ -116,11 +127,12 @@ def cmd_run(a):
         c.wait_ready()
         log("ComfyUI pret")
         lora_key = "lora_still_zimage" if cfg.get("image_model", "wan") == "zimage" else "lora_still"
-        if char.get(lora_key) and not c.has_model("loras", char[lora_key]):
+        volume = inventaire(c, data)
+        if char.get(lora_key) and char[lora_key] not in volume:
             raise RuntimeError(f"LoRA introuvable sur le volume : {char[lora_key]}")
         for sh in job["shots"]:  # verifier les LoRA supplementaires avant de calculer quoi que ce soit
             for lo in resolve_loras(cfg, {**d, **sh}.get("loras")) or []:
-                if not c.has_model("loras", lo["name"]):
+                if lo["name"] not in volume:
                     raise RuntimeError(f"LoRA introuvable sur le volume : {lo['name']}")
         # Deux passes : toutes les images, puis tous les clips. Evite de recharger les modeles
         # (image <-> animation) a chaque plan, ce qui coutait plus d'une minute par plan.
@@ -408,6 +420,7 @@ def cmd_lora(a):
             time.sleep(10)
         if not seen:
             log("fichier depose sur le volume ; ComfyUI ne le liste pas encore, il le verra au prochain demarrage de pod")
+        inventaire(c, data)
     finally:
         if own and pod_id:
             runpod.delete_pod(pod_id)

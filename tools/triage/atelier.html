@@ -30,6 +30,10 @@
   .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:10px; }
   .row > .g { flex:1; min-width:120px; } .row label { margin-top:0; }
   .mut { color:var(--mut); font-size:13px; } .err { color:var(--bad); } .rq { margin:6px 0 0; padding-left:18px; font-size:14px; } .rq li { margin:4px 0; } .okc { color:var(--ok); }
+  .aide { display:block; color:var(--mut); font-size:12px; line-height:1.35; margin-top:3px; opacity:.9; }
+  .gt { font-size:11px; letter-spacing:.07em; text-transform:uppercase; color:var(--acc); margin:16px 0 0; }
+  .gt:first-child { margin-top:0; } .gt + label, .gt + .row { margin-top:4px; }
+  .badge.a { background:#3a1f1f; color:var(--bad); } .badge.i { background:#2c2a1c; color:var(--warn); }
   .steps { display:flex; gap:4px; margin:10px 0; overflow-x:auto; }
   .steps span { flex:1; text-align:center; font-size:12px; padding:4px 6px; border-radius:4px; background:var(--panel); color:var(--mut); white-space:nowrap; }
   .steps span.done { background:#1f3a2c; color:var(--ok); } .steps span.cur { background:#173748; color:var(--acc); }
@@ -78,8 +82,13 @@ const usd = x => x == null ? '?' : Number(x).toFixed(2).replace('.', ',') + ' $'
 const vue = $('#vue');
 let E = null, D = null, P = null, cur = localStorage.getItem('perso') || '', autoEcrire = '', timer = null, tSave = null, sig = {}, T = 1;
 const ETAPES = [['idee', 'Idée'], ['ecrit', 'Scénario'], ['images', 'Images'], ['clips', 'Clips'], ['monte', 'Montage'], ['valide', 'Validée']];
-const TEMPS = {1: ['Accroche', 'tous publics'], 2: ['Montée', 'abonnés'], 3: ['Final', 'privé, payant']};
-const CONSIGNES_T2 = ['Plus lente, plus intime', 'Plus près de la caméra', 'Tenue plus défaite, toujours suggestif', 'Fin qui annonce mieux le final privé'];
+const TEMPS = {1: ['Accroche', 'tous publics'], 2: ['Montée', 'suggestif'], 3: ['Dévoilé', 'nu, sans acte'], 4: ['Final', 'explicite']}, NT = [1, 2, 3, 4];
+const QUOI = {1: 'Tous publics, pour les réseaux : elle donne envie de voir la suite. Le rédacteur IA peut l\'écrire, la relire et l\'analyser.',
+  2: 'Suggestif poussé : lingerie, nu suggéré, rien d\'explicite. Offert ou réservé aux abonnés, c\'est le temps qui convertit. Le rédacteur IA peut l\'écrire, sauf les scènes qui portent des LoRA.',
+  3: 'Nudité explicite, sans acte. Pour l\'abonnement ou un paiement bas. Ce temps est à votre main : le rédacteur IA ne l\'écrit pas, ne le relit pas et ne l\'analyse pas.',
+  4: 'Explicite, avec actes. Vendu à l\'unité. Ce temps est à votre main : le rédacteur IA ne l\'écrit pas, ne le relit pas et ne l\'analyse pas.'};
+const aide = t => t ? `<span class="aide">${t}</span>` : '';
+const CONSIGNES_T2 = ['Plus lente, plus intime', 'Plus près de la caméra', 'Tenue plus défaite, toujours suggestif', 'Fin qui annonce mieux la suite payante'];
 const depotHtml = x => `<div class="var"><b>${esc(x.titre || x.fichier)}</b> <span class="mut">${esc(x.fichier)}, ${esc(x.date)}</span>
   ${x.erreur ? `<div class="err">Refusé : ${esc(x.erreur)}</div>` : `<div class="mut">${x.n} plan(s) pour le temps ${x.temps}${x.projet ? '' : ', nouveau projet'}${x.perime ? ' ; écrit d\'après un modèle périmé' : ''}${x.remarques ? ` ; ${x.remarques} remarque(s) au contrôle des plans` : ''}${x.note ? ' ; ' + esc(x.note) : ''}</div>
   <div class="row" style="margin-top:6px">${x.importe ? '<span class="okc">Importé</span>' : `<button class="p s" data-a="importer" data-n="${esc(x.fichier)}">${x.change ? 'Réimporter (fichier modifié)' : 'Importer dans le projet'}</button>`}</div>`}</div>`;
@@ -127,13 +136,13 @@ async function etat() {
   const actifs = E.personnages.filter(p => p.statut !== 'archive');
   if (!actifs.some(p => p.slug === cur)) cur = actifs[0]?.slug || '';
   $('#persos').innerHTML = actifs.map(p => `<span class="chip ${p.slug === cur ? 'on' : ''}" data-slug="${esc(p.slug)}">${esc(p.nom)}</span>`).join('')
-    + '<span class="chip" data-slug="">Personnages</span>';
+    + '<span class="chip" data-h="#/persos">Personnages</span><span class="chip" data-h="#/loras">LoRA</span>';
   $('#gpu').textContent = E.depense ? `GPU ${usd(E.depense.jour)} / ${usd(E.depense.plafond)}` : '';
   $('#redac').innerHTML = E.redacteur ? '<span class="okc">Rédacteur IA</span>' : '<span style="color:var(--warn)">Rédacteur de secours</span>';
 }
 $('#persos').onclick = e => {
   const c = e.target.closest('.chip'); if (!c) return;
-  if (!c.dataset.slug) return location.hash = '#/persos';
+  if (c.dataset.h) return location.hash = c.dataset.h;
   cur = c.dataset.slug; localStorage.setItem('perso', cur);
   if (location.hash === '#/' || !location.hash) route(); else location.hash = '#/';
 };
@@ -149,6 +158,7 @@ async function route() {
     await etat();
     if (h[0] === 'p' && h[1]) await ouvrirProjet(h[1]);
     else if (h[0] === 'persos') vuePersos();
+    else if (h[0] === 'loras') vueLoras();
     else if (h[0] === 'perso') await vuePerso(h[1] || '');
     else vueProjets();
   } catch (e) { vue.innerHTML = `<p class="err">${esc(e.message)}</p><p><a href="#/">Retour</a></p>`; }
@@ -242,38 +252,45 @@ function echanger(sid, sens) {  // avec la scene voisine du meme temps
 const CONT = [['lieu', 'Lieu', 'in a small Parisian bathroom with white tiles and a round mirror'], ['tenue', 'Tenue', 'wearing a white ribbed tank top and grey cotton shorts'],
   ['cheveux', 'Coiffure du jour', 'hair in a loose bun'], ['lumiere', 'Lumière', 'soft morning window light'], ['pdv', 'Point de vue', 'shot at eye level on a phone']];
 const RACCORDS = [['coupe', 'Coupe : la scène a sa propre image'], ['continu', 'Continu : suite du clip précédent, sans coupe visible'], ['arrivee', 'Arrivée : le clip précédent finit sur l\'image de cette scène']];
-const CH = {t1: true, t2: true, t3: true, mode: 'pause', refaire: false, hd: false};  // reglages de la chaine de production
+const CH = {t1: true, t2: true, t3: true, t4: true, mode: 'pause', refaire: false, hd: false};  // reglages de la chaine de production
 const dfr = d => d ? new Date(d + 'T12:00').toLocaleDateString('fr-FR', {weekday: 'short', day: 'numeric', month: 'long', year: 'numeric'}) : '';
 const f = (k, lab, v, o = {}) => `<label>${lab}${o.area ? `<textarea ${o.at || ''} rows="${o.rows || 2}" placeholder="${esc(o.ph || '')}">${esc(v)}</textarea>`
-  : `<input ${o.at || ''} type="${o.type || 'text'}" ${o.step ? `step="${o.step}"` : ''} value="${esc(v)}" placeholder="${esc(o.ph || '')}">`}</label>`.replace('<textarea ', `<textarea data-k="${k}" `).replace('<input ', `<input data-k="${k}" `);
+  : `<input ${o.at || ''} type="${o.type || 'text'}" ${o.step ? `step="${o.step}"` : ''} value="${esc(v)}" placeholder="${esc(o.ph || '')}">`}${aide(o.aide)}</label>`.replace('<textarea ', `<textarea data-k="${k}" `).replace('<input ', `<input data-k="${k}" `);
 
 function rendreProjet() {
   const p = perso() || {nom: P.personnage}, vide = !P.scenes.some(s => s.temps === 1);
-  const SC = P.scenes.filter(s => s.temps === T), dep = D.depots.filter(x => x.temps === T || x.erreur);
+  const SC = P.scenes.filter(s => s.temps === T), dep = D.depots.filter(x => x.temps === T || x.erreur), DEF = (E.bibliotheque.defauts || {})[T] || '';
+  const LN = E.bibliotheque.loras.map(x => x.name).join(', ');
   vue.innerHTML = `
     <div class="row" style="margin-top:0"><a href="#/">Projets de ${esc((E.personnages.find(x => x.slug === P.personnage) || p).nom)}</a><span class="sp" style="flex:1"></span><span class="mut">${P.id}</span></div>
     <input data-k="titre" value="${esc(P.titre)}" style="font-size:18px;font-weight:600;margin-top:8px">
     <div class="steps" id="etapes"></div>
-    <div class="chips" style="margin:0 0 4px">${[1, 2, 3].map(t => `<button class="chip ${t === T ? 'on' : ''}" data-a="temps" data-t="${t}">${t}. ${TEMPS[t][0]} <small>${TEMPS[t][1]}, ${P.scenes.filter(s => s.temps === t).length}</small></button>`).join('')}</div>
+    <div class="chips" style="margin:0 0 4px">${NT.map(t => `<button class="chip ${t === T ? 'on' : ''}" data-a="temps" data-t="${t}">${t}. ${TEMPS[t][0]} <small>${TEMPS[t][1]}, ${P.scenes.filter(s => s.temps === t).length}</small></button>`).join('')}</div>
     <div class="panel" id="chaine"></div>
+    <div class="panel"><b>${T}. ${TEMPS[T][0]}</b><div class="mut">${QUOI[T]}</div>
+      ${T > 2 && P.suite ? `<div style="margin-top:6px">Suite annoncée : ${esc(P.suite)}</div>` : ''}
+      ${T > 2 ? '<div class="mut" style="margin-top:6px">Ajouter les scènes ici, ou importer un plan déposé par votre agent dans server/jobs/atelier/.</div>' : ''}
+      ${T > 1 ? `<div style="margin-top:8px;font-size:14px">LoRA par défaut de ce temps : ${DEF ? `<b>${esc(DEF)}</b>` : '<span class="mut">aucune</span>'} <a href="#/loras">Bibliothèque</a></div>
+        <div class="aide">Posées sur chaque scène ajoutée à ce temps, et sur les plans importés qui ne disent rien des LoRA. Chaque scène reste modifiable.</div>
+        ${DEF && SC.length ? '<div class="row"><button class="s" data-a="poserdefauts">Poser ces LoRA sur les scènes de ce temps</button></div>' : ''}` : ''}</div>
     ${T === 2 ? `<div class="panel">
-      <div class="mut">La suite du teaser pour les abonnés : même lieu, même tenue, un cran plus loin. Registre suggestif.</div>
-      ${f('brief2', 'Consigne pour la montée (facultatif)', P.brief2, {area: 1, rows: 2})}
+      ${f('brief2', 'Consigne pour la montée (facultatif)', P.brief2, {area: 1, rows: 2, aide: 'En français. Ce que ce temps doit montrer de plus que l\'accroche : même lieu, même tenue, un cran plus loin.'})}
       <div class="row"><label class="g">Scènes<select data-k="nb2">${[2, 3, 4, 5, 6].map(n => `<option ${n === P.nb2 ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
         <button class="p" data-a="ecrire2" ${vide || !E.redacteur ? 'disabled' : ''}>${SC.length ? 'Réécrire la montée' : 'Écrire la montée'}</button></div>
       ${vide ? '<div class="mut" style="margin-top:6px">Écrire d\'abord le teaser (temps 1).</div>' : E.redacteur ? '' : '<div class="mut" style="margin-top:6px">Rédacteur IA arrêté : ajouter les scènes à la main.</div>'}</div>` : ''}
-    ${T === 3 ? `<div class="panel"><div class="mut">Le final privé est à votre main : le rédacteur IA ne l'écrit pas. Ajouter les scènes ici, ou importer un plan déposé par votre agent dans server/jobs/atelier/.</div>
-      ${P.suite ? `<div style="margin-top:6px">Suite annoncée : ${esc(P.suite)}</div>` : ''}</div>` : ''}
     ${dep.length ? `<div class="panel"><b>Plans déposés par l'agent</b>${dep.map(depotHtml).join('')}</div>` : ''}
     ${T === 1 ? `
     <h2>1. Idée</h2>
     <div class="panel">
-      ${f('brief', 'Idée de départ (français, quelques mots suffisent)', P.brief, {area: 1, rows: 2, ph: 'Elle rentre du sport, trop chaud, elle hésite à enlever son pull devant la caméra'})}
-      ${f('suite', 'Ce que la suite payante montre (à votre main, facultatif)', P.suite, {area: 1, rows: 1})}
-      ${f('date_perso', 'Date du personnage (fictive : le jour où elle vit la scène ; viser le jour de publication)', P.date_perso, {type: 'date'})}
-      ${f('contexte', 'Contexte du moment (facultatif : météo, événement, ce qu\'elle vit ces jours-ci)', P.contexte, {area: 1, rows: 1, ph: 'Premier froid sur Lyon, elle prépare ses cadeaux de Noël'})}
-      <div class="mut">La saison, les fêtes proches et ce contexte guident l'idée, la tenue, la lumière et les textes des trois temps. Dates réelles : créé le ${esc(P.cree || '')}, modifié le ${esc(P.modifie || '')}.</div>
-      <div class="row"><label class="g">Scènes<select data-k="nb_scenes">${[2, 3, 4, 5, 6].map(n => `<option ${n === P.nb_scenes ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
+      ${f('brief', 'Idée de départ', P.brief, {area: 1, rows: 2, ph: 'Elle rentre du sport, trop chaud, elle hésite à enlever son pull devant la caméra',
+        aide: 'En français, quelques mots suffisent. Le rédacteur en tire le scénario, les textes et le découpage.'})}
+      ${f('suite', 'Ce que la suite payante montre (facultatif)', P.suite, {area: 1, rows: 1,
+        aide: 'À votre main. Le rédacteur s\'en sert pour que l\'accroche promette quelque chose de vrai ; il n\'écrit pas cette suite.'})}
+      ${f('date_perso', 'Date du personnage', P.date_perso, {type: 'date', aide: 'Fictive : le jour où elle vit la scène. Viser le jour de publication. La saison et les fêtes proches en sont déduites.'})}
+      ${f('contexte', 'Contexte du moment (facultatif)', P.contexte, {area: 1, rows: 1, ph: 'Premier froid sur Lyon, elle prépare ses cadeaux de Noël',
+        aide: 'Météo, événement, ce qu\'elle vit ces jours-ci. Guide l\'idée, la tenue, la lumière et les textes de tous les temps.'})}
+      <div class="mut" style="margin-top:8px">Dates réelles : créé le ${esc(P.cree || '')}, modifié le ${esc(P.modifie || '')}.</div>
+      <div class="row"><label class="g">Scènes<select data-k="nb_scenes">${[2, 3, 4, 5, 6].map(n => `<option ${n === P.nb_scenes ? 'selected' : ''}>${n}</option>`).join('')}</select>${aide('3 ou 4 scènes de 5 s tiennent dans une accroche de 15 à 20 s.')}</label>
         <button class="p" data-a="ecrire">${vide ? 'Écrire le scénario' : 'Tout réécrire'}</button>
         ${vide ? '' : '<button data-a="retoucher">Retoucher</button>'}</div>
       <div class="mut" style="margin-top:6px">${E.redacteur ? 'Le rédacteur IA écrit le scénario, les textes et le découpage en scènes.' : 'Rédacteur IA arrêté : un scénario type sera tiré d\'une structure toute faite.'}
@@ -282,19 +299,20 @@ function rendreProjet() {
 
     <h2>2. Textes ${P.pitch ? `<small>${esc(P.pitch)}</small>` : ''}</h2>
     <div class="panel">
-      ${f('accroche', 'Accroche (affichée en haut de la première scène)', P.accroche)}
-      ${f('legende', 'Légende de la publication', P.legende, {area: 1})}
-      <div class="row"><div class="g">${f('cta', 'Carton de fin', P.cta)}</div><div class="g">${f('hashtags', 'Mots-dièse', P.hashtags)}</div></div>
+      ${f('accroche', 'Accroche', P.accroche, {aide: 'Affichée en haut de la première scène, au-dessus du visage. 44 caractères au plus, deux lignes. Elle doit être vraie dès la première image.'})}
+      ${f('legende', 'Légende de la publication', P.legende, {area: 1, aide: 'Le texte posté sous la vidéo. Elle n\'apparaît pas dans l\'image.'})}
+      <div class="row" style="align-items:flex-start"><div class="g">${f('cta', 'Carton de fin', P.cta, {aide: 'Dernière image de l\'accroche : où voir la suite.'})}</div>
+        <div class="g">${f('hashtags', 'Mots-dièse', P.hashtags, {aide: 'Copiés avec la légende.'})}</div></div>
       <div class="row"><button data-a="variantes" ${vide ? 'disabled' : ''}>Proposer des variantes</button><button data-a="copier">Copier légende et mots-dièse</button></div>
       <div id="variantes"></div>
     </div>` : ''}
 
-    <details class="panel"${Object.values(P.continuite).some(Boolean) || P.reference ? ' open' : ''}><summary><b>Continuité</b> <span class="mut">ce qui ne change pas d'une image à l'autre, pour les trois temps</span></summary>
+    <details class="panel"${Object.values(P.continuite).some(Boolean) || P.reference ? ' open' : ''}><summary><b>Continuité</b> <span class="mut">ce qui ne change pas d'une image à l'autre, pour tous les temps</span></summary>
       <div class="mut" style="margin-top:6px">En anglais. Ces éléments sont ajoutés à la description de chaque image : les écrire ici une seule fois, et ne garder dans chaque scène que le cadrage, la pose et l'expression. Laisser vide ce qui change en cours de vidéo.</div>
       ${CONT.map(([k, lab, ph]) => f(k, lab, P.continuite[k], {at: 'data-c="1"', ph})).join('')}
       <label>Image de référence<select data-k="reference"><option value="">Aucune : chaque image est créée à partir de sa description</option>
-        ${P.scenes.filter((s, i) => s.temps === 1 && s.still && !(s.raccord === 'continu' && P.scenes.slice(0, i).some(x => x.temps === 1))).map(s => `<option value="${s.id}" ${s.id === P.reference ? 'selected' : ''}>Scène ${P.scenes.filter(x => x.temps === 1).indexOf(s) + 1} du temps 1 : ${esc(s.titre)}</option>`).join('')}</select></label>
-      <div class="mut" style="margin-top:6px">Avec une image de référence, les autres images en sont tirées par retouche : même personne, même pièce, même tenue, seule la pose change. À choisir une fois l'image de cette scène réussie. Les scènes « libres » et celles qui portent des LoRA gardent leur propre image.</div>
+        ${P.scenes.filter((s, i) => s.temps === 1 && s.still && !(s.raccord === 'continu' && P.scenes.slice(0, i).some(x => x.temps === 1))).map(s => `<option value="${s.id}" ${s.id === P.reference ? 'selected' : ''}>Scène ${P.scenes.filter(x => x.temps === 1).indexOf(s) + 1} du temps 1 : ${esc(s.titre)}</option>`).join('')}</select>
+        ${aide('Avec une image de référence, les autres images en sont tirées par retouche : même personne, même pièce, même tenue, seule la pose change. À choisir une fois l\'image de cette scène réussie. Les scènes « libres » et celles qui portent des LoRA gardent leur propre image.')}</label>
     </details>
 
     <h2>${T === 1 ? '3. ' : ''}Scènes <small>${SC.length}, environ ${Math.round(SC.reduce((a, s) => a + (s.duree || 5), 0) + (T === 1 && P.montage.carton ? 2.6 : 0))} s</small></h2>
@@ -303,21 +321,31 @@ function rendreProjet() {
         <select data-s="${s.id}" data-k="role">${[['accroche', 'Accroche'], ['montee', 'Montée'], ['chute', 'Chute']].map(([v, l]) => `<option value="${v}" ${v === s.role ? 'selected' : ''}>${l}</option>`).join('')}</select>
         <button class="s" data-a="monte" ${i ? '' : 'disabled'}>Haut</button><button class="s" data-a="descend" ${i < SC.length - 1 ? '' : 'disabled'}>Bas</button></div>
       <div class="media" data-sid="${s.id}"></div>
-      <label>Cran dans la progression (il ne doit pas redescendre)<select data-s="${s.id}" data-k="cran">${[0, 1, 2, 3, 4, 5].map(v => `<option value="${v}" ${v === (s.cran || 0) ? 'selected' : ''}>${v ? v + (v === 1 ? ' : anodin' : v === 5 ? ' : le plus osé de ce temps' : '') : 'Non renseigné'}</option>`).join('')}</select></label>
+      <div class="gt">Ce qu'on voit</div>
+      ${s.raccord === 'continu' && i ? '' : f('still', 'Image de départ (anglais)', s.still, {area: 1, rows: 3, at: `data-s="${s.id}"`,
+        aide: 'Cadrage, pose, expression. Le lieu, la tenue, la coiffure et la lumière viennent de la fiche de continuité : ne pas les répéter ici.'})}
+      ${f('motion', 'Mouvement du clip (anglais)', s.motion, {area: 1, at: `data-s="${s.id}"`,
+        aide: 'Un seul geste lent, sans mouvement de caméra : un clip dure 5 s. Vide : la scène reste une image fixe de 2 s avec un zoom lent, sans coût de clip.'})}
+      ${T > 1 ? f('loras', 'LoRA supplémentaires', s.loras, {at: `data-s="${s.id}"`, ph: 'nom:0.6, autre',
+        aide: `Noms de la bibliothèque, « nom:force », séparés par des virgules. Vide : aucune, en plus de celle du visage. ${LN ? 'Inscrites : ' + esc(LN) + '.' : 'Bibliothèque vide.'} Une scène qui porte des LoRA n'est jamais envoyée au rédacteur IA.`}) : ''}
+      <div class="gt">Ce qui s'affiche</div>
+      ${f('texte', 'Texte à l\'écran', s.texte, {at: `data-s="${s.id}"`, aide: '7 mots au plus, sans emoji. Vide : aucun texte sur cette scène.'})}
+      <div class="gt">Place dans la vidéo</div>
+      <label>Cran dans la progression<select data-s="${s.id}" data-k="cran">${[0, 1, 2, 3, 4, 5].map(v => `<option value="${v}" ${v === (s.cran || 0) ? 'selected' : ''}>${v ? v + (v === 1 ? ' : anodin' : v === 5 ? ' : le plus osé de ce temps' : '') : 'Non renseigné'}</option>`).join('')}</select>
+        ${aide('Sert au contrôle des plans : d\'une scène à l\'autre le cran ne doit pas redescendre.')}</label>
       ${i ? `<label>Raccord avec la scène précédente<select data-s="${s.id}" data-k="raccord">${RACCORDS.map(([v, l]) => `<option value="${v}" ${v === s.raccord ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
         ${s.raccord === 'continu' ? '<div class="mut" style="margin-top:4px">Pas d\'image propre : le clip part de la dernière image du clip précédent et le montage les colle sans coupe. Si le clip précédent est refait, celui-ci est à refaire. Ne pas rogner la fin du clip précédent ni le début de celui-ci.</div>'
           : s.raccord === 'arrivee' ? '<div class="mut" style="margin-top:4px">Le clip précédent se termine sur l\'image de cette scène (clip début/fin, deux fois le prix d\'un clip simple). Créer cette image avant le clip précédent ; si elle change, il est à refaire.</div>' : ''}` : ''}
-      ${f('texte', 'Texte à l\'écran', s.texte, {at: `data-s="${s.id}"`})}
-      ${f('still', 'Image de départ (anglais)', s.still, {area: 1, rows: 3, at: `data-s="${s.id}"`})}
-      ${f('motion', 'Mouvement du clip (anglais, un seul geste lent)', s.motion, {area: 1, at: `data-s="${s.id}"`})}
-      <details><summary>Voix off, image de fin, rognage</summary>
-        ${f('voix', 'Voix off (gardée pour plus tard : pas encore de synthèse vocale)', s.voix, {at: `data-s="${s.id}"`})}
-        ${f('end_edit', 'Pose de fin du clip (anglais ; vide = clip simple, moitié prix)', s.end_edit, {area: 1, rows: 1, at: `data-s="${s.id}"`})}
-        <div class="row"><div class="g">${f('debut', 'Début du clip (s)', s.debut, {type: 'number', step: '0.1', at: `data-s="${s.id}"`})}</div>
-          <div class="g">${f('duree', 'Durée gardée (s, 0 = tout)', s.duree, {type: 'number', step: '0.1', at: `data-s="${s.id}"`})}</div></div>
-        ${T > 1 ? f('loras', 'LoRA supplémentaires (noms du catalogue, « nom:force », séparés par des virgules)', s.loras, {at: `data-s="${s.id}"`}) : ''}
+      <details><summary>Réglages avancés : pose de fin, rognage, tatouages, scène libre, voix off</summary>
+        ${f('end_edit', 'Pose de fin du clip (anglais)', s.end_edit, {area: 1, rows: 1, at: `data-s="${s.id}"`,
+          aide: 'La pose sur laquelle le clip doit finir. Vide : clip simple, moitié prix.'})}
+        <div class="row" style="align-items:flex-start"><div class="g">${f('debut', 'Début du clip (s)', s.debut, {type: 'number', step: '0.1', at: `data-s="${s.id}"`, aide: 'Secondes coupées au début.'})}</div>
+          <div class="g">${f('duree', 'Durée gardée (s)', s.duree, {type: 'number', step: '0.1', at: `data-s="${s.id}"`, aide: '0 : tout le clip. Une durée réglée ici n\'est pas raccourcie par la durée visée.'})}</div></div>
         <label class="c" style="margin-top:10px"><input type="checkbox" data-s="${s.id}" data-k="tattoos" ${s.tattoos ? 'checked' : ''}>Épaules et poitrine visibles (tatouages)</label>
-        <label class="c" style="margin-top:10px"><input type="checkbox" data-s="${s.id}" data-k="libre" ${s.libre ? 'checked' : ''}>Scène libre (autre lieu ou autre tenue : sans la fiche de continuité ni l'image de référence)</label>
+        <div class="aide">Décocher quand la tenue couvre les épaules : sinon le modèle dessine les tatouages par-dessus le tissu.</div>
+        <label class="c" style="margin-top:10px"><input type="checkbox" data-s="${s.id}" data-k="libre" ${s.libre ? 'checked' : ''}>Scène libre</label>
+        <div class="aide">Autre lieu ou autre tenue : la scène ignore la fiche de continuité et l'image de référence, et décrit tout elle-même.</div>
+        ${f('voix', 'Voix off', s.voix, {at: `data-s="${s.id}"`, aide: 'Gardée pour plus tard : pas encore de synthèse vocale.'})}
         ${s.origine ? `<div class="mut" style="margin-top:6px">Origine : ${esc(s.origine)}</div>` : ''}
       </details>
       <div class="row">${T < 3 ? '<button class="s" data-a="recrire">Réécrire la scène</button>' : ''}<button class="s" data-a="dupliquer">Dupliquer</button><span class="sp" style="flex:1"></span><button class="s d" data-a="supprimer">Supprimer</button></div>
@@ -330,21 +358,30 @@ function rendreProjet() {
 
     <h2>${T === 1 ? '5. ' : ''}Montage <small>${TEMPS[T][0].toLowerCase()}</small></h2>
     <div class="panel">
-      <div class="row" style="margin-top:0">
-        <label class="g">Transition<select data-m="1" data-k="transition"><option value="coupe" ${P.montage.transition === 'coupe' ? 'selected' : ''}>Coupe franche</option><option value="fondu" ${P.montage.transition === 'fondu' ? 'selected' : ''}>Fondu</option></select></label>
-        <label class="g">Format<select data-m="1" data-k="format">${[['vertical', 'Vertical 9:16'], ['carre', 'Carré'], ['paysage', 'Paysage 16:9']].map(([v, l]) => `<option value="${v}" ${v === P.montage.format ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
-        <label class="g">Style du texte<select data-m="1" data-k="style">${[['doux', 'Doux : blanc, ombre floue'], ['contour', 'Contour : blanc cerné de noir'], ['serif', 'Serif : italique élégant']].map(([v, l]) => `<option value="${v}" ${v === (P.montage.style || 'doux') ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
-        <label class="g">Musique<select data-m="1" data-k="musique"><option value="">Aucune</option>${E.musiques.map(m => `<option ${m === P.montage.musique ? 'selected' : ''}>${esc(m)}</option>`).join('')}</select></label>
+      <div class="mut">Ces réglages valent pour tous les temps du projet. Le montage ne coûte rien : il se refait autant de fois qu'il faut, chaque version est gardée.</div>
+      <div class="gt">Image</div>
+      <div class="row" style="align-items:flex-start">
+        <label class="g">Format<select data-m="1" data-k="format">${[['vertical', 'Vertical 9:16'], ['carre', 'Carré'], ['paysage', 'Paysage 16:9']].map(([v, l]) => `<option value="${v}" ${v === P.montage.format ? 'selected' : ''}>${l}</option>`).join('')}</select>${aide('Vertical pour les réseaux et le téléphone.')}</label>
+        <label class="g">Transition<select data-m="1" data-k="transition"><option value="coupe" ${P.montage.transition === 'coupe' ? 'selected' : ''}>Coupe franche</option><option value="fondu" ${P.montage.transition === 'fondu' ? 'selected' : ''}>Fondu</option></select>${aide('Entre deux scènes en raccord « coupe ». Les raccords continus restent collés sans coupe.')}</label>
       </div>
-      <div class="row"><label class="c"><input type="checkbox" data-m="1" data-k="textes" ${P.montage.textes ? 'checked' : ''}>Textes à l'écran</label>
-        ${T === 1 ? `<label class="c"><input type="checkbox" data-m="1" data-k="carton" ${P.montage.carton ? 'checked' : ''}>Carton de fin</label>` : ''}
-        <label class="c"><input type="checkbox" data-m="1" data-k="noir" ${P.montage.noir ? 'checked' : ''}>Fin au noir</label>
-        ${T === 1 ? '<span class="mut">Mention « AI character » : toujours incrustée sur l\'accroche.</span>'
-          : `<label class="c"><input type="checkbox" data-m="1" data-k="label" ${P.montage.label ? 'checked' : ''}>Mention « AI character »</label>`}</div>
-      <div class="row"><label class="g">Durée visée<select data-m="1" data-k="cible">${[[0, 'Tout garder'], [15, '15 s'], [20, '20 s'], [30, '30 s']].map(([v, l]) => `<option value="${v}" ${v === (P.montage.cible || 0) ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
-        ${T === 1 ? '<button class="s" data-a="teaser">Réglages teaser 15 s</button>' : ''}</div>
-      <div class="mut" style="margin-top:4px">Durée visée : les plans sont raccourcis en proportion (2 s au moins chacun), sans toucher aux raccords continus ni aux durées réglées à la main. Sur la première scène, l'accroche s'affiche d'abord, le texte de la scène ensuite.</div>
-      ${E.musiques.length ? '' : '<div class="mut" style="margin-top:6px">Musique : déposer des fichiers mp3 dans data/audio sur le serveur.</div>'}
+      <div class="gt">Texte</div>
+      <label class="c" style="margin-top:6px"><input type="checkbox" data-m="1" data-k="textes" ${P.montage.textes ? 'checked' : ''}>Textes à l'écran</label>
+      <div class="aide">Incruste l'accroche et le texte de chaque scène. Sur la première scène, l'accroche s'affiche d'abord, le texte de la scène ensuite.</div>
+      <label>Style du texte<select data-m="1" data-k="style">${[['doux', 'Doux : blanc, ombre floue'], ['contour', 'Contour : blanc cerné de noir'], ['serif', 'Serif : italique élégant']].map(([v, l]) => `<option value="${v}" ${v === (P.montage.style || 'doux') ? 'selected' : ''}>${l}</option>`).join('')}</select>
+        ${aide('Sans fond en aplat. « Contour » reste lisible sur une image claire ou chargée.')}</label>
+      ${T === 1 ? '<div class="aide" style="margin-top:10px">Mention « AI character » : toujours incrustée sur l\'accroche, petite et semi-transparente.</div>'
+        : `<label class="c" style="margin-top:10px"><input type="checkbox" data-m="1" data-k="label" ${P.montage.label ? 'checked' : ''}>Mention « AI character »</label>
+          <div class="aide">Petite et semi-transparente, dans un coin. Obligatoire sur l'accroche ; au choix ici.</div>`}
+      <div class="gt">Durée et fin</div>
+      <div class="row" style="align-items:flex-start"><label class="g">Durée visée<select data-m="1" data-k="cible">${[[0, 'Tout garder'], [15, '15 s'], [20, '20 s'], [30, '30 s']].map(([v, l]) => `<option value="${v}" ${v === (P.montage.cible || 0) ? 'selected' : ''}>${l}</option>`).join('')}</select>
+        ${aide('Les plans sont raccourcis en proportion (2 s au moins chacun), sans toucher aux raccords continus ni aux durées réglées à la main.')}</label>
+        ${T === 1 ? '<button class="s" data-a="teaser" style="margin-top:20px">Réglages teaser 15 s</button>' : ''}</div>
+      <div class="row">${T === 1 ? `<label class="c"><input type="checkbox" data-m="1" data-k="carton" ${P.montage.carton ? 'checked' : ''}>Carton de fin</label>` : ''}
+        <label class="c"><input type="checkbox" data-m="1" data-k="noir" ${P.montage.noir ? 'checked' : ''}>Fin au noir</label></div>
+      <div class="aide">${T === 1 ? 'Carton de fin : 2,6 s avec le texte « Carton de fin » de l\'étape 2. ' : ''}Fin au noir : la dernière image s'éteint en fondu au lieu de couper net.</div>
+      <div class="gt">Son</div>
+      <label>Musique<select data-m="1" data-k="musique"><option value="">Aucune</option>${E.musiques.map(m => `<option ${m === P.montage.musique ? 'selected' : ''}>${esc(m)}</option>`).join('')}</select>
+        ${aide(E.musiques.length ? 'Coupée à la durée de la vidéo. Pour en ajouter : déposer des fichiers mp3 dans data/audio sur le serveur.' : 'Aucun fichier : déposer des mp3 dans data/audio sur le serveur.')}</label>
       <div id="mont"></div>
     </div>
     <div class="row"><span class="sp" style="flex:1"></span><button class="d" data-a="archiver">Archiver ce projet</button></div>`;
@@ -364,12 +401,14 @@ function majDyn() {
   const c = D.chaine, occ = D.prod.etat === 'en cours' || c.etat === 'en cours', actif = c.etat === 'en cours' || c.etat === 'pause';
   const ETATS = {'en cours': 'Chaîne en cours', pause: 'Chaîne en pause', termine: 'Chaîne terminée', arretee: 'Chaîne arrêtée', erreur: 'Chaîne en erreur'};
   set($('#chaine'), `<b>Production en chaîne du projet</b>
-    <div class="mut">Images des temps cochés, puis clips et montage, un temps après l'autre. Ne calcule que ce qui manque.</div>
-    <div class="row">${[1, 2, 3].map(t => `<label class="c"><input type="checkbox" data-ch="t${t}" ${CH['t' + t] ? 'checked' : ''} ${actif ? 'disabled' : ''}>${t}. ${TEMPS[t][0]} (${P.scenes.filter(x => x.temps === t).length})</label>`).join('')}</div>
+    <div class="mut">Images des temps cochés, puis clips et montage, un temps après l'autre. Ne calcule que ce qui manque. Un devis est affiché avant tout lancement.</div>
+    <div class="row">${NT.map(t => `<label class="c"><input type="checkbox" data-ch="t${t}" ${CH['t' + t] ? 'checked' : ''} ${actif ? 'disabled' : ''}>${t}. ${TEMPS[t][0]} (${P.scenes.filter(x => x.temps === t).length})</label>`).join('')}</div>
     <div class="row"><label class="g">Déroulement<select data-ch="mode" ${actif ? 'disabled' : ''}><option value="pause" ${CH.mode === 'pause' ? 'selected' : ''}>Pause après les images, pour choisir les prises</option>
-      <option value="complet" ${CH.mode === 'complet' ? 'selected' : ''}>D'une traite, sans pause</option></select></label></div>
+      <option value="complet" ${CH.mode === 'complet' ? 'selected' : ''}>D'une traite, sans pause</option></select>
+      ${aide('Avec la pause, aucun clip n\'est payé sur une image ratée : les images sont à vérifier, puis « Continuer ». D\'une traite, les clips partent de la dernière image de chaque scène.')}</label></div>
     <div class="row"><label class="c"><input type="checkbox" data-ch="refaire" ${CH.refaire ? 'checked' : ''} ${actif ? 'disabled' : ''}>Tout refaire (nouvelles prises, les anciennes sont gardées)</label>
       <label class="c"><input type="checkbox" data-ch="hd" ${CH.hd ? 'checked' : ''} ${actif ? 'disabled' : ''}>Clips en 720p</label></div>
+    <div class="aide">Tout refaire : recalcule aussi ce qui existe déjà. 720p : quatre fois le prix du 480p, à garder pour la version finale.</div>
     <div class="row">${c.etat === 'pause' ? '<button class="p" data-a="chainesuite">Continuer : clips et montage</button>' : `<button class="p" data-a="chaine" ${occ || !E.can_run ? 'disabled' : ''}>Lancer la chaîne</button>`}
       ${actif ? `<button data-a="chainestop" ${c.stop ? 'disabled' : ''}>${c.etat === 'pause' ? 'Abandonner la chaîne' : c.stop ? 'Arrêt demandé' : 'Arrêter après l\'étape en cours'}</button>` : ''}</div>
     ${c.ailleurs ? `<div class="mut" style="margin-top:6px">Une chaîne tourne sur le projet ${esc(c.ailleurs)} : les lancements attendent sa fin.</div>` : ''}
@@ -468,7 +507,7 @@ async function chaine(temps) {
   await recharger();
 }
 const actions = {
-  chaine: () => chaine([1, 2, 3].filter(t => CH['t' + t])),
+  chaine: () => chaine(NT.filter(t => CH['t' + t])),
   chainetemps: () => chaine([T]),
   chainesuite: async () => { await sauver(); await api('/api/a/chaine/continuer', {id: P.id}); toast('Chaîne reprise', true); await recharger(); },
   chainestop: async () => { await api('/api/a/chaine/arreter', {id: P.id}); await recharger(); },
@@ -501,7 +540,9 @@ const actions = {
   }, 'Recherche de variantes'),
   variante: el => structure(() => { const v = actions.v[+el.dataset.i]; P.accroche = v.accroche; P.legende = v.legende; P.cta = v.cta; }),
   copier: () => copier([P.legende, P.hashtags].filter(Boolean).join('\n\n')),
-  ajouter: () => structure(() => P.scenes.push({titre: '', role: 'montee', temps: T, still: '', motion: '', texte: '', tattoos: true})),
+  ajouter: () => structure(() => P.scenes.push({titre: '', role: 'montee', temps: T, still: '', motion: '', texte: '', tattoos: true, loras: (E.bibliotheque.defauts || {})[T] || ''})),
+  poserdefauts: () => { const d = (E.bibliotheque.defauts || {})[T] || ''; if (d && confirm(`Poser « ${d} » sur toutes les scènes du temps ${T} ? Les LoRA déjà notées sur ces scènes sont remplacées.`)) return structure(() => P.scenes.filter(s => s.temps === T).forEach(s => s.loras = d)); },
+  lorasauver: loraSauver, loraretirer: loraRetirer, loracorriger: el => loraForm(E.bibliotheque.loras.find(x => x.name === el.dataset.n)), lorainscrire: el => loraForm({file: el.dataset.n}), defautssauver: defautsSauver,
   dupliquer: (el, sid) => structure(() => { const i = P.scenes.findIndex(s => s.id === sid); P.scenes.splice(i + 1, 0, {...P.scenes[i], id: null, seed: 0, image: '', clip: '', origine: ''}); }),
   supprimer: (el, sid) => confirm('Supprimer cette scène ?') && structure(() => P.scenes = P.scenes.filter(s => s.id !== sid)),
   monte: (el, sid) => structure(() => echanger(sid, -1)),
@@ -544,6 +585,56 @@ vue.addEventListener('input', e => {
 });
 window.addEventListener('beforeunload', () => { if (P && tSave) navigator.sendBeacon?.('/api/a/projet', new Blob([JSON.stringify(P)], {type: 'application/json'})); });
 
+// --- Bibliotheque de LoRA --------------------------------------------------------------------------
+function vueLoras() {
+  const B = E.bibliotheque, l = (k, lab, v, o = {}) => `<label>${lab}<input data-l="${k}" type="${o.type || 'text'}" ${o.step ? `step="${o.step}"` : ''} value="${esc(v ?? '')}" placeholder="${esc(o.ph || '')}">${aide(o.aide)}</label>`;
+  vue.innerHTML = `<div class="row" style="margin-top:0"><a href="#/">Retour aux projets</a></div>
+    <h2>Bibliothèque de LoRA <small>${B.loras.length} inscrite(s)</small></h2>
+    <div class="panel"><div class="mut">Une LoRA ajoute au modèle d'image une tenue, une pose ou un style. Elle s'ajoute à la LoRA du visage, qui se règle dans la fiche du personnage.
+      Le fichier se dépose sur le volume par « pilot lora add » (docs/lora-supplementaires.md) ; cette page note comment s'en servir : force conseillée, mots déclencheurs, note.
+      Le choix des LoRA et leurs réglages sont à votre main.</div>
+      <div style="margin-top:8px;font-size:14px">${B.inventaire ? `Inventaire du volume : <b>${esc(B.inventaire)}</b>` : '<span style="color:var(--warn)">Volume pas encore inventorié</span>'}</div>
+      <div class="aide">Relevé au démarrage de chaque calcul d'images et après chaque « pilot lora add ». Sans inventaire, la présence d'un fichier ne peut pas être vérifiée avant de lancer.</div></div>
+    ${B.loras.map(x => `<div class="panel"><b>${esc(x.label)}</b> <span class="badge ${x.volume === null ? 'i' : x.volume ? 'v' : 'a'}">${x.volume === null ? 'présence inconnue' : x.volume ? 'sur le volume' : 'absente du volume'}</span>
+      <div class="mut">Nom à écrire dans une scène : <b style="color:var(--txt)">${esc(x.name)}</b> · force conseillée ${String(x.strength).replace('.', ',')}${x.base ? ' · ' + esc(x.base) : ''}</div>
+      <div class="mut" style="word-break:break-all">${esc(x.file)}</div>
+      ${x.trigger ? `<div style="font-size:14px;margin-top:4px">Mots déclencheurs : ${esc(x.trigger)}</div>` : ''}
+      ${x.note ? `<div style="font-size:14px;margin-top:4px">${esc(x.note)}</div>` : ''}
+      <div class="row"><button class="s" data-a="loracorriger" data-n="${esc(x.name)}">Corriger</button>${x.source ? `<a href="${esc(x.source)}" target="_blank" rel="noopener">Page d'origine</a>` : ''}<span class="sp" style="flex:1"></span>
+        ${x.ou === 'donnees' ? `<button class="s d" data-a="loraretirer" data-n="${esc(x.name)}">Retirer du catalogue</button>` : '<span class="mut">inscrite dans le dépôt</span>'}</div></div>`).join('')
+      || '<p class="mut">Aucune LoRA inscrite.</p>'}
+    ${B.hors.length ? `<h2>Sur le volume, non inscrites <small>${B.hors.length}</small></h2><div class="panel"><div class="mut">Fichiers présents sur le volume que le catalogue ne connaît pas. Les inscrire pour pouvoir les nommer dans une scène.</div>
+      ${B.hors.map(n => `<div class="row"><span style="flex:1;word-break:break-all;font-size:14px">${esc(n)}</span><button class="s" data-a="lorainscrire" data-n="${esc(n)}">Inscrire</button></div>`).join('')}</div>` : ''}
+    <h2 id="lform">Inscrire ou corriger une LoRA</h2>
+    <div class="panel">
+      ${l('name', 'Nom court', '', {ph: 'lingerie_dentelle', aide: 'Le nom à écrire dans une scène. Minuscules, chiffres et tirets bas. Reprendre un nom existant corrige sa fiche.'})}
+      ${l('label', 'Intitulé', '', {aide: 'Ce que fait la LoRA, en clair. Affiché dans cette page.'})}
+      ${l('file', 'Fichier', '', {ph: 'nom_du_fichier.safetensors', aide: 'Nom du .safetensors tel qu\'il est sur le volume.'})}
+      ${l('strength', 'Force conseillée', '0.8', {type: 'number', step: '0.05', aide: 'Entre 0,1 et 2. Utilisée quand la scène écrit le nom seul ; « nom:0.6 » dans une scène la remplace. Trop forte, elle déforme le visage.'})}
+      ${l('trigger', 'Mots déclencheurs (anglais)', '', {aide: 'Ajoutés d\'office à la fin de la description de l\'image quand la LoRA est utilisée. Vide si la LoRA n\'en demande pas.'})}
+      ${l('note', 'Note', '', {aide: 'Pour vous : à quoi elle sert, avec quelles poses, ce qui rate.'})}
+      <div class="row"><button class="p" data-a="lorasauver">Enregistrer la LoRA</button></div></div>
+    <h2>LoRA par défaut de chaque temps</h2>
+    <div class="panel"><div class="mut">Posées sur chaque scène ajoutée à ce temps, et sur les plans importés qui ne disent rien des LoRA. L'accroche n'en porte pas. Chaque scène reste modifiable.</div>
+      ${[2, 3, 4].map(t => `<label>${t}. ${TEMPS[t][0]} <span class="mut">${TEMPS[t][1]}</span><input data-d="${t}" value="${esc((B.defauts || {})[t] || '')}" placeholder="nom:0.6, autre">${aide(t === 2 ? 'Noms inscrits ci-dessus, « nom:force », séparés par des virgules. Vide : aucune.' : '')}</label>`).join('')}
+      <div class="row"><button class="p" data-a="defautssauver">Enregistrer les défauts</button></div></div>`;
+}
+function loraForm(x) {
+  for (const k of ['name', 'label', 'file', 'strength', 'trigger', 'note']) if (x && x[k] != null) $(`[data-l="${k}"]`, vue).value = x[k];
+  $('#lform').scrollIntoView({behavior: 'smooth'});
+}
+async function loraSauver() {
+  const b = Object.fromEntries($$('[data-l]', vue).map(el => [el.dataset.l, el.value.trim()]));
+  E.bibliotheque = (await api('/api/a/lora', b)).bibliotheque; toast('LoRA enregistrée', true); vueLoras();
+}
+async function loraRetirer(el) {
+  if (!confirm(`Retirer « ${el.dataset.n} » du catalogue ? Le fichier reste sur le volume ; les scènes qui la nomment seront signalées au contrôle des plans.`)) return;
+  E.bibliotheque = (await api('/api/a/lora', {name: el.dataset.n, supprimer: true})).bibliotheque; vueLoras();
+}
+async function defautsSauver() {
+  E.bibliotheque = (await api('/api/a/lora/defauts', {defauts: Object.fromEntries($$('[data-d]', vue).map(el => [el.dataset.d, el.value]))})).bibliotheque; toast('Défauts enregistrés', true); vueLoras();
+}
+
 // --- Personnages -----------------------------------------------------------------------------------
 function vuePersos() {
   vue.innerHTML = `<div class="row" style="margin-top:0"><a href="#/">Retour aux projets</a><span class="sp" style="flex:1"></span><button class="p" onclick="location.hash='#/perso'">Nouveau personnage</button></div>
@@ -555,32 +646,37 @@ const FICHE = [['identite', 'Identité (métier, ville, situation)'], ['apparenc
 async function vuePerso(slug) {
   const p = slug ? await api('/api/a/personnage?slug=' + encodeURIComponent(slug)) : {nom: '', age: '', langue: 'en', fiche: {}, lieux: [], tenues: [], ecriture: {plateforme: 'Fanvue'}, generation: {lora_strength: 1}};
   const i = (k, lab, v, o = {}) => `<label>${lab}${o.area ? `<textarea data-p="${k}" rows="${o.rows || 2}" placeholder="${esc(o.ph || '')}">${esc(v)}</textarea>`
-    : `<input data-p="${k}" type="${o.type || 'text'}" ${o.step ? `step="${o.step}"` : ''} value="${esc(v)}" placeholder="${esc(o.ph || '')}">`}</label>`;
+    : `<input data-p="${k}" type="${o.type || 'text'}" ${o.step ? `step="${o.step}"` : ''} value="${esc(v)}" placeholder="${esc(o.ph || '')}">`}${aide(o.aide)}</label>`;
   const g = p.generation || {}, w = p.ecriture || {};
   vue.innerHTML = `<div class="row" style="margin-top:0"><a href="#/persos">Personnages</a></div>
     <h2>${slug ? esc(p.nom) : 'Nouveau personnage'}</h2>
     ${slug ? '' : `<div class="panel"><label>Concept, en une ou deux phrases<textarea id="concept" rows="2" placeholder="Une barmaid de nuit à Marseille, brune, tatouée, grande gueule et tendre"></textarea></label>
       <div class="row"><button class="p" data-a="persoia" ${E.redacteur ? '' : 'disabled'}>Rédiger la fiche avec l'IA</button><span class="mut">${E.redacteur ? 'La fiche reste modifiable avant enregistrement.' : 'Rédacteur IA arrêté : remplir la fiche à la main.'}</span></div></div>`}
     <div class="panel"><input type="hidden" data-p="slug" value="${esc(slug)}">
-      <div class="row" style="margin-top:0"><div class="g">${i('nom', 'Nom', p.nom)}</div><div style="width:84px">${i('age', 'Âge (21 au moins)', p.age, {type: 'number'})}</div>
+      <div class="mut">Ce que le rédacteur IA sait d'elle : il s'en sert pour chaque idée, chaque scénario et chaque texte.</div>
+      <div class="row"><div class="g">${i('nom', 'Nom', p.nom)}</div><div style="width:84px">${i('age', 'Âge (21 au moins)', p.age, {type: 'number'})}</div>
         <div style="width:110px"><label>Publie en<select data-p="langue"><option value="en" ${p.langue === 'en' ? 'selected' : ''}>anglais</option><option value="fr" ${p.langue === 'fr' ? 'selected' : ''}>français</option></select></label></div></div>
-      ${i('accroche', 'La phrase qui la résume', p.accroche)}
+      ${i('accroche', 'La phrase qui la résume', p.accroche, {aide: 'Affichée dans la liste des personnages et rappelée au rédacteur.'})}
       ${FICHE.map(([k, l]) => i('fiche.' + k, l, p.fiche?.[k], {area: 1})).join('')}
     </div>
     <h2>Lieux et tenues <small>un par ligne : français | anglais</small></h2>
-    <div class="panel">${i('lieux', 'Lieux', (p.lieux || []).join('\n'), {area: 1, rows: 5, ph: 'sa cuisine | in her small kitchen with a wooden counter'})}
+    <div class="panel"><div class="mut">Le rédacteur pioche dedans pour la fiche de continuité : la partie française lui sert à choisir, la partie anglaise part dans la description de l'image.</div>${i('lieux', 'Lieux', (p.lieux || []).join('\n'), {area: 1, rows: 5, ph: 'sa cuisine | in her small kitchen with a wooden counter'})}
       ${i('tenues', 'Tenues', (p.tenues || []).join('\n'), {area: 1, rows: 5, ph: 'robe d\'été | a light summer dress with thin straps'})}</div>
     <h2>Écriture</h2>
-    <div class="panel">${i('ecriture.ton', 'Ton', w.ton)}${i('ecriture.cta', 'Appel à l\'action habituel (carton de fin)', w.cta)}
-      <div class="row"><div class="g">${i('ecriture.plateforme', 'Plateforme payante', w.plateforme)}</div><div class="g">${i('ecriture.hashtags', 'Mots-dièse', w.hashtags)}</div></div>
-      ${i('ecriture.interdits', 'À ne jamais écrire ou montrer', w.interdits, {area: 1})}</div>
+    <div class="panel">${i('ecriture.ton', 'Ton', w.ton, {aide: 'Comment elle écrit ses accroches et ses légendes.'})}
+      ${i('ecriture.cta', 'Appel à l\'action habituel', w.cta, {aide: 'Proposé comme carton de fin de chaque accroche.'})}
+      <div class="row" style="align-items:flex-start"><div class="g">${i('ecriture.plateforme', 'Plateforme payante', w.plateforme, {aide: 'Où se trouve la suite.'})}</div>
+        <div class="g">${i('ecriture.hashtags', 'Mots-dièse', w.hashtags, {aide: 'Proposés pour chaque publication.'})}</div></div>
+      ${i('ecriture.interdits', 'À ne jamais écrire ou montrer', w.interdits, {area: 1, aide: 'Rappelé au rédacteur à chaque écriture.'})}</div>
     <h2>Génération <small>réglages envoyés au modèle d'image</small></h2>
-    <div class="panel">${i('generation.zimage_prefix', 'Début de chaque description (anglais : mot déclencheur, cheveux, yeux)', g.zimage_prefix, {area: 1, ph: 'a woman with long dark hair and brown eyes,'})}
-      <div class="row"><div class="g">${i('generation.lora', 'Fichier LoRA du visage (vide : visage variable)', g.lora)}</div><div style="width:90px">${i('generation.lora_strength', 'Force', g.lora_strength, {type: 'number', step: '0.1'})}</div></div>
-      ${i('generation.corps', 'Corps (anglais, à votre main, ajouté à chaque image)', g.corps, {area: 1})}
-      ${i('generation.suffixe', 'Fin de chaque description (vide : réglage commun)', g.suffixe, {area: 1, rows: 1})}
-      ${i('generation.note', 'Note pour le rédacteur (ce que le LoRA porte déjà)', g.note, {area: 1, rows: 1})}
-      <div class="mut" style="margin-top:6px">Sans LoRA, le visage change d'une image à l'autre. L'entraînement d'un LoRA coûte environ 2 $ et se fait hors de cette page.</div></div>
+    <div class="panel">${i('generation.zimage_prefix', 'Début de chaque description (anglais)', g.zimage_prefix, {area: 1, ph: 'a woman with long dark hair and brown eyes,',
+        aide: 'Placé devant chaque description d\'image : mot déclencheur de la LoRA du visage, cheveux, yeux.'})}
+      <div class="row" style="align-items:flex-start"><div class="g">${i('generation.lora', 'Fichier LoRA du visage', g.lora, {aide: 'Vide : le visage change d\'une image à l\'autre. L\'entraînement coûte environ 2 $ et se fait hors de cette page.'})}</div>
+        <div style="width:90px">${i('generation.lora_strength', 'Force', g.lora_strength, {type: 'number', step: '0.1', aide: '1 en général.'})}</div></div>
+      ${i('generation.corps', 'Corps (anglais)', g.corps, {area: 1, aide: 'À votre main. Ajouté à chaque image.'})}
+      ${i('generation.suffixe', 'Fin de chaque description', g.suffixe, {area: 1, rows: 1, aide: 'Qualité, grain, objectif. Vide : réglage commun à tous les personnages.'})}
+      ${i('generation.note', 'Note pour le rédacteur', g.note, {area: 1, rows: 1, aide: 'Ce que la LoRA du visage porte déjà (tatouages, piercing), pour qu\'il ne le redécrive pas.'})}
+      <div class="mut" style="margin-top:8px">Les LoRA de tenue, de pose ou de style se règlent dans la <a href="#/loras">bibliothèque de LoRA</a>.</div></div>
     <div class="row"><button class="p" data-a="persosauver">Enregistrer</button><span class="sp" style="flex:1"></span>
       ${slug ? (p.statut === 'archive' ? '<button data-a="persoreactiver">Réactiver</button>' : '<button class="d" data-a="persoarchiver">Archiver</button>') : ''}</div>
     <p class="mut">Personnages fictifs, adultes, sans ressemblance avec une personne réelle, présentés comme créés par IA.</p>`;

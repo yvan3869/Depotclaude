@@ -27,8 +27,14 @@ def _phrases(t):
     return [x for x in re.split(r"(?<=[.!?])\s+", t.strip()) if x]
 
 
-def controle(p, temps):
-    """Remarques sur les scenes d'un temps du projet p (dictionnaire tel qu'enregistre)."""
+def _noms(txt):
+    """Noms des LoRA d'une scene ("nom:0.6, autre")."""
+    return [x.partition(":")[0] for x in str(txt or "").split(", ") if x]
+
+
+def controle(p, temps, lib=None):
+    """Remarques sur les scenes d'un temps du projet p (dictionnaire tel qu'enregistre).
+    `lib` : {"cat": {nom du catalogue: fichier}, "volume": fichiers du volume ou None, "date": date de l'inventaire}."""
     sc = [s for s in p.get("scenes") or [] if s.get("temps", 1) == temps]
     c = p.get("continuite") or {}
     out = []
@@ -101,6 +107,13 @@ def controle(p, temps):
             r(f"Texte à l'écran de {len(texte.split())} mots : illisible en 5 s (7 au plus).", s)
         if _EMOJI.search(texte):
             r("Emoji dans le texte à l'écran : la police de montage ne l'affiche pas.", s)
+        for nom in _noms(s.get("loras")) if lib else []:
+            fichier = lib["cat"].get(nom) or (nom if nom.endswith(".safetensors") else "")
+            if not fichier:
+                r(f"LoRA « {nom} » absente du catalogue : le pilote ne saura pas quel fichier charger. L'inscrire dans la bibliothèque de LoRA.", s, True)
+            elif lib.get("volume") is not None and fichier not in lib["volume"]:
+                r(f"LoRA « {nom} » : {fichier} n'est pas sur le volume (inventaire du {lib.get('date') or '?'}). "
+                  "Le calcul s'arrêterait au démarrage du pod. La déposer par « pilot lora add » ou corriger la scène.", s, True)
         cran = int(s.get("cran") or 0)
         if cran and cran < haut:
             r(f"Progression : cran {cran} après un cran {haut}. La vidéo redescend.", s)
