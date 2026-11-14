@@ -237,9 +237,9 @@ function rendreProjet() {
       <label>Image de référence<select data-k="reference"><option value="">Aucune : chaque image est créée à partir de sa description</option>
         ${P.scenes.filter((s, i) => s.temps === 1 && s.still && !(s.raccord === 'continu' && P.scenes.slice(0, i).some(x => x.temps === 1))).map(s => `<option value="${s.id}" ${s.id === P.reference ? 'selected' : ''}>Scène ${P.scenes.filter(x => x.temps === 1).indexOf(s) + 1} du temps 1 : ${esc(s.titre)}</option>`).join('')}</select>
         ${aide('Avec une image de référence, les autres images en sont tirées par retouche : même personne, même pièce, même tenue, seule la pose change ; elle garde aussi le cadrage de la référence, donc une scène dont la description contient « close-up » est tirée à part, avec la fiche de continuité. À choisir une fois l\'image de cette scène réussie. Les scènes « libres » et celles qui portent des LoRA gardent leur propre image.')}</label>
-      ${P.reference ? `<label>Images du temps ${T}<select data-tir="${T}"><option value="ref" ${TIR(T) === 'ref' ? 'selected' : ''}>Tirées de l'image de référence (même pièce, même tenue, pose proche)</option>
-        <option value="direct" ${TIR(T) === 'direct' ? 'selected' : ''}>Créées à part (visage du personnage et fiche de continuité)</option></select>
-        ${aide('Tirée de la référence, une image garde sa tenue et sa pose : bon pour un temps où elle reste habillée et bouge peu. Créée à part, la tenue et la pose suivent la description de la scène, au prix d\'un décor moins constant. Par défaut : référence aux temps 1 et 2, à part aux temps 3 et 4.')}</label>` : ''}
+      ${P.reference ? `<label>Images du temps ${T}<select data-tir="${T}"><option value="ref" ${TIR(T) === 'ref' ? 'selected' : ''}>Tirées de la référence</option>
+        <option value="direct" ${TIR(T) === 'direct' ? 'selected' : ''}>Créées à part</option></select>
+        ${aide('Tirée de la référence, une image garde la pièce, la tenue et à peu près la pose : bon pour un temps où elle reste habillée et bouge peu. Créée à part (visage du personnage et fiche de continuité), la tenue et la pose suivent la description de la scène, au prix d\'un décor moins constant. Par défaut : référence aux temps 1 et 2, à part aux temps 3 et 4.')}</label>` : ''}
     </div></details>
 
     ${sec('scenes', 'Scènes', `${SC.length}, environ ${Math.round(SC.reduce((a, s) => a + (s.duree || 5), 0) + (T === 1 && P.montage.carton ? 2.6 : 0))} s`)}

@@ -153,6 +153,11 @@ Trois outils evitent qu'une video change de piece, de tenue ou de personne d'une
   fiche de continuite, sans la reference) : ecrire ce mot tel quel pour obtenir un gros plan. Les plans `libre` et ceux qui portent des
   LoRA supplementaires gardent leur propre tirage. Dans les temps 2 a 4, la retouche ne garde pas la tenue de la
   reference : elle prend celle que decrit le `still` (champ de pilote `tenue_libre`, pose par l'atelier).
+- **Tirage des images d'un temps** (`tirage`, au projet, regle par le proprietaire dans la fiche de continuite ;
+  ce n'est pas un champ de plan) : `ref` = images tirees de la reference par retouche, `direct` = chaque image creee
+  a part (LoRA du visage, description et fiche de continuite). Par defaut `ref` aux temps 1 et 2, `direct` aux temps
+  3 et 4 : une retouche garde trop la tenue et la pose de la reference pour un temps ou elle se deshabille. En tirage
+  `direct`, le `still` doit donc dire le lieu en plus de la tenue si la fiche ne suffit pas.
 - **Raccord** (`raccord`, par plan, par rapport au plan precedent du meme temps) :
   - `coupe` (defaut) : le plan a sa propre image, le montage coupe. Pour un changement de cadrage ou d'angle.
   - `continu` : le plan n'a pas d'image propre. Son clip demarre sur la derniere image du clip precedent et
@@ -227,6 +232,11 @@ Les LoRA supplementaires (hors LoRA du personnage) se gerent dans la page `/atel
   `loras` (ni dans le plan ni dans `defaults`) les recoit a l'import ; `loras: []` veut dire aucune ; une liste
   ecrite est prise telle quelle. A un nouvel import, une scene deja importee garde les LoRA que le proprietaire
   lui a posees dans la page tant que le plan n'en dit rien.
+  Au calcul (images et clips), une scene qui n'a aucune LoRA prend celles de son temps ; celles d'une scene priment.
+  Une LoRA n'est jamais chargee d'apres ce que dit la description : seulement si elle est nommee.
+- **Verdict du proprietaire** : sous chaque image retenue, des cases (bonne, tenue fausse, geste absent, objet en
+  trop, visage, corps, decor, cadrage), gardees dans `verdicts.json` du projet (`{image: [codes]}`, rendu par
+  `/api/a/projet` sous `verdicts`). Des codes, pas de texte : ils se lisent sans voir l'image, temps 3 et 4 compris.
 - **Presence sur le volume** : a chaque lancement, le pilote note les fichiers du volume dans
   `server/data/lora_volume.json`. Le controle des plans signale comme grave une LoRA absente du catalogue ou dont le
   fichier n'est pas sur le volume : le calcul s'arreterait au demarrage du pod. N'employer que des noms du catalogue.

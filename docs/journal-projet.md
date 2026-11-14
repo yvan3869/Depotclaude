@@ -327,3 +327,14 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
   formulaire. Test : lignes de LoRA en grille (nom, force, declencheur dessous), boutons de verdict en contour.
   Atelier : les deux boutons « Tout refaire » du son s'appellent « Refaire tous les sons » et « Refaire d'apres
   l'image ». Verifie par captures Chromium en 390 et 1100 px, sans debordement. Disque : 31 Go sur 197.
+- 14/11, nuit : tirage par temps, LoRA du temps au calcul, cases de verdict (retours du proprietaire sur p0003 :
+  veste qui apparait, tenue qui tourne aux sous-vetements chair, gestes non executes). Champ de projet `tirage` :
+  `ref` (retouche de la reference) ou `direct` (image creee a part), regle dans la fiche de continuite ; par defaut
+  `ref` aux temps 1 et 2, `direct` aux temps 3 et 4, projets existants compris. Au calcul, une scene sans LoRA prend
+  celles de son temps (`lora_defauts.json`, jamais enregistre a ce jour) ; les LoRA partent aussi avec les clips :
+  l'atelier ne les envoyait qu'avec les images, une LoRA video n'etait donc jamais chargee. Cases de verdict sous
+  chaque image retenue (`verdicts.json`, codes sans texte). Essai sur p0004, temps 1 en `direct`, deux images :
+  meme personne, meme tenue, meme cuisine, pose plus libre ; reglage remis a `ref`. 0,06 $ ; depense du jour
+  4,28 $ sur 7,50 $. Corrige au passage : le script de deploiement reecrivait la chaine en pause sans sa version,
+  la migration trois vers quatre temps se rejouait (temps de la chaine de p0003 retablis a 1, 2, 3, 4).
+  Disque : 31 Go sur 197.
