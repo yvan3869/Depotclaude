@@ -160,9 +160,9 @@ class Hub:
         journal = []
         if self.log.is_file():
             journal = [l[:300] for l in self.log.read_text(encoding="utf-8", errors="replace").splitlines()
-                       if re.search(r"CHARGE |ECHEC |rapport :|pod .* (cree|supprime)|Error|erreur", l)][-12:]
+                       if re.search(r"CHARGE |EFFACE |ECHEC |rapport :|pod .* (cree|supprime)|Error|erreur", l)][-12:]
         return {"retenues": ret, "interne": bib["loras"], "inventaire": bib["inventaire"], "defauts": bib["defauts"],
-                "categories": bib["categories"], "familles": bib["familles"], "requetes": REQ,
+                "categories": bib["categories"], "familles": bib["familles"], "requetes": REQ, "a_effacer": self._a_effacer(),
                 "veille": veille.read_text(encoding="utf-8") if veille.is_file() else "",
                 "occupe": self.studio.running(), "en_cours": self.en_cours(), "journal": journal,
                 "can_run": self.studio.can_run(), "cle_civitai": bool(os.environ.get("CIVITAI_TOKEN")), "max_mo": MAX_MO, "max_lot": MAX_LOT}
@@ -284,6 +284,59 @@ class Hub:
                     f.write_text(yaml.safe_dump(cat, allow_unicode=True, sort_keys=False), encoding="utf-8")
         return self.etat()
 
+    # --- suppression ----------------------------------------------------------------------------------------
+    def _a_effacer(self):
+        try:
+            d = json.loads((self.data / "lora_effacer.json").read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            d = []
+        return [str(x) for x in d] if isinstance(d, list) else []
+
+    def supprimer(self, b):
+        """Sort une LoRA du catalogue et des retenues, et note ses fichiers a effacer du volume (au prochain pod de LoRA).
+        Un fichier qui sert encore a une autre LoRA ou au visage d'un personnage n'est pas efface."""
+        import yaml
+        nom = str(b.get("name") or "")
+        f = self.data / "lora_catalog.yaml"
+        with self.at.lock:
+            cat = (yaml.safe_load(f.read_text(encoding="utf-8")) or {}) if f.is_file() else {}
+            x = cat.pop(nom, None)
+            if x is None:
+                raise ValueError("cette LoRA est inscrite dans le dépôt, pas dans le catalogue : elle ne se supprime pas d'ici")
+            f.write_text(yaml.safe_dump(cat, allow_unicode=True, sort_keys=False), encoding="utf-8")
+            d = self._retenues()
+            if x.get("hub") in d:
+                del d[x["hub"]]
+                self._ecrire(d)
+            garde = {str(v.get(k)) for v in self.at._catalogue().values() for k in ("file", "file_low") if v.get(k)}
+            garde |= {str((v.get("generation") or {}).get("lora") or "") for v in self.at.persos().values()}
+            try:
+                prod = yaml.safe_load((self.repo / "persona" / "production.yaml").read_text(encoding="utf-8")) or {}
+                garde |= {v for v in (prod.get("character") or {}).values() if isinstance(v, str)}
+            except Exception:
+                pass
+            vol = self.at._lib()["volume"]
+            att = self._a_effacer()
+            for k in ("file", "file_low"):
+                fich = str(x.get(k) or "")
+                if fich and fich not in garde and fich not in att and (vol is None or fich in vol):
+                    att.append(fich)
+            if att:
+                (self.data / "lora_effacer.json").write_text(json.dumps(att), encoding="utf-8")
+        return self.etat()
+
+    def purger(self, b):
+        """Efface tout de suite du volume les fichiers en attente : un pod de quelques minutes."""
+        if not self._a_effacer():
+            raise ValueError("rien à effacer")
+        if self.studio.running() or self.en_cours() or self.at.chaine_active():
+            raise ValueError("un calcul est déjà en cours : attendre sa fin")
+        if not self.studio.can_run():
+            raise ValueError("clé RunPod absente : effacement impossible depuis l'interface")
+        self.proc = self.studio.proc = subprocess.Popen([sys.executable, "-m", "pilot", "lora", "purge", "--data", str(self.data)],
+                                                        cwd=str(self.repo / "server"), stdout=open(self.log, "w"), stderr=subprocess.STDOUT)
+        return {"lance": True}
+
     # --- chargement -----------------------------------------------------------------------------------------
     def charger(self, b):
         """Charge sur le volume les LoRA retenues nommees : un seul pod pour le lot, supprime a la fin."""
@@ -322,5 +375,6 @@ class Hub:
         return None
 
     def post(self, path, b):
-        f = {"/api/h/retenir": self.retenir, "/api/h/retirer": self.retirer, "/api/h/regler": self.regler, "/api/h/charger": self.charger}.get(path)
+        f = {"/api/h/retenir": self.retenir, "/api/h/retirer": self.retirer, "/api/h/regler": self.regler, "/api/h/charger": self.charger,
+             "/api/h/supprimer": self.supprimer, "/api/h/purger": self.purger}.get(path)
         return f(b) if f else None

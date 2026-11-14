@@ -35,7 +35,7 @@ const vg = (u, cls = 'vg') => `<div class="${cls}"${u ? ` style="background-imag
 async function charge() { E = await api('/api/h/etat'); entete(); }
 function entete() {
   $('#onglets').innerHTML = ONG.map(([k, l]) => `<a class="chip${onglet() === k ? ' on' : ''}" href="#/${k}">${l}${k === 'retenues' ? ` <small>${E.retenues.length}</small>` : k === 'liste' ? ` <small>${E.interne.length}</small>` : ''}</a>`).join('');
-  $('#etat').textContent = E.en_cours ? 'chargement en cours' : E.occupe ? 'calcul en cours' : '';
+  $('#etat').textContent = E.en_cours ? 'volume : travail en cours' : E.occupe ? 'calcul en cours' : '';
 }
 function rendre() {
   entete();
@@ -80,6 +80,24 @@ async function retenir(el) {
   x.retenue = true; entete(); resultats(); toast('Retenue. À charger ensuite dans l\'onglet Retenues', true);
 }
 
+// --- Fichiers a effacer du volume ----------------------------------------------------------------------
+function effacerHtml() {
+  if (!E.a_effacer.length) return '';
+  const bloque = E.en_cours ? 'Un chargement ou un effacement est en cours.' : E.occupe ? 'Un calcul est en cours : attendre sa fin.' : !E.can_run ? 'Clé RunPod absente.' : '';
+  return `<div class="panel"><b>${ic('supprimer')}${E.a_effacer.length} fichier(s) à effacer du volume</b>
+    <div class="mut" style="word-break:break-all">${E.a_effacer.map(esc).join(', ')}</div>
+    <div class="acts"><div class="act"><button data-a="purger"${bloque ? ' disabled' : ''}>${ic('supprimer')}Effacer maintenant</button>
+      <span class="mut">${bloque || 'Un pod de deux à trois minutes, environ 0,03 $. Sinon ils seront effacés au prochain chargement de LoRA, sans frais de plus.'}</span></div></div></div>`;
+}
+async function supprimer(el) {
+  if (!confirm(`Supprimer « ${el.dataset.l} » ? Elle sort du catalogue et des retenues, et son fichier sera effacé du volume. Les projets qui s'en servent le signaleront au contrôle.`)) return;
+  E = await api('/api/h/supprimer', {name: el.dataset.n}); toast('Supprimée. Fichier à effacer du volume', true); rendre();
+}
+async function purger() {
+  if (!confirm(`Effacer ${E.a_effacer.length} fichier(s) du volume ? Un pod est loué deux à trois minutes (environ 0,03 $), puis supprimé.`)) return;
+  await api('/api/h/purger', {}); toast('Effacement lancé', true); await charge(); rendre(); suivre();
+}
+
 // --- Retenues ----------------------------------------------------------------------------------------
 function vueRetenues() {
   const att = E.retenues.filter(x => !x.chargee), ok = E.retenues.filter(x => x.chargee);
@@ -98,9 +116,10 @@ function vueRetenues() {
       ${x.chargee ? '' : `<label>Nom court<input data-r="name" value="${esc(x.name)}">${aide('Minuscules, chiffres, tirets bas. Fixé une fois la LoRA chargée.')}</label>`}
       <label>Mots déclencheurs (anglais)<input data-r="trigger" value="${esc(x.trigger)}">${aide('Ajoutés d\'office à la description quand la LoRA sert.')}</label>
       <div class="row"><button class="s p" data-a="regler" data-c="${esc(x.cle)}">${ic('valider')}Enregistrer</button><span class="sp"></span>
-        <button class="s d" data-a="retirer" data-c="${esc(x.cle)}">${ic('supprimer')}Retirer</button></div></details>
+        ${x.chargee ? `<button class="s d" data-a="supprimer" data-n="${esc(x.catalogue)}" data-l="${esc(x.label)}">${ic('supprimer')}Supprimer</button>`
+          : `<button class="s d" data-a="retirer" data-c="${esc(x.cle)}">${ic('supprimer')}Retirer</button>`}</div></details>
     ${x.chargee ? '' : `<label class="c" style="margin-top:8px"><input type="checkbox" data-k="${esc(x.cle)}"${coche.has(x.cle) ? ' checked' : ''}>${x.commercial ? 'Dans le prochain chargement' : 'Dans le prochain chargement. Licence : usage commercial non admis, à vos risques pour une vidéo publiée.'}</label>`}</div>`;
-  vue.innerHTML = `<details class="sec" data-sec="hub-att"${ouv('hub-att', true)}><summary><span class="n">1</span>À charger<small>${att.length} LoRA</small></summary>
+  vue.innerHTML = effacerHtml() + `<details class="sec" data-sec="hub-att"${ouv('hub-att', true)}><summary><span class="n">1</span>À charger<small>${att.length} LoRA</small></summary>
       ${att.length ? '<div class="mut">Retenues, mais pas encore utilisables : elles ne le sont qu\'une fois chargées sur le volume, par le bouton en bas de cette liste.</div>' : ''}
       ${att.map(carte).join('') || '<p class="mut">Rien à charger. Retenir des fiches dans le catalogue.</p>'}
       ${att.length ? `<div class="panel"><div class="acts"><div class="act"><button class="p" data-a="charger"${bloque ? ' disabled' : ''}>${ic('telecharger')}Charger sur le volume</button>
@@ -108,7 +127,7 @@ function vueRetenues() {
         ${E.cle_civitai ? '' : '<div class="aide avt">Clé Civitai absente du service : seules les LoRA de Hugging Face se chargent.</div>'}</div>` : ''}
       ${E.journal.length ? `<details class="pli"${E.en_cours ? ' open' : ''}><summary>Dernier chargement</summary><pre>${esc(E.journal.join('\n'))}</pre></details>` : ''}</details>
     <details class="sec" data-sec="hub-ok"${ouv('hub-ok', true)}><summary><span class="n">2</span>Chargées<small>${ok.length} LoRA</small></summary>
-      <div class="mut">Disponibles dans l'atelier, aux temps que leur catégorie admet.</div>
+      <div class="mut">Disponibles dans l'atelier, aux temps que leur catégorie admet. Pour en supprimer une (catalogue et fichier du volume) : « Régler », puis « Supprimer ».</div>
       ${ok.map(carte).join('') || '<p class="mut">Aucune pour l\'instant.</p>'}</details>`;
 }
 async function regler(el) {
@@ -127,24 +146,22 @@ async function charger() {
 let minuteur = null;
 function suivre() {
   clearTimeout(minuteur);
-  minuteur = setTimeout(essai(async () => { const avant = E.en_cours; await charge(); if (onglet() === 'retenues' && !$('details.pli[open] input:focus')) rendre(); if (E.en_cours || avant) suivre(); }), 8000);
+  minuteur = setTimeout(essai(async () => { const avant = E.en_cours; await charge(); if (['retenues', 'liste'].includes(onglet()) && !$('details.pli[open] input:focus')) rendre(); if (E.en_cours || avant) suivre(); }), 8000);
 }
 
 // --- Notre liste -------------------------------------------------------------------------------------
 function vueListe() {
   const par = {};
   E.interne.forEach(x => (par[x.cat] = par[x.cat] || []).push(x));
-  vue.innerHTML = `<div class="panel"><div class="mut">Les LoRA inscrites au catalogue interne, rangées par catégorie. Une scène d'un temps ne peut nommer que celles que sa catégorie admet.
-      Les défauts de chaque temps et l'inscription à la main se règlent dans <a href="/atelier#/loras">la bibliothèque de l'atelier</a>.</div>
+  vue.innerHTML = effacerHtml() + `<div class="panel"><div class="mut">Les LoRA du catalogue interne, par catégorie. La catégorie décide des temps où une LoRA peut servir.
+      La corbeille la sort du catalogue et efface son fichier du volume. Inscription à la main : <a href="/atelier#/loras">bibliothèque de l'atelier</a>.</div>
       <div style="margin-top:8px;font-size:14px">${E.inventaire ? `Inventaire du volume : <b>${esc(E.inventaire)}</b>` : '<span class="avt">Volume pas encore inventorié</span>'}</div></div>
     ${Object.keys(E.categories).filter(k => par[k]).map(k => `<h2>${esc(E.categories[k].label)} <small>${par[k].length}</small> ${temps(k)}</h2>
       ${par[k].map(x => `<div class="panel"><div class="ret">${x.vignette ? vg(x.vignette) : ''}<div class="g"><b>${esc(x.label)}</b>
         <span class="badge ${x.volume === null ? 'i' : x.volume ? 'v' : 'a'}">${x.volume === null ? 'présence inconnue' : x.volume ? 'sur le volume' : 'absente du volume'}</span>
         <div class="mut">${esc(E.familles[x.famille].label)} · nom : <b style="color:var(--txt)">${esc(x.name)}</b> · force ${String(x.strength).replace('.', ',')}</div>
-        <label>Catégorie${selCat(x.cat, `data-ic="${esc(x.name)}"`)}</label></div></div></div>`).join('')}`).join('') || '<p class="mut">Aucune LoRA inscrite.</p>'}
-    <h2>LoRA par défaut de chaque temps</h2>
-    <div class="panel">${[1, 2, 3, 4].map(t => `<div class="mut">Temps ${t} : <b style="color:var(--txt)">${esc((E.defauts || {})[t] || 'aucune')}</b></div>`).join('')}
-      <div class="aide">Posées sur chaque scène ajoutée à ce temps. Une scène qui porte une LoRA d'image est tirée directement, sans retouche depuis l'image de référence du projet.</div></div>`;
+        <div class="row"><label class="g">Catégorie${selCat(x.cat, `data-ic="${esc(x.name)}"`)}</label>
+          ${x.ou === 'donnees' ? `<button class="i d" data-a="supprimer" data-n="${esc(x.name)}" data-l="${esc(x.label)}" title="Supprimer du catalogue et du volume">${ic('supprimer')}</button>` : ''}</div></div></div></div>`).join('')}`).join('') || '<p class="mut">Aucune LoRA inscrite.</p>'}`;
 }
 async function classer(el) {
   const x = E.interne.find(l => l.name === el.dataset.ic);
@@ -172,7 +189,7 @@ function vueVeille() {
 
 document.addEventListener('click', essai(async e => {
   const el = e.target.closest('[data-a]'); if (!el) return;
-  await ({chercher: () => chercher(false), suite: () => chercher(true), retenir, regler, retirer, charger})[el.dataset.a](el);
+  await ({chercher: () => chercher(false), suite: () => chercher(true), retenir, regler, retirer, charger, supprimer, purger})[el.dataset.a](el);
 }));
 document.addEventListener('change', essai(async e => {
   const el = e.target;

@@ -616,6 +616,62 @@ def cmd_sonimage(a):
     return 0
 
 
+def effacer_attente(pod_id, jtok, data):
+    """Efface du volume les fichiers de LoRA sortis du catalogue par la page Hub (data/lora_effacer.json), par l'API de
+    fichiers de Jupyter. Rend les noms effaces ; ceux qui echouent restent dans la liste pour la fois suivante."""
+    import re
+    import urllib.parse
+    from .http import request
+    file = Path(data) / "lora_effacer.json"
+    noms = json.loads(file.read_text(encoding="utf-8")) if file.exists() else []
+    faits, reste = [], []
+    for nom in noms:
+        if not re.fullmatch(r"[A-Za-z0-9_.\-/ ]{1,200}\.safetensors", nom) or ".." in nom or nom.startswith("/"):
+            log(f"effacement refuse (nom inattendu) : {nom[:80]}")
+            continue
+        url = f"https://{pod_id}-8888.proxy.runpod.net/api/contents/runpod-slim/ComfyUI/models/loras/{urllib.parse.quote(nom)}"
+        try:
+            request("DELETE", url, headers={"Authorization": f"token {jtok}"}, timeout=120, retries=2)
+            faits.append(nom)
+            log(f"EFFACE {nom}")
+        except Exception as e:
+            if "HTTP 404" in str(e):  # deja absent du volume
+                faits.append(nom)
+                log(f"EFFACE {nom} (deja absent)")
+            else:
+                reste.append(nom)
+                log(f"ECHEC effacement de {nom} : {str(e)[:200]}")
+    if reste:
+        file.write_text(json.dumps(reste), encoding="utf-8")
+    else:
+        file.unlink(missing_ok=True)
+    return faits
+
+
+def lora_purge(a, data):
+    """Efface du volume les fichiers de LoRA en attente d'effacement : un pod de quelques minutes, supprime a la fin."""
+    import secrets
+    if not (data / "lora_effacer.json").exists():
+        log("rien a effacer")
+        return 0
+    cfg = load_config(a)
+    jtok = secrets.token_urlsafe(24)
+    pod_id, cost, gpu = runpod.create_pod(cfg["infra"], f"{PREFIX}lora-{int(time.time())}", env={"JUPYTER_PASSWORD": jtok})
+    log(f"pod {pod_id} cree ({gpu}, {cost} $/h)")
+    try:
+        c = Comfy(pod_id)
+        c.wait_ready()
+        faits = effacer_attente(pod_id, jtok, data)
+        time.sleep(5)
+        vus = set(inventaire(c, data)) - set(faits)  # ComfyUI peut lister encore un moment un fichier efface
+        (data / "lora_volume.json").write_text(json.dumps({"date": time.strftime("%d/%m/%Y %H:%M"), "fichiers": sorted(vus)}), encoding="utf-8")
+    finally:
+        runpod.delete_pod(pod_id)
+        log(f"pod {pod_id} supprime")
+    log(f"rapport : {len(faits)} fichier(s) efface(s)")
+    return 0
+
+
 def lora_sync(a, data, catp, cat):
     """Charge sur le volume les LoRA retenues dans le hub (data/hub_charger.json, ecrit par la page Hub), dans un seul pod,
     et les inscrit au catalogue. Chaque element : {cle, name, label, strength, base, famille, cat, trigger, source,
@@ -636,6 +692,7 @@ def lora_sync(a, data, catp, cat):
     try:
         c = Comfy(pod_id)
         c.wait_ready()
+        effaces = effacer_attente(pod_id, jtok, data)  # fichiers sortis du catalogue depuis le dernier pod
         for x in todo:
             try:
                 noms = {}
@@ -661,8 +718,8 @@ def lora_sync(a, data, catp, cat):
                 log(f"ECHEC {x['cle']} : {str(e)[:300]}")
         time.sleep(10)
         vus = inventaire(c, data)
-        if set(deposes) - set(vus):  # ComfyUI ne liste un fichier neuf qu'apres un moment : l'inventaire le note quand meme
-            (data / "lora_volume.json").write_text(json.dumps({"date": time.strftime("%d/%m/%Y %H:%M"), "fichiers": sorted(set(vus) | set(deposes))}), encoding="utf-8")
+        if set(deposes) - set(vus) or set(effaces) & set(vus):  # ComfyUI ne voit un fichier neuf ou efface qu'apres un moment
+            (data / "lora_volume.json").write_text(json.dumps({"date": time.strftime("%d/%m/%Y %H:%M"), "fichiers": sorted((set(vus) | set(deposes)) - (set(effaces) - set(deposes)))}), encoding="utf-8")
     finally:
         runpod.delete_pod(pod_id)
         log(f"pod {pod_id} supprime")
@@ -685,6 +742,8 @@ def cmd_lora(a):
         return 0
     if a.action == "sync":
         return lora_sync(a, data, catp, cat)
+    if a.action == "purge":
+        return lora_purge(a, data)
     if a.action == "remove":
         if cat.pop(a.ref, None) is None:
             raise RuntimeError(f"{a.ref} n'est pas dans le catalogue")
@@ -782,8 +841,8 @@ def main():
     k.set_defaults(fn=cmd_reap)
     sub.add_parser("pods", help="liste les pods du compte").set_defaults(fn=cmd_pods)
     sub.add_parser("depenses", help="depense GPU du jour et plafond").set_defaults(fn=cmd_depenses)
-    lo = sub.add_parser("lora", help="LoRA supplementaires : add <adresse Civitai> --name nom | list | remove <nom> | sync (charge les LoRA retenues dans le hub)")
-    lo.add_argument("action", choices=["add", "list", "remove", "sync"])
+    lo = sub.add_parser("lora", help="LoRA supplementaires : add <adresse Civitai> --name nom | list | remove <nom> | sync (charge les LoRA retenues dans le hub) | purge (efface du volume les fichiers sortis du catalogue)")
+    lo.add_argument("action", choices=["add", "list", "remove", "sync", "purge"])
     lo.add_argument("ref", nargs="?", default="")
     lo.add_argument("--name")
     lo.add_argument("--strength", type=float, default=0.6)
