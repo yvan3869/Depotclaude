@@ -215,3 +215,7 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
   deux fois (point de vue mal ecrit la premiere fois : le telephone etait dessine dans le cadre) et 3 clips : 0,35 $.
   Depense du jour : 2,26 $ sur 7,50 $. Constats : continuite tenue, raccord sans coupe propre, duree visee respectee ;
   a corriger : l'accroche chevauche le texte de la scene suivante sur un raccord continu, mention IA trop pale.
+- 14/11, soir : corrections tirees de l'essai p0004 (texte efface avant un raccord sans coupe, mention IA lisible,
+  controle du point de vue, gros plan tire a part). Cinq images d'essai de la scene 3 : 0,09 $. Deux voies ecartees :
+  la retouche garde le cadrage de la reference, meme avec une consigne de zoom ou une reference recadree.
+  Depense du jour : 2,48 $ sur 7,50 $. p0004 remonte (`final_v2.mp4`) : les deux defauts de texte ont disparu.
