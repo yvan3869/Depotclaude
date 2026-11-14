@@ -32,6 +32,11 @@ page de reference. Un nouvel espace part de ce squelette :
   Le resume (`small`) dit l'etat quand la section est fermee.
 - La navigation interne (onglets, temps, filtres) va dans l'en-tete collant, en `.chips` ; `.chip.on` = courant.
 - Texte en francais, phrases courtes, pas de jargon ; une aide (`.aide`) sous un champ, pas dans une bulle.
+- Atelier, page d'un projet : les aides sont repliees derriere un « i » (toucher pour ouvrir, bouton de l'en-tete
+  pour tout afficher, `body.aides`) ; une aide qui porte `.avt` ou contient `.err` reste visible.
+- Atelier, page d'un projet : la colonne de travail suit l'ordre du geste (Preparer, Scenes, Produire, Monter) ; ce
+  qui vaut pour tout le projet va dans le panneau de cote (`COTES`, `.cote`, `.cpan`), jamais dans la colonne.
+  Un bouton `data-a="cote" data-c="<panneau>"` l'ouvre depuis la colonne.
 - Telephone d'abord : largeur 390 px, pas de tableau large, rien qui depende du survol.
 
 ## Ce que fournit ui.js

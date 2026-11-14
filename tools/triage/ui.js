@@ -37,6 +37,17 @@ const ICONES = {
   lora: '<path d="M12 3l9 5-9 5-9-5zM3 13l9 5 9-5"/>',
   plier: '<path d="M7 9l5-5 5 5M7 15l5 5 5-5"/>',
   importer: '<path d="M12 15V4M7 9l5-5 5 5M5 20h14"/>',
+  info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/>',
+  reglages: '<path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/>',
+  texte: '<path d="M5 7V4h14v3M12 4v16M9 20h6"/>',
+  son: '<path d="M4 9v6h4l5 4V5L8 9zM16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/>',
+  dossier: '<path d="M3 6a1 1 0 0 1 1-1h5l2 3h9a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/>',
+  epingle: '<path d="M12 21s7-6.2 7-11.5a7 7 0 0 0-14 0C5 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>',
+  controle: '<path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/>',
+  publier: '<path d="M4 10v4h3l8 4V6l-8 4zM18 9.5a4 4 0 0 1 0 5"/>',
+  plus: '<circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/>',
+  camera: '<path d="M3 8h4l2-3h6l2 3h4v11H3z"/><circle cx="12" cy="13" r="3.5"/>',
+  horloge: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
 };
 const ic = n => `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">${ICONES[n] || ''}</svg>`;
 const bi = (n, lab, attrs = '', cls = 's') => `<button class="i ${cls}" title="${esc(lab)}" aria-label="${esc(lab)}" ${attrs}>${ic(n)}</button>`;

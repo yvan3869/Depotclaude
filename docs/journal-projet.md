@@ -352,3 +352,14 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
   octets de chaque fichier). Page Hub : les LoRA en attente sont dans le lot d'office (case a decocher, retenue d'une
   visite a l'autre) au lieu de cases a recocher a chaque visite. Atelier : le panneau LoRA nomme les LoRA retenues pas
   encore chargees, avec un lien pour les charger. Le pod du chargement rate a coute environ 0,01 $.
+- 15/11 : hub, supprimer une LoRA. Corbeille dans « Notre liste » et bouton « Supprimer » dans le reglage d'une
+  retenue : la LoRA sort du catalogue et des retenues, son fichier est efface du volume au prochain chargement ou
+  sur « Effacer maintenant ». Essai reel sur un pod avec un fichier d'essai : efface, nom inattendu refuse, pod
+  supprime. Environ 0,03 $ ; depense du jour 0,51 $ sur 7,50 $.
+- 15/11 : atelier, refonte de la page d'un projet (demande du proprietaire : ordre, agencement, moins de texte, plus
+  d'icones). Colonne de travail dans l'ordre du geste : Preparer, Scenes, Produire, Monter. Tout ce qui vaut pour le
+  projet entier passe dans un panneau de cote a place fixe (colonne de droite sur ecran large, barre d'icones en bas
+  sur telephone) : Projet, Continuite, LoRA, Montage, Son, Chaine, Publier. Une scene montre trois champs (image,
+  mouvement, texte) ; le reste est sous « Plus ». Les aides sont repliees derriere un « i » (toucher pour lire ;
+  bouton de l'en-tete pour toutes les afficher). Rien n'est supprime. Verifie par captures en 390 et 1280 px sur
+  p0004, sans erreur. Aucune depense. Disque : 31 Go sur 197.
