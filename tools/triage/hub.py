@@ -54,7 +54,8 @@ def _fichiers(noms):
     lo = next((f for f in noms if _cote(f["nom"]) == "low"), None)
     if hi and lo:
         return [{**hi, "role": "high"}, {**lo, "role": "low"}]
-    return [{**noms[0], "role": ""}] if noms else []
+    # un fichier seul garde son cote s'il le dit : le pilote ne le pose alors que sur ce modele (bruit fort ou faible)
+    return [{**noms[0], "role": _cote(noms[0]["nom"])}] if noms else []
 
 
 def _vignette(url, video):
