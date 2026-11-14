@@ -109,9 +109,13 @@ Trois outils evitent qu'une video change de piece, de tenue ou de personne d'une
   cadrage, la pose et l'expression** ; ne pas y repeter le lieu ni la tenue. Un champ ne contient que ce
   qui vaut pour toute la video ; ce qui change en route (elle retire une veste) reste dans les `still` et
   le champ correspondant reste vide. Un plan qui se passe ailleurs porte `libre: true`.
+  Le `pdv` decrit la vue, jamais l'appareil comme un objet : "shot straight on at chest height on a phone",
+  pas "phone propped on the counter, filming her" (le telephone serait dessine dans l'image).
 - **Image de reference** (`reference`, au projet) : une fois choisie, les autres images sont fabriquees a
   partir d'elle par retouche (meme personne, meme piece, meme tenue, nouvelle pose). Prendre le plan le
-  plus large, celui qui montre le mieux le lieu et la tenue. Les plans `libre` et ceux qui portent des
+  plus large, celui qui montre le mieux le lieu et la tenue. Une retouche garde le cadrage de la reference,
+  sauf si le `still` nomme le sien : "close-up" (ou "extreme close-up") rapproche la camera, "wide shot" ou
+  "full-body shot" l'eloigne. Ecrire ces mots tels quels en tete du `still`. Les plans `libre` et ceux qui portent des
   LoRA supplementaires gardent leur propre tirage.
 - **Raccord** (`raccord`, par plan, par rapport au plan precedent du meme temps) :
   - `coupe` (defaut) : le plan a sa propre image, le montage coupe. Pour un changement de cadrage ou d'angle.
@@ -129,7 +133,8 @@ affiche ses remarques dans la page (nombre de remarques sur la ligne du depot, d
 Rien n'est bloque, mais un depot sans remarque est l'objectif. Ce qui est verifie :
 - fiche de continuite remplie (lieu, tenue, point de vue) ; tenue non repetee dans les `still` ; heure du
   `still` coherente avec la fiche ;
-- point de vue respecte : si un telephone filme, il n'est pas dans sa main ;
+- point de vue respecte : si un telephone filme, il n'est pas dans sa main ; le `pdv` ne decrit pas
+  l'appareil comme un objet pose quelque part ;
 - premier plan du temps 1 : un `motion` et un texte d'accroche ;
 - un seul geste par `motion`, aucun mouvement de camera, aucun geste de la liste des gestes qui ratent ;
 - `texte` de 7 mots au plus, sans emoji ;
@@ -169,7 +174,8 @@ Les LoRA supplementaires (hors LoRA du personnage) se gerent dans la page `/atel
 Le montage vise une duree (15 s conseille pour l'accroche) en raccourcissant les plans, sauf du cote d'un raccord
 `continu` ou `arrivee`. Consequences pour l'ecriture : le geste important d'un plan se place au milieu du clip, pas
 dans la premiere seconde ; sur le premier plan, l'accroche du projet s'affiche d'abord et le `texte` du plan ensuite,
-donc un `texte` de premier plan doit pouvoir se lire en 2 secondes. La mention "AI character" est incrustee d'office
+donc un `texte` de premier plan doit pouvoir se lire en 2 secondes. Avant un raccord sans coupe, le texte du plan
+s'efface 0,3 s plus tot pour ne pas croiser celui du plan suivant. La mention "AI character" est incrustee d'office
 sur le temps 1 (au choix du proprietaire sur les autres) : ne pas l'ecrire dans les textes.
 
 L'accroche doit etre vraie des la premiere scene : ce qu'elle annonce se voit dans l'image de la scene 1 (tenue,

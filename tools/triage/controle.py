@@ -18,6 +18,9 @@ _RATES = [(re.compile(r"\bturn(s|ing)? (her back|around|away)\b", re.I), "se ret
           (re.compile(r"\b(hand|hands|fingers) (over|across|in front of) her face\b", re.I), "passer la main devant le visage"),
           (re.compile(r"\b(puts? on|changes? (into|her)|gets? dressed)\b", re.I), "changer de vêtement")]
 _TEL_EN_MAIN = re.compile(r"\b(hold(s|ing)?|with|grabs?|lifts?|raises?) (her|a|the) (smart)?phone\b|\bselfie\b|\bphone in (her )?hands?\b", re.I)
+_PDV_OBJET = re.compile(r"\b(phone|camera)\b[^,.;]*\b(propped|leaning|placed|resting|standing|sitting|mounted|set (up|down)|filming|recording|"
+                        r"on (a|the|her) (counter|table|desk|shelf|nightstand|dresser|floor|bed|stand|sink|windowsill))\b"
+                        r"|\b(propped|leaning|mounted)\b[^,.;]*\b(phone|camera)\b|\btripod\b", re.I)
 _NUIT = re.compile(r"\b(night|evening|dusk|candle\w*|lamp\w*|moonlight|dark outside)\b", re.I)
 _JOUR = re.compile(r"\b(daylight|sunlight|sunny|morning|noon|midday|afternoon sun|sunbeam\w*)\b", re.I)
 _EMOJI = re.compile("[\U0001F000-\U0001FAFF☀-➿]")
@@ -52,6 +55,9 @@ def controle(p, temps, lib=None):
               "Chaque image décrit alors son décor et sa tenue de son côté : ils changent d'une scène à l'autre.")
     if not c.get("pdv"):
         r("Point de vue non déclaré dans la fiche de continuité (téléphone posé, miroir, quelqu'un qui filme).")
+    elif _PDV_OBJET.search(c["pdv"]):
+        r("Point de vue : l'appareil est décrit comme un objet (posé, appuyé, sur un trépied, « filming her »). Le modèle le dessine "
+          "alors dans l'image. Décrire la vue, pas l'appareil : « shot straight on at chest height on a phone ».")
     if temps == 1 and len(p.get("accroche") or "") > 44:
         r(f"Accroche de {len(p['accroche'])} caractères : au-delà de 44 elle ne tient plus en deux lignes lisibles en haut de l'image.")
     clips = [s for s in sc if s.get("motion")]

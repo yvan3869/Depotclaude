@@ -1,6 +1,7 @@
 import argparse
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -16,6 +17,19 @@ ROOT = Path(__file__).resolve().parents[2]
 PREFIX = "girls-ai-"
 MODELE = "2026-11-14f"  # version du format des plans : la meme que dans server/jobs/modele.yaml
 INTERP = "minterpolate=fps=32:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1"
+
+# Une image tiree de la reference par retouche garde le cadrage de la reference : si le plan demande un autre
+# cadrage, la consigne de retouche le dit en clair, avant la description.
+CADRAGES = [(re.compile(r"\b(extreme |tight |intimate )?close[- ]?up\b|\bmacro\b", re.I),
+             "Move the camera much closer than in the reference photo: tight close-up, her face and shoulders fill the frame, "
+             "the background is reduced to a soft blur of the same room. "),
+            (re.compile(r"\b(wide|full[- ]body|full[- ]length|long) shot\b|\bhead to toe\b", re.I),
+             "Move the camera further back than in the reference photo: wide shot, her whole body is visible in the same room. ")]
+
+
+def cadrage(still):
+    """Consigne de cadrage a placer devant une retouche, d'apres la description du plan ("" si elle ne dit rien)."""
+    return next((txt for rx, txt in CADRAGES if rx.search(still or "")), "")
 
 
 def log(msg):
@@ -166,7 +180,7 @@ def cmd_run(a):
                     stills[name] = (src if src.is_absolute() else data / src).read_bytes()
                     if s.get("edit"):  # nouvelle image tiree de celle-ci par retouche : meme personne, meme lieu, meme tenue
                         up = c.upload(f"ga_{name}_ref.png", stills[name])
-                        files = c.run(workflows.edit_image(models, up, keep_ref + s["edit"], *s["still_size"], seed, f"ga_{name}"))
+                        files = c.run(workflows.edit_image(models, up, keep_ref + cadrage(s["edit"]) + s["edit"], *s["still_size"], seed, f"ga_{name}"))
                         stills[name] = c.fetch(files[0])
                         entry["still_s"] = round(time.time() - t)
                         log(f"{name} : image par retouche ({entry['still_s']} s)")

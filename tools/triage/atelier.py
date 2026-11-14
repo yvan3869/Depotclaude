@@ -56,7 +56,7 @@ CE QUI FAIT CLIQUER
 
 CONTRAINTES TECHNIQUES (modèles d'image et de vidéo)
 - Chaque scène = une image de départ, puis un clip de 5 secondes animé à partir de cette image.
-- "continuite" : la fiche de continuité du projet, en anglais, écrite une seule fois et ajoutée automatiquement à la fin de chaque "still". "lieu" (commence par "in"/"on" : pièce, mobilier, couleurs), "tenue" (commence par "wearing"), "cheveux" (coiffure du jour, ou ""), "lumiere", "pdv" (point de vue de la caméra, par exemple "shot at eye level on a phone"). Un champ ne contient que ce qui reste identique pendant toute la vidéo ; si un élément change en cours de route (elle change de pièce, elle retire une veste), laisse ce champ vide et écris l'élément dans chaque "still".
+- "continuite" : la fiche de continuité du projet, en anglais, écrite une seule fois et ajoutée automatiquement à la fin de chaque "still". "lieu" (commence par "in"/"on" : pièce, mobilier, couleurs), "tenue" (commence par "wearing"), "cheveux" (coiffure du jour, ou ""), "lumiere", "pdv" (point de vue de la caméra, par exemple "shot at eye level on a phone" ; décris la vue, jamais l'appareil comme un objet posé quelque part : il serait dessiné dans l'image). Un champ ne contient que ce qui reste identique pendant toute la vidéo ; si un élément change en cours de route (elle change de pièce, elle retire une veste), laisse ce champ vide et écris l'élément dans chaque "still".
 - "still" : en anglais, une seule phrase dense : cadrage, pose, expression, et rien de ce qui est déjà dans la fiche de continuité. Format vertical. Une seule personne à l'image. Ne décris ni le visage, ni les cheveux, ni les tatouages, ni les bijoux : ils sont ajoutés automatiquement. Aucun texte dans l'image.
 - "motion" : en anglais, UN geste simple et lent, en une phrase commençant par "She". Gestes fiables : regarder l'objectif, sourire lentement, pencher la tête, se mordre la lèvre, se pencher vers la caméra, marcher vers la caméra, faire glisser une bretelle, ajuster un décolleté, s'étirer doucement, boire, respirer. Gestes interdits (ils ratent) : tourner le dos, attacher ses cheveux, passer la main devant le visage, renverser la tête, éclater de rire, cheveux au vent, manipuler un objet compliqué, changer de vêtement.
 - "end_edit" : presque toujours "". À remplir seulement si la pose doit changer nettement entre le début et la fin du clip (assise puis debout) : une phrase en anglais qui décrit la pose finale, même cadrage.
@@ -124,6 +124,7 @@ FIXE = 2.0  # duree d'une image fixe (scene sans clip), en zoom lent
 FONDU_JOINT = 4  # images de fondu a un raccord sans coupe
 STYLES = {"doux": ("Poppins-SemiBold.ttf", 1.0, False), "contour": ("Poppins-SemiBold.ttf", 1.0, True),
           "serif": ("DMSerifDisplay-Italic.ttf", 1.2, False)}  # texte a l'ecran : (police, echelle, contour)
+GARDE = 0.3  # avant un raccord sans coupe, le texte du plan s'efface : le suivant apparait a la jointure, jamais les deux
 JOINT = 1 / 32  # a un raccord continu, la premiere image du clip suivant repete la derniere du precedent : elle est retiree
 
 
@@ -1596,17 +1597,18 @@ def planche(src, info, out):
         _ff("-i", tmp / "%02d.jpg", "-vf", f"tile={cols}x{-(-len(vues) // cols)}:padding=6:margin=6:color=0x15191d", "-frames:v", "1", "-q:v", "4", out)
 
 
-def _texte(tmp, cle, texte, taille, centre, w, h, style="doux", quand="", haut=False, alpha=1.0):
+def _texte(tmp, cle, texte, taille, centre, w, h, style="doux", quand="", haut=False, alpha=1.0, contour=None):
     """Calque d'un texte centre sur la hauteur `centre` (fraction de h) : [(image PNG transparente, condition)].
     Pas de fond en aplat : le texte est blanc sur une ombre floue (et un contour fin pour le style "contour").
     `quand` : condition ffmpeg d'affichage (sur t, en secondes depuis le debut du segment), vide pour toujours.
     `haut` : texte du haut de l'image (accroche). `centre` est alors le bas du bloc, qui ne descend jamais plus bas
     (le visage est dessous) ; la police retrecit jusqu'a tenir en deux lignes, et le bloc reste sous la mention IA.
-    `alpha` : opacite du texte (mention IA discrete)."""
+    `alpha` : opacite du texte. `contour` : force le contour fin, quel que soit le style (mention IA, lisible sur fond clair)."""
     texte = "".join(c for c in str(texte or "") if ord(c) < 0x2190).strip()  # les polices n'ont pas les emojis
     if not texte:
         return []
-    nom, echelle, contour = STYLES.get(style, STYLES["doux"])
+    nom, echelle, cont = STYLES.get(style, STYLES["doux"])
+    contour = cont if contour is None else contour
     police = Path(__file__).parent / "polices" / nom
     if not police.is_file():
         police = FONT
@@ -1694,7 +1696,7 @@ def monter(p, media, tmp, out, audio_dir, plateforme=""):
     fin = f"fps={fps},setsar=1,format=yuv420p"
     enc = ["-an", "-c:v", "libx264", "-crf", "18", "-preset", "veryfast", "-video_track_timescale", "16384"]
     style = m.get("style") or "doux"
-    label = _texte(tmp, "label", "AI character", 0.0125, 0.04, w, h, alpha=0.6) if m["label"] else []
+    label = _texte(tmp, "label", "AI character", 0.015, 0.04, w, h, alpha=0.92, contour=True) if m["label"] else []
     gains = [1.0, 1.0, 1.0]  # correction de couleur du plan en cours (raccord sans coupe)
     segs, durs = [], []  # segs : groupes de segments ; rien ne separe les segments d'un meme groupe
     plans, carton = _plans(p, media)
@@ -1703,13 +1705,17 @@ def monter(p, media, tmp, out, audio_dir, plateforme=""):
         s, deb, dur = pl["s"], pl["deb"], pl["dur"]
         txt = []
         if m["textes"]:
-            if i == 0 and p.get("accroche") and p["accroche"] != s["texte"]:
-                # un seul texte a la fois : l'accroche d'abord, le texte de la scene ensuite
+            tete = i == 0 and p.get("accroche") and p["accroche"] != s["texte"]
+            # un seul texte a la fois, aussi a un raccord sans coupe (les deux plans s'y fondent sur quelques images) :
+            # le texte du plan s'efface un peu avant la jointure si le plan suivant en porte un autre
+            suiv = plans[i + 1]["s"]["texte"] if i + 1 < len(plans) and plans[i + 1]["colle"] else ""
+            efface = f"lt(t,{dur - GARDE:.2f})" if suiv and suiv != (s["texte"] or (p["accroche"] if tete else "")) and dur > 2 * GARDE else ""
+            if tete:  # l'accroche d'abord, le texte de la scene ensuite
                 bascule = min(2.5, dur / 2) if s["texte"] else 0
-                txt += _texte(tmp, f"acc{i}", p["accroche"], 0.04, 0.19, w, h, style, f"lt(t,{bascule:.2f})" if bascule else "", haut=True)
-                txt += _texte(tmp, f"txt{i}", s["texte"], 0.034, 0.72, w, h, style, f"gte(t,{bascule:.2f})")
+                txt += _texte(tmp, f"acc{i}", p["accroche"], 0.04, 0.19, w, h, style, f"lt(t,{bascule:.2f})" if bascule else efface, haut=True)
+                txt += _texte(tmp, f"txt{i}", s["texte"], 0.034, 0.72, w, h, style, "*".join(x for x in (f"gte(t,{bascule:.2f})", efface) if x))
             else:
-                txt += _texte(tmp, f"txt{i}", s["texte"], 0.034, 0.72, w, h, style)
+                txt += _texte(tmp, f"txt{i}", s["texte"], 0.034, 0.72, w, h, style, efface)
         queue = noir(dur) if i + 1 == len(plans) and not carton else []
         seg = tmp / f"seg{i}.mp4"
         if s["clip"]:

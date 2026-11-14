@@ -47,7 +47,7 @@ name: monlot                 # prefixe des fichiers produits (lettres, chiffres,
 #     tenue: "wearing a white ribbed tank top and grey cotton shorts"
 #     cheveux: "hair in a loose bun"        # coiffure du jour, ou ""
 #     lumiere: "soft morning window light"
-#     pdv: "shot at eye level on a phone"   # point de vue de la camera
+#     pdv: "shot at eye level on a phone"   # point de vue : la vue, jamais l'appareil comme un objet pose
 #   reference: plan01        # nom d'un plan de ce fichier : les autres images du projet en sont tirees par retouche
 
 # --- Facultatif : autre personnage que celui de persona/production.yaml --------------------------
