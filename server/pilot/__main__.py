@@ -146,7 +146,8 @@ def cmd_run(a):
                     trig = ", ".join(x["trigger"] for x in extra or [] if x.get("trigger"))
                     if trig:  # mots declencheurs des LoRA supplementaires
                         prompt = f"{prompt} {trig}"
-                    graph = workflows.still_zimage(models, char, prompt, *s["still_size"], seed, f"ga_{name}", loras=extra)
+                    graph = workflows.still_zimage(models, char, prompt, *s["still_size"], seed, f"ga_{name}", loras=extra,
+                                                   char_strength=s.get("char_strength"))
                 else:
                     prompt = f"{char['prefix']}{s['still']}{char.get('still_suffix', '')}"
                     graph = workflows.still(models, char, prompt, *s["still_size"], seed, f"ga_{name}")

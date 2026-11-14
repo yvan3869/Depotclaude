@@ -290,7 +290,12 @@ class Studio:
         prompts = [self.compose(b, rng) for _ in range(n)]
         if not any(prompts):
             raise ValueError("rien a generer : cocher au moins un element ou remplir un champ")
-        job = {"name": f"test_{tid}", "defaults": {"still_size": FORMATS.get(b.get("format"), FORMATS["portrait"]), "seed": seed},
+        defaults = {"still_size": FORMATS.get(b.get("format"), FORMATS["portrait"]), "seed": seed}
+        if str(b.get("char_strength") or "").strip():  # force du LoRA du personnage pour ce test
+            defaults["char_strength"] = float(b["char_strength"])
+        if b.get("same_seed"):
+            defaults["same_seed"] = True
+        job = {"name": f"test_{tid}", "defaults": defaults,
                "shots": [{"name": f"{i + 1:02d}", "still": p, "loras": loras, "tattoos": bool(b.get("tattoos", True))}
                          for i, p in enumerate(prompts)]}
         d = self.tests / tid

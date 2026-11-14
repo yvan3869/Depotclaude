@@ -43,6 +43,8 @@
     <label>Nombre d'images <select id="n"><option>1</option><option>2</option><option selected>4</option><option>6</option><option>8</option><option>12</option><option>16</option><option>20</option></select></label>
     <label>Format <select id="format"><option value="portrait">Portrait 3:4</option><option value="vertical">Vertical 9:16</option><option value="carre">Carré</option><option value="paysage">Paysage 4:3</option></select></label>
     <label>Seed <input type="number" id="seed" placeholder="au hasard" style="width:110px"></label>
+    <label>Force du LoRA de Léa <input type="number" id="cs" step="0.05" min="0.8" max="2" placeholder="1.4" style="width:80px"></label>
+    <label><input type="checkbox" id="sameseed"> Même seed pour toutes les images</label>
     <label><input type="checkbox" id="tattoos" checked> Tatouages visibles</label>
     <button id="go">Générer</button><span id="msg" class="hint"></span>
   </div>
@@ -82,7 +84,7 @@ $('lists').addEventListener('click', async (e) => {
   if (e.target.classList.contains('del')) { e.preventDefault(); await api('/api/list', {liste:b.l, texte:b.t, remove:true}); await loadStudio(); }
 });
 function params() {
-  const p = {corps:$('corps').value, libre:$('libre').value, n:+$('n').value, format:$('format').value, seed:$('seed').value, tattoos:$('tattoos').checked, loras:[]};
+  const p = {corps:$('corps').value, libre:$('libre').value, n:+$('n').value, format:$('format').value, seed:$('seed').value, tattoos:$('tattoos').checked, char_strength:$('cs').value, same_seed:$('sameseed').checked, loras:[]};
   for (const k of Object.keys(TITLES)) p[k] = [...document.querySelectorAll(`#lists input[data-l="${k}"]:checked`)].map(c => c.value);
   document.querySelectorAll('[data-lora]:checked').forEach(c => p.loras.push({name:c.dataset.lora, strength:+document.querySelector(`[data-force="${c.dataset.lora}"]`).value}));
   return p;
@@ -96,7 +98,7 @@ $('go').onclick = async () => {
 function recall(t) {
   const p = t.params; checked = {};
   for (const k of Object.keys(TITLES)) (p[k] || []).forEach(v => { checked[k + '|' + v] = true; });
-  $('corps').value = p.corps || ''; $('libre').value = p.libre || ''; $('format').value = p.format || 'portrait'; $('tattoos').checked = p.tattoos !== false;
+  $('corps').value = p.corps || ''; $('libre').value = p.libre || ''; $('format').value = p.format || 'portrait'; $('tattoos').checked = p.tattoos !== false; $('cs').value = p.char_strength || ''; $('sameseed').checked = !!p.same_seed;
   loadStudio().then(() => (p.loras || []).forEach(l => { const c = document.querySelector(`[data-lora="${l.name}"]`); if (c) { c.checked = true; document.querySelector(`[data-force="${l.name}"]`).value = l.strength; } }));
   window.scrollTo(0, 0);
 }
@@ -112,8 +114,9 @@ async function loadTests() {
   const only = $('onlyok').checked;
   $('tests').innerHTML = tests.filter(t => !only || t.verdict === true).map(t => {
     const lab = (n) => ((studio && studio.loras.find(x => x.name === n)) || {label:n}).label;
+    const cs = t.params.char_strength ? ` · Léa à ${t.params.char_strength}` : '';
     const lor = (t.params.loras || []).map(l => `${lab(l.name)} à ${l.strength}`).join(', ') || 'aucun';
-    return `<div class="test ${t.verdict === true ? 'ok' : t.verdict === false ? 'no' : ''}"><b>${esc(t.date)}</b> · ${t.images.length}/${t.prompts.length} images · ${esc(t.status)} · LoRA : ${esc(lor)}` +
+    return `<div class="test ${t.verdict === true ? 'ok' : t.verdict === false ? 'no' : ''}"><b>${esc(t.date)}</b> · ${t.images.length}/${t.prompts.length} images · ${esc(t.status)} · LoRA : ${esc(lor)}${cs}` +
       (t.status !== 'termine' && t.log ? `<pre>${esc(t.log)}</pre>` : '') +
       `<div class="imgs">` + t.images.map((f, i) => `<figure><img loading="lazy" src="/tfile/${t.id}/${encodeURIComponent(f)}" data-zoom><figcaption>${esc(f.replace(/^test_[0-9_]+_/, '').replace('.png', ''))}</figcaption></figure>`).join('') + `</div>` +
       `<details><summary>Descriptions générées</summary><pre>${t.prompts.map((p, i) => String(i + 1).padStart(2, '0') + '  ' + esc(p)).join('\n')}</pre></details>` +
