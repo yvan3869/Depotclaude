@@ -35,6 +35,30 @@ def to_mp4(webm: Path, mp4: Path, smooth: bool, grain: bool):
     subprocess.run(cmd, check=True)
 
 
+def concat(mp4s, out: Path):
+    """Met bout a bout des clips de memes dimensions (sous-scenes d'une meme scene)."""
+    ff = os.environ.get("FFMPEG_BIN") or shutil.which("ffmpeg")
+    cmd = [ff, "-y", "-loglevel", "error"]
+    for m in mp4s:
+        cmd += ["-i", str(m)]
+    n = len(mp4s)
+    cmd += ["-filter_complex", "".join(f"[{i}:v]" for i in range(n)) + f"concat=n={n}:v=1:a=0[v]", "-map", "[v]",
+            "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "18", "-movflags", "+faststart", str(out)]
+    subprocess.run(cmd, check=True)
+
+
+def load_config(a):
+    """production.yaml + catalogue de LoRA du dossier de donnees (lora_catalog.yaml, ecrit par
+    "pilot lora add" : il vit hors du depot pour ne pas creer de conflit au git pull)."""
+    cfg = yaml.safe_load(open(a.config, encoding="utf-8"))
+    extra = Path(getattr(a, "data", None) or os.environ.get("DATA_DIR", str(ROOT / "server" / "data"))) / "lora_catalog.yaml"
+    cat = dict(cfg.get("lora_catalog") or {})
+    if extra.exists():
+        cat.update(yaml.safe_load(extra.read_text(encoding="utf-8")) or {})
+    cfg["lora_catalog"] = cat
+    return cfg
+
+
 def resolve_loras(cfg, wanted):
     """LoRA supplementaires d'un plan. `wanted` absent : None (on garde extra_loras_still).
     Sinon une liste dont chaque element est un nom du catalogue (lora_catalog de production.yaml),
@@ -46,19 +70,20 @@ def resolve_loras(cfg, wanted):
     for w in wanted:
         w = {"name": w} if isinstance(w, str) else dict(w)
         ref = cat.get(w["name"], {})
-        out.append({"name": ref.get("file", w["name"]), "strength": float(w.get("strength", ref.get("strength", 1.0)))})
+        out.append({"name": ref.get("file", w["name"]), "strength": float(w.get("strength", ref.get("strength", 1.0))),
+                    "trigger": ref.get("trigger", "")})
     return out
 
 
 def cmd_run(a):
-    cfg = yaml.safe_load(open(a.config, encoding="utf-8"))
+    cfg = load_config(a)
     job = yaml.safe_load(open(a.job, encoding="utf-8"))
     infra, models, char = cfg["infra"], cfg["models"], cfg["character"]
     d = {**{"still_size": [720, 1280], "clip_size": [480, 832], "mode": "natural", "smooth": True, "grain": True,
             "seed": 1}, **job.get("defaults", {})}
     data = Path(a.data)
     work = data / "work" / job["name"]
-    inbox = data / "inbox"
+    inbox = Path(a.out) if getattr(a, "out", None) else data / "inbox"
     work.mkdir(parents=True, exist_ok=True)
     inbox.mkdir(parents=True, exist_ok=True)
     max_min = infra.get("max_session_min", 90)
@@ -68,7 +93,7 @@ def cmd_run(a):
     try:
         if not pod_id:
             # Clips a calculer : carte rapide en premier ; images seules : carte la moins chere.
-            video = not a.stills_only and any(sh.get("motion") for sh in job["shots"])
+            video = not a.stills_only and any(sh.get("motion") or sh.get("steps") for sh in job["shots"])
             if video and infra.get("gpu_types_video"):
                 infra = {**infra, "gpu_types": infra["gpu_types_video"]}
             pod_id, cost, gpu = runpod.create_pod(infra, f"{PREFIX}{job['name']}-{int(t0)}")
@@ -117,8 +142,11 @@ def cmd_run(a):
                     use_body = s.get("body", s.get("dest") in (char.get("zimage_body_dests") or []))
                     body = char.get("zimage_body", "") if use_body else ""
                     prompt = f"{char.get('zimage_prefix', char['prefix'])}{tat}{body}{s['still']}{char.get('zimage_suffix', '')}"
-                    graph = workflows.still_zimage(models, char, prompt, *s["still_size"], seed, f"ga_{name}",
-                                                   loras=resolve_loras(cfg, s.get("loras")))
+                    extra = resolve_loras(cfg, s.get("loras"))
+                    trig = ", ".join(x["trigger"] for x in extra or [] if x.get("trigger"))
+                    if trig:  # mots declencheurs des LoRA supplementaires
+                        prompt = f"{prompt} {trig}"
+                    graph = workflows.still_zimage(models, char, prompt, *s["still_size"], seed, f"ga_{name}", loras=extra)
                 else:
                     prompt = f"{char['prefix']}{s['still']}{char.get('still_suffix', '')}"
                     graph = workflows.still(models, char, prompt, *s["still_size"], seed, f"ga_{name}")
@@ -132,45 +160,83 @@ def cmd_run(a):
             except Exception as e:  # un plan rate n'arrete pas la session
                 entry["error"] = str(e)[:300]
                 log(f"{name} : ECHEC image {entry['error']}")
-        # Passe intermediaire : image de fin des clips debut/fin (plans qui portent end_edit).
-        ends = {}
+        # Passe intermediaire : images de fin. Un plan peut porter "steps" (liste d'etapes : la scene
+        # est decoupee en sous-scenes enchainees) ou "end_edit" + "motion" (une seule etape).
+        # Chaque etape : l'image de fin est fabriquee par edition de l'image precedente, puis un clip
+        # debut/fin relie les deux. L'image de fin d'une etape est l'image de depart de la suivante.
         keep = ("Keep exactly the same person, same face, same hair, same body, same clothes unless stated otherwise, "
                 "same room, same light, same camera position and same photo style. Change only this: ")
+
+        def steps_of(s):
+            if s.get("steps"):
+                return [{"end": st, "motion": st} if isinstance(st, str) else st for st in s["steps"]]
+            if s.get("end_edit") and s.get("motion"):
+                return [{"end": s["end_edit"], "motion": s["motion"]}]
+            return []
+
+        chains = {}
         for s, name, seed, entry in shots:
-            if name not in stills or not s.get("end_edit") or over():
+            if name not in stills or not steps_of(s):
                 continue
+            imgs = [stills[name]]
             try:
-                t = time.time()
-                up = c.upload(f"ga_{name}.png", stills[name])
-                files = c.run(workflows.edit_image(models, up, keep + s["end_edit"], *s["still_size"], seed, f"ga_{name}_fin"))
-                ends[name] = c.fetch(files[0])
-                (work / f"{name}_fin.png").write_bytes(ends[name])
-                entry["end_s"] = round(time.time() - t)
-                log(f"{name} : image de fin ({entry['end_s']} s)")
-                if a.stills_only:
-                    shutil.copy(work / f"{name}_fin.png", inbox / f"{name}_fin.png")
+                for k, st in enumerate(steps_of(s), 1):
+                    if over():
+                        raise RuntimeError("duree maximale atteinte")
+                    t = time.time()
+                    up = c.upload(f"ga_{name}_e{k - 1}.png", imgs[-1])
+                    files = c.run(workflows.edit_image(models, up, keep + st["end"], *s["still_size"], seed + k, f"ga_{name}_e{k}"))
+                    imgs.append(c.fetch(files[0]))
+                    (work / f"{name}_e{k}.png").write_bytes(imgs[-1])
+                    log(f"{name} : image de fin {k} ({round(time.time() - t)} s)")
+                    if a.stills_only:
+                        shutil.copy(work / f"{name}_e{k}.png", inbox / f"{name}_e{k}.png")
+                chains[name] = imgs
             except Exception as e:
                 entry["error"] = str(e)[:300]
                 log(f"{name} : ECHEC image de fin {entry['error']}")
         for s, name, seed, entry in shots:
-            if a.stills_only or name not in stills or not s.get("motion"):
+            if a.stills_only or name not in stills:
                 continue
-            if s.get("end_edit") and name not in ends:
-                continue  # l'image de fin a echoue : pas de clip plutot qu'un clip sans fin imposee
+            steps = steps_of(s)
+            if steps and name not in chains:
+                continue  # une image de fin a echoue : pas de clip plutot qu'un clip sans fin imposee
+            if not steps and not s.get("motion"):
+                continue
             if over():
                 entry.setdefault("error", "clip non traite : duree maximale atteinte")
                 continue
             try:
                 t = time.time()
-                up = c.upload(f"ga_{name}.png", stills[name])
-                end = c.upload(f"ga_{name}_fin.png", ends[name]) if name in ends else None
-                files = c.run(workflows.clip(models, char, up, s["motion"] + char.get("motion_suffix", ""),
-                                             *s["clip_size"], seed, f"ga_{name}", mode=s["mode"], end_image_name=end))
-                webm = work / f"{name}.webm"
-                webm.write_bytes(c.fetch(files[0]))
+                suffix = char.get("motion_suffix", "")
+                parts = []
+                if steps:
+                    for k, st in enumerate(steps, 1):
+                        up = c.upload(f"ga_{name}_e{k - 1}.png", chains[name][k - 1])
+                        end = c.upload(f"ga_{name}_e{k}.png", chains[name][k])
+                        files = c.run(workflows.clip(models, char, up, st["motion"] + suffix, *s["clip_size"], seed + k,
+                                                     f"ga_{name}_p{k}", mode=s["mode"], end_image_name=end))
+                        webm = work / f"{name}_p{k}.webm"
+                        webm.write_bytes(c.fetch(files[0]))
+                        parts.append(webm)
+                        log(f"{name} : sous-scene {k}/{len(steps)}")
+                else:
+                    up = c.upload(f"ga_{name}.png", stills[name])
+                    files = c.run(workflows.clip(models, char, up, s["motion"] + suffix, *s["clip_size"], seed,
+                                                 f"ga_{name}", mode=s["mode"]))
+                    webm = work / f"{name}.webm"
+                    webm.write_bytes(c.fetch(files[0]))
+                    parts.append(webm)
                 entry["clip_s"] = round(time.time() - t)
-                to_mp4(webm, inbox / f"{name}.mp4", s["smooth"], s["grain"])
-                log(f"{name} : clip ({entry['clip_s']} s) -> inbox")
+                if len(parts) == 1:
+                    to_mp4(parts[0], inbox / f"{name}.mp4", s["smooth"], s["grain"])
+                else:  # sous-scenes : chaque partie est convertie puis les parties sont mises bout a bout
+                    mp4s = []
+                    for pth in parts:
+                        to_mp4(pth, pth.with_suffix(".mp4"), s["smooth"], s["grain"])
+                        mp4s.append(pth.with_suffix(".mp4"))
+                    concat(mp4s, inbox / f"{name}.mp4")
+                log(f"{name} : clip ({entry['clip_s']} s) -> {inbox.name}")
             except Exception as e:
                 entry["error"] = str(e)[:300]
                 log(f"{name} : ECHEC clip {entry['error']}")
@@ -200,6 +266,81 @@ def cmd_pods(a):
         print(p["id"], p.get("name"), p.get("desiredStatus"), p.get("costPerHr"), p.get("createdAt"))
 
 
+def cmd_lora(a):
+    """lora add : telecharge un LoRA de Civitai, le depose sur le volume et l'inscrit au catalogue.
+    lora list : affiche le catalogue."""
+    import re
+    from .http import multipart, request
+    data = Path(a.data)
+    catp = data / "lora_catalog.yaml"
+    cat = (yaml.safe_load(catp.read_text(encoding="utf-8")) or {}) if catp.exists() else {}
+    if a.action == "list":
+        for k, v in {**(yaml.safe_load(open(a.config, encoding="utf-8")).get("lora_catalog") or {}), **cat}.items():
+            print(f"{k:20} {v.get('file')}  force {v.get('strength', 1.0)}  {v.get('base', '')}  {v.get('trigger', '')}")
+        return 0
+    if a.action == "remove":
+        if cat.pop(a.ref, None) is None:
+            raise RuntimeError(f"{a.ref} n'est pas dans le catalogue")
+        catp.write_text(yaml.safe_dump(cat, allow_unicode=True, sort_keys=False), encoding="utf-8")
+        log(f"{a.ref} retire du catalogue (le fichier reste sur le volume)")
+        return 0
+    if not a.name or not re.fullmatch(r"[a-z0-9_]+", a.name):
+        raise RuntimeError("--name obligatoire : lettres minuscules, chiffres, tirets bas")
+    tok = os.environ.get("CIVITAI_TOKEN", "")
+    hdr = {"Authorization": f"Bearer {tok}"} if tok else {}
+    m = re.search(r"models/(\d+)", a.ref) or re.fullmatch(r"(\d+)", a.ref)
+    if not m:
+        raise RuntimeError("reference attendue : adresse civitai.com/models/<numero> ou numero du modele")
+    ver = re.search(r"modelVersionId=(\d+)", a.ref)
+    info = request("GET", f"https://civitai.com/api/v1/models/{m.group(1)}", headers=hdr)
+    versions = info.get("modelVersions") or []
+    v = next((x for x in versions if ver and str(x["id"]) == ver.group(1)), versions[0] if versions else None)
+    if not v:
+        raise RuntimeError("aucune version trouvee pour ce modele")
+    f = next((x for x in v.get("files", []) if x["name"].endswith(".safetensors")), None)
+    problems = []
+    if info.get("type") != "LORA":
+        problems.append(f"ce n'est pas un LoRA (type {info.get('type')})")
+    if "zimage" not in re.sub(r"[^a-z]", "", (v.get("baseModel") or "").lower()):
+        problems.append(f"modele de base {v.get('baseModel')!r} : il faut Z-Image ou Z-Image Turbo")
+    if not f:
+        problems.append("pas de fichier .safetensors")
+    if "Image" not in (info.get("allowCommercialUse") or []):
+        problems.append(f"licence : usage commercial des images non autorise ({info.get('allowCommercialUse')})")
+    log(f"{info.get('name')} / {v.get('name')} / base {v.get('baseModel')} / mots declencheurs {v.get('trainedWords')}")
+    if problems and not a.force:
+        raise RuntimeError("refuse : " + " ; ".join(problems) + " (--force pour passer outre)")
+    for pb in problems:
+        log(f"ATTENTION : {pb}")
+    blob = request("GET", f["downloadUrl"], headers=hdr, raw=True, timeout=900)
+    if len(blob) < 100000:
+        raise RuntimeError("telechargement refuse par Civitai : definir CIVITAI_TOKEN dans server/.env")
+    fname = f"{a.name}.safetensors"
+    cfg = load_config(a)
+    pod_id, own = a.pod_id, False
+    try:
+        if not pod_id:
+            pod_id, cost, gpu = runpod.create_pod(cfg["infra"], f"{PREFIX}lora-{int(time.time())}")
+            own = True
+            log(f"pod {pod_id} cree ({gpu}, {cost} $/h)")
+        c = Comfy(pod_id)
+        c.wait_ready()
+        body, h = multipart({"overwrite": "true", "subfolder": "loras"}, "image", fname, blob)
+        request("POST", c.base + "/upload/image", data=body, headers=h, timeout=900)
+        if not c.has_model("loras", fname):
+            raise RuntimeError("fichier depose mais non vu par ComfyUI (extra_model_paths.yaml absent du volume ?)")
+    finally:
+        if own and pod_id:
+            runpod.delete_pod(pod_id)
+            log(f"pod {pod_id} supprime")
+    cat[a.name] = {"file": fname, "strength": a.strength, "base": v.get("baseModel"),
+                   "trigger": ", ".join(v.get("trainedWords") or []), "source": f"https://civitai.com/models/{m.group(1)}?modelVersionId={v['id']}"}
+    data.mkdir(parents=True, exist_ok=True)
+    catp.write_text(yaml.safe_dump(cat, allow_unicode=True, sort_keys=False), encoding="utf-8")
+    log(f"{a.name} inscrit au catalogue ({len(blob) // 1000000} Mo, force par defaut {a.strength})")
+    return 0
+
+
 def main():
     ap = argparse.ArgumentParser(prog="pilot", description=__doc__)
     ap.add_argument("--config", default=str(ROOT / "persona" / "production.yaml"))
@@ -210,11 +351,21 @@ def main():
     r.add_argument("--pod-id", help="reutilise un pod existant (ni cree ni supprime)")
     r.add_argument("--keep-pod", action="store_true")
     r.add_argument("--stills-only", action="store_true")
+    r.add_argument("--out", help="dossier de sortie a la place de la boite de tri")
     r.set_defaults(fn=cmd_run)
     k = sub.add_parser("reap", help="supprime les pods du projet trop anciens")
     k.add_argument("--max-age-min", type=int)
     k.set_defaults(fn=cmd_reap)
     sub.add_parser("pods", help="liste les pods du compte").set_defaults(fn=cmd_pods)
+    lo = sub.add_parser("lora", help="LoRA supplementaires : add <adresse Civitai> --name nom | list | remove <nom>")
+    lo.add_argument("action", choices=["add", "list", "remove"])
+    lo.add_argument("ref", nargs="?", default="")
+    lo.add_argument("--name")
+    lo.add_argument("--strength", type=float, default=0.6)
+    lo.add_argument("--force", action="store_true", help="accepter malgre une alerte (base, licence)")
+    lo.add_argument("--pod-id")
+    lo.add_argument("--data", default=os.environ.get("DATA_DIR", str(ROOT / "server" / "data")))
+    lo.set_defaults(fn=cmd_lora)
     a = ap.parse_args()
     try:
         sys.exit(a.fn(a) or 0)
