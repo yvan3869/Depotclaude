@@ -44,7 +44,7 @@ def rediger(claude, travail, req):
         return r.stdout
     contenu = []
     for im in req["images"]:
-        contenu += [{"type": "text", "text": f"Image de la scène {im['scene']} :"},
+        contenu += [{"type": "text", "text": im.get("titre") or f"Image de la scène {im['scene']} :"},
                     {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": im["jpeg"]}}]
     contenu.append({"type": "text", "text": req["demande"]})
     msg = json.dumps({"type": "user", "message": {"role": "user", "content": contenu}})

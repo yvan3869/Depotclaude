@@ -138,6 +138,13 @@ d'anatomie, image conforme au `still`, pose d'ou le `motion` peut partir, place 
 s'affichent sous chaque image et valent tant que l'image retenue est celle relue. Le temps 3 et les plans
 qui portent des `loras` ne sont jamais relus : leur verification reste au proprietaire.
 
+## Montage
+Le montage vise une duree (15 s conseille pour l'accroche) en raccourcissant les plans, sauf du cote d'un raccord
+`continu` ou `arrivee`. Consequences pour l'ecriture : le geste important d'un plan se place au milieu du clip, pas
+dans la premiere seconde ; sur le premier plan, l'accroche du projet s'affiche d'abord et le `texte` du plan ensuite,
+donc un `texte` de premier plan doit pouvoir se lire en 2 secondes. La mention "AI character" est incrustee d'office
+sur le temps 1 : ne pas l'ecrire dans les textes.
+
 ## Deposer des plans dans l'atelier
 1. **Lire le projet** : `server/data/projets/pNNNN/projet.json` (lecture seule). On y trouve le
    personnage, le pitch, la date du personnage (`date_perso`), le `contexte` et les scenes deja

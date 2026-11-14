@@ -144,3 +144,17 @@ Relecture des images (14/11/2026) : apres les images, le redacteur IA relit les 
 (`relire()` dans `atelier.py`, bouton "Relire les images", d'office a la pause de la chaine). Les images, reduites
 en JPEG, voyagent dans la demande elle-meme ; le service les joint au message, toujours sans outil. Resultat dans
 `data/projets/<id>/relecture.json`. Jamais le temps 3 ni les scenes a LoRA supplementaires.
+
+Montage (14/11/2026) : `monter()` dans `atelier.py`. Duree visee (15, 20 ou 30 s) : les plans sont raccourcis en
+proportion, 2 s au moins chacun, jamais du cote d'un raccord colle ni sur une duree reglee a la main. Sur la premiere
+scene l'accroche s'affiche d'abord, le texte de la scene ensuite (jamais deux textes a la fois). Fin en fondu au noir.
+La mention "AI character" est toujours incrustee sur le temps 1 (facultative sur les temps 2 et 3). Chaque montage
+laisse sa fiche dans `data/projets/<id>/finals.json` (duree, debut de chaque plan, raccords colles, prises montees).
+"Valider pour publication" est refuse s'il n'y a pas de video ou si la derniere ne porte pas la mention ; la page
+avertit aussi quand la video ne correspond plus aux prises retenues, dure plus de 21 s, ou n'a ni legende ni carton.
+
+Analyse du montage (14/11/2026) : bouton "Analyser la video" sous la video montee des temps 1 et 2 (`analyser()`).
+Des images sont extraites de la video (debut, milieu de chaque scene, avant et apres chaque jointure, fin) et envoyees
+au redacteur IA avec la fiche du montage et le scenario ; il rend un verdict et six points au plus, chacun avec une
+correction. Il ne voit ni le mouvement ni le son. Resultat dans `data/projets/<id>/analyse.json`. Jamais le temps 3
+ni un temps qui contient une scene a LoRA supplementaires.

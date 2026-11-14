@@ -88,6 +88,26 @@ Un seul objet JSON valide, sans texte autour, sans bloc de code, en français :
 {"scenes": [{"id": "identifiant de la scène", "verdict": "ok" ou "a_refaire", "constat": "ce qui ne va pas, une phrase ; vide si ok", "consigne": "ce qu'il faut faire : autre prise telle quelle, ou ce qu'il faut changer dans la description de l'image ; vide si ok"}], "ensemble": "une ou deux phrases sur la cohérence de la série"}"""
 
 
+ANALYSTE = """Tu es chef monteur et tu critiques une vidéo verticale courte déjà montée, avant sa publication. Le personnage est fictif, adulte, généré par IA et présenté comme tel. La vidéo est faite de clips de 5 secondes animés par un modèle vidéo, parfois raccourcis au montage.
+
+Tu ne vois pas la vidéo : tu reçois des images qui en sont extraites, chacune avec son instant et son rôle (première image, milieu d'une scène, dernière image avant une jointure, première image après), puis la fiche technique du montage et le scénario. Tu ne peux donc juger ni le mouvement, ni le rythme réel, ni le son : n'en dis rien.
+
+Ce que tu cherches, du plus grave au moins grave :
+- la première seconde : y a-t-il une raison de rester (regard, geste amorcé, texte d'accroche lisible et intrigant), ou une image d'attente ;
+- les jointures annoncées « sans coupe » : compare l'image d'avant et celle d'après ; elles doivent être presque identiques (pose, cadrage, couleurs) ; tout saut se verra ;
+- les jointures « coupe » : le changement de cadrage est-il franc (un cadrage trop proche du précédent donne un saut maladroit) ; le lieu, la tenue, la coiffure et la lumière restent-ils les mêmes quand le scénario ne demande pas de changement ;
+- le personnage est-il la même personne partout ; défauts de rendu visibles (mains, doigts, visage, objet déformé) ;
+- les textes à l'écran : lisibles, pas sur le visage, pas deux à la fois, pas trop longs pour leur durée, sans faute ;
+- la progression : la vidéo monte-t-elle, la dernière scène est-elle la plus forte, la fin laisse-t-elle une envie de suite ;
+- le carton de fin et la mention « AI character » : présents et lisibles.
+Ne signale que ce qui se voit sur les images ou se déduit de la fiche. Pas de compliment de politesse. Chaque point propose une correction faisable dans l'atelier : refaire une prise, changer la description d'une scène, changer un raccord, raccourcir ou retirer une scène, changer un texte, remonter avec une autre durée visée.
+
+SORTIE
+Un seul objet JSON valide, sans texte autour, sans bloc de code, en français :
+{"verdict": "publiable" ou "a_reprendre", "points": [{"moment": "instant ou scène concernés, par exemple 0-2 s, scène 2, jointure 1", "grave": true ou false, "constat": "ce qui ne va pas, une phrase", "proposition": "quoi faire, une phrase"}], "forces": "ce qui marche et qu'il faut garder, une phrase", "ensemble": "le jugement d'ensemble en deux phrases au plus"}
+Six points au plus, les plus graves d'abord. "a_reprendre" seulement s'il y a au moins un point grave."""
+
+
 RACCORDS = ("coupe", "continu", "arrivee")
 # Fiche de continuite d'un projet : ce qui ne doit pas changer d'une image a l'autre. Texte anglais, ajoute a chaque "still".
 CONT = ("lieu", "tenue", "cheveux", "lumiere", "pdv")
@@ -457,7 +477,7 @@ class Atelier:
                 "finals": finals, "etape": self._etape(e, finals[1]), "montage": mt, "prod": self.prod(pid),
                 "devis": {t: self.devis(e, t) for t in TEMPS}, "depots": [x for x in self.depots() if x.get("projet") == pid],
                 "chaine": self.chaine_vue(pid), "controle": {t: controle(p, t) for t in TEMPS}, "relecture": self.relecture(pid),
-                "publication": self.publication(p), "infos": _load(self._pdir(pid) / "finals.json", {})}
+                "publication": self.publication(p), "analyses": self.analyses(pid), "infos": _load(self._pdir(pid) / "finals.json", {})}
 
     def liste(self):
         out = []
@@ -709,6 +729,26 @@ class Atelier:
             _dump(d / "relecture.json", r)
         return {"etat": "attente"}
 
+    def _releve(self, rid, lire):
+        """Reponse du redacteur a la demande `rid` : None tant qu'elle n'est pas arrivee, sinon {"etat": "pret", ...lire(json)}
+        ou {"etat": "erreur", "erreur"}. Les fichiers de la demande sont alors supprimes."""
+        req, res, err = self.de / f"{rid}.req.json", self.de / f"{rid}.res.txt", self.de / f"{rid}.err.txt"
+        if not res.exists() and not err.exists():
+            age = time.time() - req.stat().st_mtime if req.exists() else 1e9
+            if age < 60 or (self.redacteur_actif() and age < 400):
+                return None
+            maj = {"etat": "erreur", "erreur": "le rédacteur IA n'a pas répondu"}
+        else:
+            try:
+                if err.exists():
+                    raise ValueError(err.read_text(encoding="utf-8", errors="replace")[:300])
+                maj = {"etat": "pret", **lire(_json_de(res.read_text(encoding="utf-8")))}
+            except (ValueError, KeyError, TypeError, AttributeError) as e:
+                maj = {"etat": "erreur", "erreur": str(e)[:300]}
+        for f in self.de.glob(f"{rid}.*"):
+            f.unlink(missing_ok=True)
+        return maj
+
     def relecture(self, pid):
         """Relectures du projet, par temps. Releve au passage la reponse du redacteur quand elle est arrivee."""
         d = self._pdir(pid)
@@ -717,29 +757,20 @@ class Atelier:
             if x.get("etat") != "attente":
                 continue
             rid = x["rid"]
-            req, res, err = self.de / f"{rid}.req.json", self.de / f"{rid}.res.txt", self.de / f"{rid}.err.txt"
-            if not res.exists() and not err.exists():
-                age = time.time() - req.stat().st_mtime if req.exists() else 1e9
-                if age < 60 or (self.redacteur_actif() and age < 400):
-                    continue
-                maj = {"etat": "erreur", "erreur": "le rédacteur IA n'a pas répondu"}
-            else:
-                try:
-                    if err.exists():
-                        raise ValueError(err.read_text(encoding="utf-8", errors="replace")[:300])
-                    out = _json_de(res.read_text(encoding="utf-8"))
-                    sc = {}
-                    for y in out.get("scenes") or []:
-                        if isinstance(y, dict) and y.get("id") in x["vues"]:
-                            sc[y["id"]] = {"image": x["vues"][y["id"]], "ok": y.get("verdict") != "a_refaire",
-                                           "constat": _s(y.get("constat"), 400), "consigne": _s(y.get("consigne"), 700)}
-                    if not sc:
-                        raise ValueError("réponse sans scène")
-                    maj = {"etat": "pret", "ensemble": _s(out.get("ensemble"), 600), "scenes": sc}
-                except (ValueError, KeyError, TypeError, AttributeError) as e:
-                    maj = {"etat": "erreur", "erreur": str(e)[:300]}
-            for f in self.de.glob(f"{rid}.*"):
-                f.unlink(missing_ok=True)
+
+            def lire(out, x=x):
+                sc = {}
+                for y in out.get("scenes") or []:
+                    if isinstance(y, dict) and y.get("id") in x["vues"]:
+                        sc[y["id"]] = {"image": x["vues"][y["id"]], "ok": y.get("verdict") != "a_refaire",
+                                       "constat": _s(y.get("constat"), 400), "consigne": _s(y.get("consigne"), 700)}
+                if not sc:
+                    raise ValueError("réponse sans scène")
+                return {"ensemble": _s(out.get("ensemble"), 600), "scenes": sc}
+
+            maj = self._releve(rid, lire)
+            if not maj:
+                continue
             with self.lock:
                 r2 = _load(d / "relecture.json", {})
                 if (r2.get(t) or {}).get("rid") == rid:
@@ -747,6 +778,102 @@ class Atelier:
                     _dump(d / "relecture.json", r2)
                 r[t] = r2.get(t) or {}
         return {t: {k: v for k, v in x.items() if k not in ("rid", "vues")} for t, x in r.items()}
+
+    def analyser(self, b):
+        """Fait critiquer par le redacteur IA une video montee, d'apres des images qui en sont extraites (debut, milieu de
+        chaque scene, de part et d'autre de chaque jointure, fin). Jamais le temps 3 ni une video qui contient une scene a
+        LoRA supplementaires : celles-la sont a la main du proprietaire."""
+        pid, nom = b["id"], str(b.get("fichier"))
+        m = re.fullmatch(r"final_(t2_)?v\d+\.mp4", nom)
+        if not m:
+            raise ValueError("le temps 3 est à votre main : il n'est pas analysé" if nom.startswith("final_t3_") else "fichier invalide")
+        if not self.redacteur_actif():
+            raise ValueError("le rédacteur IA ne répond pas (service girls-ai-writer)")
+        t = 2 if m.group(1) else 1
+        p, d = self._raw(pid), self._pdir(pid)
+        sc = {s["id"]: s for s in p["scenes"] if s["temps"] == t}
+        if any(s["loras"] for s in sc.values()):
+            raise ValueError("ce temps contient une scène à LoRA supplémentaires : son analyse reste à votre main")
+        src = d / nom
+        if not src.is_file():
+            raise ValueError("vidéo introuvable")
+        info = _load(d / "finals.json", {}).get(nom) or {}
+        duree = info.get("duree") or _duree(src)
+        vues, deb, ids = [], info.get("debuts") or [], [x[0] for x in info.get("prises") or []]
+        if deb and len(deb) == len(ids):
+            fins = deb[1:] + [info.get("carton") or duree]
+            vues.append((0.05, "première image de la vidéo"))
+            for i, (a, z) in enumerate(zip(deb, fins)):
+                if i:
+                    genre = "sans coupe" if info["colle"][i] else "coupe"
+                    vues += [(a - 0.07, f"dernière image avant la jointure {i} ({genre})"), (a + 0.07, f"première image après la jointure {i} ({genre})")]
+                vues.append(((a + z) / 2, f"milieu de la scène {i + 1}"))
+            if info.get("carton"):
+                vues.append((info["carton"] + 1.0, "carton de fin"))
+            else:
+                vues.append((duree - NOIR - 0.15, "dernière image avant le fondu au noir"))
+            if len(vues) > 16:  # trop de scenes : les milieux sautent d'abord
+                vues = [v for v in vues if not v[1].startswith("milieu")][:16]
+        else:  # video montee avant la fiche technique : images regulierement espacees
+            ids = []
+            vues = [(0.05, "première image de la vidéo")] + [(duree * k / 9, "image") for k in range(1, 9)] + [(duree - 0.6, "fin de la vidéo")]
+        images = []
+        with tempfile.TemporaryDirectory() as tmp:
+            for a, role in sorted(vues):
+                a = min(max(a, 0), max(0, duree - 0.05))
+                _ff("-ss", f"{a:.2f}", "-i", src, "-frames:v", "1", "-vf", "scale=-2:640", "-q:v", "6", Path(tmp) / "i.jpg")
+                images.append({"titre": f"Image à {a:.1f} s, {role} :", "jpeg": base64.b64encode((Path(tmp) / "i.jpg").read_bytes()).decode()})
+        c, mt = p["continuite"], p["montage"]
+        fiche = [f"durée {duree:.1f} s, format {mt['format']}, {len(ids) or '?'} scène(s), transition « {mt['transition']} » entre les scènes coupées",
+                 f"musique : {'oui' if mt['musique'] else 'non'} ; mention « AI character » incrustée : {'oui' if info.get('label') else 'non garantie'}"]
+        if info.get("cible"):
+            fiche.append(f"durée visée {info['cible']} s : les scènes ont été raccourcies au montage")
+        if t == 1:
+            fiche.append(f"accroche affichée au début de la première scène : {p['accroche'] or 'aucune'} ; carton de fin : {p['cta'] if info.get('carton') else 'aucun'}")
+        lignes = []
+        for i, sid in enumerate(ids):
+            s = sc.get(sid)
+            if s:
+                lignes.append(f"- scène {i + 1}, de {deb[i]:.1f} s à {fins[i]:.1f} s" + (", collée à la précédente sans coupe" if info["colle"][i] else "") + (", montée en image fixe" if not str(info["prises"][i][1]).endswith(".mp4") else "")
+                              + f", cran {s['cran'] or 'non renseigné'}\n  image : {s['still'] or 'non décrite'}\n  geste : {s['motion'] or 'aucun'}\n  texte à l'écran : {s['texte'] or 'aucun'}")
+        demande = ("FICHE TECHNIQUE DU MONTAGE\n" + "\n".join("- " + x for x in fiche)
+                   + "\n\nFICHE DE CONTINUITÉ (anglais)\n" + "\n".join(f"- {k} : {c[k] or 'non précisé'}" for k in CONT)
+                   + ("\n\nSCÉNARIO\n" + "\n".join(lignes) if lignes else "")
+                   + "\n\nCritique cette vidéo d'après ces images et réponds au format demandé.")
+        rid = f"{time.strftime('%Y%m%d%H%M%S')}{random.randint(100, 999)}"
+        _dump(self.de / f"{rid}.req.json", {"systeme": ANALYSTE, "demande": demande, "images": images, "kind": "analyse", "projet": pid, "fichier": nom})
+        os.chmod(self.de / f"{rid}.req.json", 0o666)
+        with self.lock:
+            r = _load(d / "analyse.json", {})
+            r[nom] = {"etat": "attente", "rid": rid, "date": time.strftime("%Y-%m-%d %H:%M")}
+            _dump(d / "analyse.json", r)
+        return {"etat": "attente"}
+
+    def analyses(self, pid):
+        """Analyses des videos montees du projet, par fichier. Releve au passage les reponses arrivees."""
+        d = self._pdir(pid)
+        r = _load(d / "analyse.json", {})
+
+        def lire(out):
+            pts = [{"moment": _s(y.get("moment"), 60), "grave": bool(y.get("grave")), "constat": _s(y.get("constat"), 400),
+                    "proposition": _s(y.get("proposition"), 500)} for y in out.get("points") or [] if isinstance(y, dict) and y.get("constat")][:8]
+            if not pts and not out.get("ensemble"):
+                raise ValueError("réponse vide")
+            return {"publiable": out.get("verdict") != "a_reprendre", "points": pts, "forces": _s(out.get("forces"), 400), "ensemble": _s(out.get("ensemble"), 600)}
+
+        for nom, x in r.items():
+            if x.get("etat") != "attente":
+                continue
+            maj = self._releve(x["rid"], lire)
+            if not maj:
+                continue
+            with self.lock:
+                r2 = _load(d / "analyse.json", {})
+                if (r2.get(nom) or {}).get("rid") == x["rid"]:
+                    r2[nom] = {"date": x["date"], **maj}
+                    _dump(d / "analyse.json", r2)
+                r[nom] = r2.get(nom) or {}
+        return {nom: {k: v for k, v in x.items() if k != "rid"} for nom, x in r.items() if (d / nom).is_file()}
 
     # --- Plans deposes par l'agent ----------------------------------------------------------------
     def _existe(self, pid):
@@ -1235,6 +1362,8 @@ class Atelier:
             return self.produire(b)
         if path == "/api/a/relire":
             return self.relire(b)
+        if path == "/api/a/analyser":
+            return self.analyser(b)
         if path == "/api/a/monter":
             return self.monter(b)
         if path == "/api/a/chaine":
@@ -1378,6 +1507,7 @@ def monter(p, media, tmp, out, audio_dir, plateforme=""):
             ",".join([base, "boxblur=28:3,eq=brightness=-0.22:saturation=0.8", fin] + txt + label + noir(carton)), *enc, seg)
         segs.append([seg])
         durs.append(_duree(seg))
+    durs_plans = durs[:len(plans)]
     muet = tmp / "muet.mp4" if m.get("musique") else out
 
     def coller(fichiers, sortie, *opts):
@@ -1410,6 +1540,12 @@ def monter(p, media, tmp, out, audio_dir, plateforme=""):
             raise RuntimeError("musique introuvable dans data/audio")
         _ff("-i", muet, "-stream_loop", "-1", "-i", src, "-map", "0:v", "-map", "1:a", "-c:v", "copy", "-c:a", "aac", "-b:a", "160k",
             "-af", f"afade=t=in:d=0.4,afade=t=out:st={max(0, total - 1.2):.2f}:d=1.2", "-t", f"{total:.2f}", "-movflags", "+faststart", out)
+    fondu, debuts, groupe, acc = m["transition"] == "fondu" and len(plans) - sum(x["colle"] for x in plans) + bool(carton) > 1, [], -1, 0.0
+    for pl, dur in zip(plans, durs_plans):  # instant ou chaque plan commence dans la video (un fondu recouvre x secondes)
+        groupe += not pl["colle"]
+        debuts.append(round(acc - (x * groupe if fondu else 0), 2))
+        acc += dur
     return {"duree": round(total, 2), "label": bool(m["label"]), "cible": m.get("cible") or 0, "plans": len(plans),
+            "debuts": debuts, "colle": [x["colle"] for x in plans], "carton": round(total - carton, 2) if carton else 0,
             "images": sum(1 for x in plans if not x["s"]["clip"]), "colles": sum(1 for x in plans if x["colle"]),
             "prises": [[x["s"]["id"], x["s"]["clip"] or x["s"]["image"]] for x in plans]}

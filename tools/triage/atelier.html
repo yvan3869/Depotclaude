@@ -407,7 +407,7 @@ function majDyn() {
     <div class="mut" style="margin-top:6px">${E.can_run ? 'Chaque lancement passe par le plafond GPU du jour. Les clips démarrent leur propre pod (2 à 5 minutes d\'attente).' : 'Clé RunPod absente : lancement impossible.'}</div>
     ${pr.etat ? `<div style="margin-top:8px"><b class="${pr.etat === 'en cours' ? '' : pr.etat === 'termine' ? 'okc' : 'err'}">${{'en cours': 'Calcul en cours', termine: 'Dernier calcul terminé', arrete: 'Dernier calcul arrêté', interrompu: 'Dernier calcul interrompu'}[pr.etat]}</b>
       ${pr.cout != null ? ` <span class="mut">${usd(pr.cout)}</span>` : ''}${pr.echecs ? ` <span class="err">${pr.echecs} échec(s)</span>` : ''}<pre>${esc(pr.log)}</pre></div>` : ''}`, 'prod');
-  const F = D.finals[T], m = D.montage, fin = F.at(-1), u = n => `/afile/${P.id}/${n}`, inf = fin && D.infos[fin];
+  const F = D.finals[T], m = D.montage, fin = F.at(-1), u = n => `/afile/${P.id}/${n}`, inf = fin && D.infos[fin], an = (fin && D.analyses[fin]) || {};
   set($('#mont'), `
     <div class="row"><button class="p" data-a="monter" ${m.etat === 'en cours' ? 'disabled' : ''}>${m.etat === 'en cours' ? 'Montage en cours...' : fin ? 'Remonter (nouvelle version)' : 'Monter la vidéo'}</button>
       <span class="mut">Les scènes sans clip sont montées en image fixe avec un zoom lent.</span></div>
@@ -416,6 +416,12 @@ function majDyn() {
       <div class="row"><b>${fin.replace('final_', '').replace('.mp4', '').replace('_', ' ')}</b><a href="${u(fin)}" download="${P.id}_${fin}">Télécharger</a><span class="sp" style="flex:1"></span>
         <button class="s" data-a="tri" data-n="${fin}">Envoyer au Tri</button><button class="s d" data-a="suppfinal" data-n="${fin}">Supprimer</button></div>
       ${inf ? `<div class="mut">${inf.duree} s, ${inf.plans} plan(s)${inf.colles ? `, ${inf.colles} raccord(s) sans coupe` : ''}${inf.cible ? `, visée ${inf.cible} s` : ''}${inf.label ? ', mention IA' : ''}, montée le ${esc(inf.date)}</div>` : ''}
+      ${T < 3 ? `<div class="row"><button data-a="analyser" data-n="${fin}" ${an.etat === 'attente' || !E.redacteur ? 'disabled' : ''}>${an.etat === 'attente' ? 'Analyse en cours...' : an.etat ? 'Refaire l\'analyse' : 'Analyser la vidéo'}</button>
+        <span class="mut">Critique du montage par le rédacteur IA, d'après des images extraites de la vidéo. Sans GPU.</span></div>
+        ${an.etat === 'erreur' ? `<div class="err">Analyse : ${esc(an.erreur)}</div>` : ''}
+        ${an.etat === 'pret' ? `<div style="margin-top:6px"><b class="${an.publiable ? 'okc' : 'err'}">${an.publiable ? 'Analyse : publiable' : 'Analyse : à reprendre'}</b> <span class="mut">${esc(an.date)}</span>
+          <div>${esc(an.ensemble)}</div>${an.points.map(x => `<div style="margin-top:6px"><span class="${x.grave ? 'err' : ''}"><b>${esc(x.moment)}</b> : ${esc(x.constat)}</span> <span class="mut">${esc(x.proposition)}</span></div>`).join('')}
+          ${an.forces ? `<div class="mut" style="margin-top:6px">À garder : ${esc(an.forces)}</div>` : ''}</div>` : ''}` : ''}
       ${T === 1 && D.publication.length ? `<div style="margin-top:8px">${D.publication.map(x => `<div class="${x.grave ? 'err' : 'mut'}">${x.grave ? 'Bloquant : ' : 'À vérifier : '}${esc(x.msg)}</div>`).join('')}</div>` : ''}
       ${T === 1 ? `<div class="row"><button class="${P.statut === 'valide' ? '' : 'p'}" data-a="statut" data-v="${P.statut === 'valide' ? '' : 'valide'}" ${!P.statut && D.publication.some(x => x.grave) ? 'disabled' : ''}>${P.statut === 'valide' ? 'Retirer la validation' : 'Valider pour publication'}</button>
         <button data-a="statut" data-v="${P.statut === 'publie' ? 'valide' : 'publie'}">${P.statut === 'publie' ? 'Publiée (annuler)' : 'Marquer publiée'}</button></div>` : ''}
@@ -424,13 +430,13 @@ function majDyn() {
 }
 function surveiller() {
   clearInterval(timer); timer = null;
-  const lu = d => Object.values(d.relecture || {}).some(x => x.etat === 'attente');
+  const lu = d => [...Object.values(d.relecture || {}), ...Object.values(d.analyses || {})].some(x => x.etat === 'attente');
   if (!D || (D.prod.etat !== 'en cours' && D.montage.etat !== 'en cours' && D.chaine.etat !== 'en cours' && !lu(D))) return;
   timer = setInterval(async () => {
     if (!P) return clearInterval(timer);
     try {
       const n = await api('/api/a/projet?id=' + P.id), avant = D.prod.etat, avantCh = D.chaine.etat;
-      for (const k of ['choix', 'prises', 'finals', 'etape', 'montage', 'prod', 'devis', 'depots', 'chaine', 'controle', 'relecture', 'publication', 'infos']) D[k] = n[k];
+      for (const k of ['choix', 'prises', 'finals', 'etape', 'montage', 'prod', 'devis', 'depots', 'chaine', 'controle', 'relecture', 'publication', 'infos', 'analyses']) D[k] = n[k];
       majDyn();
       if (avant === 'en cours' && n.prod.etat !== 'en cours') etat();
       if (avantCh === 'en cours' && n.chaine.etat !== 'en cours') toast({pause: 'Images prêtes : choisir les prises, puis Continuer', termine: 'Chaîne terminée', arretee: 'Chaîne arrêtée', erreur: 'Chaîne en erreur'}[n.chaine.etat] || '', n.chaine.etat !== 'erreur');
@@ -501,6 +507,7 @@ const actions = {
   image: (el, sid) => produire('images', [sid]),
   clip: (el, sid) => produire('clips', [sid]),
   images: () => produire('images'),
+  analyser: async el => { await api('/api/a/analyser', {id: P.id, fichier: el.dataset.n}); toast('Analyse demandée', true); await recharger(); },
   relire: async () => { await api('/api/a/relire', {id: P.id, temps: T}); toast('Relecture demandée', true); await recharger(); },
   clips: () => {
     const d = D.devis[T].clips, hd = $('#hd').checked;
