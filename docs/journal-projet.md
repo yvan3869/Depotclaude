@@ -239,3 +239,12 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
   raccords sans coupe). Le redacteur les ecrit, le controle des plans les verifie, les depots des agents les portent
   (`docs/agents.md`, « Continuite et raccords »). Essai sur p0004 : `final_v4.mp4` (file puis zoom, camera qui
   avance sur le premier groupe), montage 90 s. Aucune depense. Disque : 30 Go sur 197.
+- 14/11, nuit : essai d'une LoRA video (Wan 2.2, « Shaky, handheld camera », fichier unique cote « high », force 1,0,
+  mot declencheur ajoute par le pilote). Chargement sur le volume puis deux clips 480p du meme tirage, sans et avec :
+  0,09 $ les deux clips, 7,7 min. Resultat : pas de tremblement visible ; le decor bouge autant dans les deux clips
+  (ecart a la premiere image, bande haute : 27,9 dB sans, 27,1 dB avec), seul le geste du personnage change un peu.
+  Conclusion : la chaine des LoRA video marche (hub, volume, pilote), mais celle-ci n'apporte rien ; le rendu « tenu
+  a la main » du montage fait mieux, sans GPU. Correctif au passage : une LoRA video a fichier unique garde son cote
+  (commit b6e2542). Depense du jour : 3,02 $ sur 7,50 $.
+- 14/11 : le proprietaire a pu rouvrir le compte Instagram de Lea ce matin. Instagram reste une cible de l'espace
+  reseaux (`/social`), publication a la main apres validation, mention IA dans chaque legende et label natif.
