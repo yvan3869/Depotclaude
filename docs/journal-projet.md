@@ -228,3 +228,8 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
   a publier a la main. Automatique par personnage, desactive par defaut. Essai reel : semaine du 16/11 de Lea,
   7 textes puis 7 images en 3,8 min, environ 0,17 $ veille du pod comprise. Depense du jour : 2,80 $ sur 7,50 $.
   Les 7 publications attendent dans la file.
+- 14/11, nuit : rendu au montage (atelier, etape montage, reglage « Rendu » par projet) : « net » (inchange, defaut),
+  « telephone pose » (nettete accentuee, noirs releves, grain de capteur a la resolution finale, sous les textes),
+  « tenu a la main » (le meme, plus une derive lente, un fremissement et une rotation de 0,2 degre, continus aux
+  raccords sans coupe). Aucun recalcul GPU. Essai sur p0004 (15 s) : montage 47 s en net, 81 s tenu a la main,
+  fichier 10 puis 15 Mo ; `final_v3.mp4` de p0004 est en rendu tenu a la main. Aucune depense.
