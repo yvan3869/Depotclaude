@@ -15,7 +15,7 @@
   .chip.on { border-color:var(--acc); color:var(--acc); }
   main { max-width:820px; margin:0 auto; padding:12px 12px 80px; }
   h2 { font-size:16px; margin:22px 0 8px; display:flex; align-items:center; gap:8px; }
-  h2 small { color:var(--mut); font-weight:400; }
+  h2 small, .chip small { color:var(--mut); font-weight:400; }
   .panel { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:12px; margin-bottom:10px; }
   label { display:block; color:var(--mut); font-size:13px; margin-top:8px; }
   label.c { display:flex; align-items:center; gap:8px; color:var(--txt); font-size:14px; }
@@ -76,8 +76,13 @@ const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [..
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const usd = x => x == null ? '?' : Number(x).toFixed(2).replace('.', ',') + ' $';
 const vue = $('#vue');
-let E = null, D = null, P = null, cur = localStorage.getItem('perso') || '', autoEcrire = '', timer = null, tSave = null, sig = {};
+let E = null, D = null, P = null, cur = localStorage.getItem('perso') || '', autoEcrire = '', timer = null, tSave = null, sig = {}, T = 1;
 const ETAPES = [['idee', 'Idée'], ['ecrit', 'Scénario'], ['images', 'Images'], ['clips', 'Clips'], ['monte', 'Montage'], ['valide', 'Validée']];
+const TEMPS = {1: ['Accroche', 'tous publics'], 2: ['Montée', 'abonnés'], 3: ['Final', 'privé, payant']};
+const CONSIGNES_T2 = ['Plus lente, plus intime', 'Plus près de la caméra', 'Tenue plus défaite, toujours suggestif', 'Fin qui annonce mieux le final privé'];
+const depotHtml = x => `<div class="var"><b>${esc(x.titre || x.fichier)}</b> <span class="mut">${esc(x.fichier)}, ${esc(x.date)}</span>
+  ${x.erreur ? `<div class="err">Refusé : ${esc(x.erreur)}</div>` : `<div class="mut">${x.n} plan(s) pour le temps ${x.temps}${x.projet ? '' : ', nouveau projet'}${x.perime ? ' ; écrit d\'après un modèle périmé' : ''}${x.note ? ' ; ' + esc(x.note) : ''}</div>
+  <div class="row" style="margin-top:6px">${x.importe ? '<span class="okc">Importé</span>' : `<button class="p s" data-a="importer" data-n="${esc(x.fichier)}">${x.change ? 'Réimporter (fichier modifié)' : 'Importer dans le projet'}</button>`}</div>`}</div>`;
 const CONSIGNES = ['Plus aguicheur, plus de tension', 'Accroche plus forte dès la première seconde', 'Coupe plus frustrante à la fin', 'Plus drôle, plus d\'autodérision', 'Autre lieu, autre tenue', 'Plus court'];
 const CONSIGNES_SCENE = ['Plus sensuelle, toujours suggestive', 'Plus près de la caméra', 'Geste plus simple et plus lent', 'Texte à l\'écran plus percutant', 'Autre tenue'];
 
@@ -162,11 +167,12 @@ function vueProjets() {
       <span class="sp" style="flex:1"></span><a href="#/perso/${esc(cur)}">Fiche de ${esc(p.nom.split(' ')[0])}</a></div>
     ${p.lora ? '' : '<p class="mut">Ce personnage n\'a pas de LoRA : son visage variera d\'une image à l\'autre.</p>'}
     <div id="idees"></div>
+    ${E.depots.length ? `<h2>Plans déposés par l'agent <small>sans projet</small></h2><div class="panel">${E.depots.map(depotHtml).join('')}</div>` : ''}
     <h2>Vidéos <small>${liste.length}</small></h2>
     ${liste.map(x => `<a class="card" href="#/p/${x.id}">
       <div class="th" ${x.vignette ? `style="background-image:url('/afile/${x.id}/${esc(x.vignette)}')"` : ''}></div>
       <div><b>${esc(x.titre)}</b><span class="mut">${esc(x.pitch)}</span>
-      <span class="badge ${x.etape === 'valide' ? 'v' : ''}">${lab[x.etape]}</span> <span class="mut">${x.scenes} scènes, ${esc(x.modifie || '')}</span></div></a>`).join('')
+      <span class="badge ${x.etape === 'valide' ? 'v' : ''}">${lab[x.etape]}</span> <span class="mut">${x.scenes} scènes${x.temps.length > 1 ? ', temps ' + x.temps.join(' ') : ''}, ${esc(x.modifie || '')}</span></div></a>`).join('')
       || '<p class="mut">Aucune vidéo pour ce personnage. Commencer par « Trouver des idées ».</p>'}`;
 }
 async function creer(titre, brief) {
@@ -206,6 +212,8 @@ function attendre(rid, fin, msg) {
 
 // --- Projet ----------------------------------------------------------------------------------------
 async function ouvrirProjet(id) {
+  if (ouvrirProjet.id !== id) T = 1;
+  ouvrirProjet.id = id;
   D = await api('/api/a/projet?id=' + id); P = D.projet;
   rendreProjet();
   if (P.attente) attendre(P.attente, recharger);
@@ -226,16 +234,31 @@ async function sauver() {
 }
 async function structure(f) { f(); tSave = 1; await sauver(); await recharger(); }  // changement de structure : enregistrer puis relire
 const sc = sid => P.scenes.find(s => s.id === sid);
+function echanger(sid, sens) {  // avec la scene voisine du meme temps
+  const m = P.scenes.filter(s => s.temps === T), k = m.findIndex(s => s.id === sid), a = P.scenes.indexOf(m[k]), b = P.scenes.indexOf(m[k + sens]);
+  if (b >= 0) [P.scenes[a], P.scenes[b]] = [P.scenes[b], P.scenes[a]];
+}
 const f = (k, lab, v, o = {}) => `<label>${lab}${o.area ? `<textarea ${o.at || ''} rows="${o.rows || 2}" placeholder="${esc(o.ph || '')}">${esc(v)}</textarea>`
   : `<input ${o.at || ''} type="${o.type || 'text'}" ${o.step ? `step="${o.step}"` : ''} value="${esc(v)}" placeholder="${esc(o.ph || '')}">`}</label>`.replace('<textarea ', `<textarea data-k="${k}" `).replace('<input ', `<input data-k="${k}" `);
 
 function rendreProjet() {
-  const p = perso() || {nom: P.personnage}, vide = !P.scenes.length;
+  const p = perso() || {nom: P.personnage}, vide = !P.scenes.some(s => s.temps === 1);
+  const SC = P.scenes.filter(s => s.temps === T), dep = D.depots.filter(x => x.temps === T || x.erreur);
   vue.innerHTML = `
     <div class="row" style="margin-top:0"><a href="#/">Vidéos de ${esc((E.personnages.find(x => x.slug === P.personnage) || p).nom)}</a><span class="sp" style="flex:1"></span><span class="mut">${P.id}</span></div>
     <input data-k="titre" value="${esc(P.titre)}" style="font-size:18px;font-weight:600;margin-top:8px">
     <div class="steps" id="etapes"></div>
-
+    <div class="chips" style="margin:0 0 4px">${[1, 2, 3].map(t => `<button class="chip ${t === T ? 'on' : ''}" data-a="temps" data-t="${t}">${t}. ${TEMPS[t][0]} <small>${TEMPS[t][1]}, ${P.scenes.filter(s => s.temps === t).length}</small></button>`).join('')}</div>
+    ${T === 2 ? `<div class="panel">
+      <div class="mut">La suite du teaser pour les abonnés : même lieu, même tenue, un cran plus loin. Registre suggestif.</div>
+      ${f('brief2', 'Consigne pour la montée (facultatif)', P.brief2, {area: 1, rows: 2})}
+      <div class="row"><label class="g">Scènes<select data-k="nb2">${[2, 3, 4, 5, 6].map(n => `<option ${n === P.nb2 ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
+        <button class="p" data-a="ecrire2" ${vide || !E.redacteur ? 'disabled' : ''}>${SC.length ? 'Réécrire la montée' : 'Écrire la montée'}</button></div>
+      ${vide ? '<div class="mut" style="margin-top:6px">Écrire d\'abord le teaser (temps 1).</div>' : E.redacteur ? '' : '<div class="mut" style="margin-top:6px">Rédacteur IA arrêté : ajouter les scènes à la main.</div>'}</div>` : ''}
+    ${T === 3 ? `<div class="panel"><div class="mut">Le final privé est à votre main : le rédacteur IA ne l'écrit pas. Ajouter les scènes ici, ou importer un plan déposé par votre agent dans server/jobs/atelier/.</div>
+      ${P.suite ? `<div style="margin-top:6px">Suite annoncée : ${esc(P.suite)}</div>` : ''}</div>` : ''}
+    ${dep.length ? `<div class="panel"><b>Plans déposés par l'agent</b>${dep.map(depotHtml).join('')}</div>` : ''}
+    ${T === 1 ? `
     <h2>1. Idée</h2>
     <div class="panel">
       ${f('brief', 'Idée de départ (français, quelques mots suffisent)', P.brief, {area: 1, rows: 2, ph: 'Elle rentre du sport, trop chaud, elle hésite à enlever son pull devant la caméra'})}
@@ -254,13 +277,13 @@ function rendreProjet() {
       <div class="row"><div class="g">${f('cta', 'Carton de fin', P.cta)}</div><div class="g">${f('hashtags', 'Mots-dièse', P.hashtags)}</div></div>
       <div class="row"><button data-a="variantes" ${vide ? 'disabled' : ''}>Proposer des variantes</button><button data-a="copier">Copier légende et mots-dièse</button></div>
       <div id="variantes"></div>
-    </div>
+    </div>` : ''}
 
-    <h2>3. Scènes <small>${P.scenes.length}, environ ${Math.round(P.scenes.reduce((a, s) => a + (s.duree || 5), 0) + (P.montage.carton ? 2.6 : 0))} s</small></h2>
-    ${P.scenes.map((s, i) => `<div class="scene" data-sid="${s.id}">
+    <h2>${T === 1 ? '3. ' : ''}Scènes <small>${SC.length}, environ ${Math.round(SC.reduce((a, s) => a + (s.duree || 5), 0) + (T === 1 && P.montage.carton ? 2.6 : 0))} s</small></h2>
+    ${SC.map((s, i) => `<div class="scene" data-sid="${s.id}">
       <div class="sh"><b>${i + 1}</b><input data-s="${s.id}" data-k="titre" value="${esc(s.titre)}" placeholder="Titre">
         <select data-s="${s.id}" data-k="role">${[['accroche', 'Accroche'], ['montee', 'Montée'], ['chute', 'Chute']].map(([v, l]) => `<option value="${v}" ${v === s.role ? 'selected' : ''}>${l}</option>`).join('')}</select>
-        <button class="s" data-a="monte" ${i ? '' : 'disabled'}>Haut</button><button class="s" data-a="descend" ${i < P.scenes.length - 1 ? '' : 'disabled'}>Bas</button></div>
+        <button class="s" data-a="monte" ${i ? '' : 'disabled'}>Haut</button><button class="s" data-a="descend" ${i < SC.length - 1 ? '' : 'disabled'}>Bas</button></div>
       <div class="media" data-sid="${s.id}"></div>
       ${f('texte', 'Texte à l\'écran', s.texte, {at: `data-s="${s.id}"`})}
       ${f('still', 'Image de départ (anglais)', s.still, {area: 1, rows: 3, at: `data-s="${s.id}"`})}
@@ -270,16 +293,18 @@ function rendreProjet() {
         ${f('end_edit', 'Pose de fin du clip (anglais ; vide = clip simple, moitié prix)', s.end_edit, {area: 1, rows: 1, at: `data-s="${s.id}"`})}
         <div class="row"><div class="g">${f('debut', 'Début du clip (s)', s.debut, {type: 'number', step: '0.1', at: `data-s="${s.id}"`})}</div>
           <div class="g">${f('duree', 'Durée gardée (s, 0 = tout)', s.duree, {type: 'number', step: '0.1', at: `data-s="${s.id}"`})}</div></div>
+        ${T > 1 ? f('loras', 'LoRA supplémentaires (noms du catalogue, « nom:force », séparés par des virgules)', s.loras, {at: `data-s="${s.id}"`}) : ''}
         <label class="c" style="margin-top:10px"><input type="checkbox" data-s="${s.id}" data-k="tattoos" ${s.tattoos ? 'checked' : ''}>Épaules et poitrine visibles (tatouages)</label>
+        ${s.origine ? `<div class="mut" style="margin-top:6px">Origine : ${esc(s.origine)}</div>` : ''}
       </details>
-      <div class="row"><button class="s" data-a="recrire">Réécrire la scène</button><button class="s" data-a="dupliquer">Dupliquer</button><span class="sp" style="flex:1"></span><button class="s d" data-a="supprimer">Supprimer</button></div>
+      <div class="row">${T < 3 ? '<button class="s" data-a="recrire">Réécrire la scène</button>' : ''}<button class="s" data-a="dupliquer">Dupliquer</button><span class="sp" style="flex:1"></span><button class="s d" data-a="supprimer">Supprimer</button></div>
     </div>`).join('')}
     <button data-a="ajouter">Ajouter une scène</button>
 
-    <h2>4. Images et clips</h2>
+    <h2>${T === 1 ? '4. ' : ''}Images et clips</h2>
     <div class="panel" id="prod"></div>
 
-    <h2>5. Montage</h2>
+    <h2>${T === 1 ? '5. ' : ''}Montage <small>${TEMPS[T][0].toLowerCase()}</small></h2>
     <div class="panel">
       <div class="row" style="margin-top:0">
         <label class="g">Transition<select data-m="1" data-k="transition"><option value="coupe" ${P.montage.transition === 'coupe' ? 'selected' : ''}>Coupe franche</option><option value="fondu" ${P.montage.transition === 'fondu' ? 'selected' : ''}>Fondu</option></select></label>
@@ -287,7 +312,7 @@ function rendreProjet() {
         <label class="g">Musique<select data-m="1" data-k="musique"><option value="">Aucune</option>${E.musiques.map(m => `<option ${m === P.montage.musique ? 'selected' : ''}>${esc(m)}</option>`).join('')}</select></label>
       </div>
       <div class="row"><label class="c"><input type="checkbox" data-m="1" data-k="textes" ${P.montage.textes ? 'checked' : ''}>Textes à l'écran</label>
-        <label class="c"><input type="checkbox" data-m="1" data-k="carton" ${P.montage.carton ? 'checked' : ''}>Carton de fin</label>
+        ${T === 1 ? `<label class="c"><input type="checkbox" data-m="1" data-k="carton" ${P.montage.carton ? 'checked' : ''}>Carton de fin</label>` : ''}
         <label class="c"><input type="checkbox" data-m="1" data-k="label" ${P.montage.label ? 'checked' : ''}>Mention « AI character »</label></div>
       ${E.musiques.length ? '' : '<div class="mut" style="margin-top:6px">Musique : déposer des fichiers mp3 dans data/audio sur le serveur.</div>'}
       <div id="mont"></div>
@@ -316,7 +341,7 @@ function majDyn() {
         <div class="mut" style="margin-top:6px">${c.clip ? 'Clip prêt.' : c.image ? 'Image prête : la vérifier avant de lancer le clip.' : ''}</div>
       </div>`, 'm' + s.id);
   }
-  const d = D.devis, pr = D.prod;
+  const d = D.devis[T], pr = D.prod;
   set($('#prod'), `
     <div class="row" style="margin-top:0"><button class="p" data-a="images" ${occ || !d.images.n ? 'disabled' : ''}>Créer les images manquantes (${d.images.n})</button><span class="mut">${d.images.n ? 'environ ' + usd(d.images.usd) : ''}</span></div>
     <div class="row"><button class="p" data-a="clips" ${occ || !d.clips.n ? 'disabled' : ''}>Créer les clips manquants (${d.clips.n})</button>
@@ -325,17 +350,17 @@ function majDyn() {
     <div class="mut" style="margin-top:6px">${E.can_run ? 'Chaque lancement passe par le plafond GPU du jour. Les clips démarrent leur propre pod (2 à 5 minutes d\'attente).' : 'Clé RunPod absente : lancement impossible.'}</div>
     ${pr.etat ? `<div style="margin-top:8px"><b class="${pr.etat === 'en cours' ? '' : pr.etat === 'termine' ? 'okc' : 'err'}">${{'en cours': 'Calcul en cours', termine: 'Dernier calcul terminé', arrete: 'Dernier calcul arrêté', interrompu: 'Dernier calcul interrompu'}[pr.etat]}</b>
       ${pr.cout != null ? ` <span class="mut">${usd(pr.cout)}</span>` : ''}${pr.echecs ? ` <span class="err">${pr.echecs} échec(s)</span>` : ''}<pre>${esc(pr.log)}</pre></div>` : ''}`, 'prod');
-  const m = D.montage, fin = D.finals.at(-1), u = n => `/afile/${P.id}/${n}`;
+  const F = D.finals[T], m = D.montage, fin = F.at(-1), u = n => `/afile/${P.id}/${n}`;
   set($('#mont'), `
     <div class="row"><button class="p" data-a="monter" ${m.etat === 'en cours' ? 'disabled' : ''}>${m.etat === 'en cours' ? 'Montage en cours...' : fin ? 'Remonter (nouvelle version)' : 'Monter la vidéo'}</button>
       <span class="mut">Les scènes sans clip sont montées en image fixe avec un zoom lent.</span></div>
     ${m.etat === 'erreur' ? `<pre class="err">${esc(m.erreur)}</pre>` : ''}
     ${fin ? `<video class="fin" src="${u(fin)}" controls playsinline preload="metadata"></video>
-      <div class="row"><b>${fin.replace('final_', '').replace('.mp4', '')}</b><a href="${u(fin)}" download="${P.id}_${fin}">Télécharger</a><span class="sp" style="flex:1"></span>
+      <div class="row"><b>${fin.replace('final_', '').replace('.mp4', '').replace('_', ' ')}</b><a href="${u(fin)}" download="${P.id}_${fin}">Télécharger</a><span class="sp" style="flex:1"></span>
         <button class="s" data-a="tri" data-n="${fin}">Envoyer au Tri</button><button class="s d" data-a="suppfinal" data-n="${fin}">Supprimer</button></div>
-      <div class="row"><button class="${P.statut === 'valide' ? '' : 'p'}" data-a="statut" data-v="${P.statut === 'valide' ? '' : 'valide'}">${P.statut === 'valide' ? 'Retirer la validation' : 'Valider pour publication'}</button>
-        <button data-a="statut" data-v="${P.statut === 'publie' ? 'valide' : 'publie'}">${P.statut === 'publie' ? 'Publiée (annuler)' : 'Marquer publiée'}</button></div>
-      ${D.finals.length > 1 ? `<details><summary>Versions précédentes (${D.finals.length - 1})</summary>${D.finals.slice(0, -1).reverse().map(n => `<div class="row"><a href="${u(n)}" target="_blank">${n}</a>
+      ${T === 1 ? `<div class="row"><button class="${P.statut === 'valide' ? '' : 'p'}" data-a="statut" data-v="${P.statut === 'valide' ? '' : 'valide'}">${P.statut === 'valide' ? 'Retirer la validation' : 'Valider pour publication'}</button>
+        <button data-a="statut" data-v="${P.statut === 'publie' ? 'valide' : 'publie'}">${P.statut === 'publie' ? 'Publiée (annuler)' : 'Marquer publiée'}</button></div>` : ''}
+      ${F.length > 1 ? `<details><summary>Versions précédentes (${F.length - 1})</summary>${F.slice(0, -1).reverse().map(n => `<div class="row"><a href="${u(n)}" target="_blank">${n}</a>
         <span class="sp" style="flex:1"></span><button class="s d" data-a="suppfinal" data-n="${n}">Supprimer</button></div>`).join('')}</details>` : ''}` : ''}`, 'mont');
 }
 function surveiller() {
@@ -345,7 +370,7 @@ function surveiller() {
     if (!P) return clearInterval(timer);
     try {
       const n = await api('/api/a/projet?id=' + P.id), avant = D.prod.etat;
-      for (const k of ['choix', 'prises', 'finals', 'etape', 'montage', 'prod', 'devis']) D[k] = n[k];
+      for (const k of ['choix', 'prises', 'finals', 'etape', 'montage', 'prod', 'devis', 'depots']) D[k] = n[k];
       majDyn();
       if (avant === 'en cours' && n.prod.etat !== 'en cours') etat();
       if (n.prod.etat !== 'en cours' && n.montage.etat !== 'en cours') { clearInterval(timer); timer = null; }
@@ -355,7 +380,7 @@ function surveiller() {
 async function produire(quoi, scenes) {
   await sauver();
   const hd = $('#hd')?.checked;
-  await api('/api/a/produire', {id: P.id, quoi, scenes, hd});
+  await api('/api/a/produire', {id: P.id, quoi, scenes, hd, temps: T});
   toast(quoi === 'images' ? 'Images lancées' : 'Clips lancés', true);
   await recharger();
 }
@@ -364,8 +389,20 @@ const actions = {
   nouveau: () => creer('', ''),
   idees,
   idee: el => { const x = idees.r[+el.dataset.i]; return creer(x.titre, `${x.pitch} Accroche : ${x.accroche}`); },
+  temps: el => { T = +el.dataset.t; const hd = sig.hd; sig = {hd}; rendreProjet(); },
+  ecrire2: async () => {
+    if (P.scenes.some(s => s.temps === 2) && !confirm('Réécrire toute la montée ? Ses images et clips ne seront plus rattachés.')) return;
+    const c = await demander('Écrire la montée : une consigne ? (facultatif)', CONSIGNES_T2);
+    if (c !== null) ecrire({kind: 'temps2', projet: P.id, consigne: c}, recharger, 'Écriture de la montée');
+  },
+  importer: async el => {
+    if (P) await sauver();
+    const r = await api('/api/a/depot/importer', {fichier: el.dataset.n, personnage: cur});
+    toast(r.scenes + ' scène(s) importée(s)', true);
+    if (P && P.id === r.id) { T = r.temps; await recharger(); } else { await etat(); T = r.temps; ouvrirProjet.id = r.id; location.hash = '#/p/' + r.id; }
+  },
   ecrire: async () => {
-    if (P.scenes.length && !confirm('Remplacer tout le scénario ? Les images et clips déjà produits ne seront plus rattachés.')) return;
+    if (P.scenes.some(s => s.temps === 1) && !confirm('Remplacer tout le scénario ? Les images et clips déjà produits ne seront plus rattachés.')) return;
     ecrire({kind: 'scenario', projet: P.id}, recharger, 'Écriture du scénario');
   },
   retoucher: async () => { const c = await demander('Retoucher le scénario', CONSIGNES); if (c !== null) ecrire({kind: 'retouche', projet: P.id, consigne: c}, recharger, 'Réécriture'); },
@@ -377,21 +414,21 @@ const actions = {
   }, 'Recherche de variantes'),
   variante: el => structure(() => { const v = actions.v[+el.dataset.i]; P.accroche = v.accroche; P.legende = v.legende; P.cta = v.cta; }),
   copier: () => copier([P.legende, P.hashtags].filter(Boolean).join('\n\n')),
-  ajouter: () => structure(() => P.scenes.push({titre: '', role: 'montee', still: '', motion: '', texte: '', tattoos: true})),
-  dupliquer: (el, sid) => structure(() => { const i = P.scenes.findIndex(s => s.id === sid); P.scenes.splice(i + 1, 0, {...P.scenes[i], id: null, seed: 0, image: '', clip: ''}); }),
+  ajouter: () => structure(() => P.scenes.push({titre: '', role: 'montee', temps: T, still: '', motion: '', texte: '', tattoos: true})),
+  dupliquer: (el, sid) => structure(() => { const i = P.scenes.findIndex(s => s.id === sid); P.scenes.splice(i + 1, 0, {...P.scenes[i], id: null, seed: 0, image: '', clip: '', origine: ''}); }),
   supprimer: (el, sid) => confirm('Supprimer cette scène ?') && structure(() => P.scenes = P.scenes.filter(s => s.id !== sid)),
-  monte: (el, sid) => structure(() => { const i = P.scenes.findIndex(s => s.id === sid); P.scenes.splice(i - 1, 0, P.scenes.splice(i, 1)[0]); }),
-  descend: (el, sid) => structure(() => { const i = P.scenes.findIndex(s => s.id === sid); P.scenes.splice(i + 1, 0, P.scenes.splice(i, 1)[0]); }),
+  monte: (el, sid) => structure(() => echanger(sid, -1)),
+  descend: (el, sid) => structure(() => echanger(sid, 1)),
   prise: (el, sid) => structure(() => { sc(sid).image = el.dataset.n; sc(sid).clip = ''; }),
   priseclip: (el, sid) => structure(() => sc(sid).clip = el.dataset.n),
   image: (el, sid) => produire('images', [sid]),
   clip: (el, sid) => produire('clips', [sid]),
   images: () => produire('images'),
   clips: () => {
-    const d = D.devis.clips, hd = $('#hd').checked;
+    const d = D.devis[T].clips, hd = $('#hd').checked;
     if (confirm(`Lancer ${d.n} clip(s), environ ${usd(hd ? d.usd_hd : d.usd)} ? Vérifier d'abord que les images conviennent.`)) return produire('clips');
   },
-  monter: async () => { await sauver(); await api('/api/a/monter', {id: P.id}); await recharger(); },
+  monter: async () => { await sauver(); await api('/api/a/monter', {id: P.id, temps: T}); await recharger(); },
   tri: async el => { const r = await api('/api/a/final/tri', {id: P.id, fichier: el.dataset.n}); toast('Copiée dans le Tri : ' + r.fichier, true); },
   suppfinal: async el => { if (confirm('Supprimer ' + el.dataset.n + ' ?')) { await api('/api/a/final/supprimer', {id: P.id, fichier: el.dataset.n}); await recharger(); } },
   statut: el => structure(() => P.statut = el.dataset.v),
@@ -408,7 +445,7 @@ vue.addEventListener('input', e => {
   const t = e.target, k = t.dataset.k;
   if (t.id === 'hd') return sig.hd = t.checked;
   if (!k || !P) return;
-  const v = t.type === 'checkbox' ? t.checked : t.type === 'number' || k === 'nb_scenes' ? +t.value : t.value;
+  const v = t.type === 'checkbox' ? t.checked : t.type === 'number' || k === 'nb_scenes' || k === 'nb2' ? +t.value : t.value;
   if (t.dataset.s) sc(t.dataset.s)[k] = v; else if (t.dataset.m) P.montage[k] = v; else P[k] = v;
   planifier();
 });

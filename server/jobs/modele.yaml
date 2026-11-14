@@ -7,10 +7,22 @@
 # version et previent dans son journal si le plan a ete ecrit d'apres un modele perime.
 #
 # Historique
-#   2026-11-14  premiere version : champs character, image, tattoos, body, end_edit, steps.
+#   2026-11-14   premiere version : champs character, image, tattoos, body, end_edit, steps.
+#   2026-11-14b  depot dans l'atelier : bloc "atelier", champs de plan titre, texte, voix, role.
 
-modele: "2026-11-14"
+modele: "2026-11-14b"
 name: monlot                 # prefixe des fichiers produits (lettres, chiffres, _), unique par lancement
+
+# --- Facultatif : plans deposes dans l'atelier (docs/agents.md, "Deposer des plans") --------------
+# Uniquement pour un fichier place dans server/jobs/atelier/. Le pilote ignore ce bloc ; c'est la
+# page Atelier qui le lit quand le proprietaire importe le fichier. Dans ce cas : 1 a 10 plans,
+# "still" obligatoire dans chacun, pas de "steps" ni de "image", pas de "character".
+# atelier:
+#   projet: p0001            # projet auquel ajouter les plans ; "" ou absent : nouveau projet
+#   temps: 3                 # 1 accroche tous publics, 2 montee pour les abonnes, 3 final prive
+#   personnage: lea          # seulement pour un nouveau projet (fiche de persona/personnages/)
+#   titre: ""                # seulement pour un nouveau projet
+#   note: ""                 # une ligne pour le proprietaire, affichee dans la page
 
 # --- Facultatif : autre personnage que celui de persona/production.yaml --------------------------
 # Un champ absent garde la valeur de production.yaml. Bloc a supprimer pour Lea.
@@ -39,6 +51,11 @@ shots:
   - name: img01
     still: "cadrage, lieu, tenue, pose, expression, lumiere : une phrase dense en anglais"
     tattoos: true            # false si la tenue couvre epaules et poitrine (pull, peignoir ferme)
+    # Lus par l'atelier seulement (ignores par le pilote), tous facultatifs :
+    # titre: "Regard"        # nom de la scene dans la page
+    # texte: "Don't blink."  # texte incruste au montage
+    # voix: ""               # voix off (pas encore produite)
+    # role: montee           # accroche, montee ou chute
 
   # 2. Image puis clip de 5 s : un seul geste lent, phrase en anglais commencant par "She".
   - name: clip01

@@ -6,6 +6,10 @@ L'ecriture est confiee au redacteur IA (server/writer, file d'attente dans data/
 repond pas, un redacteur de secours (moteur_local.py) tire un scenario d'une structure toute faite.
 Les images et les clips passent par le pilote, donc par le plafond GPU du jour.
 
+Un projet couvre trois temps (docs/feuille-de-route.md) : 1 accroche tous publics, 2 montee pour les
+abonnes, 3 final prive. Chaque scene porte son temps. Le redacteur ecrit les temps 1 et 2 ; le temps 3
+est a la main du proprietaire, ou alimente par un plan depose par son agent dans server/jobs/atelier/.
+
 Donnees : data/personnages/<slug>.json, data/projets/<id>/ (projet.json, runs/, media/, final_vN.mp4),
 data/ecriture/ (demandes et reponses du redacteur), data/audio/ (musiques deposees par le proprietaire).
 """
@@ -26,6 +30,7 @@ import moteur_local
 AGE_MIN = 21
 ETAPES = ("idee", "ecrit", "images", "clips", "monte", "valide")
 FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+TEMPS = {1: "accroche", 2: "montee", 3: "final"}
 FORMATS = {"vertical": (1080, 1920), "carre": (1080, 1080), "paysage": (1920, 1080)}
 
 SYSTEME = """Tu es scénariste, dialoguiste et monteur de teasers vidéo courts pour un personnage fictif, adulte, généré par IA et présenté comme tel. Tu écris pour vendre : la vidéo doit arrêter le pouce dans la première seconde, faire monter l'envie, couper juste avant la suite et envoyer vers la page payante du personnage.
@@ -87,10 +92,30 @@ def _json_de(texte):
     return json.loads(texte[a:b + 1])
 
 
+def _loras(x):
+    """LoRA supplementaires d'une scene, en texte : "nom:0.6, autre"."""
+    if isinstance(x, list):
+        x = ", ".join(f"{i['name']}:{i['strength']}" if isinstance(i, dict) and i.get("strength") is not None
+                      else str(i.get("name", "")) if isinstance(i, dict) else str(i) for i in x)
+    return ", ".join(p for p in (re.sub(r"[^A-Za-z0-9_.:-]", "", p) for p in str(x or "").split(",")) if p)[:300]
+
+
+def _loras_plan(txt):
+    out = []
+    for p in txt.split(", ") if txt else []:
+        nom, _, force = p.partition(":")
+        try:
+            out.append({"name": nom, "strength": float(force)} if force else nom)
+        except ValueError:
+            out.append(nom)
+    return out
+
+
 class Atelier:
     def __init__(self, data: Path, repo: Path, studio):
         self.data, self.repo, self.studio = data, repo, studio
         self.dp, self.dj, self.de, self.da = data / "personnages", data / "projets", data / "ecriture", data / "audio"
+        self.dd = repo / "server" / "jobs" / "atelier"  # plans deposes par l'agent du proprietaire (lecture seule ici)
         for d in (self.dp, self.dj, self.de, self.da):
             d.mkdir(parents=True, exist_ok=True)
         os.chmod(self.de, 0o777)  # le redacteur tourne sur le serveur sous un autre compte que le conteneur
@@ -164,6 +189,9 @@ class Atelier:
         p = _load(self._pdir(pid) / "projet.json")
         if not p:
             raise FileNotFoundError(pid)
+        for s in p.get("scenes") or []:  # projets d'avant les trois temps
+            s.setdefault("temps", 1), s.setdefault("loras", ""), s.setdefault("origine", "")
+        p.setdefault("brief2", ""), p.setdefault("nb2", 3), p.setdefault("depots", {})
         return p
 
     def _scene(self, d, proj):
@@ -172,6 +200,8 @@ class Atelier:
             sid = f"s{proj['next']}"
             proj["next"] += 1
         return {"id": sid, "titre": _s(d.get("titre"), 80), "role": d.get("role") if d.get("role") in ("accroche", "montee", "chute") else "montee",
+                "temps": int(d.get("temps") or 1) if str(d.get("temps") or 1) in ("1", "2", "3") else 1,
+                "loras": _loras(d.get("loras")), "origine": _s(d.get("origine"), 120),
                 "still": _s(d.get("still"), 1200), "motion": _s(d.get("motion"), 600), "end_edit": _s(d.get("end_edit"), 600),
                 "texte": _s(d.get("texte"), 120), "voix": _s(d.get("voix"), 240), "tattoos": bool(d.get("tattoos", True)),
                 "seed": int(d.get("seed") or random.randint(1, 999999)), "image": _s(d.get("image"), 80), "clip": _s(d.get("clip"), 80),
@@ -194,6 +224,8 @@ class Atelier:
                  "statut": b.get("statut", old.get("statut")) if b.get("statut", old.get("statut")) in ("", "valide", "publie", "archive") else "",
                  "brief": _s(b.get("brief", old.get("brief")), 1500), "suite": _s(b.get("suite", old.get("suite")), 600),
                  "nb_scenes": max(2, min(int(b.get("nb_scenes", old.get("nb_scenes")) or 3), 8)),
+                 "brief2": _s(b.get("brief2", old.get("brief2")), 1500), "nb2": max(2, min(int(b.get("nb2", old.get("nb2")) or 3), 6)),
+                 "depots": old.get("depots") or {},
                  "pitch": _s(b.get("pitch", old.get("pitch")), 400), "accroche": _s(b.get("accroche", old.get("accroche")), 120),
                  "legende": _s(b.get("legende", old.get("legende")), 600), "cta": _s(b.get("cta", old.get("cta")), 120),
                  "hashtags": _s(b.get("hashtags", old.get("hashtags")), 200), "attente": old.get("attente") or "",
@@ -201,7 +233,7 @@ class Atelier:
                              "format": m.get("format") if m.get("format") in FORMATS else "vertical",
                              "textes": bool(m.get("textes", True)), "carton": bool(m.get("carton", True)),
                              "label": bool(m.get("label", False)), "musique": _s(m.get("musique"), 120)}}
-            p["scenes"] = [self._scene(s, p) for s in (b["scenes"] if "scenes" in b else old.get("scenes") or [])][:12]
+            p["scenes"] = [self._scene(s, p) for s in (b["scenes"] if "scenes" in b else old.get("scenes") or [])][:30]
             _dump(self.dj / pid / "projet.json", p)
             return p
 
@@ -240,9 +272,10 @@ class Atelier:
         return {**p, "scenes": [{**s, **ch[s["id"]]} for s in p["scenes"]]}
 
     def _etape(self, p, finals):
+        """Avancement du temps 1 (le teaser), celui qui se publie."""
         if p.get("statut") in ("valide", "publie"):
             return "valide"
-        sc = p["scenes"]
+        sc = [s for s in p["scenes"] if s["temps"] == 1]
         if not sc:
             return "idee"
         if finals:
@@ -253,30 +286,33 @@ class Atelier:
             return "images"
         return "ecrit"
 
-    def _finals(self, pid):
-        return sorted((f.name for f in self._pdir(pid).glob("final_v*.mp4")), key=lambda n: int(re.search(r"\d+", n[6:]).group()))
+    def _finals(self, pid, temps=1):
+        pre = "final_v" if temps == 1 else f"final_t{temps}_v"
+        return sorted((f.name for f in self._pdir(pid).glob(pre + "*.mp4")), key=lambda n: int(n[len(pre):-4]))
 
     def projet(self, pid):
         p = self._raw(pid)
         pr = self.prises(pid)
         e = self._eff(p, pr)
-        finals = self._finals(pid)
+        finals = {t: self._finals(pid, t) for t in TEMPS}
         mt = _load(self._pdir(pid) / "montage.json", {})
         if mt.get("etat") == "en cours" and pid not in self.montages:
             mt = {"etat": "erreur", "erreur": "montage interrompu (interface redémarrée)"}
         return {"projet": p, "choix": {s["id"]: {"image": s["image"], "clip": s["clip"]} for s in e["scenes"]}, "prises": pr,
-                "finals": finals, "etape": self._etape(e, finals), "montage": mt, "prod": self.prod(pid), "devis": self.devis(e)}
+                "finals": finals, "etape": self._etape(e, finals[1]), "montage": mt, "prod": self.prod(pid),
+                "devis": {t: self.devis(e, t) for t in TEMPS}, "depots": [x for x in self.depots() if x.get("projet") == pid]}
 
     def liste(self):
         out = []
         for d in sorted(self.dj.glob("p*/projet.json"), reverse=True):
-            p = _load(d)
-            if not p or p.get("statut") == "archive":
+            p = self._raw(d.parent.name)
+            if p.get("statut") == "archive":
                 continue
             p = self._eff(p)
             finals = self._finals(p["id"])
             out.append({"id": p["id"], "personnage": p["personnage"], "titre": p["titre"], "pitch": p.get("pitch", ""),
                         "modifie": p.get("modifie"), "etape": self._etape(p, finals), "scenes": len(p["scenes"]),
+                        "temps": sorted({s["temps"] for s in p["scenes"]}),
                         "vignette": next((s["image"] for s in p["scenes"] if s["image"]), ""), "final": finals[-1] if finals else ""})
         return out
 
@@ -302,7 +338,7 @@ class Atelier:
     def etat(self):
         return {"personnages": [{k: p.get(k) for k in ("slug", "nom", "statut", "age", "langue", "accroche")} | {"lora": bool((p.get("generation") or {}).get("lora"))}
                                 for p in self.persos().values()],
-                "projets": self.liste(), "redacteur": self.redacteur_actif(), "depense": self.depense(),
+                "projets": self.liste(), "depots": [x for x in self.depots() if not self._existe(x.get("projet"))], "redacteur": self.redacteur_actif(), "depense": self.depense(),
                 "occupe": self.studio.running(), "can_run": self.studio.can_run(),
                 "musiques": sorted(f.name for f in self.da.iterdir() if f.suffix.lower() in (".mp3", ".m4a", ".wav", ".ogg"))}
 
@@ -318,10 +354,11 @@ class Atelier:
                            **(p.get("fiche") or {}), "lieux (français | anglais)": p.get("lieux"), "tenues (français | anglais)": p.get("tenues"),
                            "ecriture": p.get("ecriture"), "note_generation": (p.get("generation") or {}).get("note")}, ensure_ascii=False, indent=1)
 
-    def _texte_projet(self, p):
+    def _texte_projet(self, p, temps=1):
+        """Texte d'un temps du projet pour le redacteur. Le temps 3 ne lui est jamais envoye."""
         keep = ("id", "titre", "role", "still", "motion", "end_edit", "texte", "voix", "tattoos")
-        return json.dumps({k: p.get(k) for k in ("titre", "pitch", "accroche", "legende", "cta", "hashtags")}
-                          | {"scenes": [{k: s[k] for k in keep} for s in p["scenes"]]}, ensure_ascii=False, indent=1)
+        tete = {k: p.get(k) for k in ("titre", "pitch", "accroche", "legende", "cta", "hashtags")} if temps == 1 else {}
+        return json.dumps(tete | {"scenes": [{k: s[k] for k in keep} for s in p["scenes"] if s["temps"] == temps]}, ensure_ascii=False, indent=1)
 
     def ecrire(self, b):
         kind = b.get("kind")
@@ -342,9 +379,21 @@ class Atelier:
             sc = next((s for s in proj["scenes"] if s["id"] == b.get("scene")), None)
             if not sc:
                 raise ValueError("scène inconnue")
-            prompt = (f"PERSONNAGE\n{self._fiche(perso)}\n\nSCÉNARIO\n{self._texte_projet(proj)}\n\nCOMMANDE\nRéécris uniquement la scène \"{sc['id']}\" "
+            if sc["temps"] == 3:
+                raise ValueError("le temps 3 est à votre main : le rédacteur IA ne l'écrit pas")
+            prompt = (f"PERSONNAGE\n{self._fiche(perso)}\n\nSCÉNARIO\n{self._texte_projet(proj, sc['temps'])}\n\nCOMMANDE\nRéécris uniquement la scène \"{sc['id']}\" "
                       f"selon la consigne : {consigne or 'plus forte, plus sensuelle, toujours suggestive'}\n\nFORMAT\n"
                       '{"titre": "...", "role": "...", "still": "...", "motion": "...", "end_edit": "", "texte": "...", "voix": "", "tattoos": true}')
+        elif kind == "temps2":
+            if not [s for s in proj["scenes"] if s["temps"] == 1]:
+                raise ValueError("écrire d'abord le teaser (temps 1) : la montée en est la suite")
+            prompt = (f"PERSONNAGE\n{self._fiche(perso)}\n\nTEASER PUBLIC (temps 1, déjà écrit)\n{self._texte_projet(proj)}\n\nCOMMANDE\n"
+                      f"Écris le temps 2 : la suite réservée aux abonnés, en {proj['nb2']} scènes. Ce n'est plus une publicité, c'est la récompense de "
+                      "l'abonnement : elle reprend à l'instant où le teaser a coupé et va un cran plus loin à chaque scène (plus près, plus lente, plus "
+                      "intime, regard plus appuyé, tenue plus défaite). Même lieu et même tenue que le teaser, avec exactement les mêmes mots dans "
+                      "\"still\". Même registre : suggestif, jamais explicite. Pas d'appel à l'action ; la dernière scène laisse seulement entendre "
+                      f"qu'un final privé existe, sans le décrire.\n{'Consigne : ' + (consigne or proj.get('brief2')) if (consigne or proj.get('brief2')) else ''}\n\nFORMAT\n"
+                      '{"scenes": [{"titre": "...", "role": "accroche|montee|chute", "still": "...", "motion": "...", "end_edit": "", "texte": "...", "voix": "", "tattoos": true}]}')
         elif kind == "legendes":
             prompt = (f"PERSONNAGE\n{self._fiche(perso)}\n\nSCÉNARIO\n{self._texte_projet(proj)}\n\nCOMMANDE\nPropose {min(n, 5)} variantes d'accroche, de légende "
                       f"et de carton de fin pour cette vidéo, d'angles différents (défi, confidence, humour, promesse, urgence). {consigne}\n\nFORMAT\n"
@@ -380,7 +429,7 @@ class Atelier:
         req = {"systeme": SYSTEME, "demande": prompt, "kind": kind, "projet": proj["id"] if proj else "", "scene": b.get("scene") or ""}
         _dump(self.de / f"{rid}.req.json", req)
         os.chmod(self.de / f"{rid}.req.json", 0o666)
-        if proj and kind in ("scenario", "retouche", "scene"):
+        if proj and kind in ("scenario", "retouche", "scene", "temps2"):
             proj["attente"] = rid
             _dump(self.dj / proj["id"] / "projet.json", proj)
         return {"etat": "attente", "rid": rid}
@@ -394,19 +443,22 @@ class Atelier:
                     if s["id"] == sid:
                         p["scenes"][i] = self._scene({**s, **{k: res[k] for k in ("titre", "role", "still", "motion", "end_edit", "texte", "voix", "tattoos") if k in res}}, p)
             else:
-                old = {s["id"]: s for s in p["scenes"]}
-                for k in ("pitch", "accroche", "legende", "cta", "hashtags"):
+                t = 2 if kind == "temps2" else 1  # les scenes des autres temps ne bougent pas
+                old = {s["id"]: s for s in p["scenes"] if s["temps"] == t}
+                for k in ("pitch", "accroche", "legende", "cta", "hashtags") if t == 1 else ():
                     p[k] = _s(res.get(k), 600)
-                if res.get("titre") and (kind == "retouche" or p.get("titre") in ("", "Sans titre")):
+                if t == 1 and res.get("titre") and (kind == "retouche" or p.get("titre") in ("", "Sans titre")):
                     p["titre"] = _s(res["titre"], 100)
                 scenes = []
                 for d in res.get("scenes") or []:
                     o = old.get(d.get("id")) or {}
                     scenes.append(self._scene({**{k: o[k] for k in ("id", "seed", "image", "clip", "debut", "duree") if k in o}, **d,
-                                               **({"id": o["id"]} if o else {"id": None})}, p))
+                                               **({"id": o["id"]} if o else {"id": None}), "temps": t, "loras": o.get("loras", ""), "origine": ""}, p))
                 if not scenes:
                     raise ValueError("le rédacteur n'a renvoyé aucune scène")
-                p["scenes"] = scenes[:12]
+                # les plans deposes par l'agent (origine) ne sont jamais ecrases par le redacteur
+                garde = [s for s in p["scenes"] if s["temps"] != t or (kind == "temps2" and s["origine"])]
+                p["scenes"] = sorted(scenes[:10] + garde, key=lambda s: s["temps"])
             p["modifie"] = time.strftime("%Y-%m-%d %H:%M")
             _dump(self.dj / pid / "projet.json", p)
             return p
@@ -427,7 +479,7 @@ class Atelier:
             if err.exists():
                 raise ValueError("rédacteur : " + err.read_text(encoding="utf-8", errors="replace")[:300])
             out = _json_de(res.read_text(encoding="utf-8"))
-            if req["kind"] in ("scenario", "retouche", "scene"):
+            if req["kind"] in ("scenario", "retouche", "scene", "temps2"):
                 out = self._appliquer(req["kind"], req["projet"], req.get("scene"), out)
             return {"etat": "pret", "moteur": "ia", "resultat": out}
         except (ValueError, KeyError, TypeError) as e:
@@ -445,11 +497,101 @@ class Atelier:
                     p["attente"] = ""
                     _dump(self.dj / req["projet"] / "projet.json", p)
 
+    # --- Plans deposes par l'agent ----------------------------------------------------------------
+    def _existe(self, pid):
+        return bool(re.fullmatch(r"p\d{4}", str(pid or ""))) and (self.dj / str(pid) / "projet.json").is_file()
+
+    def _plan(self, f):
+        """Lit un plan depose (format de server/jobs/modele.yaml, plus un bloc "atelier") et le rend en scenes."""
+        import yaml
+        if f.stat().st_size > 200_000:
+            raise ValueError("fichier trop gros")
+        j = yaml.safe_load(f.read_text(encoding="utf-8"))
+        if not isinstance(j, dict) or not isinstance(j.get("atelier"), dict):
+            raise ValueError('bloc "atelier" absent')
+        a, d, shots = j["atelier"], j.get("defaults") or {}, j.get("shots")
+        if a.get("temps") not in (1, 2, 3):
+            raise ValueError('"atelier.temps" doit valoir 1, 2 ou 3')
+        if not isinstance(shots, list) or not 1 <= len(shots) <= 10:
+            raise ValueError("de 1 à 10 plans par fichier")
+        scenes, noms = [], set()
+        for i, sh in enumerate(shots):
+            nom = str(sh.get("name") or "") if isinstance(sh, dict) else ""
+            if not re.fullmatch(r"[A-Za-z0-9_]{1,40}", nom) or nom in noms:
+                raise ValueError(f"plan {i + 1} : nom absent, invalide ou en double")
+            noms.add(nom)
+            if not _s(sh.get("still")):
+                raise ValueError(f"plan {nom} : \"still\" obligatoire")
+            if sh.get("steps") or sh.get("image"):
+                raise ValueError(f"plan {nom} : \"steps\" et \"image\" ne sont pas repris par l'atelier")
+            seed = sh.get("seed") or (int(d["seed"]) + (0 if d.get("same_seed") else i) if d.get("seed") else 0)
+            scenes.append({"titre": sh.get("titre") or nom, "role": sh.get("role"), "temps": a["temps"], "still": sh["still"], "motion": sh.get("motion"),
+                           "end_edit": sh.get("end_edit"), "texte": sh.get("texte"), "voix": sh.get("voix"), "tattoos": sh.get("tattoos", True),
+                           "loras": sh.get("loras", d.get("loras")), "seed": seed, "origine": f"{f.name}:{nom}"})
+        return {"projet": str(a.get("projet") or ""), "temps": a["temps"], "personnage": str(a.get("personnage") or ""),
+                "titre": _s(a.get("titre"), 100), "note": _s(a.get("note"), 300), "modele": str(j.get("modele") or ""), "scenes": scenes}
+
+    def depots(self):
+        import yaml
+        if not self.dd.is_dir():
+            return []
+        try:
+            modele = str(yaml.safe_load((self.dd.parent / "modele.yaml").read_text(encoding="utf-8"))["modele"])
+        except Exception:
+            modele = ""
+        vus, out = {}, []
+        for f in sorted(self.dd.glob("*.yaml"), key=lambda f: f.stat().st_mtime, reverse=True)[:60]:
+            x = {"fichier": f.name, "mtime": int(f.stat().st_mtime), "date": time.strftime("%d/%m %H:%M", time.localtime(f.stat().st_mtime))}
+            try:
+                if not re.fullmatch(r"[A-Za-z0-9_.-]{1,80}\.yaml", f.name):
+                    raise ValueError("nom de fichier invalide (lettres, chiffres, _ . -)")
+                pl = self._plan(f)
+                x |= {k: pl[k] for k in ("projet", "temps", "personnage", "titre", "note")} | {"n": len(pl["scenes"]), "perime": bool(modele) and pl["modele"] != modele}
+                if x["projet"] and not self._existe(x["projet"]):
+                    x["erreur"] = f"projet {x['projet']} inconnu"
+                elif x["projet"]:
+                    if x["projet"] not in vus:
+                        vus[x["projet"]] = self._raw(x["projet"]).get("depots") or {}
+                    x["importe"] = vus[x["projet"]].get(f.name) == x["mtime"]
+                    x["change"] = f.name in vus[x["projet"]] and not x["importe"]
+            except Exception as e:
+                x["erreur"] = str(e)[:200]
+            out.append(x)
+        return out
+
+    def importer(self, b):
+        """Verse les plans d'un fichier depose dans les scenes d'un temps du projet. Un nouvel import du meme
+        fichier met a jour ses scenes (reperees par leur origine) en gardant leurs images tant que "still" est inchange."""
+        f = self.dd / str(b.get("fichier"))
+        if f.parent != self.dd or not f.is_file() or not re.fullmatch(r"[A-Za-z0-9_.-]{1,80}\.yaml", f.name):
+            raise ValueError("fichier inconnu")
+        pl = self._plan(f)
+        pid = pl["projet"]
+        if not pid:  # depot sans projet : en ouvrir un
+            pid = self.save_projet({"personnage": pl["personnage"] or b.get("personnage"), "titre": pl["titre"] or f.stem})["id"]
+        with self.lock:
+            p = self._raw(pid)
+            old = {s["origine"]: s for s in p["scenes"] if s["origine"].startswith(f.name + ":")}
+            neuves = []
+            for d in pl["scenes"]:
+                o = old.get(d["origine"]) or {}
+                garde = ("id", "seed", "image", "clip", "debut", "duree") if o and o["still"] == _s(d["still"], 1200) else ("id",) if o else ()
+                neuves.append(self._scene({**d, **{k: o[k] for k in garde}, "seed": (o.get("seed") if "seed" in garde else 0) or d["seed"],
+                                           "id": o.get("id")}, p))
+            reste = [s for s in p["scenes"] if s["origine"] not in old]
+            if len(reste) + len(neuves) > 30:
+                raise ValueError("trop de scènes dans ce projet")
+            p["scenes"] = sorted(reste + neuves, key=lambda s: s["temps"])
+            p.setdefault("depots", {})[f.name] = int(f.stat().st_mtime)
+            p["modifie"] = time.strftime("%Y-%m-%d %H:%M")
+            _dump(self.dj / pid / "projet.json", p)
+        return {"id": pid, "temps": pl["temps"], "scenes": len(neuves)}
+
     # --- Production (pilote) ----------------------------------------------------------------------
-    def devis(self, p):
-        """Cout estime des deux lancements, d'apres les couts constates (docs/journal-projet.md)."""
-        img = [s for s in p["scenes"] if s["still"] and not s["image"]]
-        clp = [s for s in p["scenes"] if s["image"] and s["motion"] and not s["clip"]]
+    def devis(self, p, temps=1):
+        """Cout estime des deux lancements d'un temps, d'apres les couts constates (docs/journal-projet.md)."""
+        img = [s for s in p["scenes"] if s["temps"] == temps and s["still"] and not s["image"]]
+        clp = [s for s in p["scenes"] if s["temps"] == temps and s["image"] and s["motion"] and not s["clip"]]
         return {"images": {"n": len(img), "usd": round(0.003 * len(img) + (0 if self.studio.pod() else 0.05), 2)},
                 "clips": {"n": len(clp), "usd": round(sum(0.07 if s["end_edit"] else 0.035 for s in clp) + 0.12, 2),
                           "usd_hd": round(sum(0.26 if s["end_edit"] else 0.13 for s in clp) + 0.12, 2)}}
@@ -472,7 +614,7 @@ class Atelier:
             n = len(list((d / "runs").glob("r*.json"))) + 1 if (d / "runs").is_dir() else 1
             shots = []
             for s in p["scenes"]:
-                if want and s["id"] not in want:
+                if (want and s["id"] not in want) or (not want and s["temps"] != int(b.get("temps") or 1)):
                     continue
                 c = ch[s["id"]]
                 if quoi == "images":
@@ -482,7 +624,8 @@ class Atelier:
                         s["seed"] = random.randint(1, 999999)
                     s["image"], s["clip"] = "", ""  # la prise retenue sera la nouvelle
                     shots.append({"name": s["id"], "still": s["still"], "seed": s["seed"], "tattoos": s["tattoos"],
-                                  "body": bool((perso.get("generation") or {}).get("corps"))})
+                                  "body": bool((perso.get("generation") or {}).get("corps"))}
+                                 | ({"loras": _loras_plan(s["loras"])} if s["loras"] else {}))
                 else:
                     if not c["image"] or not s["motion"] or (not want and c["clip"]):
                         continue
@@ -522,27 +665,33 @@ class Atelier:
 
     # --- Montage ----------------------------------------------------------------------------------
     def monter(self, b):
-        pid = b["id"]
+        pid, t = b["id"], int(b.get("temps") or 1)
+        if t not in TEMPS:
+            raise ValueError("temps inconnu")
         p = self._eff(self._raw(pid))
+        p["scenes"] = [s for s in p["scenes"] if s["temps"] == t]
+        if t != 1:  # l'accroche et le carton de fin sont ceux du teaser
+            p |= {"accroche": "", "cta": ""}
         if pid in self.montages:
             raise ValueError("un montage est déjà en cours pour ce projet")
         if not [s for s in p["scenes"] if s["clip"] or s["image"]]:
             raise ValueError("aucune image ni clip à monter")
         d = self._pdir(pid)
         _dump(d / "montage.json", {"etat": "en cours"})
-        t = threading.Thread(target=self._monter, args=(p, d), daemon=True)
-        self.montages[pid] = t
-        t.start()
+        th = threading.Thread(target=self._monter, args=(p, d, t), daemon=True)
+        self.montages[pid] = th
+        th.start()
         return {"etat": "en cours"}
 
-    def _monter(self, p, d):
+    def _monter(self, p, d, temps=1):
         pid = p["id"]
         tmp = d / "tmp"
         try:
             shutil.rmtree(tmp, ignore_errors=True)
             tmp.mkdir()
             perso = self.persos().get(p["personnage"]) or {}
-            out = d / f"final_v{len(self._finals(pid)) + 1}.mp4"
+            vus = self._finals(pid, temps)
+            out = d / f"final_{'' if temps == 1 else f't{temps}_'}v{(int(re.search(r'v(\d+)', vus[-1]).group(1)) if vus else 0) + 1}.mp4"
             monter(p, d / "media", tmp, out, self.da, (perso.get("ecriture") or {}).get("plateforme", ""))
             _dump(d / "montage.json", {"etat": "pret", "fichier": out.name})
         except Exception as e:
@@ -552,13 +701,13 @@ class Atelier:
             self.montages.pop(pid, None)
 
     def supprimer_final(self, pid, name):
-        if not re.fullmatch(r"final_v\d+\.mp4", str(name)):
+        if not re.fullmatch(r"final_(t[23]_)?v\d+\.mp4", str(name)):
             raise ValueError("fichier invalide")
         (self._pdir(pid) / name).unlink(missing_ok=True)
 
     def vers_tri(self, pid, name):
         """Copie une video montee dans la boite du Tri (validation humaine avant publication)."""
-        if not re.fullmatch(r"final_v\d+\.mp4", str(name)):
+        if not re.fullmatch(r"final_(t[23]_)?v\d+\.mp4", str(name)):
             raise ValueError("fichier invalide")
         p = self._raw(pid)
         dest = self.data / "inbox" / f"{pid}_{re.sub(r'[^a-z0-9]+', '_', p['titre'].lower()).strip('_')[:30]}_{name[6:]}"
@@ -589,6 +738,8 @@ class Atelier:
             return self.produire(b)
         if path == "/api/a/monter":
             return self.monter(b)
+        if path == "/api/a/depot/importer":
+            return self.importer(b)
         if path == "/api/a/final/supprimer":
             self.supprimer_final(b["id"], b["fichier"])
             return {}

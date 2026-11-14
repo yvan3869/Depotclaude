@@ -94,3 +94,12 @@ Aucune cle dans le conteneur. S'il est arrete, la page bascule sur des structure
     sudo cp server/writer/girls-ai-writer.service /etc/systemd/system/
     sudo systemctl daemon-reload && sudo systemctl enable --now girls-ai-writer
     journalctl -u girls-ai-writer -n 20
+
+### Trois temps et plans deposes par un agent (14/11/2026)
+Un projet porte maintenant trois temps, en onglets : 1 accroche tous publics, 2 montee pour les abonnes,
+3 final prive. Chaque temps a ses scenes, son devis, sa production et son montage (`final_vN.mp4`,
+`final_t2_vN.mp4`, `final_t3_vN.mp4`). Le redacteur IA ecrit le temps 1 et, sur demande, le temps 2
+(meme lieu, meme tenue, suggestif) ; il n'ecrit jamais le temps 3, rempli a la main ou par import.
+Un agent tiers depose ses plans dans `server/jobs/atelier/<nom>.yaml` (bloc `atelier` : projet, temps) ;
+la page les affiche, avec leurs erreurs, et le bouton "Importer dans le projet" en fait des scenes.
+Les plans importes ne sont pas ecrases par le redacteur. Marche a suivre de l'agent : `docs/agents.md`.

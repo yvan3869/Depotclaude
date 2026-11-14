@@ -182,6 +182,8 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
 - 14/11 matin : essai ceinture, RTX PRO 4500, 2,4 min, 0,03 $. Plafond courant : 7,50 $/jour.
 - 14/11, essais de l'atelier : 3 images (0,02 $), un demarrage de pod avorte (0,01 $), un clip 480p
   (0,08 $), pod de veille ~10 min (0,07 $). Total ~0,18 $ ; depense du jour 0,66 $ sur 7,50 $.
+- 14/11, essai des trois temps : 2 images du temps 2 sur le pod de veille (~7 min), 0,18 $ ;
+  depense du jour 0,84 $ sur 7,50 $.
 
 ## Comptes (13/11/2026)
 - Gmail `lea.morel.ai@gmail.com` (nom affiche Lea Morel).

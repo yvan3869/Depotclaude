@@ -52,6 +52,9 @@ le meme decor et la meme tenue ; le lot arrive au tri classe par destination.
 4 bis. Atelier (fait le 14/11) : page `/atelier`, socle multi-personnages, ecriture assistee (idees,
    scenario, textes, scenes), production image puis clip, montage avec textes et carton de fin.
    Reste : voix off synthetisee (point 6), musiques a deposer, statistiques par video.
+4 ter. Trois temps dans l'atelier (fait le 14/11) : chaque projet porte l'accroche, la montee et le
+   final, chacun avec ses scenes et son montage. L'agent OpenClaw du proprietaire depose ses plans
+   dans `server/jobs/atelier/` ; le proprietaire les importe depuis la page (`docs/agents.md`).
 5. Pilote ouvert aux LoRA choisis par le proprietaire, avec la procedure pour les deposer sur le volume.
 6. Son : voix de Lea, voix off, puis essai d'InfiniteTalk.
 7. Comptes et lancement : validation Fanvue, prix, messages automatiques, premieres publications ;
