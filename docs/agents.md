@@ -81,8 +81,19 @@ personnage (champ `langue` de sa fiche), sans emoji (la police de montage ne les
 Le temps 1 porte aussi `ambiance` : le fond sonore du lieu pour toute la video, en anglais, une phrase,
 sans musique ni voix (la piece, deux ou trois sons precis, leur distance). Rien qui doive tomber sur un
 geste : le son n'est pas synchronise a l'image. Le proprietaire le fait fabriquer depuis la page (etape
-Montage, « Fabriquer l'ambiance » : un pod de quelques minutes, environ 0,05 $, fichier
+Montage, « Fabriquer les sons » : un pod de quelques minutes, environ 0,05 $, fichier
 `data/audio/pNNNN_ambiance.m4a` choisi comme bande-son) ; il sert aux quatre temps.
+
+Chaque scene peut porter `son` : le bruit de son geste, en anglais, UN seul son bref et concret, entendu de
+pres, avec la matiere (`a ceramic cup set down on a wooden counter`, `a zipper pulled down slowly`). Vide
+quand le geste ne fait pas de bruit (regard, sourire) : une scene sur deux environ. Jamais de voix, de
+souffle ni de musique. Le redacteur l'ecrit pour les temps 1 et 2 ; aux temps 3 et 4 le proprietaire
+l'ecrit a la main. Le meme bouton de l'etape Montage (« Fabriquer les sons ») fabrique sur un seul pod
+l'ambiance et les bruits dont la phrase est nouvelle ou a change (`data/audio/bruits/pNNNN_sN.m4a`, 4 s,
+silence du debut retire). Au montage, le bruit est pose sur l'instant ou l'image du plan bouge le plus
+(difference entre images successives) ; si rien ne ressort, a une seconde du debut. C'est un calage sur le
+mouvement, pas une ecoute de l'image : quand il tombe mal, le champ « Instant (s) » de la scene le fixe a
+la main (`son_t`, reglage de l'atelier, absent des plans deposes).
 
 ## Date du personnage et dates reelles
 Un projet porte deux sortes de dates, a ne jamais confondre.
@@ -284,7 +295,7 @@ y placer un geste ni un texte important. Elle est remplacee par une coupe si l'u
            cran: 1            # 1 a 5, ne redescend pas (voir "Controle des plans")
 
    Champs repris par plan : `name`, `still`, `motion`, `end_edit`, `tattoos`, `loras`, `seed`,
-   `titre`, `texte`, `voix`, `role`, `raccord`, `transition`, `camera`, `libre`, `cran`. De 1 a 10 plans par fichier. `steps`, `image`,
+   `titre`, `texte`, `voix`, `son`, `role`, `raccord`, `transition`, `camera`, `libre`, `cran`. De 1 a 10 plans par fichier. `steps`, `image`,
    `edit`, `suite_de`, `end_image` et `character` ne sont pas repris (un depot qui en porte est refuse) ; `body` et `dest` sont inutiles (le temps et la fiche du personnage en
    tiennent lieu). Un fichier par projet et par temps.
    Video entiere : quatre fichiers. Deposer d'abord celui du temps 1 sans `projet` (avec `personnage`

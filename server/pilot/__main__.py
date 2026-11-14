@@ -14,7 +14,7 @@ from .comfy import Comfy
 
 ROOT = Path(__file__).resolve().parents[2]
 PREFIX = "girls-ai-"
-MODELE = "2026-11-14j"  # version du format des plans : la meme que dans server/jobs/modele.yaml
+MODELE = "2026-11-14k"  # version du format des plans : la meme que dans server/jobs/modele.yaml
 INTERP = "minterpolate=fps=32:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1"
 
 
@@ -375,6 +375,7 @@ def deposer(pod_id, jtok, fname, blob, dossier="loras"):
 SON = {("checkpoints", "stable-audio-open-1.0.safetensors"): "https://huggingface.co/Comfy-Org/stable-audio-open-1.0/resolve/main/stable-audio-open-1.0.safetensors",
        ("text_encoders", "t5-base.safetensors"): "https://huggingface.co/google-t5/t5-base/resolve/main/model.safetensors"}
 SON_NEG = "music, melody, speech, voice, talking, singing, distortion, low quality"
+SON_NEG_BRUIT = "music, melody, speech, voice, talking, singing, room tone, background noise, reverb, echo, low quality"
 
 
 def telecharger(url, dest: Path):
@@ -394,7 +395,16 @@ def cmd_son(a):
     import secrets
     data = Path(a.data)
     nom = re.sub(r"[^a-z0-9_]+", "_", (a.nom or "ambiance").lower()).strip("_") or "ambiance"
-    secondes = max(3.0, min(47.0, a.duree))
+    if a.lot:  # lot ecrit par l'atelier : [{"texte", "sortie" (dans data/audio), "duree", "bruit", "seed"}]
+        lot = json.loads(Path(a.lot).read_text(encoding="utf-8"))
+        for x in lot:
+            if not re.fullmatch(r"(bruits/)?[a-z0-9_]{1,60}\.m4a", x["sortie"]) or not str(x.get("texte") or "").strip():
+                raise RuntimeError(f"lot : element invalide ({x.get('sortie')})")
+    elif a.texte:
+        n = max(1, min(6, a.variantes))
+        lot = [{"texte": a.texte, "sortie": f"{nom}.m4a" if n == 1 else f"{nom}_{k + 1}.m4a", "duree": a.duree, "seed": a.seed + k} for k in range(n)]
+    else:
+        raise RuntimeError("son : une phrase ou --lot")
     cfg = load_config(a)
     ff = os.environ.get("FFMPEG_BIN") or shutil.which("ffmpeg")
     if not ff:
@@ -426,22 +436,34 @@ def cmd_son(a):
                 raise RuntimeError(f"{fname} depose mais pas vu par ComfyUI")
         marque.write_text(json.dumps({"date": time.strftime("%d/%m/%Y %H:%M"), "fichiers": [f for _, f in SON]}), encoding="utf-8")
         (data / "audio").mkdir(parents=True, exist_ok=True)
-        for k in range(max(1, min(6, a.variantes))):
-            seed = a.seed + k
-            files = c.run(workflows.son(a.texte, a.neg, secondes, seed, f"{PREFIX}son"), timeout=900)
-            if not files:
-                raise RuntimeError("aucun son produit")
-            brut = data / "work" / "son" / f"{nom}_{seed}.flac"
-            brut.parent.mkdir(parents=True, exist_ok=True)
-            brut.write_bytes(c.fetch(files[0]))
-            out = data / "audio" / (f"{nom}.m4a" if a.variantes <= 1 else f"{nom}_{k + 1}.m4a")
-            # niveau regle a -23 LUFS : une ambiance reste en retrait ; fondus courts pour boucler sans claquement
-            subprocess.run([ff, "-y", "-loglevel", "error", "-i", str(brut), "-af",
-                            f"loudnorm=I=-23:TP=-2:LRA=11,afade=t=in:d=0.3,afade=t=out:st={secondes - 0.5:.2f}:d=0.5",
-                            "-ar", "44100", "-c:a", "aac", "-b:a", "160k", str(out)], check=True)
-            brut.unlink(missing_ok=True)
-            faits.append(out.name)
-            log(f"SON {out.name} ({secondes:.0f} s, tirage {seed})")
+        for n, x in enumerate(lot):
+            bruit, seed = bool(x.get("bruit")), int(x.get("seed") or a.seed + n)
+            secondes = max(2.0 if bruit else 3.0, min(47.0, float(x.get("duree") or (4 if bruit else 30))))
+            try:
+                files = c.run(workflows.son(x["texte"], SON_NEG_BRUIT if bruit else a.neg, secondes, seed, f"{PREFIX}son"), timeout=900)
+                if not files:
+                    raise RuntimeError("aucun son produit")
+                brut = data / "work" / "son" / f"{nom}_{n}_{seed}.flac"
+                brut.parent.mkdir(parents=True, exist_ok=True)
+                brut.write_bytes(c.fetch(files[0]))
+                out = data / "audio" / x["sortie"]
+                out.parent.mkdir(parents=True, exist_ok=True)
+                if bruit:  # bruit d'un geste : silence du debut retire (l'attaque est a zero), crete a -3 dB, fin en fondu
+                    coupe = "silenceremove=start_periods=1:start_threshold=-40dB:start_silence=0.02"
+                    r = subprocess.run([ff, "-hide_banner", "-i", str(brut), "-af", coupe + ",volumedetect", "-f", "null", "-"],
+                                       capture_output=True, text=True)
+                    mx = re.search(r"max_volume: (-?[\d.]+) dB", r.stderr)
+                    gain = min(30.0, -3.0 - float(mx.group(1))) if mx else 0.0
+                    filtre = f"{coupe},volume={gain:.1f}dB,areverse,afade=t=in:d=0.25,areverse"
+                else:  # niveau regle a -23 LUFS : une ambiance reste en retrait ; fondus courts pour boucler sans claquement
+                    filtre = f"loudnorm=I=-23:TP=-2:LRA=11,afade=t=in:d=0.3,afade=t=out:st={secondes - 0.5:.2f}:d=0.5"
+                subprocess.run([ff, "-y", "-loglevel", "error", "-i", str(brut), "-af", filtre,
+                                "-ar", "44100", "-ac", "2", "-c:a", "aac", "-b:a", "160k", str(out)], check=True)
+                brut.unlink(missing_ok=True)
+                faits.append(x["sortie"])
+                log(f"SON {x['sortie']} ({secondes:.0f} s, tirage {seed})")
+            except Exception as e:  # un son rate n'arrete pas les suivants
+                log(f"ECHEC {x['sortie']} : {e}")
     finally:
         runpod.delete_pod(pod_id)
         log(f"pod {pod_id} supprime")
@@ -629,7 +651,8 @@ def main():
     lo.add_argument("--data", default=os.environ.get("DATA_DIR", str(ROOT / "server" / "data")))
     lo.set_defaults(fn=cmd_lora)
     so = sub.add_parser("son", help="ambiance sonore d'apres une phrase en anglais, rangee dans data/audio (Stable Audio Open)")
-    so.add_argument("texte")
+    so.add_argument("texte", nargs="?")
+    so.add_argument("--lot", help="fichier JSON d'un lot de sons (ecrit par l'atelier)")
     so.add_argument("--nom", help="nom du fichier (lettres, chiffres, _)")
     so.add_argument("--duree", type=float, default=30.0, help="secondes, 47 au plus")
     so.add_argument("--variantes", type=int, default=1, help="nombre de tirages (6 au plus)")

@@ -65,6 +65,7 @@ CONTRAINTES TECHNIQUES (modèles d'image et de vidéo)
 - "transition" : comment le montage passe de la scène précédente à celle-ci, quand le raccord est "coupe". "" (coupe franche, le cas général), "fondu" (le temps passe), "filage" (panoramique filé très rapide : changement de lieu, d'angle ou de moment, donne du rythme), "zoom" (avancée rapide dans l'image : pour arriver sur un plan plus serré). Une ou deux transitions marquées par vidéo, au moment où elle bascule ; jamais sur la première scène ni sur une scène "continu".
 - "camera" : mouvement de caméra lent pendant la scène, fabriqué au montage : "" (fixe), "avance" (la caméra s'approche : la tension monte), "recul" (elle s'éloigne : on découvre), "gauche" ou "droite" (glissement latéral). N'écris jamais de mouvement de caméra dans "motion" : il rate. Sur une scène "continu", laisse "" (le mouvement de la scène précédente se prolonge). Pas plus d'une scène sur deux.
 - "ambiance" : en anglais, une phrase qui décrit le fond sonore du lieu pour toute la vidéo, sans musique ni voix : la pièce, deux ou trois sons précis, leur distance (par exemple "Quiet kitchen room tone in the morning, soft hum of a fridge, a spoon against a ceramic cup, faint birds through an open window"). Des sons que le lieu rend plausibles, rien qui doive tomber sur un geste précis.
+- "son" : en anglais, le bruit que fait le geste de la scène, UN seul son bref et concret, entendu de près, avec la matière (par exemple "a ceramic cup set down on a wooden counter", "a zipper pulled down slowly", "bare footsteps on a wooden floor", "a sip of hot coffee"). "" si le geste ne fait aucun bruit (regard, sourire, tête penchée) : une scène sur deux environ reste sans bruit. Jamais de voix, de souffle ni de musique.
 - "texte" : texte incrusté pendant la scène, dans la langue du personnage, 7 mots au plus. Aucun emoji, ni là ni dans l'accroche (la police de montage ne les affiche pas). "voix" : phrase de voix off dans sa voix, 12 mots au plus, ou "".
 - "cran" : niveau de la scène dans la progression, entier de 1 (anodin) à 5 (le plus osé du temps, toujours suggestif). Il ne redescend jamais d'une scène à la suivante et la dernière scène porte le plus haut.
 - "tattoos" : false si la tenue couvre les épaules et la poitrine (pull, peignoir fermé), sinon true.
@@ -76,7 +77,7 @@ Un seul objet JSON valide, sans texte autour, sans bloc de code. Les champs "tit
 
 SCHEMA = ('{"titre": "...", "pitch": "une phrase", "accroche": "texte à l\'écran de la première seconde", '
           '"continuite": {"lieu": "...", "tenue": "...", "cheveux": "", "lumiere": "...", "pdv": "..."}, "ambiance": "...", '
-          '"scenes": [{"titre": "...", "role": "accroche|montee|chute", "raccord": "coupe|continu", "transition": "", "camera": "", "still": "...", "motion": "...", "end_edit": "", '
+          '"scenes": [{"titre": "...", "role": "accroche|montee|chute", "raccord": "coupe|continu", "transition": "", "camera": "", "still": "...", "motion": "...", "son": "", "end_edit": "", '
           '"texte": "...", "voix": "", "cran": 1, "tattoos": true}], "legende": "légende de la publication, 1 à 2 phrases, avec l\'appel à l\'action", '
           '"cta": "carton de fin, 6 mots au plus", "hashtags": "3 à 5 mots-dièse"}')
 
@@ -511,7 +512,7 @@ class Atelier:
                 "camera": d.get("camera") if d.get("camera") in CAMERAS else "",
                 "cran": min(5, max(0, int(d.get("cran") or 0))) if str(d.get("cran") or 0).isdigit() else 0,
                 "still": _s(d.get("still"), 1200), "motion": _s(d.get("motion"), 600), "end_edit": _s(d.get("end_edit"), 600),
-                "texte": _s(d.get("texte"), 120), "voix": _s(d.get("voix"), 240), "tattoos": bool(d.get("tattoos", True)),
+                "texte": _s(d.get("texte"), 120), "voix": _s(d.get("voix"), 240), "son": _s(d.get("son"), 200), "son_t": _son_t(d.get("son_t")), "tattoos": bool(d.get("tattoos", True)),
                 "seed": int(d.get("seed") or random.randint(1, 999999)), "image": _s(d.get("image"), 80), "clip": _s(d.get("clip"), 80),
                 "debut": max(0.0, float(d.get("debut") or 0)), "duree": max(0.0, float(d.get("duree") or 0))}
 
@@ -670,7 +671,8 @@ class Atelier:
         return {"projet": p, "choix": {s["id"]: {"image": s["image"], "clip": s["clip"]} for s in e["scenes"]}, "prises": pr,
                 "finals": finals, "etape": self._etape(e, finals[1]), "montage": mt, "prod": self.prod(pid),
                 "devis": {t: self.devis(e, t) for t in TEMPS}, "depots": [x for x in self.depots() if x.get("projet") == pid],
-                "chaine": self.chaine_vue(pid), "son": self.sons.get(pid) or {"etat": ""}, "controle": {t: self._ctl(p, t) for t in TEMPS}, "relecture": self.relecture(pid),
+                "chaine": self.chaine_vue(pid), "son": (self.sons.get(pid) or {"etat": ""}) | {"a_faire": len(self._sons_lot(p, False)), "prets": self._sons_prets(p)},
+                "controle": {t: self._ctl(p, t) for t in TEMPS}, "relecture": self.relecture(pid),
                 "publication": self.publication(p), "analyses": self.analyses(pid), "infos": _load(self._pdir(pid) / "finals.json", {}),
                 "planches": {n: _nom_planche(n) for n in sum(finals.values(), []) if (self._pdir(pid) / _nom_planche(n)).is_file()}}
 
@@ -732,7 +734,7 @@ class Atelier:
         (nu, porno, non classee)."""
         if temps not in (1, 2):
             raise ValueError("les temps 3 et 4 sont à votre main : le rédacteur IA ne les lit pas")
-        keep = ("id", "titre", "role", "raccord", "transition", "camera", "cran", "still", "motion", "end_edit", "texte", "voix", "tattoos")
+        keep = ("id", "titre", "role", "raccord", "transition", "camera", "cran", "still", "motion", "son", "end_edit", "texte", "voix", "tattoos")
         tete = {k: p.get(k) for k in ("titre", "pitch", "accroche", "legende", "cta", "hashtags")} if temps == 1 else {}
         return json.dumps(tete | {"continuite": p["continuite"], "scenes": [{k: s[k] for k in keep} for s in p["scenes"] if s["temps"] == temps and not self._reservee(s)]}, ensure_ascii=False, indent=1)
 
@@ -778,7 +780,7 @@ class Atelier:
                       f"selon la consigne : {consigne or 'plus forte, plus sensuelle, toujours suggestive'}\n"
                       + ("Dans ce temps la tenue de la fiche de continuité n'est pas ajoutée au \"still\" : il dit lui-même ce qu'elle porte à cet instant.\n" if sc["temps"] == 2 else "")
                       + "\nFORMAT\n"
-                      '{"titre": "...", "role": "...", "raccord": "coupe|continu", "transition": "", "camera": "", "still": "...", "motion": "...", "end_edit": "", "texte": "...", "voix": "", "cran": 1, "tattoos": true}')
+                      '{"titre": "...", "role": "...", "raccord": "coupe|continu", "transition": "", "camera": "", "still": "...", "motion": "...", "son": "", "end_edit": "", "texte": "...", "voix": "", "cran": 1, "tattoos": true}')
         elif kind == "temps2":
             if not [s for s in proj["scenes"] if s["temps"] == 1]:
                 raise ValueError("écrire d'abord le teaser (temps 1) : la montée en est la suite")
@@ -791,7 +793,7 @@ class Atelier:
                       "instant (\"wearing ...\"), en partant de la tenue du teaser. Registre : suggestif poussé, jamais explicite. La tenue peut se défaire jusqu'à la lingerie, la nudité peut être suggérée "
                       "(dos nu, épaule, drap, serviette, cadrage coupé, contre-jour) mais rien d'intime n'est visible et il n'y a aucun acte. Pas d'appel à l'action ; "
                       f"la dernière scène laisse seulement entendre qu'une suite plus dévoilée existe, sans la décrire.\n{'Consigne : ' + (consigne or proj.get('brief2')) if (consigne or proj.get('brief2')) else ''}\n\nFORMAT\n"
-                      '{"scenes": [{"titre": "...", "role": "accroche|montee|chute", "raccord": "coupe|continu", "transition": "", "camera": "", "still": "...", "motion": "...", "end_edit": "", "texte": "...", "voix": "", "cran": 1, "tattoos": true}]}')
+                      '{"scenes": [{"titre": "...", "role": "accroche|montee|chute", "raccord": "coupe|continu", "transition": "", "camera": "", "still": "...", "motion": "...", "son": "", "end_edit": "", "texte": "...", "voix": "", "cran": 1, "tattoos": true}]}')
         elif kind == "legendes":
             prompt = (f"PERSONNAGE\n{self._fiche(perso)}\n\n{moment}SCÉNARIO\n{self._texte_projet(proj)}\n\nCOMMANDE\nPropose {min(n, 5)} variantes d'accroche, de légende "
                       f"et de carton de fin pour cette vidéo, d'angles différents (défi, confidence, humour, promesse, urgence). {consigne}\n\nFORMAT\n"
@@ -839,7 +841,7 @@ class Atelier:
             if kind == "scene":
                 for i, s in enumerate(p["scenes"]):
                     if s["id"] == sid:
-                        p["scenes"][i] = self._scene({**s, **{k: res[k] for k in ("titre", "role", "raccord", "transition", "camera", "cran", "still", "motion", "end_edit", "texte", "voix", "tattoos") if k in res}}, p)
+                        p["scenes"][i] = self._scene({**s, **{k: res[k] for k in ("titre", "role", "raccord", "transition", "camera", "cran", "still", "motion", "son", "end_edit", "texte", "voix", "tattoos") if k in res}}, p)
             else:
                 t = 2 if kind == "temps2" else 1  # les scenes des autres temps ne bougent pas
                 old = {s["id"]: s for s in p["scenes"] if s["temps"] == t}
@@ -1111,7 +1113,7 @@ class Atelier:
                 raise ValueError(f"plan {nom} : \"cran\" est un entier de 1 à 5")
             seed = sh.get("seed") or (int(d["seed"]) + (0 if d.get("same_seed") else i) if d.get("seed") else 0)
             scenes.append({"titre": sh.get("titre") or nom, "role": sh.get("role"), "temps": a["temps"], "still": sh["still"], "motion": sh.get("motion"),
-                           "end_edit": sh.get("end_edit"), "texte": sh.get("texte"), "voix": sh.get("voix"), "tattoos": sh.get("tattoos", True),
+                           "end_edit": sh.get("end_edit"), "texte": sh.get("texte"), "voix": sh.get("voix"), "son": sh.get("son"), "tattoos": sh.get("tattoos", True),
                            "loras": sh.get("loras", d.get("loras")), "seed": seed, "origine": f"{f.name}:{nom}",
                            "raccord": sh.get("raccord"), "libre": bool(sh.get("libre")), "cran": sh.get("cran"),
                            "transition": sh.get("transition"), "camera": sh.get("camera")})
@@ -1354,7 +1356,25 @@ class Atelier:
         return {"etat": etat, "quoi": self.job["quoi"] if ici else "", "log": "\n".join(log.strip().splitlines()[-4:])[-600:],
                 "echecs": log.count("ECHEC"), "cout": float(m.group(1)) if m else None}
 
-    # --- Ambiance sonore : une phrase, un pod de quelques minutes, un fichier dans data/audio --------
+    # --- Son : ambiance du lieu et bruit des gestes, fabriques d'apres des phrases (un pod de quelques minutes) ---
+    def _sons_faits(self, pid):
+        """Phrase dont chaque son du projet a ete tire : {"ambiance": phrase, "s3": phrase}."""
+        return _load(self.da / "bruits" / f"{pid}.json", {})
+
+    def _sons_lot(self, p, tout):
+        """Sons a fabriquer : ceux dont la phrase a change ou dont le fichier manque ; tous si `tout`."""
+        pid, faits, lot = p["id"], self._sons_faits(p["id"]), []
+        for cle, texte, sortie in [("ambiance", p.get("ambiance"), f"{pid}_ambiance.m4a")] + \
+                                  [(s["id"], s.get("son"), f"bruits/{pid}_{s['id']}.m4a") for s in p["scenes"]]:
+            if texte and (tout or faits.get(cle) != texte or not (self.da / sortie).is_file()):
+                lot.append({"cle": cle, "texte": texte, "sortie": sortie, "bruit": cle != "ambiance", "duree": 45 if cle == "ambiance" else 4,
+                            "seed": random.randint(1, 999999)})
+        return lot
+
+    def _sons_prets(self, p):
+        """Scenes dont le bruit est fabrique (fichier present)."""
+        return [s["id"] for s in p["scenes"] if s.get("son") and (self.da / "bruits" / f"{p['id']}_{s['id']}.m4a").is_file()]
+
     def son(self, b):
         pid = b["id"]
         if self.chaine_active():
@@ -1365,30 +1385,36 @@ class Atelier:
             raise ValueError("clé RunPod absente : lancement impossible depuis l'interface")
         with self.lock:
             p = self._raw(pid)
-            if not p.get("ambiance"):
-                raise ValueError("pas de phrase d'ambiance : l'écrire d'abord (en anglais)")
+            lot = self._sons_lot(p, bool(b.get("tout")))
+            if not lot:
+                raise ValueError("rien à fabriquer : écrire la phrase d'ambiance ou le bruit d'une scène (en anglais), ou choisir « Tout refaire »")
             d = self._pdir(pid)
             (d / "runs").mkdir(exist_ok=True)
-            log, nom = d / "runs" / "son.log", f"{pid}_ambiance"
-            cmd = [sys.executable, "-m", "pilot", "son", p["ambiance"], "--nom", nom, "--duree", "45", "--seed", str(random.randint(1, 999999)),
-                   "--data", str(self.data)]
+            log = d / "runs" / "son.log"
+            _dump(d / "runs" / "son.json", lot)
+            cmd = [sys.executable, "-m", "pilot", "son", "--lot", str(d / "runs" / "son.json"), "--nom", pid, "--data", str(self.data)]
             proc = self.studio.proc = subprocess.Popen(cmd, cwd=str(self.repo / "server"), stdout=open(log, "w"), stderr=subprocess.STDOUT)
-            self.sons[pid] = {"etat": "en cours", "fichier": "", "erreur": "", "cout": None}
-        threading.Thread(target=self._son_fin, args=(pid, proc, log, nom + ".m4a"), daemon=True).start()
-        return {"lance": 1}
+            self.sons[pid] = {"etat": "en cours", "faits": 0, "n": len(lot), "erreur": "", "cout": None}
+        threading.Thread(target=self._son_fin, args=(pid, proc, log, lot), daemon=True).start()
+        return {"lance": len(lot)}
 
-    def _son_fin(self, pid, proc, log, fichier):
+    def _son_fin(self, pid, proc, log, lot):
         proc.wait()
         txt = log.read_text(encoding="utf-8", errors="replace")
         m = re.search(r'"cost_usd": ([\d.]+)', txt)
-        v = {"etat": "termine", "fichier": fichier, "erreur": "", "cout": float(m.group(1)) if m else None}
-        if proc.returncode or not (self.da / fichier).is_file():
-            v |= {"etat": "erreur", "fichier": "", "erreur": (txt.strip().splitlines() or ["échec"])[-1][-300:]}
+        ok = [x for x in lot if f"SON {x['sortie']} " in txt and (self.da / x["sortie"]).is_file()]
+        v = {"etat": "termine", "faits": len(ok), "n": len(lot), "erreur": "", "cout": float(m.group(1)) if m else None}
+        if not ok:
+            v |= {"etat": "erreur", "erreur": (txt.strip().splitlines() or ["échec"])[-1][-300:]}
         else:
-            with self.lock:  # l'ambiance fabriquee devient la bande-son du montage
-                p = self._raw(pid)
-                p["montage"]["musique"] = fichier
-                _dump(self._pdir(pid) / "projet.json", p)
+            with self.lock:
+                (self.da / "bruits").mkdir(exist_ok=True)
+                _dump(self.da / "bruits" / f"{pid}.json", self._sons_faits(pid) | {x["cle"]: x["texte"] for x in ok})
+                amb = [x for x in ok if x["cle"] == "ambiance"]
+                if amb:  # l'ambiance fabriquee devient la bande-son du montage
+                    p = self._raw(pid)
+                    p["montage"]["musique"] = amb[0]["sortie"]
+                    _dump(self._pdir(pid) / "projet.json", p)
         self.sons[pid] = v
 
     # --- Chaine : images, pause, puis clips et montage de chaque temps ------------------------------
@@ -1669,6 +1695,31 @@ def _nom_planche(final):
     return "planche_" + final[6:-4] + ".jpg"
 
 
+def _son_t(v):
+    """Instant du bruit dans la scene, en secondes ; "" : place par le montage sur le geste."""
+    try:
+        return "" if v in ("", None) else round(max(0.0, min(30.0, float(str(v).replace(",", ".")))), 2)
+    except ValueError:
+        return ""
+
+
+def _geste(clip, deb, dur):
+    """Instant du geste dans un plan, en secondes depuis son debut : la ou l'image bouge le plus (difference entre images
+    successives, lissee). None si l'image bouge partout pareil."""
+    r = subprocess.run([os.environ.get("FFMPEG_BIN") or shutil.which("ffmpeg") or "ffmpeg", "-hide_banner", "-loglevel", "error", "-ss", f"{deb:.3f}",
+                        "-t", f"{dur:.3f}", "-i", str(clip), "-vf", "scale=96:-2,format=gray,tblend=all_mode=difference,signalstats,"
+                        "metadata=print:key=lavfi.signalstats.YAVG:file=-", "-f", "null", "-"], capture_output=True, text=True)
+    ts = [float(x) for x in re.findall(r"pts_time:([\d.]+)", r.stdout)]
+    ys = [float(x) for x in re.findall(r"YAVG=([\d.]+)", r.stdout)]
+    pts = [(t, y) for t, y in zip(ts, ys) if 0.3 <= t <= dur - 0.3]  # les bords appartiennent aux raccords
+    if len(pts) < 9:
+        return None
+    lisse = [(pts[i][0], sum(y for _, y in pts[i - 2:i + 3]) / 5) for i in range(2, len(pts) - 2)]
+    t, haut = max(lisse, key=lambda x: x[1])
+    med = sorted(y for _, y in lisse)[len(lisse) // 2]
+    return round(t, 2) if haut > 1.4 * max(med, 0.01) else None
+
+
 def _duree(path):
     r = subprocess.run([shutil.which("ffprobe") or "ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(path)],
                        capture_output=True, text=True)
@@ -1867,6 +1918,9 @@ def monter(p, media, tmp, out, audio_dir, plateforme=""):
     gains = [1.0, 1.0, 1.0]  # correction de couleur du plan en cours (raccord sans coupe)
     segs, durs = [], []  # segs : groupes de segments ; rien ne separe les segments d'un meme groupe
     plans, carton = _plans(p, media)
+    bdir = audio_dir / "bruits"  # bruit du geste de chaque plan, quand il a ete fabrique
+    bruits = [(i, bdir / f"{p['id']}_{x['s']['id']}.m4a") for i, x in enumerate(plans)
+              if x["s"].get("son") and (bdir / f"{p['id']}_{x['s']['id']}.m4a").is_file()]
     noir = lambda dur: [f"fade=t=out:st={max(0, dur - NOIR):.3f}:d={NOIR}"] if m.get("noir") else []
     gr, gdur = 0, {}  # rang du premier plan d'un groupe -> duree du groupe
     for i, pl in enumerate(plans):
@@ -1933,7 +1987,7 @@ def monter(p, media, tmp, out, audio_dir, plateforme=""):
         segs.append([seg])
         durs.append(_duree(seg))
     durs_plans = durs[:len(plans)]
-    muet = tmp / "muet.mp4" if m.get("musique") else out
+    muet = tmp / "muet.mp4" if m.get("musique") or bruits else out
 
     def coller(fichiers, sortie, *opts):
         liste = tmp / f"{sortie.stem}.txt"
@@ -1989,19 +2043,40 @@ def monter(p, media, tmp, out, audio_dir, plateforme=""):
         j = fin_s
     coller(suites, muet, "-movflags", "+faststart")
     total = sum(durs) - sum(tr[1] for tr in passages if tr)
-    if m.get("musique"):
-        src = (audio_dir / m["musique"]).resolve()
-        if src.parent != audio_dir.resolve() or not src.is_file():
-            raise RuntimeError("musique introuvable dans data/audio")
-        _ff("-i", muet, "-stream_loop", "-1", "-i", src, "-map", "0:v", "-map", "1:a", "-c:v", "copy", "-c:a", "aac", "-b:a", "160k",
-            "-af", f"afade=t=in:d=0.4,afade=t=out:st={max(0, total - 1.2):.2f}:d=1.2", "-t", f"{total:.2f}", "-movflags", "+faststart", out)
     debuts, groupe, acc = [], -1, 0.0
     for pl, dur in zip(plans, durs_plans):  # instant ou chaque plan commence dans la video (une transition recouvre sa duree)
         groupe += not pl["colle"]
         acc -= FONDU_JOINT / fps if pl["colle"] else (passages[groupe][1] if passages[groupe] else 0)
         debuts.append(round(max(0, acc), 2))
         acc += dur
-    return {"duree": round(total, 2), "label": bool(m["label"]), "rendu": rendu, "passages": noms, "cible": m.get("cible") or 0, "plans": len(plans),
+    cales = []  # [scene, instant dans la video, "geste" | "main" | "defaut"]
+    if m.get("musique") or bruits:
+        ins, fc, voies = ["-i", muet], [], []
+        std = "aresample=44100,aformat=sample_fmts=fltp:channel_layouts=stereo"
+        if m.get("musique"):
+            src = (audio_dir / m["musique"]).resolve()
+            if src.parent != audio_dir.resolve() or not src.is_file():
+                raise RuntimeError("musique introuvable dans data/audio")
+            ins += ["-stream_loop", "-1", "-i", src]
+            fc.append(f"[1:a]{std},volume={0.7 if bruits else 1.0}[fond]")
+        else:  # pas d'ambiance : les bruits sont poses sur du silence
+            ins += ["-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo"]
+            fc.append(f"[1:a]{std}[fond]")
+        for n, (i, f) in enumerate(bruits):
+            pl = plans[i]
+            main = pl["s"].get("son_t")
+            auto = _geste(media / pl["s"]["clip"], pl["deb"], pl["dur"]) if pl["s"]["clip"] and main in ("", None) else None
+            dt = min(main, max(0, pl["dur"] - 0.3)) if main not in ("", None) else auto if auto is not None else min(1.0, pl["dur"] / 3)
+            quand = debuts[i] + dt
+            cales.append([pl["s"]["id"], round(quand, 2), "main" if main not in ("", None) else "geste" if auto is not None else "defaut"])
+            ins += ["-i", f]
+            fc.append(f"[{n + 2}:a]{std},adelay={int(quand * 1000)}:all=1[b{n}]")
+            voies.append(f"[b{n}]")
+        fc.append(f"[fond]{''.join(voies)}amix=inputs={len(voies) + 1}:duration=first:normalize=0,alimiter=limit=0.9,"
+                  f"afade=t=in:d=0.4,afade=t=out:st={max(0, total - 1.2):.2f}:d=1.2[a]")
+        _ff(*ins, "-filter_complex", ";".join(fc), "-map", "0:v", "-map", "[a]", "-c:v", "copy", "-c:a", "aac", "-b:a", "160k",
+            "-t", f"{total:.2f}", "-movflags", "+faststart", out)
+    return {"bruits": cales, "duree": round(total, 2), "label": bool(m["label"]), "rendu": rendu, "passages": noms, "cible": m.get("cible") or 0, "plans": len(plans),
             "debuts": debuts, "colle": [x["colle"] for x in plans], "carton": round(total - carton, 2) if carton else 0,
             "images": sum(1 for x in plans if not x["s"]["clip"]), "colles": sum(1 for x in plans if x["colle"]),
             "prises": [[x["s"]["id"], x["s"]["clip"] or x["s"]["image"]] for x in plans]}

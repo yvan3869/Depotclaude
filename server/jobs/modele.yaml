@@ -27,8 +27,9 @@
 #   2026-11-14i  champs de plan transition et camera (atelier) : passage au plan et mouvement de camera lent, fabriques
 #                au montage. Ne plus ecrire de mouvement de camera dans "motion".
 #   2026-11-14j  bloc "atelier" : ambiance (fond sonore du lieu, une phrase en anglais), avec le temps 1.
+#   2026-11-14k  champ de plan son (atelier) : bruit du geste, une phrase en anglais, cale au montage sur le geste.
 
-modele: "2026-11-14j"
+modele: "2026-11-14k"
 name: monlot                 # prefixe des fichiers produits (lettres, chiffres, _), unique par lancement
 
 # --- Facultatif : plans deposes dans l'atelier (docs/agents.md, "Deposer des plans") --------------
@@ -96,6 +97,8 @@ shots:
     # titre: "Regard"        # nom de la scene dans la page
     # texte: "Don't blink."  # texte incruste au montage
     # voix: ""               # voix off (pas encore produite)
+    # son: ""                # bruit du geste, en anglais : UN son bref et concret, de pres, avec la matiere
+    #                        # ("a ceramic cup set down on a wooden counter"). Vide si le geste est silencieux.
     # role: montee           # accroche, montee ou chute
     # raccord: coupe         # lien avec le plan precedent du meme temps : coupe (defaut, le plan a sa propre image),
     #                        # continu (pas d'image propre : le clip part de la derniere image du clip precedent et le
