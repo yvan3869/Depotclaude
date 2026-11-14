@@ -145,6 +145,16 @@ dans la premiere seconde ; sur le premier plan, l'accroche du projet s'affiche d
 donc un `texte` de premier plan doit pouvoir se lire en 2 secondes. La mention "AI character" est incrustee d'office
 sur le temps 1 : ne pas l'ecrire dans les textes.
 
+L'accroche doit etre vraie des la premiere scene : ce qu'elle annonce se voit dans l'image de la scene 1 (tenue,
+lieu, objet, geste), pas seulement plus tard. Une accroche qui parle d'un peignoir alors que la scene 1 montre un
+pull est une faute ; le relecteur et l'analyste la signalent.
+
+Les textes sont incrustes sans bandeau, en blanc sur une ombre douce : eviter de placer le `texte` d'un plan sur une
+zone tres claire et chargee de l'image (drap blanc froisse, fenetre en plein jour) ; le decrire dans le `still` si
+besoin ("plain dark wall behind her"). Un plan sans `motion` dure 2 s au montage, en zoom lent. Apres chaque montage,
+une planche de controle (les images cles cote a cote) s'affiche sous la video : c'est elle que le proprietaire regarde
+pour juger raccords et textes.
+
 ## Deposer des plans dans l'atelier
 1. **Lire le projet** : `server/data/projets/pNNNN/projet.json` (lecture seule). On y trouve le
    personnage, le pitch, la date du personnage (`date_perso`), le `contexte` et les scenes deja

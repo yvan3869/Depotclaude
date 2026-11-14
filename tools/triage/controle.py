@@ -7,6 +7,7 @@ import re
 
 CIBLE = {1: 20}  # duree visee d'un temps, en secondes (accroche : court)
 CLIP = 5         # duree d'un clip
+FIXE = 2         # duree d'une image fixe au montage
 
 _PLUSIEURS = re.compile(r"\b(and then|then|after that|before|afterwards|next)\b|;", re.I)
 _CAMERA = re.compile(r"\b(camera (zooms|pans|moves|cuts|tilts|follows|pulls)|zoom(s|ing)? (in|out)|cut(s)? to|dolly|tracking shot)\b", re.I)
@@ -48,7 +49,7 @@ def controle(p, temps):
     if temps == 1 and len(p.get("accroche") or "") > 44:
         r(f"Accroche de {len(p['accroche'])} caractères : au-delà de 44 elle ne tient plus en deux lignes lisibles en haut de l'image.")
     clips = [s for s in sc if s.get("motion")]
-    duree = sum(s.get("duree") or CLIP for s in clips) + 3 * (len(sc) - len(clips))
+    duree = sum(s.get("duree") or CLIP for s in clips) + FIXE * (len(sc) - len(clips))
     if temps in CIBLE and duree > CIBLE[temps]:
         r(f"Durée estimée {duree:.0f} s pour {len(sc)} scènes : au-delà de {CIBLE[temps]} s pour ce temps. "
           "Retirer une scène ou raccourcir les plans au montage.")

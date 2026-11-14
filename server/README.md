@@ -153,6 +153,15 @@ La mention "AI character" est toujours incrustee sur le temps 1 (facultative sur
 laisse sa fiche dans `data/projets/<id>/finals.json` (duree, debut de chaque plan, raccords colles, prises montees).
 "Valider pour publication" est refuse s'il n'y a pas de video ou si la derniere ne porte pas la mention ; la page
 avertit aussi quand la video ne correspond plus aux prises retenues, dure plus de 21 s, ou n'a ni legende ni carton.
+Textes sans fond en aplat : blanc sur ombre douce, trois styles au choix dans le panneau Montage (doux, contour,
+serif ; polices sous licence OFL dans `tools/triage/polices/`). Mention IA plus petite, a 60 % d'opacite. Une scene sans
+clip dure 2 s en zoom lent. Raccord sans coupe : les couleurs du clip suivant sont alignees sur la fin du precedent et la
+jointure passe par un fondu de 4 images.
+
+Planche de controle (14/11/2026) : apres chaque montage, `planche()` extrait de la video les images que regarde
+l'analyste (debut, milieu de chaque scene, avant et apres chaque jointure, fin) et les range cote a cote dans
+`planche_<version>.jpg`, affichee sous la video. Sans IA ni GPU, pour tous les temps. Bouton "Creer la planche de
+controle" pour une video montee avant cette date.
 
 Analyse du montage (14/11/2026) : bouton "Analyser la video" sous la video montee des temps 1 et 2 (`analyser()`).
 Des images sont extraites de la video (debut, milieu de chaque scene, avant et apres chaque jointure, fin) et envoyees

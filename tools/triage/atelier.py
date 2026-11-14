@@ -44,6 +44,7 @@ Classe, sensuel, aguicheur. Suggestif, jamais explicite : pas de nudité, pas d'
 
 CE QUI FAIT CLIQUER
 - Première scène : une accroche lisible en une seconde (adresse directe, POV, défi, question, promesse, interruption).
+- L'accroche est vraie dès la première image : ce qu'elle annonce se voit déjà dans la première scène (si elle dit qu'elle a fait le café, la tasse est à l'image ; si elle dit « attends la fin », quelque chose est déjà amorcé). Une accroche que l'image contredit ou n'illustre pas fait partir le spectateur.
 - Une boucle ouverte : quelque chose commence et ne se termine pas dans la vidéo.
 - Une progression nette : chaque scène va un cran plus loin que la précédente (distance à la caméra, regard, tenue, geste).
 - Dernière scène : la coupe arrive au moment où l'on veut voir la suite, avec un appel à l'action court et concret.
@@ -79,6 +80,7 @@ Tu reçois les images dans l'ordre des scènes, puis la fiche de continuité et 
 - le lieu, la tenue, la coiffure ou la lumière ne sont pas ceux de la fiche de continuité, ou changent d'une image à l'autre sans que la scène le demande ;
 - un défaut d'anatomie ou de rendu : mains, doigts, membres, dents, regard, objet déformé, texte ou logo parasite, peau plastique ;
 - l'image ne montre pas ce que la scène décrit (cadrage, pose, objet), ou le geste demandé pour le clip ne peut pas partir de cette pose ;
+- la première image ne montre pas ce que l'accroche annonce, ou la contredit (l'accroche est donnée avec les scènes quand il y en a une) ;
 - le point de vue est incohérent avec celui de la fiche (par exemple un téléphone en main alors que c'est lui qui filme) ;
 - le cadrage vertical est mauvais : visage coupé, sujet trop petit, place manquante en haut pour le texte à l'écran.
 Ne signale que ce qui se voit vraiment. Une image correcte est "ok" : ne cherche pas la petite bête. Tu ne juges ni l'idée ni le registre de la vidéo, seulement la fabrication.
@@ -93,7 +95,7 @@ ANALYSTE = """Tu es chef monteur et tu critiques une vidéo verticale courte dé
 Tu ne vois pas la vidéo : tu reçois des images qui en sont extraites, chacune avec son instant et son rôle (première image, milieu d'une scène, dernière image avant une jointure, première image après), puis la fiche technique du montage et le scénario. Tu ne peux donc juger ni le mouvement, ni le rythme réel, ni le son : n'en dis rien.
 
 Ce que tu cherches, du plus grave au moins grave :
-- la première seconde : y a-t-il une raison de rester (regard, geste amorcé, texte d'accroche lisible et intrigant), ou une image d'attente ;
+- la première seconde : y a-t-il une raison de rester (regard, geste amorcé, texte d'accroche lisible et intrigant), ou une image d'attente ; l'accroche est-elle vraie dès la première image (ce qu'elle annonce se voit, rien ne la contredit) ;
 - les jointures annoncées « sans coupe » : compare l'image d'avant et celle d'après ; elles doivent être presque identiques (pose, cadrage, couleurs) ; tout saut se verra ;
 - les jointures « coupe » : le changement de cadrage est-il franc (un cadrage trop proche du précédent donne un saut maladroit) ; le lieu, la tenue, la coiffure et la lumière restent-ils les mêmes quand le scénario ne demande pas de changement ;
 - le personnage est-il la même personne partout ; défauts de rendu visibles (mains, doigts, visage, objet déformé) ;
@@ -114,6 +116,10 @@ CONT = ("lieu", "tenue", "cheveux", "lumiere", "pdv")
 CIBLES = (0, 15, 20, 30)  # duree visee d'un montage, en secondes (0 : tout garder)
 PLANCHER = 2.0  # un plan raccourci pour tenir la duree visee garde au moins cette duree
 NOIR = 0.4  # fondu au noir de la fin
+FIXE = 2.0  # duree d'une image fixe (scene sans clip), en zoom lent
+FONDU_JOINT = 4  # images de fondu a un raccord sans coupe
+STYLES = {"doux": ("Poppins-SemiBold.ttf", 1.0, False), "contour": ("Poppins-SemiBold.ttf", 1.0, True),
+          "serif": ("DMSerifDisplay-Italic.ttf", 1.2, False)}  # texte a l'ecran : (police, echelle, contour)
 JOINT = 1 / 32  # a un raccord continu, la premiere image du clip suivant repete la derniere du precedent : elle est retiree
 
 
@@ -353,7 +359,8 @@ class Atelier:
                              "textes": bool(m.get("textes", True)), "carton": bool(m.get("carton", True)),
                              "label": bool(m.get("label", False)), "musique": _s(m.get("musique"), 120),
                              "cible": int(m.get("cible") or 0) if int(m.get("cible") or 0) in CIBLES else 0,
-                             "noir": bool(m.get("noir", True))}}
+                             "noir": bool(m.get("noir", True)),
+                             "style": m.get("style") if m.get("style") in STYLES else "doux"}}
             p["scenes"] = [self._scene(s, p) for s in (b["scenes"] if "scenes" in b else old.get("scenes") or [])][:30]
             ref = b.get("reference", old.get("reference"))
             p["reference"] = ref if ref in [s["id"] for s in p["scenes"] if s["temps"] == 1] else ""
@@ -477,7 +484,8 @@ class Atelier:
                 "finals": finals, "etape": self._etape(e, finals[1]), "montage": mt, "prod": self.prod(pid),
                 "devis": {t: self.devis(e, t) for t in TEMPS}, "depots": [x for x in self.depots() if x.get("projet") == pid],
                 "chaine": self.chaine_vue(pid), "controle": {t: controle(p, t) for t in TEMPS}, "relecture": self.relecture(pid),
-                "publication": self.publication(p), "analyses": self.analyses(pid), "infos": _load(self._pdir(pid) / "finals.json", {})}
+                "publication": self.publication(p), "analyses": self.analyses(pid), "infos": _load(self._pdir(pid) / "finals.json", {}),
+                "planches": {n: _nom_planche(n) for n in sum(finals.values(), []) if (self._pdir(pid) / _nom_planche(n)).is_file()}}
 
     def liste(self):
         out = []
@@ -714,7 +722,8 @@ class Atelier:
                 _ff("-i", d / "media" / s["image"], "-vf", "scale=-2:768", "-q:v", "5", Path(tmp) / "i.jpg")
                 images.append({"scene": s["id"], "jpeg": base64.b64encode((Path(tmp) / "i.jpg").read_bytes()).decode()})
         c = p["continuite"]
-        demande = ("FICHE DE CONTINUITÉ (anglais)\n" + "\n".join(f"- {k} : {c[k] or 'non précisé'}" for k in CONT) + "\n\nSCÈNES RELUES\n"
+        demande = ((f"ACCROCHE (texte à l'écran de la première seconde)\n{p['accroche']}\n\n" if t == 1 and p.get("accroche") else "")
+                   + "FICHE DE CONTINUITÉ (anglais)\n" + "\n".join(f"- {k} : {c[k] or 'non précisé'}" for k in CONT) + "\n\nSCÈNES RELUES\n"
                    + "\n".join(f"- {s['id']} (scène {i}{', scène libre : hors fiche de continuité' if s['libre'] else ''}"
                                f"{', suite sans coupe de la scène précédente : image tirée de la fin de son clip' if i > 1 and s['raccord'] == 'continu' else ''})\n"
                                f"  image : {s['still'] or 'non décrite'}\n  geste du clip : {s['motion'] or 'aucun (image fixe)'}\n  texte à l'écran : {s['texte'] or 'aucun'}"
@@ -799,28 +808,10 @@ class Atelier:
             raise ValueError("vidéo introuvable")
         info = _load(d / "finals.json", {}).get(nom) or {}
         duree = info.get("duree") or _duree(src)
-        vues, deb, ids = [], info.get("debuts") or [], [x[0] for x in info.get("prises") or []]
-        if deb and len(deb) == len(ids):
-            fins = deb[1:] + [info.get("carton") or duree]
-            vues.append((0.05, "première image de la vidéo"))
-            for i, (a, z) in enumerate(zip(deb, fins)):
-                if i:
-                    genre = "sans coupe" if info["colle"][i] else "coupe"
-                    vues += [(a - 0.07, f"dernière image avant la jointure {i} ({genre})"), (a + 0.07, f"première image après la jointure {i} ({genre})")]
-                vues.append(((a + z) / 2, f"milieu de la scène {i + 1}"))
-            if info.get("carton"):
-                vues.append((info["carton"] + 1.0, "carton de fin"))
-            else:
-                vues.append((duree - NOIR - 0.15, "dernière image avant le fondu au noir"))
-            if len(vues) > 16:  # trop de scenes : les milieux sautent d'abord
-                vues = [v for v in vues if not v[1].startswith("milieu")][:16]
-        else:  # video montee avant la fiche technique : images regulierement espacees
-            ids = []
-            vues = [(0.05, "première image de la vidéo")] + [(duree * k / 9, "image") for k in range(1, 9)] + [(duree - 0.6, "fin de la vidéo")]
+        vues, ids, deb, fins = _vues(info, duree)
         images = []
         with tempfile.TemporaryDirectory() as tmp:
-            for a, role in sorted(vues):
-                a = min(max(a, 0), max(0, duree - 0.05))
+            for a, role, _ in vues:
                 _ff("-ss", f"{a:.2f}", "-i", src, "-frames:v", "1", "-vf", "scale=-2:640", "-q:v", "6", Path(tmp) / "i.jpg")
                 images.append({"titre": f"Image à {a:.1f} s, {role} :", "jpeg": base64.b64encode((Path(tmp) / "i.jpg").read_bytes()).decode()})
         c, mt = p["continuite"], p["montage"]
@@ -1316,6 +1307,10 @@ class Atelier:
             with self.lock:
                 infos = {k: v for k, v in _load(d / "finals.json", {}).items() if (d / k).is_file()}
                 _dump(d / "finals.json", infos | {out.name: info | {"date": time.strftime("%Y-%m-%d %H:%M")}})
+            try:
+                planche(out, info, d / _nom_planche(out.name))
+            except Exception:
+                pass  # la planche est un confort : le montage reste bon sans elle
             _dump(d / "montage.json", {"etat": "pret", "fichier": out.name})
         except Exception as e:
             _dump(d / "montage.json", {"etat": "erreur", "erreur": str(e)[-400:]})
@@ -1327,6 +1322,17 @@ class Atelier:
         if not re.fullmatch(r"final_(t[23]_)?v\d+\.mp4", str(name)):
             raise ValueError("fichier invalide")
         (self._pdir(pid) / name).unlink(missing_ok=True)
+        (self._pdir(pid) / _nom_planche(name)).unlink(missing_ok=True)
+
+    def planche(self, pid, name):
+        """Cree la planche de controle d'une video montee avant que la planche soit faite d'office."""
+        if not re.fullmatch(r"final_(t[23]_)?v\d+\.mp4", str(name)):
+            raise ValueError("fichier invalide")
+        d = self._pdir(pid)
+        if not (d / name).is_file():
+            raise ValueError("vidéo introuvable")
+        planche(d / name, _load(d / "finals.json", {}).get(name) or {}, d / _nom_planche(name))
+        return _nom_planche(name)
 
     def vers_tri(self, pid, name):
         """Copie une video montee dans la boite du Tri (validation humaine avant publication)."""
@@ -1377,6 +1383,8 @@ class Atelier:
         if path == "/api/a/final/supprimer":
             self.supprimer_final(b["id"], b["fichier"])
             return {}
+        if path == "/api/a/final/planche":
+            return {"fichier": self.planche(b["id"], b["fichier"])}
         if path == "/api/a/final/tri":
             return {"fichier": self.vers_tri(b["id"], b["fichier"])}
         return None
@@ -1392,6 +1400,10 @@ def _ff(*args):
         raise RuntimeError("ffmpeg : " + r.stderr.strip()[-350:])
 
 
+def _nom_planche(final):
+    return "planche_" + final[6:-4] + ".jpg"
+
+
 def _duree(path):
     r = subprocess.run([shutil.which("ffprobe") or "ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(path)],
                        capture_output=True, text=True)
@@ -1401,31 +1413,99 @@ def _duree(path):
         raise RuntimeError(f"durée illisible : {Path(path).name}")
 
 
-def _texte(tmp, cle, texte, taille, centre, w, h, boite=True, quand="", haut=False):
-    """Filtres drawtext d'un texte centre sur la hauteur `centre` (fraction de h), une ligne par filtre.
+def _vues(info, duree, maxi=16):
+    """Instants d'une video montee a regarder pour la juger : debut, milieu de chaque scene, de part et d'autre de chaque
+    jointure, fin. Rend ([(instant, role, etiquette courte)], ids des scenes, debuts, fins) d'apres la fiche du montage."""
+    vues, deb, ids = [], info.get("debuts") or [], [x[0] for x in info.get("prises") or []]
+    fins = []
+    if deb and len(deb) == len(ids):
+        fins = deb[1:] + [info.get("carton") or duree]
+        vues.append((0.05, "première image de la vidéo", "début"))
+        for i, (a, z) in enumerate(zip(deb, fins)):
+            if i:
+                genre = "sans coupe" if info["colle"][i] else "coupe"
+                vues += [(a - 0.07, f"dernière image avant la jointure {i} ({genre})", f"avant jointure {i} ({genre})"),
+                         (a + 0.07, f"première image après la jointure {i} ({genre})", f"après jointure {i}")]
+            vues.append(((a + z) / 2, f"milieu de la scène {i + 1}", f"scène {i + 1}, milieu"))
+        if info.get("carton"):
+            vues.append((info["carton"] + 1.0, "carton de fin", "carton"))
+        else:
+            vues.append((duree - NOIR - 0.15, "dernière image avant le fondu au noir", "fin"))
+        if len(vues) > maxi:  # trop de scenes : les milieux sautent d'abord
+            vues = [v for v in vues if not v[1].startswith("milieu")][:maxi]
+    else:  # video montee avant la fiche technique : images regulierement espacees
+        ids = []
+        vues = [(0.05, "première image de la vidéo", "début")] + [(duree * k / 9, "image", "") for k in range(1, 9)] + [(duree - 0.6, "fin de la vidéo", "fin")]
+    return sorted((min(max(a, 0), max(0, duree - 0.05)), r, c) for a, r, c in vues), ids, deb, fins
+
+
+def planche(src, info, out):
+    """Planche de controle d'une video montee : les images que regarde l'analyste, cote a cote, avec l'instant et le role de
+    chacune. Sans IA ni GPU."""
+    duree = info.get("duree") or _duree(src)
+    vues = _vues(info, duree, 24)[0]
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp = Path(tmp)
+        for k, (a, _, court) in enumerate(vues):
+            (tmp / "t.txt").write_text(f"{a:.1f} s  {court}".strip(), encoding="utf-8")
+            _ff("-ss", f"{a:.2f}", "-i", src, "-frames:v", "1", "-vf", f"scale=-2:480:out_range=pc,format=yuvj420p,drawtext=fontfile={FONT}:textfile={tmp / 't.txt'}:fontsize=15"
+                ":fontcolor=white:box=1:boxcolor=black@0.65:boxborderw=5:x=6:y=6", "-q:v", "4", tmp / f"{k:02d}.jpg")
+        # toutes les vues au meme format : un changement en cours de route viderait la mosaique
+        cols = min(len(vues), 4)
+        _ff("-i", tmp / "%02d.jpg", "-vf", f"tile={cols}x{-(-len(vues) // cols)}:padding=6:margin=6:color=0x15191d", "-frames:v", "1", "-q:v", "4", out)
+
+
+def _texte(tmp, cle, texte, taille, centre, w, h, style="doux", quand="", haut=False, alpha=1.0):
+    """Calque d'un texte centre sur la hauteur `centre` (fraction de h) : [(image PNG transparente, condition)].
+    Pas de fond en aplat : le texte est blanc sur une ombre floue (et un contour fin pour le style "contour").
     `quand` : condition ffmpeg d'affichage (sur t, en secondes depuis le debut du segment), vide pour toujours.
     `haut` : texte du haut de l'image (accroche). `centre` est alors le bas du bloc, qui ne descend jamais plus bas
-    (le visage est dessous) ; la police retrecit jusqu'a tenir en deux lignes, et le bloc reste sous la mention IA."""
-    texte = "".join(c for c in str(texte or "") if ord(c) < 0x2190).strip()  # la police n'a pas les emojis
+    (le visage est dessous) ; la police retrecit jusqu'a tenir en deux lignes, et le bloc reste sous la mention IA.
+    `alpha` : opacite du texte (mention IA discrete)."""
+    texte = "".join(c for c in str(texte or "") if ord(c) < 0x2190).strip()  # les polices n'ont pas les emojis
     if not texte:
         return []
+    nom, echelle, contour = STYLES.get(style, STYLES["doux"])
+    police = Path(__file__).parent / "polices" / nom
+    if not police.is_file():
+        police = FONT
     for k in (1, 0.9, 0.8, 0.7) if haut else (1,):
-        fs = round(h * taille * k)
-        lignes = textwrap.wrap(texte, max(8, int(w * 0.86 / (fs * 0.6)))) or [texte]
+        fs = round(h * taille * k * echelle)
+        lignes = textwrap.wrap(texte, max(8, int(w * 0.86 / (fs * (0.5 if style == "serif" else 0.6))))) or [texte]
         if len(lignes) <= 2:
             break
-    pas = round(fs * 1.45)
-    y0 = round(h * centre - pas * len(lignes) / 2)
-    if haut:
-        y0 = max(round(h * 0.075), round(h * centre) - pas * len(lignes))
-    out = []
-    for i, li in enumerate(lignes):
-        f = tmp / f"{cle}_{i}.txt"
-        f.write_text(li, encoding="utf-8")
-        deco = f":box=1:boxcolor=black@0.45:boxborderw={round(fs * 0.28)}" if boite else f":borderw={max(2, fs // 14)}:bordercolor=black@0.7"
-        out.append(f"drawtext=fontfile={FONT}:textfile={f}:fontsize={fs}:fontcolor=white{deco}:x=(w-text_w)/2:y={y0 + i * pas}"
-                   + (f":enable='{quand}'" if quand else ""))
-    return out
+    f = tmp / f"{cle}.txt"
+    f.write_text("\n".join(lignes), encoding="utf-8")
+    y = f"max({round(h * 0.075)}\\,{round(h * centre)}-text_h)" if haut else f"{round(h * centre)}-text_h/2"
+    trait = lambda couleur, plus="": (f"drawtext=fontfile={police}:textfile={f}:fontsize={fs}:fontcolor={couleur}{plus}:text_align=C"
+                                      f":line_spacing={round(fs * 0.12)}:x=(w-text_w)/2:y={y}")
+    bord = max(1, round(fs * 0.045))
+    vf = [trait(f"black@{0.95 * alpha:.2f}", f":borderw={bord}:bordercolor=black@{0.95 * alpha:.2f}"), f"gblur=sigma={fs * 0.2:.1f}",
+          trait(f"black@{0.75 * alpha:.2f}", f":borderw={bord}:bordercolor=black@{0.6 * alpha:.2f}"), f"gblur=sigma={max(1.0, fs * 0.05):.1f}",
+          trait(f"white@{alpha:.2f}", f":borderw={max(2, round(fs * 0.05))}:bordercolor=black@0.85" if contour else "")]
+    png = tmp / f"{cle}.png"
+    _ff("-f", "lavfi", "-i", f"color=c=black@0.0:s={w}x{h},format=rgba", "-vf", ",".join(vf), "-frames:v", "1", png)
+    return [(png, quand)]
+
+
+def _poser(avant, calques, apres=()):
+    """Arguments ffmpeg qui posent des calques de texte sur la video (entree 0) : (entrees en plus, graphe et sortie)."""
+    args, g, prev = [], [f"[0:v]{avant}[c0]"], "c0"
+    for k, (png, quand) in enumerate(calques, 1):
+        args += ["-i", png]
+        g.append(f"[{prev}][{k}:v]overlay" + (f"=enable='{quand}'" if quand else "") + f"[c{k}]")
+        prev = f"c{k}"
+    g.append(f"[{prev}]{','.join(apres) or 'null'}[v]")
+    return args, ["-filter_complex", ";".join(g), "-map", "[v]"]
+
+
+def _teinte(src, t=None):
+    """Moyenne rouge, vert, bleu d'une image d'un clip : a l'instant t, ou la derniere si t est None."""
+    r = subprocess.run([os.environ.get("FFMPEG_BIN") or shutil.which("ffmpeg"), "-loglevel", "error",
+                        *(("-sseof", "-0.25") if t is None else ("-ss", f"{t:.3f}")), "-i", str(src), *(() if t is None else ("-frames:v", "1")),
+                        "-vf", "scale=32:32:flags=area,format=rgb24", "-f", "rawvideo", "-"], capture_output=True)
+    b = r.stdout[-3072:]
+    return [sum(b[i::3]) / 1024 for i in range(3)] if len(b) == 3072 else None
 
 
 def _plans(p, media):
@@ -1444,7 +1524,7 @@ def _plans(p, media):
             if colle:
                 deb, dur = JOINT, dur - JOINT
         else:
-            deb, dur, colle = 0, s["duree"] or 3.0, False
+            deb, dur, colle = 0, s["duree"] or FIXE, False
         plans.append({"s": s, "deb": deb, "dur": dur, "colle": colle})
         derniere = s
     carton = 2.6 if m["carton"] and p.get("cta") else 0
@@ -1472,7 +1552,9 @@ def monter(p, media, tmp, out, audio_dir, plateforme=""):
     base = f"scale={w}:{h}:force_original_aspect_ratio=increase:flags=lanczos,crop={w}:{h}"
     fin = f"fps={fps},setsar=1,format=yuv420p"
     enc = ["-an", "-c:v", "libx264", "-crf", "18", "-preset", "veryfast", "-video_track_timescale", "16384"]
-    label = _texte(tmp, "label", "AI character", 0.016, 0.045, w, h) if m["label"] else []
+    style = m.get("style") or "doux"
+    label = _texte(tmp, "label", "AI character", 0.0125, 0.04, w, h, alpha=0.6) if m["label"] else []
+    gains = [1.0, 1.0, 1.0]  # correction de couleur du plan en cours (raccord sans coupe)
     segs, durs = [], []  # segs : groupes de segments ; rien ne separe les segments d'un meme groupe
     plans, carton = _plans(p, media)
     noir = lambda dur: [f"fade=t=out:st={max(0, dur - NOIR):.3f}:d={NOIR}"] if m.get("noir") else []
@@ -1483,19 +1565,30 @@ def monter(p, media, tmp, out, audio_dir, plateforme=""):
             if i == 0 and p.get("accroche") and p["accroche"] != s["texte"]:
                 # un seul texte a la fois : l'accroche d'abord, le texte de la scene ensuite
                 bascule = min(2.5, dur / 2) if s["texte"] else 0
-                txt += _texte(tmp, f"acc{i}", p["accroche"], 0.04, 0.19, w, h, quand=f"lt(t,{bascule:.2f})" if bascule else "", haut=True)
-                txt += _texte(tmp, f"txt{i}", s["texte"], 0.034, 0.72, w, h, quand=f"gte(t,{bascule:.2f})")
+                txt += _texte(tmp, f"acc{i}", p["accroche"], 0.04, 0.19, w, h, style, f"lt(t,{bascule:.2f})" if bascule else "", haut=True)
+                txt += _texte(tmp, f"txt{i}", s["texte"], 0.034, 0.72, w, h, style, f"gte(t,{bascule:.2f})")
             else:
-                txt += _texte(tmp, f"txt{i}", s["texte"], 0.034, 0.72, w, h)
+                txt += _texte(tmp, f"txt{i}", s["texte"], 0.034, 0.72, w, h, style)
         queue = noir(dur) if i + 1 == len(plans) and not carton else []
         seg = tmp / f"seg{i}.mp4"
         if s["clip"]:
-            _ff("-ss", f"{deb:.3f}", "-t", f"{dur:.3f}", "-i", media / s["clip"], "-vf", ",".join([base, fin] + txt + label + queue), *enc, seg)
-        else:  # pas encore de clip : image avec un zoom lent
+            couleur = []
+            if pl["colle"]:  # le modele video assombrit ou teinte le debut du clip suivant : on l'aligne sur la fin du precedent
+                a, b = _teinte(media / plans[i - 1]["s"]["clip"]), _teinte(media / s["clip"], deb)
+                if a and b:
+                    gains = [min(1.1, max(0.9, g * x / max(1.0, y))) for g, x, y in zip(gains, a, b)]
+                    couleur = ["colorchannelmixer=rr={:.4f}:gg={:.4f}:bb={:.4f}".format(*gains)]
+            else:
+                gains = [1.0, 1.0, 1.0]
+            ins, graphe = _poser(",".join([base] + couleur + [fin]), txt + label, queue)
+            _ff("-ss", f"{deb:.3f}", "-t", f"{dur:.3f}", "-i", media / s["clip"], *ins, *graphe, *enc, seg)
+        else:  # pas de clip : image en zoom lent, pour qu'elle ne paraisse pas figee
             nb = round(dur * fps)
-            zoom = (f"scale={w * 3 // 2}:{h * 3 // 2}:force_original_aspect_ratio=increase:flags=lanczos,crop={w * 3 // 2}:{h * 3 // 2},"
-                    f"zoompan=z='1+0.07*on/{nb}':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d={nb}:s={w}x{h}:fps={fps}")
-            _ff("-i", media / s["image"], "-vf", ",".join([zoom, "setsar=1,format=yuv420p"] + txt + label + queue), "-frames:v", nb, *enc, seg)
+            zoom = (f"scale={w * 2}:{h * 2}:force_original_aspect_ratio=increase:flags=lanczos,crop={w * 2}:{h * 2},"
+                    f"zoompan=z='1+0.1*on/{nb}':x='iw/2-(iw/zoom/2)':y='ih*0.42-(ih/zoom*0.42)':d={nb}:s={w}x{h}:fps={fps}")
+            gains = [1.0, 1.0, 1.0]
+            ins, graphe = _poser(zoom + ",setsar=1,format=yuv420p", txt + label, queue)
+            _ff("-i", media / s["image"], *ins, *graphe, "-frames:v", nb, *enc, seg)
         if pl["colle"]:
             segs[-1].append(seg)
         else:
@@ -1508,10 +1601,10 @@ def monter(p, media, tmp, out, audio_dir, plateforme=""):
             shutil.copy(media / derniere["image"], fond)
         else:
             _ff("-i", media / derniere["clip"], "-frames:v", "1", fond)
-        txt = _texte(tmp, "cta", p["cta"], 0.044, 0.46, w, h, boite=False) + _texte(tmp, "plat", plateforme, 0.022, 0.56, w, h, boite=False)
+        txt = _texte(tmp, "cta", p["cta"], 0.044, 0.46, w, h, style) + _texte(tmp, "plat", plateforme, 0.022, 0.56, w, h, "doux", alpha=0.85)
         seg = tmp / "carton.mp4"
-        _ff("-loop", "1", "-t", f"{carton}", "-i", fond, "-vf",
-            ",".join([base, "boxblur=28:3,eq=brightness=-0.22:saturation=0.8", fin] + txt + label + noir(carton)), *enc, seg)
+        ins, graphe = _poser(",".join([base, "boxblur=28:3,eq=brightness=-0.22:saturation=0.8", fin]), txt + label, noir(carton))
+        _ff("-loop", "1", "-t", f"{carton}", "-i", fond, *ins, *graphe, *enc, seg)
         segs.append([seg])
         durs.append(_duree(seg))
     durs_plans = durs[:len(plans)]
@@ -1522,24 +1615,29 @@ def monter(p, media, tmp, out, audio_dir, plateforme=""):
         liste.write_text("".join(f"file '{s}'\n" for s in fichiers), encoding="utf-8")
         _ff("-f", "concat", "-safe", "0", "-i", liste, "-c", "copy", *opts, sortie)
 
-    if m["transition"] == "fondu" and len(segs) > 1:
-        for i, g in enumerate(segs):  # un groupe continu devient un seul segment : le fondu ne passe qu'entre les groupes
-            if len(g) > 1:
-                coller(g, tmp / f"groupe{i}.mp4")
-                segs[i] = [tmp / f"groupe{i}.mp4"]
-        segs, durs = [g[0] for g in segs], [_duree(g[0]) for g in segs]
+    def fondre(fichiers, ds, d, sortie, *opts):
         args, fc, acc, prev = [], [], 0.0, "0:v"
-        for seg in segs:
+        for seg in fichiers:
             args += ["-i", seg]
-        for i in range(1, len(segs)):
-            acc += durs[i - 1] - x
-            fc.append(f"[{prev}][{i}:v]xfade=transition=fade:duration={x}:offset={acc:.3f}[v{i}]")
+        for i in range(1, len(fichiers)):
+            acc += ds[i - 1] - d
+            fc.append(f"[{prev}][{i}:v]xfade=transition=fade:duration={d:.5f}:offset={acc:.3f}[v{i}]")
             prev = f"v{i}"
-        _ff(*args, "-filter_complex", ";".join(fc), "-map", f"[{prev}]", "-an", "-c:v", "libx264", "-crf", "18", "-preset", "medium",
-            "-pix_fmt", "yuv420p", "-movflags", "+faststart", muet)
+        _ff(*args, "-filter_complex", ";".join(fc), "-map", f"[{prev}]", *opts, sortie)
+
+    k = 0
+    for i, g in enumerate(segs):  # un groupe continu devient un seul segment, ses jointures fondues sur quelques images
+        if len(g) > 1:
+            fondre(g, durs[k:k + len(g)], FONDU_JOINT / fps, tmp / f"groupe{i}.mp4", *enc)
+            segs[i] = [tmp / f"groupe{i}.mp4"]
+        k += len(g)
+    segs = [g[0] for g in segs]
+    durs = [_duree(g) for g in segs]
+    if m["transition"] == "fondu" and len(segs) > 1:
+        fondre(segs, durs, x, muet, "-an", "-c:v", "libx264", "-crf", "18", "-preset", "medium", "-pix_fmt", "yuv420p", "-movflags", "+faststart")
         total = sum(durs) - x * (len(segs) - 1)
     else:
-        coller([s for g in segs for s in g], muet, "-movflags", "+faststart")
+        coller(segs, muet, "-movflags", "+faststart")
         total = sum(durs)
     if m.get("musique"):
         src = (audio_dir / m["musique"]).resolve()
@@ -1550,6 +1648,7 @@ def monter(p, media, tmp, out, audio_dir, plateforme=""):
     fondu, debuts, groupe, acc = m["transition"] == "fondu" and len(plans) - sum(x["colle"] for x in plans) + bool(carton) > 1, [], -1, 0.0
     for pl, dur in zip(plans, durs_plans):  # instant ou chaque plan commence dans la video (un fondu recouvre x secondes)
         groupe += not pl["colle"]
+        acc -= FONDU_JOINT / fps if pl["colle"] else 0
         debuts.append(round(acc - (x * groupe if fondu else 0), 2))
         acc += dur
     return {"duree": round(total, 2), "label": bool(m["label"]), "cible": m.get("cible") or 0, "plans": len(plans),

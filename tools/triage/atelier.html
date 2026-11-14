@@ -333,6 +333,7 @@ function rendreProjet() {
       <div class="row" style="margin-top:0">
         <label class="g">Transition<select data-m="1" data-k="transition"><option value="coupe" ${P.montage.transition === 'coupe' ? 'selected' : ''}>Coupe franche</option><option value="fondu" ${P.montage.transition === 'fondu' ? 'selected' : ''}>Fondu</option></select></label>
         <label class="g">Format<select data-m="1" data-k="format">${[['vertical', 'Vertical 9:16'], ['carre', 'Carré'], ['paysage', 'Paysage 16:9']].map(([v, l]) => `<option value="${v}" ${v === P.montage.format ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+        <label class="g">Style du texte<select data-m="1" data-k="style">${[['doux', 'Doux : blanc, ombre floue'], ['contour', 'Contour : blanc cerné de noir'], ['serif', 'Serif : italique élégant']].map(([v, l]) => `<option value="${v}" ${v === (P.montage.style || 'doux') ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
         <label class="g">Musique<select data-m="1" data-k="musique"><option value="">Aucune</option>${E.musiques.map(m => `<option ${m === P.montage.musique ? 'selected' : ''}>${esc(m)}</option>`).join('')}</select></label>
       </div>
       <div class="row"><label class="c"><input type="checkbox" data-m="1" data-k="textes" ${P.montage.textes ? 'checked' : ''}>Textes à l'écran</label>
@@ -407,7 +408,7 @@ function majDyn() {
     <div class="mut" style="margin-top:6px">${E.can_run ? 'Chaque lancement passe par le plafond GPU du jour. Les clips démarrent leur propre pod (2 à 5 minutes d\'attente).' : 'Clé RunPod absente : lancement impossible.'}</div>
     ${pr.etat ? `<div style="margin-top:8px"><b class="${pr.etat === 'en cours' ? '' : pr.etat === 'termine' ? 'okc' : 'err'}">${{'en cours': 'Calcul en cours', termine: 'Dernier calcul terminé', arrete: 'Dernier calcul arrêté', interrompu: 'Dernier calcul interrompu'}[pr.etat]}</b>
       ${pr.cout != null ? ` <span class="mut">${usd(pr.cout)}</span>` : ''}${pr.echecs ? ` <span class="err">${pr.echecs} échec(s)</span>` : ''}<pre>${esc(pr.log)}</pre></div>` : ''}`, 'prod');
-  const F = D.finals[T], m = D.montage, fin = F.at(-1), u = n => `/afile/${P.id}/${n}`, inf = fin && D.infos[fin], an = (fin && D.analyses[fin]) || {};
+  const F = D.finals[T], m = D.montage, fin = F.at(-1), u = n => `/afile/${P.id}/${n}`, inf = fin && D.infos[fin], an = (fin && D.analyses[fin]) || {}, pla = fin && (D.planches || {})[fin];
   set($('#mont'), `
     <div class="row"><button class="p" data-a="monter" ${m.etat === 'en cours' ? 'disabled' : ''}>${m.etat === 'en cours' ? 'Montage en cours...' : fin ? 'Remonter (nouvelle version)' : 'Monter la vidéo'}</button>
       <span class="mut">Les scènes sans clip sont montées en image fixe avec un zoom lent.</span></div>
@@ -416,6 +417,9 @@ function majDyn() {
       <div class="row"><b>${fin.replace('final_', '').replace('.mp4', '').replace('_', ' ')}</b><a href="${u(fin)}" download="${P.id}_${fin}">Télécharger</a><span class="sp" style="flex:1"></span>
         <button class="s" data-a="tri" data-n="${fin}">Envoyer au Tri</button><button class="s d" data-a="suppfinal" data-n="${fin}">Supprimer</button></div>
       ${inf ? `<div class="mut">${inf.duree} s, ${inf.plans} plan(s)${inf.colles ? `, ${inf.colles} raccord(s) sans coupe` : ''}${inf.cible ? `, visée ${inf.cible} s` : ''}${inf.label ? ', mention IA' : ''}, montée le ${esc(inf.date)}</div>` : ''}
+      ${pla ? `<a href="${u(pla)}" target="_blank"><img src="${u(pla)}?${encodeURIComponent(inf ? inf.date : '')}" alt="Planche de contrôle" loading="lazy" style="width:100%;border-radius:6px;margin-top:8px;display:block"></a>
+        <div class="mut">Planche de contrôle : début, milieu de chaque scène, avant et après chaque jointure, fin. Toucher pour agrandir. Sans IA ni GPU.</div>`
+        : `<div class="row"><button data-a="planche" data-n="${fin}">Créer la planche de contrôle</button><span class="mut">Les images clés de la vidéo côte à côte, pour vérifier raccords et textes d'un coup d'oeil.</span></div>`}
       ${T < 3 ? `<div class="row"><button data-a="analyser" data-n="${fin}" ${an.etat === 'attente' || !E.redacteur ? 'disabled' : ''}>${an.etat === 'attente' ? 'Analyse en cours...' : an.etat ? 'Refaire l\'analyse' : 'Analyser la vidéo'}</button>
         <span class="mut">Critique du montage par le rédacteur IA, d'après des images extraites de la vidéo. Sans GPU.</span></div>
         ${an.etat === 'erreur' ? `<div class="err">Analyse : ${esc(an.erreur)}</div>` : ''}
@@ -436,7 +440,7 @@ function surveiller() {
     if (!P) return clearInterval(timer);
     try {
       const n = await api('/api/a/projet?id=' + P.id), avant = D.prod.etat, avantCh = D.chaine.etat;
-      for (const k of ['choix', 'prises', 'finals', 'etape', 'montage', 'prod', 'devis', 'depots', 'chaine', 'controle', 'relecture', 'publication', 'infos', 'analyses']) D[k] = n[k];
+      for (const k of ['choix', 'prises', 'finals', 'etape', 'montage', 'prod', 'devis', 'depots', 'chaine', 'controle', 'relecture', 'publication', 'infos', 'analyses', 'planches']) D[k] = n[k];
       majDyn();
       if (avant === 'en cours' && n.prod.etat !== 'en cours') etat();
       if (avantCh === 'en cours' && n.chaine.etat !== 'en cours') toast({pause: 'Images prêtes : choisir les prises, puis Continuer', termine: 'Chaîne terminée', arretee: 'Chaîne arrêtée', erreur: 'Chaîne en erreur'}[n.chaine.etat] || '', n.chaine.etat !== 'erreur');
@@ -515,6 +519,7 @@ const actions = {
   },
   monter: async () => { await sauver(); await api('/api/a/monter', {id: P.id, temps: T}); await recharger(); },
   tri: async el => { const r = await api('/api/a/final/tri', {id: P.id, fichier: el.dataset.n}); toast('Copiée dans le Tri : ' + r.fichier, true); },
+  planche: async el => { el.disabled = true; toast('Planche en cours (une minute)', true); await api('/api/a/final/planche', {id: P.id, fichier: el.dataset.n}); await recharger(); },
   suppfinal: async el => { if (confirm('Supprimer ' + el.dataset.n + ' ?')) { await api('/api/a/final/supprimer', {id: P.id, fichier: el.dataset.n}); await recharger(); } },
   statut: async el => { const av = P.statut; try { await structure(() => P.statut = el.dataset.v); } catch (e) { P.statut = av; throw e; } },
   teaser: () => structure(() => Object.assign(P.montage, {cible: 15, transition: 'coupe', textes: true, carton: true, noir: true})),
