@@ -474,6 +474,148 @@ def cmd_son(a):
     return 0
 
 
+def cmd_sonimage(a):
+    """sonimage --lot f.json --nom pNNNN : le son d'apres l'image (MMAudio) des clips d'un projet, range dans
+    data/audio/image/<clip>.m4a. Hors ComfyUI : le script tourne sur le pod, lance par un terminal de Jupyter."""
+    import base64
+    import re
+    import secrets
+    from . import sonimage as si
+    from .http import _ctx, request
+    data = Path(a.data)
+    if not re.fullmatch(r"p\d{4}", a.nom or ""):
+        raise RuntimeError("sonimage : --nom est l'identifiant du projet (pNNNN)")
+    media = data / "projets" / a.nom / "media"
+    lot = json.loads(Path(a.lot).read_text(encoding="utf-8"))  # [{"clip" (dans media), "sortie", "texte", "duree", "seed"}]
+    for x in lot:
+        if not re.fullmatch(r"[A-Za-z0-9_][A-Za-z0-9_.-]{0,80}\.mp4", str(x.get("clip") or "")) \
+                or x.get("sortie") != f"image/{Path(x['clip']).stem}.m4a" or not (media / x["clip"]).is_file():
+            raise RuntimeError(f"lot : element invalide ({x.get('clip')})")
+    if not lot:
+        raise RuntimeError("lot vide")
+    cfg = load_config(a)
+    ff = os.environ.get("FFMPEG_BIN") or shutil.which("ffmpeg")
+    if not ff:
+        raise RuntimeError("ffmpeg introuvable")
+    jtok = secrets.token_urlsafe(24)
+    H, D = {"Authorization": f"token {jtok}"}, si.DOSSIER
+    t0 = time.time()
+    pod_id, cost, gpu = runpod.create_pod(cfg["infra"], f"{PREFIX}sonimage-{int(t0)}", env={"JUPYTER_PASSWORD": jtok})
+    log(f"pod {pod_id} cree ({gpu}, {cost} $/h)")
+    hote = f"{pod_id}-8888.proxy.runpod.net"
+
+    def api(m, p, d=None, essais=None, **k):
+        """API de Jupyter. Le proxy rend des 404 passagers dans la minute qui suit le demarrage : on insiste."""
+        for n in range(essais or (10 if m != "GET" else 1)):
+            try:
+                return request(m, f"https://{hote}/api/{p}", data=d, headers=H, **k)
+            except Exception as e:
+                err = e
+                if "404" not in str(e):
+                    break
+                time.sleep(10)
+        raise err
+
+    def texte(p):
+        return api("GET", f"contents/{D}/{p}?content=1&format=text", retries=1)["content"]
+
+    faits = []
+    try:
+        for _ in range(60):
+            try:
+                api("GET", "contents?content=0", timeout=15, retries=1)
+                break
+            except Exception:
+                time.sleep(10)
+        else:
+            raise RuntimeError("Jupyter n'a pas demarre")
+        for d in (D, f"{D}/in", f"{D}/out"):
+            for _ in range(8):
+                try:
+                    api("GET", f"contents/{d}?content=0", retries=1)
+                    break
+                except Exception:
+                    try:
+                        api("PUT", f"contents/{d}", {"type": "directory"}, essais=1, retries=1)
+                        break
+                    except Exception:
+                        time.sleep(10)
+            else:
+                raise RuntimeError(f"dossier {d} inaccessible sur le volume")
+        for f in sorted({x["clip"] for x in lot}):
+            api("PUT", f"contents/{D}/in/{f}", {"type": "file", "format": "base64", "content": base64.b64encode((media / f).read_bytes()).decode()}, timeout=300)
+        envoi = [{"clip": x["clip"], "texte": str(x.get("texte") or "")[:300], "duree": max(1.0, min(10.0, float(x.get("duree") or 5))),
+                  "seed": int(x.get("seed") or 42), "neg": si.NEG} for x in lot]
+        for nom, contenu in (("lot.json", json.dumps(envoi)), ("lot.py", si.LOT), ("run.sh", si.RUN)):
+            api("PUT", f"contents/{D}/{nom}", {"type": "file", "format": "text", "content": contenu})
+        for nom in ("fin", "run.log"):
+            try:
+                api("DELETE", f"contents/{D}/{nom}", essais=1, retries=1)
+            except Exception:
+                pass
+        log(f"{len(envoi)} clip(s) deposes")
+        ordre = f"(nohup sh -c 'bash /workspace/{D}/run.sh > /workspace/{D}/run.log 2>&1; echo $? > /workspace/{D}/fin' >/dev/null 2>&1 &)\r"
+        for _ in range(3):
+            term = api("POST", "terminals")["name"]
+            si.ws_envoyer(hote, f"/terminals/websocket/{term}", H, json.dumps(["stdin", ordre]), _ctx)
+            time.sleep(10)
+            try:
+                api("GET", f"contents/{D}/run.log?content=0", essais=3, retries=1)
+                break
+            except Exception:
+                log("le script n'a pas demarre : nouvel essai")
+        else:
+            raise RuntimeError("le script n'a pas demarre sur le pod")
+        log("calcul lance (la premiere fois, l'installation prend dix minutes)")
+        vu, code, journal = 0, None, ""
+        while time.time() - t0 < 50 * 60:
+            time.sleep(20)
+            try:
+                journal = texte("run.log")
+                for l in journal[vu:].splitlines():
+                    if l.startswith(("MODELE", "FAIT", "RATE")):
+                        log(l[:120])
+                vu = len(journal)
+            except Exception:
+                pass
+            try:
+                code = texte("fin").strip()
+                break
+            except Exception:
+                pass
+        if code is None:
+            raise RuntimeError("delai depasse")
+        if code != "0" and "FAIT " not in journal:
+            raise RuntimeError(f"script en echec (code {code}) : {(journal.strip().splitlines() or ['?'])[-1][-200:]}")
+        (data / "audio" / "image").mkdir(parents=True, exist_ok=True)
+        for x in lot:
+            stem = Path(x["clip"]).stem
+            try:
+                if f"FAIT {x['clip']}" not in journal:
+                    raise RuntimeError("pas de son produit")
+                brut = data / "work" / "son" / f"{stem}.flac"
+                brut.parent.mkdir(parents=True, exist_ok=True)
+                brut.write_bytes(base64.b64decode(api("GET", f"contents/{D}/out/{stem}.flac?content=1&format=base64", essais=3, timeout=300)["content"]))
+                subprocess.run([ff, "-y", "-loglevel", "error", "-i", str(brut), "-ar", "44100", "-ac", "2", "-c:a", "aac", "-b:a", "160k",
+                                str(data / "audio" / x["sortie"])], check=True)
+                brut.unlink(missing_ok=True)
+                faits.append(x["sortie"])
+                log(f"SON {x['sortie']} (d'apres l'image, tirage {x.get('seed')})")
+            except Exception as e:  # un son rate n'arrete pas les suivants
+                log(f"ECHEC {x['sortie']} : {e}")
+        for f in [f"in/{x['clip']}" for x in lot] + [f"out/{Path(x['clip']).stem}.flac" for x in lot]:  # rien ne reste sur le volume
+            try:
+                api("DELETE", f"contents/{D}/{f}", essais=1, retries=1)
+            except Exception:
+                pass
+    finally:
+        runpod.delete_pod(pod_id)
+        log(f"pod {pod_id} supprime")
+    mins = (time.time() - t0) / 60
+    print(json.dumps({"son": faits, "minutes": round(mins, 1), "cost_usd": round(mins / 60 * float(cost or 0), 2)}))
+    return 0
+
+
 def lora_sync(a, data, catp, cat):
     """Charge sur le volume les LoRA retenues dans le hub (data/hub_charger.json, ecrit par la page Hub), dans un seul pod,
     et les inscrit au catalogue. Chaque element : {cle, name, label, strength, base, famille, cat, trigger, source,
@@ -660,6 +802,11 @@ def main():
     so.add_argument("--neg", default=SON_NEG, help="ce qu'on ne veut pas entendre")
     so.add_argument("--data", default=os.environ.get("DATA_DIR", str(ROOT / "server" / "data")))
     so.set_defaults(fn=cmd_son)
+    sm = sub.add_parser("sonimage", help="son d'apres l'image des clips d'un projet (MMAudio, licence non commerciale), range dans data/audio/image")
+    sm.add_argument("--lot", required=True, help="fichier JSON du lot (ecrit par l'atelier)")
+    sm.add_argument("--nom", required=True, help="identifiant du projet (pNNNN)")
+    sm.add_argument("--data", default=os.environ.get("DATA_DIR", str(ROOT / "server" / "data")))
+    sm.set_defaults(fn=cmd_sonimage)
     a = ap.parse_args()
     try:
         sys.exit(a.fn(a) or 0)

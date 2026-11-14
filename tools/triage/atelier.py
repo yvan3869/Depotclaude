@@ -546,7 +546,7 @@ class Atelier:
                              "textes": bool(m.get("textes", True)), "carton": bool(m.get("carton", True)),
                              "label": bool(m.get("label", False)), "musique": _s(m.get("musique"), 120),
                              "cible": int(m.get("cible") or 0) if int(m.get("cible") or 0) in CIBLES else 0,
-                             "noir": bool(m.get("noir", True)),
+                             "noir": bool(m.get("noir", True)), "simage": bool(m.get("simage", True)),
                              "rendu": m.get("rendu") if m.get("rendu") in RENDUS else "net",
                              "style": m.get("style") if m.get("style") in STYLES else "doux"}}
             p["scenes"] = [self._scene(s, p) for s in (b["scenes"] if "scenes" in b else old.get("scenes") or [])][:30]
@@ -671,7 +671,8 @@ class Atelier:
         return {"projet": p, "choix": {s["id"]: {"image": s["image"], "clip": s["clip"]} for s in e["scenes"]}, "prises": pr,
                 "finals": finals, "etape": self._etape(e, finals[1]), "montage": mt, "prod": self.prod(pid),
                 "devis": {t: self.devis(e, t) for t in TEMPS}, "depots": [x for x in self.depots() if x.get("projet") == pid],
-                "chaine": self.chaine_vue(pid), "son": (self.sons.get(pid) or {"etat": ""}) | {"a_faire": len(self._sons_lot(p, False)), "prets": self._sons_prets(p)},
+                "chaine": self.chaine_vue(pid), "son": (self.sons.get(pid) or {"etat": ""}) | {"a_faire": len(self._sons_lot(p, False)), "prets": self._sons_prets(p),
+                                                                                         "image": {t: len(self._simage_lot(p, t, e=e)) for t in TEMPS}},
                 "controle": {t: self._ctl(p, t) for t in TEMPS}, "relecture": self.relecture(pid),
                 "publication": self.publication(p), "analyses": self.analyses(pid), "infos": _load(self._pdir(pid) / "finals.json", {}),
                 "planches": {n: _nom_planche(n) for n in sum(finals.values(), []) if (self._pdir(pid) / _nom_planche(n)).is_file()}}
@@ -1375,6 +1376,23 @@ class Atelier:
         """Scenes dont le bruit est fabrique (fichier present)."""
         return [s["id"] for s in p["scenes"] if s.get("son") and (self.da / "bruits" / f"{p['id']}_{s['id']}.m4a").is_file()]
 
+    def _simage_faits(self, pid):
+        """Phrase avec laquelle le son d'apres l'image de chaque clip a ete tire : {clip: phrase}."""
+        return _load(self.da / "image" / f"{pid}.json", {})
+
+    def _simage_lot(self, p, temps, tout=False, e=None):
+        """Sons d'apres l'image a fabriquer pour un temps : un par clip retenu, quand le fichier manque ou que la
+        phrase de la scene (« Bruit du geste », qui oriente le modele) a change ; tous si `tout`."""
+        faits, media, lot = self._simage_faits(p["id"]), self._pdir(p["id"]) / "media", []
+        for s in (e or self._eff(p))["scenes"]:
+            clip = s.get("clip")
+            if s.get("temps", 1) != temps or not clip or not (media / clip).is_file():
+                continue
+            sortie, texte = f"image/{Path(clip).stem}.m4a", s.get("son") or ""
+            if tout or faits.get(clip) != texte or not (self.da / sortie).is_file():
+                lot.append({"cle": clip, "clip": clip, "texte": texte, "sortie": sortie, "seed": random.randint(1, 999999)})
+        return lot
+
     def son(self, b):
         pid = b["id"]
         if self.chaine_active():
@@ -1385,20 +1403,27 @@ class Atelier:
             raise ValueError("clé RunPod absente : lancement impossible depuis l'interface")
         with self.lock:
             p = self._raw(pid)
-            lot = self._sons_lot(p, bool(b.get("tout")))
+            image = bool(b.get("image"))
+            if image:
+                lot = self._simage_lot(p, int(b.get("temps") or 1), bool(b.get("tout")))
+                for x in lot:
+                    x["duree"] = round(_duree(self._pdir(pid) / "media" / x["clip"]), 2)
+            else:
+                lot = self._sons_lot(p, bool(b.get("tout")))
             if not lot:
-                raise ValueError("rien à fabriquer : écrire la phrase d'ambiance ou le bruit d'une scène (en anglais), ou choisir « Tout refaire »")
+                raise ValueError("rien à fabriquer : aucun clip retenu dans ce temps" if image else
+                                 "rien à fabriquer : écrire la phrase d'ambiance ou le bruit d'une scène (en anglais), ou choisir « Tout refaire »")
             d = self._pdir(pid)
             (d / "runs").mkdir(exist_ok=True)
             log = d / "runs" / "son.log"
             _dump(d / "runs" / "son.json", lot)
-            cmd = [sys.executable, "-m", "pilot", "son", "--lot", str(d / "runs" / "son.json"), "--nom", pid, "--data", str(self.data)]
+            cmd = [sys.executable, "-m", "pilot", "sonimage" if image else "son", "--lot", str(d / "runs" / "son.json"), "--nom", pid, "--data", str(self.data)]
             proc = self.studio.proc = subprocess.Popen(cmd, cwd=str(self.repo / "server"), stdout=open(log, "w"), stderr=subprocess.STDOUT)
             self.sons[pid] = {"etat": "en cours", "faits": 0, "n": len(lot), "erreur": "", "cout": None}
-        threading.Thread(target=self._son_fin, args=(pid, proc, log, lot), daemon=True).start()
+        threading.Thread(target=self._son_fin, args=(pid, proc, log, lot, image), daemon=True).start()
         return {"lance": len(lot)}
 
-    def _son_fin(self, pid, proc, log, lot):
+    def _son_fin(self, pid, proc, log, lot, image=False):
         proc.wait()
         txt = log.read_text(encoding="utf-8", errors="replace")
         m = re.search(r'"cost_usd": ([\d.]+)', txt)
@@ -1406,6 +1431,9 @@ class Atelier:
         v = {"etat": "termine", "faits": len(ok), "n": len(lot), "erreur": "", "cout": float(m.group(1)) if m else None}
         if not ok:
             v |= {"etat": "erreur", "erreur": (txt.strip().splitlines() or ["échec"])[-1][-300:]}
+        elif image:
+            with self.lock:
+                _dump(self.da / "image" / f"{pid}.json", self._simage_faits(pid) | {x["cle"]: x["texte"] for x in ok})
         else:
             with self.lock:
                 (self.da / "bruits").mkdir(exist_ok=True)
@@ -1919,8 +1947,11 @@ def monter(p, media, tmp, out, audio_dir, plateforme=""):
     segs, durs = [], []  # segs : groupes de segments ; rien ne separe les segments d'un meme groupe
     plans, carton = _plans(p, media)
     bdir = audio_dir / "bruits"  # bruit du geste de chaque plan, quand il a ete fabrique
+    # son d'apres l'image du clip de chaque plan, quand il a ete fabrique : il remplace le bruit du geste
+    simg = {i: audio_dir / "image" / f"{Path(x['s']['clip']).stem}.m4a" for i, x in enumerate(plans) if m.get("simage", True) and x["s"]["clip"]}
+    simg = {i: f for i, f in simg.items() if f.is_file()}
     bruits = [(i, bdir / f"{p['id']}_{x['s']['id']}.m4a") for i, x in enumerate(plans)
-              if x["s"].get("son") and (bdir / f"{p['id']}_{x['s']['id']}.m4a").is_file()]
+              if i not in simg and x["s"].get("son") and (bdir / f"{p['id']}_{x['s']['id']}.m4a").is_file()]
     noir = lambda dur: [f"fade=t=out:st={max(0, dur - NOIR):.3f}:d={NOIR}"] if m.get("noir") else []
     gr, gdur = 0, {}  # rang du premier plan d'un groupe -> duree du groupe
     for i, pl in enumerate(plans):
@@ -1987,7 +2018,7 @@ def monter(p, media, tmp, out, audio_dir, plateforme=""):
         segs.append([seg])
         durs.append(_duree(seg))
     durs_plans = durs[:len(plans)]
-    muet = tmp / "muet.mp4" if m.get("musique") or bruits else out
+    muet = tmp / "muet.mp4" if m.get("musique") or bruits or simg else out
 
     def coller(fichiers, sortie, *opts):
         liste = tmp / f"{sortie.stem}.txt"
@@ -2050,7 +2081,7 @@ def monter(p, media, tmp, out, audio_dir, plateforme=""):
         debuts.append(round(max(0, acc), 2))
         acc += dur
     cales = []  # [scene, instant dans la video, "geste" | "main" | "defaut"]
-    if m.get("musique") or bruits:
+    if m.get("musique") or bruits or simg:
         ins, fc, voies = ["-i", muet], [], []
         std = "aresample=44100,aformat=sample_fmts=fltp:channel_layouts=stereo"
         if m.get("musique"):
@@ -2058,7 +2089,7 @@ def monter(p, media, tmp, out, audio_dir, plateforme=""):
             if src.parent != audio_dir.resolve() or not src.is_file():
                 raise RuntimeError("musique introuvable dans data/audio")
             ins += ["-stream_loop", "-1", "-i", src]
-            fc.append(f"[1:a]{std},volume={0.7 if bruits else 1.0}[fond]")
+            fc.append(f"[1:a]{std},volume={0.7 if bruits or simg else 1.0}[fond]")
         else:  # pas d'ambiance : les bruits sont poses sur du silence
             ins += ["-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo"]
             fc.append(f"[1:a]{std}[fond]")
@@ -2072,11 +2103,17 @@ def monter(p, media, tmp, out, audio_dir, plateforme=""):
             ins += ["-i", f]
             fc.append(f"[{n + 2}:a]{std},adelay={int(quand * 1000)}:all=1[b{n}]")
             voies.append(f"[b{n}]")
+        for i, f in simg.items():  # la part du son qui correspond au plan monte, posee au debut du plan
+            pl, n = plans[i], len(voies)
+            ins += ["-i", f]
+            fc.append(f"[{n + 2}:a]{std},atrim=start={pl['deb']:.3f}:end={pl['deb'] + pl['dur']:.3f},asetpts=PTS-STARTPTS,"
+                      f"afade=t=in:d=0.06,afade=t=out:st={max(0, pl['dur'] - 0.1):.3f}:d=0.1,adelay={int(debuts[i] * 1000)}:all=1[b{n}]")
+            voies.append(f"[b{n}]")
         fc.append(f"[fond]{''.join(voies)}amix=inputs={len(voies) + 1}:duration=first:normalize=0,alimiter=limit=0.9,"
                   f"afade=t=in:d=0.4,afade=t=out:st={max(0, total - 1.2):.2f}:d=1.2[a]")
         _ff(*ins, "-filter_complex", ";".join(fc), "-map", "0:v", "-map", "[a]", "-c:v", "copy", "-c:a", "aac", "-b:a", "160k",
             "-t", f"{total:.2f}", "-movflags", "+faststart", out)
-    return {"bruits": cales, "duree": round(total, 2), "label": bool(m["label"]), "rendu": rendu, "passages": noms, "cible": m.get("cible") or 0, "plans": len(plans),
+    return {"bruits": cales, "simage": [plans[i]["s"]["id"] for i in simg], "duree": round(total, 2), "label": bool(m["label"]), "rendu": rendu, "passages": noms, "cible": m.get("cible") or 0, "plans": len(plans),
             "debuts": debuts, "colle": [x["colle"] for x in plans], "carton": round(total - carton, 2) if carton else 0,
             "images": sum(1 for x in plans if not x["s"]["clip"]), "colles": sum(1 for x in plans if x["colle"]),
             "prises": [[x["s"]["id"], x["s"]["clip"] or x["s"]["image"]] for x in plans]}

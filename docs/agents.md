@@ -95,6 +95,14 @@ silence du debut retire). Au montage, le bruit est pose sur l'instant ou l'image
 mouvement, pas une ecoute de l'image : quand il tombe mal, le champ « Instant (s) » de la scene le fixe a
 la main (`son_t`, reglage de l'atelier, absent des plans deposes).
 
+Son d'apres l'image (etape Montage, « Son d'apres l'image ») : un modele (MMAudio) regarde chaque clip retenu du
+temps et fabrique le son de ce qu'on y voit, cale sur l'image (`data/audio/image/<clip>.m4a`, un pod de cinq a
+dix minutes, environ 0,10 $, `pilot sonimage`). La phrase `son` de la scene l'oriente quand elle existe ; elle
+n'est pas necessaire. Au montage, ce son remplace le bruit du geste de la scene (case « L'utiliser au montage »,
+reglage `simage` de l'atelier) ; l'ambiance reste en fond. Il est lie au clip : une nouvelle prise demande un
+nouveau son. Licence du modele : CC BY-NC 4.0 (non commerciale), decision du proprietaire. Rien a ecrire de plus
+dans un plan : `son` reste un bruit bref et concret, sans voix ni musique.
+
 ## Date du personnage et dates reelles
 Un projet porte deux sortes de dates, a ne jamais confondre.
 
