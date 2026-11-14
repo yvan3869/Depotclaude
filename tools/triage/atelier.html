@@ -311,6 +311,9 @@ function rendreProjet() {
         <label class="c"><input type="checkbox" data-m="1" data-k="noir" ${P.montage.noir ? 'checked' : ''}>Fin au noir</label></div>
       <div class="aide">${T === 1 ? 'Carton de fin : 2,6 s avec le texte « Carton de fin » de l\'étape 2. ' : ''}Fin au noir : la dernière image s'éteint en fondu au lieu de couper net.</div>
       <div class="gt">Son</div>
+      ${f('ambiance', 'Ambiance sonore du lieu', P.ambiance || '', {area: 1, ph: 'Quiet kitchen room tone in the morning, soft hum of a fridge, faint birds through an open window', aide: 'En anglais : la pièce et deux ou trois sons précis, sans musique ni voix. Le rédacteur l\'écrit avec le scénario. « Fabriquer » loue un pod quelques minutes (environ 0,05 $) et choisit le fichier obtenu comme bande-son.'})}
+      <div class="row"><button data-a="son" ${D.son.etat === 'en cours' || D.prod.etat === 'en cours' || D.chaine.etat === 'en cours' ? 'disabled' : ''}>${ic('lancer')}${D.son.etat === 'en cours' ? 'Ambiance en cours...' : 'Fabriquer l\'ambiance'}</button>
+        ${D.son.etat === 'erreur' ? `<span class="mut">Échec : ${esc(D.son.erreur)}</span>` : D.son.etat === 'termine' ? `<span class="mut">Prête : ${esc(D.son.fichier)}${D.son.cout ? ', ' + usd(D.son.cout) : ''}</span>` : ''}</div>
       <label>Musique ou ambiance<select data-m="1" data-k="musique"><option value="">Aucune</option>${E.musiques.map(m => `<option ${m === P.montage.musique ? 'selected' : ''}>${esc(m)}</option>`).join('')}</select>
         ${aide(E.musiques.length ? 'Coupée à la durée de la vidéo, reprise en boucle si elle est plus courte. Pour en ajouter : déposer des mp3 dans data/audio sur le serveur, ou faire fabriquer une ambiance par « pilot son ».' : 'Aucun fichier : déposer des mp3 dans data/audio sur le serveur, ou faire fabriquer une ambiance par « pilot son ».')}</label>
       <div id="mont"></div>
@@ -411,16 +414,17 @@ function majDyn() {
 function surveiller() {
   clearInterval(timer); timer = null;
   const lu = d => [...Object.values(d.relecture || {}), ...Object.values(d.analyses || {})].some(x => x.etat === 'attente');
-  if (!D || (D.prod.etat !== 'en cours' && D.montage.etat !== 'en cours' && D.chaine.etat !== 'en cours' && !lu(D))) return;
+  if (!D || (D.prod.etat !== 'en cours' && D.son.etat !== 'en cours' && D.montage.etat !== 'en cours' && D.chaine.etat !== 'en cours' && !lu(D))) return;
   timer = setInterval(async () => {
     if (!P) return clearInterval(timer);
     try {
-      const n = await api('/api/a/projet?id=' + P.id), avant = D.prod.etat, avantCh = D.chaine.etat;
-      for (const k of ['choix', 'prises', 'finals', 'etape', 'montage', 'prod', 'devis', 'depots', 'chaine', 'controle', 'relecture', 'publication', 'infos', 'analyses', 'planches']) D[k] = n[k];
+      const n = await api('/api/a/projet?id=' + P.id), avant = D.prod.etat, avantCh = D.chaine.etat, avantSon = D.son.etat;
+      for (const k of ['choix', 'prises', 'finals', 'etape', 'montage', 'prod', 'devis', 'depots', 'chaine', 'son', 'controle', 'relecture', 'publication', 'infos', 'analyses', 'planches']) D[k] = n[k];
       majDyn();
       if (avant === 'en cours' && n.prod.etat !== 'en cours') etat();
+      if (avantSon === 'en cours' && n.son.etat !== 'en cours') { clearInterval(timer); timer = null; toast(n.son.etat === 'termine' ? 'Ambiance prête' : 'Ambiance en échec', n.son.etat === 'termine'); await etat(); return recharger(); }
       if (avantCh === 'en cours' && n.chaine.etat !== 'en cours') toast({pause: 'Images prêtes : choisir les prises, puis Continuer', termine: 'Chaîne terminée', arretee: 'Chaîne arrêtée', erreur: 'Chaîne en erreur'}[n.chaine.etat] || '', n.chaine.etat !== 'erreur');
-      if (n.prod.etat !== 'en cours' && n.montage.etat !== 'en cours' && n.chaine.etat !== 'en cours' && !lu(n)) { clearInterval(timer); timer = null; }
+      if (n.prod.etat !== 'en cours' && n.son.etat !== 'en cours' && n.montage.etat !== 'en cours' && n.chaine.etat !== 'en cours' && !lu(n)) { clearInterval(timer); timer = null; }
     } catch (e) {}
   }, 4000);
 }
@@ -503,6 +507,10 @@ const actions = {
   clips: () => {
     const d = D.devis[T].clips, hd = $('#hd').checked;
     if (confirm(`Lancer ${d.n} clip(s), environ ${usd(hd ? d.usd_hd : d.usd)} ? Vérifier d'abord que les images conviennent.`)) return produire('clips');
+  },
+  son: async () => {
+    if (!(P.ambiance || '').trim()) return toast('Écrire d\'abord la phrase d\'ambiance');
+    await sauver(); await api('/api/a/son', {id: P.id}); toast('Ambiance lancée', true); await recharger();
   },
   monter: async () => { await sauver(); await api('/api/a/monter', {id: P.id, temps: T}); await recharger(); },
   tri: async el => { const r = await api('/api/a/final/tri', {id: P.id, fichier: el.dataset.n}); toast('Copiée dans le Tri : ' + r.fichier, true); },

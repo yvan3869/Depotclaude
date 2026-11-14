@@ -26,8 +26,9 @@
 #                elle s'applique au clip du plan, pas a son image.
 #   2026-11-14i  champs de plan transition et camera (atelier) : passage au plan et mouvement de camera lent, fabriques
 #                au montage. Ne plus ecrire de mouvement de camera dans "motion".
+#   2026-11-14j  bloc "atelier" : ambiance (fond sonore du lieu, une phrase en anglais), avec le temps 1.
 
-modele: "2026-11-14i"
+modele: "2026-11-14j"
 name: monlot                 # prefixe des fichiers produits (lettres, chiffres, _), unique par lancement
 
 # --- Facultatif : plans deposes dans l'atelier (docs/agents.md, "Deposer des plans") --------------
@@ -47,6 +48,9 @@ name: monlot                 # prefixe des fichiers produits (lettres, chiffres,
 #   legende: ""              # legende de la publication, avec l'appel a l'action
 #   cta: ""                  # appel a l'action du carton de fin
 #   hashtags: ""
+#   ambiance: ""             # fond sonore du lieu pour toute la video, une phrase en anglais, sans musique ni voix :
+#                            # la piece et deux ou trois sons precis ("Quiet kitchen room tone, soft hum of a fridge,
+#                            # faint birds through an open window"). Fabrique depuis la page (etape Montage, Son).
 #   # Moment vecu par le personnage, lu seulement avec temps: 1. Absent : celui du projet est garde.
 #   date_perso: "2026-12-19" # date FICTIVE, entre guillemets, AAAA-MM-JJ : le jour ou le personnage vit la scene.
 #                            # Ce n'est ni la date d'ecriture, ni celle du calcul, ni celle du depot.

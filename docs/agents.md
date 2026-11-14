@@ -78,6 +78,12 @@ Le temps 1 porte en plus les textes de publication : `pitch` (resume en francais
 personnage est cree par IA), `cta` (carton de fin), `hashtags`. Ils sont dans la langue du
 personnage (champ `langue` de sa fiche), sans emoji (la police de montage ne les affiche pas).
 
+Le temps 1 porte aussi `ambiance` : le fond sonore du lieu pour toute la video, en anglais, une phrase,
+sans musique ni voix (la piece, deux ou trois sons precis, leur distance). Rien qui doive tomber sur un
+geste : le son n'est pas synchronise a l'image. Le proprietaire le fait fabriquer depuis la page (etape
+Montage, « Fabriquer l'ambiance » : un pod de quelques minutes, environ 0,05 $, fichier
+`data/audio/pNNNN_ambiance.m4a` choisi comme bande-son) ; il sert aux quatre temps.
+
 ## Date du personnage et dates reelles
 Un projet porte deux sortes de dates, a ne jamais confondre.
 
@@ -252,6 +258,7 @@ y placer un geste ni un texte important. Elle est remplacee par une coupe si l'u
          legende: ""
          cta: ""
          hashtags: ""
+         ambiance: ""               # fond sonore du lieu, une phrase en anglais, sans musique ni voix
          # avec temps: 1 seulement, facultatifs (absents : ceux du projet sont gardes) :
          date_perso: "2026-12-19"   # date du personnage, fictive, entre guillemets
          contexte: ""               # contexte du moment, une ligne en francais

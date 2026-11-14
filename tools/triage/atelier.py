@@ -64,6 +64,7 @@ CONTRAINTES TECHNIQUES (modèles d'image et de vidéo)
 - "raccord" : "coupe" (la scène a sa propre image, le montage coupe : changement de cadrage ou d'angle) ou "continu" (la scène prolonge la précédente sans coupe visible : son clip démarre sur la dernière image du clip précédent, même cadrage, le geste s'enchaîne). Utilise "continu" quand deux gestes se suivent dans le même cadre ; pas plus de deux scènes continues de suite, et jamais sur la première scène. Le "still" d'une scène continue décrit quand même l'image attendue à cet instant.
 - "transition" : comment le montage passe de la scène précédente à celle-ci, quand le raccord est "coupe". "" (coupe franche, le cas général), "fondu" (le temps passe), "filage" (panoramique filé très rapide : changement de lieu, d'angle ou de moment, donne du rythme), "zoom" (avancée rapide dans l'image : pour arriver sur un plan plus serré). Une ou deux transitions marquées par vidéo, au moment où elle bascule ; jamais sur la première scène ni sur une scène "continu".
 - "camera" : mouvement de caméra lent pendant la scène, fabriqué au montage : "" (fixe), "avance" (la caméra s'approche : la tension monte), "recul" (elle s'éloigne : on découvre), "gauche" ou "droite" (glissement latéral). N'écris jamais de mouvement de caméra dans "motion" : il rate. Sur une scène "continu", laisse "" (le mouvement de la scène précédente se prolonge). Pas plus d'une scène sur deux.
+- "ambiance" : en anglais, une phrase qui décrit le fond sonore du lieu pour toute la vidéo, sans musique ni voix : la pièce, deux ou trois sons précis, leur distance (par exemple "Quiet kitchen room tone in the morning, soft hum of a fridge, a spoon against a ceramic cup, faint birds through an open window"). Des sons que le lieu rend plausibles, rien qui doive tomber sur un geste précis.
 - "texte" : texte incrusté pendant la scène, dans la langue du personnage, 7 mots au plus. Aucun emoji, ni là ni dans l'accroche (la police de montage ne les affiche pas). "voix" : phrase de voix off dans sa voix, 12 mots au plus, ou "".
 - "cran" : niveau de la scène dans la progression, entier de 1 (anodin) à 5 (le plus osé du temps, toujours suggestif). Il ne redescend jamais d'une scène à la suivante et la dernière scène porte le plus haut.
 - "tattoos" : false si la tenue couvre les épaules et la poitrine (pull, peignoir fermé), sinon true.
@@ -74,7 +75,7 @@ SORTIE
 Un seul objet JSON valide, sans texte autour, sans bloc de code. Les champs "titre" et "pitch" sont en français ; les textes publiés (accroche, texte, voix, legende, cta, hashtags) sont dans la langue du personnage."""
 
 SCHEMA = ('{"titre": "...", "pitch": "une phrase", "accroche": "texte à l\'écran de la première seconde", '
-          '"continuite": {"lieu": "...", "tenue": "...", "cheveux": "", "lumiere": "...", "pdv": "..."}, '
+          '"continuite": {"lieu": "...", "tenue": "...", "cheveux": "", "lumiere": "...", "pdv": "..."}, "ambiance": "...", '
           '"scenes": [{"titre": "...", "role": "accroche|montee|chute", "raccord": "coupe|continu", "transition": "", "camera": "", "still": "...", "motion": "...", "end_edit": "", '
           '"texte": "...", "voix": "", "cran": 1, "tattoos": true}], "legende": "légende de la publication, 1 à 2 phrases, avec l\'appel à l\'action", '
           '"cta": "carton de fin, 6 mots au plus", "hashtags": "3 à 5 mots-dièse"}')
@@ -252,6 +253,7 @@ class Atelier:
         self.lock = threading.Lock()
         self.montages = {}  # id du projet -> fil de montage en cours
         self.job = None     # {"projet", "quoi", "log"} : dernier lancement du pilote par l'atelier
+        self.sons = {}      # projet -> {"etat", "fichier", "erreur", "cout"} : ambiance sonore fabriquee depuis l'atelier
         self.ch = None      # chaine de production en cours ou derniere chaine (voir chaine())
         self._migrer()
         c = _load(data / "chaine.json")  # une chaine en pause survit au redemarrage de l'interface
@@ -535,7 +537,7 @@ class Atelier:
                  "depots": old.get("depots") or {}, "continuite": _cont(b.get("continuite", old.get("continuite"))),
                  # date_perso : date fictive, celle du jour ou le personnage vit la scene ; cree et modifie : dates reelles
                  "date_perso": _date(b.get("date_perso", old.get("date_perso"))), "contexte": _s(b.get("contexte", old.get("contexte")), 400),
-                 "pitch": _s(b.get("pitch", old.get("pitch")), 400), "accroche": _s(b.get("accroche", old.get("accroche")), 120),
+                 "pitch": _s(b.get("pitch", old.get("pitch")), 400), "ambiance": _s(b.get("ambiance", old.get("ambiance")), 300), "accroche": _s(b.get("accroche", old.get("accroche")), 120),
                  "legende": _s(b.get("legende", old.get("legende")), 600), "cta": _s(b.get("cta", old.get("cta")), 120),
                  "hashtags": _s(b.get("hashtags", old.get("hashtags")), 200), "attente": old.get("attente") or "",
                  "montage": {"transition": m.get("transition") if m.get("transition") in ("coupe", "fondu") else "coupe",
@@ -668,7 +670,7 @@ class Atelier:
         return {"projet": p, "choix": {s["id"]: {"image": s["image"], "clip": s["clip"]} for s in e["scenes"]}, "prises": pr,
                 "finals": finals, "etape": self._etape(e, finals[1]), "montage": mt, "prod": self.prod(pid),
                 "devis": {t: self.devis(e, t) for t in TEMPS}, "depots": [x for x in self.depots() if x.get("projet") == pid],
-                "chaine": self.chaine_vue(pid), "controle": {t: self._ctl(p, t) for t in TEMPS}, "relecture": self.relecture(pid),
+                "chaine": self.chaine_vue(pid), "son": self.sons.get(pid) or {"etat": ""}, "controle": {t: self._ctl(p, t) for t in TEMPS}, "relecture": self.relecture(pid),
                 "publication": self.publication(p), "analyses": self.analyses(pid), "infos": _load(self._pdir(pid) / "finals.json", {}),
                 "planches": {n: _nom_planche(n) for n in sum(finals.values(), []) if (self._pdir(pid) / _nom_planche(n)).is_file()}}
 
@@ -843,6 +845,8 @@ class Atelier:
                 old = {s["id"]: s for s in p["scenes"] if s["temps"] == t}
                 for k in ("pitch", "accroche", "legende", "cta", "hashtags") if t == 1 else ():
                     p[k] = _s(res.get(k), 600)
+                if t == 1 and res.get("ambiance"):
+                    p["ambiance"] = _s(res["ambiance"], 300)
                 if t == 1 and isinstance(res.get("continuite"), dict) and any(_cont(res["continuite"]).values()):
                     p["continuite"] = _cont(res["continuite"])
                 if t == 1 and res.get("titre") and (kind == "retouche" or p.get("titre") in ("", "Sans titre")):
@@ -1112,7 +1116,7 @@ class Atelier:
                            "raccord": sh.get("raccord"), "libre": bool(sh.get("libre")), "cran": sh.get("cran"),
                            "transition": sh.get("transition"), "camera": sh.get("camera")})
         # textes de publication : seulement avec le temps 1, et seulement ceux qui sont remplis
-        lim = {"pitch": 400, "accroche": 120, "legende": 600, "cta": 120, "hashtags": 200}
+        lim = {"pitch": 400, "ambiance": 300, "accroche": 120, "legende": 600, "cta": 120, "hashtags": 200}
         textes = {k: _s(a.get(k), n) for k, n in lim.items() if a["temps"] == 1 and _s(a.get(k), n)}
         if a.get("date_perso"):  # date du personnage (fictive) ; YAML peut la lire comme une date
             if not _date(a["date_perso"]):
@@ -1349,6 +1353,43 @@ class Atelier:
         m = re.search(r'"cost_usd": ([\d.]+)', log)
         return {"etat": etat, "quoi": self.job["quoi"] if ici else "", "log": "\n".join(log.strip().splitlines()[-4:])[-600:],
                 "echecs": log.count("ECHEC"), "cout": float(m.group(1)) if m else None}
+
+    # --- Ambiance sonore : une phrase, un pod de quelques minutes, un fichier dans data/audio --------
+    def son(self, b):
+        pid = b["id"]
+        if self.chaine_active():
+            raise ValueError(f"une chaîne de production est en cours (projet {self.ch['projet']}) : attendre sa fin ou l'arrêter")
+        if self.studio.running():
+            raise ValueError("un calcul est déjà en cours : attendre sa fin")
+        if not self.studio.can_run():
+            raise ValueError("clé RunPod absente : lancement impossible depuis l'interface")
+        with self.lock:
+            p = self._raw(pid)
+            if not p.get("ambiance"):
+                raise ValueError("pas de phrase d'ambiance : l'écrire d'abord (en anglais)")
+            d = self._pdir(pid)
+            (d / "runs").mkdir(exist_ok=True)
+            log, nom = d / "runs" / "son.log", f"{pid}_ambiance"
+            cmd = [sys.executable, "-m", "pilot", "son", p["ambiance"], "--nom", nom, "--duree", "45", "--seed", str(random.randint(1, 999999)),
+                   "--data", str(self.data)]
+            proc = self.studio.proc = subprocess.Popen(cmd, cwd=str(self.repo / "server"), stdout=open(log, "w"), stderr=subprocess.STDOUT)
+            self.sons[pid] = {"etat": "en cours", "fichier": "", "erreur": "", "cout": None}
+        threading.Thread(target=self._son_fin, args=(pid, proc, log, nom + ".m4a"), daemon=True).start()
+        return {"lance": 1}
+
+    def _son_fin(self, pid, proc, log, fichier):
+        proc.wait()
+        txt = log.read_text(encoding="utf-8", errors="replace")
+        m = re.search(r'"cost_usd": ([\d.]+)', txt)
+        v = {"etat": "termine", "fichier": fichier, "erreur": "", "cout": float(m.group(1)) if m else None}
+        if proc.returncode or not (self.da / fichier).is_file():
+            v |= {"etat": "erreur", "fichier": "", "erreur": (txt.strip().splitlines() or ["échec"])[-1][-300:]}
+        else:
+            with self.lock:  # l'ambiance fabriquee devient la bande-son du montage
+                p = self._raw(pid)
+                p["montage"]["musique"] = fichier
+                _dump(self._pdir(pid) / "projet.json", p)
+        self.sons[pid] = v
 
     # --- Chaine : images, pause, puis clips et montage de chaque temps ------------------------------
     def chaine_active(self):
@@ -1590,6 +1631,8 @@ class Atelier:
             return self.analyser(b)
         if path == "/api/a/monter":
             return self.monter(b)
+        if path == "/api/a/son":
+            return self.son(b)
         if path == "/api/a/chaine":
             return self.chaine(b)
         if path == "/api/a/chaine/continuer":
