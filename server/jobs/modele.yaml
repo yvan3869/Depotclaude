@@ -9,8 +9,9 @@
 # Historique
 #   2026-11-14   premiere version : champs character, image, tattoos, body, end_edit, steps.
 #   2026-11-14b  depot dans l'atelier : bloc "atelier", champs de plan titre, texte, voix, role.
+#   2026-11-14c  bloc "atelier" : textes de publication du temps 1 (pitch, accroche, legende, cta, hashtags).
 
-modele: "2026-11-14b"
+modele: "2026-11-14c"
 name: monlot                 # prefixe des fichiers produits (lettres, chiffres, _), unique par lancement
 
 # --- Facultatif : plans deposes dans l'atelier (docs/agents.md, "Deposer des plans") --------------
@@ -23,6 +24,12 @@ name: monlot                 # prefixe des fichiers produits (lettres, chiffres,
 #   personnage: lea          # seulement pour un nouveau projet (fiche de persona/personnages/)
 #   titre: ""                # seulement pour un nouveau projet
 #   note: ""                 # une ligne pour le proprietaire, affichee dans la page
+#   # Textes de publication, lus seulement avec temps: 1. Un champ vide ou absent garde celui du projet.
+#   pitch: ""                # resume de la video en une ou deux phrases, en francais
+#   accroche: ""             # texte a l'ecran de la premiere seconde, langue du personnage, sans emoji
+#   legende: ""              # legende de la publication, avec l'appel a l'action
+#   cta: ""                  # appel a l'action du carton de fin
+#   hashtags: ""
 
 # --- Facultatif : autre personnage que celui de persona/production.yaml --------------------------
 # Un champ absent garde la valeur de production.yaml. Bloc a supprimer pour Lea.

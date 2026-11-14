@@ -20,16 +20,24 @@ dont les images arrivent dans le Tri. Rien n'est publie sans validation du propr
 Chaque video est un projet de l'Atelier (page `/atelier` du studio), decoupe en trois temps qui se
 suivent dans le meme decor et la meme tenue :
 
-| Temps | Contenu | Public | Qui l'ecrit |
+| Temps | Contenu | Public | Registre |
 |---|---|---|---|
-| 1. Accroche | teaser de 15 a 20 s, suggestif, coupe avant la suite, appel a l'action | reseaux, tous publics | le redacteur de l'atelier |
-| 2. Montee | la suite du teaser, un cran plus loin a chaque scene | abonnes | le redacteur de l'atelier, ou l'agent |
-| 3. Final | la fin de la scene | prive, payant | le proprietaire ou l'agent ; jamais le redacteur de l'atelier |
+| 1. Accroche | teaser de 15 a 20 s, 3 scenes environ, coupe avant la suite, appel a l'action | reseaux, tous publics | suggestif au plus : il doit passer la moderation des reseaux |
+| 2. Montee | la suite du teaser, un cran plus loin a chaque scene, sans appel a l'action | abonnes | suggestif |
+| 3. Final | la fin de la scene | prive, payant | fixe par le proprietaire |
 
 Chaque temps a ses scenes, ses images, ses clips et son montage (`final_vN.mp4` pour le temps 1,
-`final_t2_vN.mp4`, `final_t3_vN.mp4`). Le role de l'agent : construire les plans du temps 3 (et du
-temps 2 si le proprietaire le demande) et les deposer dans l'atelier. Le proprietaire les importe,
-lance le calcul depuis la page, choisit les prises et monte.
+`final_t2_vN.mp4`, `final_t3_vN.mp4`).
+
+**Role de l'agent** : il peut ecrire une video entiere, c'est-a-dire les trois temps, ou seulement
+ceux que le proprietaire lui demande. Sans consigne, il ecrit le temps 3 et laisse les temps 1 et 2
+au redacteur de l'atelier. Le redacteur de l'atelier, lui, n'ecrit jamais le temps 3. Dans tous les
+cas l'agent depose ; le proprietaire importe, lance le calcul depuis la page, choisit les prises et monte.
+
+Le temps 1 porte en plus les textes de publication : `pitch` (resume en francais), `accroche`
+(texte a l'ecran de la premiere seconde), `legende` (avec l'appel a l'action et la mention que le
+personnage est cree par IA), `cta` (carton de fin), `hashtags`. Ils sont dans la langue du
+personnage (champ `langue` de sa fiche), sans emoji (la police de montage ne les affiche pas).
 
 ## Deposer des plans dans l'atelier
 1. **Lire le projet** : `server/data/projets/pNNNN/projet.json` (lecture seule). On y trouve le
@@ -48,6 +56,12 @@ lance le calcul depuis la page, choisit les prises et monte.
          personnage: lea      # seulement pour un nouveau projet
          titre: ""            # seulement pour un nouveau projet
          note: "une ligne pour le proprietaire"
+         # avec temps: 1 seulement, facultatifs (un champ vide garde celui du projet) :
+         pitch: ""
+         accroche: ""
+         legende: ""
+         cta: ""
+         hashtags: ""
        defaults:
          seed: 100
          loras: []            # noms du catalogue : docker compose run --rm pilot lora list
@@ -62,6 +76,9 @@ lance le calcul depuis la page, choisit les prises et monte.
    `titre`, `texte`, `voix`, `role`. De 1 a 10 plans par fichier. `steps`, `image` et `character`
    ne sont pas repris ; `body` et `dest` sont inutiles (le temps et la fiche du personnage en
    tiennent lieu). Un fichier par projet et par temps.
+   Video entiere : trois fichiers. Deposer d'abord celui du temps 1 sans `projet` (avec `personnage`
+   et `titre`) ; une fois importe, le proprietaire donne le numero du projet cree, a reporter dans
+   `projet` pour les fichiers des temps 2 et 3. Ne pas deviner ce numero.
 3. **Ne pas lancer le pilote sur ce fichier.** Il apparait dans la page du projet (ou a l'accueil de
    l'atelier s'il ne vise aucun projet), avec son erreur s'il est mal forme (bloc `atelier` absent,
    `temps` invalide, nom en double, `still` manquant, modele perime). Le proprietaire appuie sur
@@ -69,6 +86,7 @@ lance le calcul depuis la page, choisit les prises et monte.
 4. **Corriger** : modifier le meme fichier, sans changer les `name`. La page signale le changement
    et le proprietaire reimporte ; les scenes sont remplacees une a une, et l'image deja calculee est
    gardee tant que `still` n'a pas change. Un plan retire du fichier reste dans le projet.
+   Les textes de publication remplis dans le fichier remplacent ceux du projet a chaque import.
 
 Les fichiers de `server/jobs/atelier/` ne sont pas suivis par git. Le lancement direct du pilote
 (ci-dessous) reste possible pour des essais hors atelier : ces images vont dans le Tri, pas dans un projet.

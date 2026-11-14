@@ -528,8 +528,12 @@ class Atelier:
             scenes.append({"titre": sh.get("titre") or nom, "role": sh.get("role"), "temps": a["temps"], "still": sh["still"], "motion": sh.get("motion"),
                            "end_edit": sh.get("end_edit"), "texte": sh.get("texte"), "voix": sh.get("voix"), "tattoos": sh.get("tattoos", True),
                            "loras": sh.get("loras", d.get("loras")), "seed": seed, "origine": f"{f.name}:{nom}"})
+        # textes de publication : seulement avec le temps 1, et seulement ceux qui sont remplis
+        lim = {"pitch": 400, "accroche": 120, "legende": 600, "cta": 120, "hashtags": 200}
+        textes = {k: _s(a.get(k), n) for k, n in lim.items() if a["temps"] == 1 and _s(a.get(k), n)}
         return {"projet": str(a.get("projet") or ""), "temps": a["temps"], "personnage": str(a.get("personnage") or ""),
-                "titre": _s(a.get("titre"), 100), "note": _s(a.get("note"), 300), "modele": str(j.get("modele") or ""), "scenes": scenes}
+                "titre": _s(a.get("titre"), 100), "note": _s(a.get("note"), 300), "modele": str(j.get("modele") or ""), "scenes": scenes,
+                "textes": textes}
 
     def depots(self):
         import yaml
@@ -582,6 +586,7 @@ class Atelier:
             if len(reste) + len(neuves) > 30:
                 raise ValueError("trop de scènes dans ce projet")
             p["scenes"] = sorted(reste + neuves, key=lambda s: s["temps"])
+            p.update(pl["textes"])
             p.setdefault("depots", {})[f.name] = int(f.stat().st_mtime)
             p["modifie"] = time.strftime("%Y-%m-%d %H:%M")
             _dump(self.dj / pid / "projet.json", p)

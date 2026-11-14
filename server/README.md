@@ -102,4 +102,5 @@ Un projet porte maintenant trois temps, en onglets : 1 accroche tous publics, 2 
 (meme lieu, meme tenue, suggestif) ; il n'ecrit jamais le temps 3, rempli a la main ou par import.
 Un agent tiers depose ses plans dans `server/jobs/atelier/<nom>.yaml` (bloc `atelier` : projet, temps) ;
 la page les affiche, avec leurs erreurs, et le bouton "Importer dans le projet" en fait des scenes.
+Un depot du temps 1 peut porter les textes de publication (pitch, accroche, legende, cta, hashtags).
 Les plans importes ne sont pas ecrases par le redacteur. Marche a suivre de l'agent : `docs/agents.md`.
