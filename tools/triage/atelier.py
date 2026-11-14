@@ -124,6 +124,8 @@ FIXE = 2.0  # duree d'une image fixe (scene sans clip), en zoom lent
 FONDU_JOINT = 4  # images de fondu a un raccord sans coupe
 STYLES = {"doux": ("Poppins-SemiBold.ttf", 1.0, False), "contour": ("Poppins-SemiBold.ttf", 1.0, True),
           "serif": ("DMSerifDisplay-Italic.ttf", 1.2, False)}  # texte a l'ecran : (police, echelle, contour)
+# Une retouche garde le cadrage de la reference, quoi que dise la consigne (essais du 14/11/2026) : un gros plan a son propre tirage.
+GROS_PLAN = re.compile(r"\bclose[- ]?up\b", re.I)
 GARDE = 0.3  # avant un raccord sans coupe, le texte du plan s'efface : le suivant apparait a la jointure, jamais les deux
 JOINT = 1 / 32  # a un raccord continu, la premiere image du clip suivant repete la derniere du precedent : elle est retiree
 
@@ -1213,7 +1215,7 @@ class Atelier:
                     if ch[s["id"]]["image"]:  # nouvelle prise demandee : autre tirage
                         s["seed"] = random.randint(1, 999999)
                     s["image"], s["clip"] = "", ""  # la prise retenue sera la nouvelle
-                    if base and s["id"] != ref and not s["libre"] and not s["loras"]:
+                    if base and s["id"] != ref and not s["libre"] and not s["loras"] and not GROS_PLAN.search(s["still"]):
                         shots.append({"name": s["id"], "image": str(media / base), "edit": self._still(p, s), "seed": s["seed"]})
                     else:
                         shots.append({"name": s["id"], "still": self._still(p, s), "seed": s["seed"], "tattoos": s["tattoos"],

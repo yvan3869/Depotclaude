@@ -1,7 +1,6 @@
 import argparse
 import json
 import os
-import re
 import shutil
 import subprocess
 import sys
@@ -17,25 +16,6 @@ ROOT = Path(__file__).resolve().parents[2]
 PREFIX = "girls-ai-"
 MODELE = "2026-11-14f"  # version du format des plans : la meme que dans server/jobs/modele.yaml
 INTERP = "minterpolate=fps=32:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1"
-
-# Une image tiree de la reference par retouche garde le cadrage de la reference, quoi que dise la consigne.
-# Pour un gros plan, la reference est donc recadree avant la retouche (haut et centre de l'image, la ou se trouve
-# le visage d'un plan taille) et la consigne commence par le cadrage.
-GARDER = ("Keep exactly the same person, same face, same hair, same body, same tattoos, same clothes, same room, same furniture, "
-          "same light and same photo style. New photo of her in the same place, a moment later: ")
-GROS_PLAN = re.compile(r"\b(extreme |tight |intimate )?close[- ]?up\b", re.I)
-GROS_PLAN_CADRE = "crop=iw*0.56:ih*0.56:iw*0.22:ih*0.04"
-GROS_PLAN_CONSIGNE = ("Tight close-up portrait of the same woman, her head and shoulders fill the frame. Keep exactly the same person, "
-                      "same face, same hair, same tattoos, same clothes, same light, same blurred room behind her and same photo style. "
-                      "New photo, a moment later: ")
-
-
-def recadrer(png: bytes, w, h) -> bytes:
-    """Reference recadree pour un gros plan, remise a la taille des images."""
-    ff = os.environ.get("FFMPEG_BIN") or shutil.which("ffmpeg")
-    r = subprocess.run([ff, "-loglevel", "error", "-f", "image2pipe", "-i", "-", "-vf", f"{GROS_PLAN_CADRE},scale={w}:{h}:flags=lanczos",
-                        "-frames:v", "1", "-f", "image2pipe", "-c:v", "png", "-"], input=png, capture_output=True, check=True)
-    return r.stdout
 
 
 def log(msg):
@@ -164,6 +144,8 @@ def cmd_run(a):
             shots.append((s, f"{job['name']}_{s['name']}", seed, {"name": s["name"]}))
         report["shots"] = [e for _, _, _, e in shots]
         stills, fins = {}, {}
+        keep_ref = ("Keep exactly the same person, same face, same hair, same body, same tattoos, same clothes, same room, same furniture, "
+                    "same light and same photo style. New photo of her in the same place, a moment later: ")
 
         def over():
             if (time.time() - t0) / 60 > max_min:
@@ -183,9 +165,8 @@ def cmd_run(a):
                     src = Path(s["image"])
                     stills[name] = (src if src.is_absolute() else data / src).read_bytes()
                     if s.get("edit"):  # nouvelle image tiree de celle-ci par retouche : meme personne, meme lieu, meme tenue
-                        gros = bool(GROS_PLAN.search(s["edit"]))
-                        up = c.upload(f"ga_{name}_ref.png", recadrer(stills[name], *s["still_size"]) if gros else stills[name])
-                        files = c.run(workflows.edit_image(models, up, (GROS_PLAN_CONSIGNE if gros else GARDER) + s["edit"], *s["still_size"], seed, f"ga_{name}"))
+                        up = c.upload(f"ga_{name}_ref.png", stills[name])
+                        files = c.run(workflows.edit_image(models, up, keep_ref + s["edit"], *s["still_size"], seed, f"ga_{name}"))
                         stills[name] = c.fetch(files[0])
                         entry["still_s"] = round(time.time() - t)
                         log(f"{name} : image par retouche ({entry['still_s']} s)")

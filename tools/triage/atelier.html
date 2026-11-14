@@ -312,7 +312,7 @@ function rendreProjet() {
       ${CONT.map(([k, lab, ph, aide]) => f(k, lab, P.continuite[k], {at: 'data-c="1"', ph, aide})).join('')}
       <label>Image de référence<select data-k="reference"><option value="">Aucune : chaque image est créée à partir de sa description</option>
         ${P.scenes.filter((s, i) => s.temps === 1 && s.still && !(s.raccord === 'continu' && P.scenes.slice(0, i).some(x => x.temps === 1))).map(s => `<option value="${s.id}" ${s.id === P.reference ? 'selected' : ''}>Scène ${P.scenes.filter(x => x.temps === 1).indexOf(s) + 1} du temps 1 : ${esc(s.titre)}</option>`).join('')}</select>
-        ${aide('Avec une image de référence, les autres images en sont tirées par retouche : même personne, même pièce, même tenue, seule la pose change ; pour un gros plan, écrire « close-up » dans la description (la référence doit alors être un plan taille, visage en haut au centre). À choisir une fois l\'image de cette scène réussie. Les scènes « libres » et celles qui portent des LoRA gardent leur propre image.')}</label>
+        ${aide('Avec une image de référence, les autres images en sont tirées par retouche : même personne, même pièce, même tenue, seule la pose change ; elle garde aussi le cadrage de la référence, donc une scène dont la description contient « close-up » est tirée à part, avec la fiche de continuité. À choisir une fois l\'image de cette scène réussie. Les scènes « libres » et celles qui portent des LoRA gardent leur propre image.')}</label>
     </details>
 
     <h2>${T === 1 ? '3. ' : ''}Scènes <small>${SC.length}, environ ${Math.round(SC.reduce((a, s) => a + (s.duree || 5), 0) + (T === 1 && P.montage.carton ? 2.6 : 0))} s</small></h2>
