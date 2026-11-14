@@ -547,7 +547,7 @@ class Atelier:
                              "label": bool(m.get("label", False)), "musique": _s(m.get("musique"), 120),
                              "cible": int(m.get("cible") or 0) if int(m.get("cible") or 0) in CIBLES else 0,
                              "noir": bool(m.get("noir", True)), "simage": bool(m.get("simage", True)),
-                             "rendu": m.get("rendu") if m.get("rendu") in RENDUS else "net",
+                             "rendu": m.get("rendu") if m.get("rendu") in RENDUS else "net" if old.get("montage") else "main",  # nouveau projet : tenu a la main
                              "style": m.get("style") if m.get("style") in STYLES else "doux"}}
             p["scenes"] = [self._scene(s, p) for s in (b["scenes"] if "scenes" in b else old.get("scenes") or [])][:30]
             ref = b.get("reference", old.get("reference"))
@@ -1748,6 +1748,17 @@ def _geste(clip, deb, dur):
     return round(t, 2) if haut > 1.4 * max(med, 0.01) else None
 
 
+NIVEAU_IMAGE = -30.0  # niveau moyen (dB) d'un son d'apres l'image dans le mixage : un peu au-dessus de l'ambiance
+
+
+def _niveau(path, deb, dur):
+    """Niveau moyen et crete (dB) d'un extrait sonore ; (None, None) si la mesure echoue."""
+    r = subprocess.run([shutil.which("ffmpeg") or "ffmpeg", "-hide_banner", "-ss", f"{deb:.3f}", "-t", f"{dur:.3f}", "-i", str(path),
+                        "-af", "volumedetect", "-vn", "-f", "null", "-"], capture_output=True, text=True)
+    a, b = re.search(r"mean_volume: (-?[\d.]+) dB", r.stderr), re.search(r"max_volume: (-?[\d.]+) dB", r.stderr)
+    return (float(a.group(1)), float(b.group(1))) if a and b else (None, None)
+
+
 def _duree(path):
     r = subprocess.run([shutil.which("ffprobe") or "ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(path)],
                        capture_output=True, text=True)
@@ -2101,12 +2112,17 @@ def monter(p, media, tmp, out, audio_dir, plateforme=""):
             quand = debuts[i] + dt
             cales.append([pl["s"]["id"], round(quand, 2), "main" if main not in ("", None) else "geste" if auto is not None else "defaut"])
             ins += ["-i", f]
-            fc.append(f"[{n + 2}:a]{std},adelay={int(quand * 1000)}:all=1[b{n}]")
+            # le bruit ne deborde pas sur le plan suivant (sauf raccord sans coupe) et reste sous la crete des autres sons
+            reste = debuts[i] + durs_plans[i] - quand
+            coupe = f"atrim=end={reste:.3f},afade=t=out:st={max(0, reste - 0.25):.3f}:d=0.25," if not (i + 1 < len(plans) and plans[i + 1]["colle"]) and reste > 0.3 else ""
+            fc.append(f"[{n + 2}:a]{std},{coupe}volume=-6dB,adelay={int(quand * 1000)}:all=1[b{n}]")
             voies.append(f"[b{n}]")
         for i, f in simg.items():  # la part du son qui correspond au plan monte, posee au debut du plan
             pl, n = plans[i], len(voies)
             ins += ["-i", f]
-            fc.append(f"[{n + 2}:a]{std},atrim=start={pl['deb']:.3f}:end={pl['deb'] + pl['dur']:.3f},asetpts=PTS-STARTPTS,"
+            moy, cr = _niveau(f, pl["deb"], pl["dur"])  # meme niveau moyen d'un plan a l'autre, crete retenue
+            gain = max(-24.0, min(6.0, NIVEAU_IMAGE - moy, -8.0 - cr)) if moy is not None else -6.0
+            fc.append(f"[{n + 2}:a]{std},atrim=start={pl['deb']:.3f}:end={pl['deb'] + pl['dur']:.3f},asetpts=PTS-STARTPTS,volume={gain:.1f}dB,"
                       f"afade=t=in:d=0.06,afade=t=out:st={max(0, pl['dur'] - 0.1):.3f}:d=0.1,adelay={int(debuts[i] * 1000)}:all=1[b{n}]")
             voies.append(f"[b{n}]")
         fc.append(f"[fond]{''.join(voies)}amix=inputs={len(voies) + 1}:duration=first:normalize=0,alimiter=limit=0.9,"
