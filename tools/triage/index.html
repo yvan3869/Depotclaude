@@ -4,56 +4,45 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Tri des clips</title>
+<link rel="stylesheet" href="/ui.css">
 <style>
-  :root { --bg:#111417; --panel:#1b2026; --text:#e8eaed; --muted:#8b949e; --line:#2c333b;
-          --soft:#3fa7d6; --paid:#c77dff; --redo:#e0a030; --reject:#e5534b; }
-  * { box-sizing:border-box; }
-  html,body { height:100%; margin:0; }
-  body { background:var(--bg); color:var(--text); font:15px/1.4 system-ui,sans-serif;
-         display:flex; flex-direction:column; }
-  header { display:flex; flex-wrap:wrap; gap:8px 20px; align-items:center;
-           padding:10px 16px; border-bottom:1px solid var(--line); }
-  header strong { font-size:16px; }
-  #name { color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-          max-width:40ch; font-variant-numeric:tabular-nums; }
-  #counts { margin-left:auto; display:flex; gap:14px; color:var(--muted);
-            font-variant-numeric:tabular-nums; }
-  #counts b { color:var(--text); }
-  main { flex:1; min-height:0; display:flex; align-items:center; justify-content:center; padding:12px; }
+  :root { --paid:#c77dff; }
+  html, body { height:100%; }
+  body { display:flex; flex-direction:column; }
+  header { position:static; }
+  header .l2 { display:flex; gap:6px 14px; flex-wrap:wrap; align-items:center; max-width:var(--larg); margin:4px auto 0; color:var(--mut); font-size:13px; }
+  #name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; flex:1 1 12ch; font-variant-numeric:tabular-nums; }
+  #counts { display:flex; gap:12px; font-variant-numeric:tabular-nums; }
+  #counts b { color:var(--txt); }
+  main { flex:1; min-height:0; max-width:none; width:100%; display:flex; align-items:center; justify-content:center; padding:12px; }
   main video, main img { max-width:100%; max-height:100%; border-radius:6px; background:#000; }
-  #empty { color:var(--muted); text-align:center; }
-  footer { display:grid; grid-template-columns:repeat(4,1fr) auto; gap:8px; padding:12px 16px;
-           border-top:1px solid var(--line); background:var(--panel); }
-  button { font:inherit; color:var(--text); background:transparent; border:1px solid var(--line);
-           border-radius:6px; padding:12px 8px; cursor:pointer; }
-  button:hover { background:#252b33; }
-  button:focus-visible { outline:2px solid var(--text); outline-offset:2px; }
-  button kbd { display:inline-block; min-width:1.6em; margin-right:6px; padding:1px 5px;
-               border:1px solid currentColor; border-radius:4px; font:12px ui-monospace,monospace; }
-  button[data-to=soft] { border-color:var(--soft); color:var(--soft); }
+  #empty { color:var(--mut); text-align:center; }
+  footer { border-top:1px solid var(--line); background:var(--panel); padding:12px; }
+  footer > div { display:grid; grid-template-columns:repeat(4,1fr) auto; gap:8px; max-width:var(--larg); margin:0 auto; }
+  footer button { background:transparent; min-height:46px; font-size:15px; }
+  footer button:hover:not(:disabled) { background:#252b33; }
+  button kbd { min-width:1.6em; padding:1px 5px; border:1px solid currentColor; border-radius:4px; font:12px ui-monospace,monospace; text-align:center; }
+  button[data-to=soft] { border-color:var(--acc); color:var(--acc); }
   button[data-to=paid] { border-color:var(--paid); color:var(--paid); }
-  button[data-to=redo] { border-color:var(--redo); color:var(--redo); }
-  button[data-to=reject] { border-color:var(--reject); color:var(--reject); }
-  button:disabled { opacity:.4; cursor:default; }
-  @media (max-width:640px) { footer { grid-template-columns:repeat(2,1fr); } #undo { grid-column:1/-1; } }
+  button[data-to=redo] { border-color:var(--warn); color:var(--warn); }
+  button[data-to=reject] { border-color:var(--bad); color:var(--bad); }
+  @media (max-width:640px) { footer > div { grid-template-columns:repeat(2,1fr); } #undo { grid-column:1/-1; } }
+  @media (hover:none) { button kbd { display:none; } }
 </style>
 </head>
 <body>
 <header>
-  <strong>Tri</strong>
-  <span id="pos"></span>
-  <span id="name"></span>
-  <div id="counts"></div>
+  <div class="l1"><a href="/">Studio</a><b>Tri</b><span class="sp"></span><small id="pos"></small></div>
+  <div class="l2"><span id="name"></span><div id="counts"></div></div>
 </header>
 <main id="stage"><p id="empty">Chargement...</p></main>
-<footer>
+<footer><div>
   <button data-to="soft"><kbd>S</kbd>Short soft</button>
   <button data-to="paid"><kbd>P</kbd>Page payante</button>
-  <button data-to="redo"><kbd>R</kbd>A refaire</button>
+  <button data-to="redo"><kbd>R</kbd>À refaire</button>
   <button data-to="reject"><kbd>X</kbd>Rejeter</button>
   <button id="undo"><kbd>Z</kbd>Annuler</button>
-  <a href="/" style="color:#3fa7d6;align-self:center;margin-left:8px">Studio</a>
-</footer>
+</div></footer>
 <script>
 const stage = document.getElementById('stage');
 const LABELS = {soft:'Soft', paid:'Payant', redo:'A refaire', reject:'Rejetes'};

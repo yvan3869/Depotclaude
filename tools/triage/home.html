@@ -1,17 +1,27 @@
 <!doctype html>
 <html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Studio</title>
+<link rel="stylesheet" href="/ui.css">
 <style>
-  body { margin:0; padding:24px 16px; background:#111417; color:#e8eaed; font:16px/1.45 system-ui,sans-serif; }
-  main { max-width:720px; margin:0 auto; } h1 { font-size:22px; margin:0 0 16px; }
-  a.card { display:block; background:#1b2026; border:1px solid #2c333b; border-radius:8px; padding:16px; margin-bottom:12px; color:#e8eaed; text-decoration:none; }
-  a.card b { color:#3fa7d6; font-size:17px; } a.card span { display:block; color:#8b949e; font-size:14px; margin-top:4px; }
-</style></head><body><main>
-<h1>Studio</h1>
-<a class="card" href="/atelier"><b>Atelier</b><span>Du personnage à la vidéo montée : idées, scénario, textes, images, clips, montage. Plusieurs personnages.</span></a>
-<a class="card" href="/hub"><b>Hub</b><span>Modèles et LoRA : catalogue par modèle de base et par catégorie, LoRA retenues, chargement sur le volume, veille.</span></a>
-<a class="card" href="/social"><b>Réseaux</b><span>Selfies tous publics pour faire vivre les comptes : semaine écrite et calculée d'avance, file à valider, texte et image prêts à publier.</span></a>
-<a class="card" href="/tri"><b>Tri</b><span>Classer les clips et images produits : soft, payant, à refaire, rejeté.</span></a>
-<a class="card" href="/nouveau"><b>Plan</b><span>Créer un lot en trois temps (accroche, montée, final), avec clips début/fin et sous-scènes.</span></a>
-<a class="card" href="/test"><b>Test</b><span>Essayer des réglages d'image (décor, cadrage, poses, corps, LoRA), voir les résultats, valider ou supprimer.</span></a>
-</main></body></html>
+  a.card { align-items:center; gap:14px; padding:14px; }
+  a.card .ic { width:24px; height:24px; color:var(--acc); }
+  a.card b { font-size:16px; } a.card .mut { -webkit-line-clamp:3; }
+</style></head><body>
+<header><div class="l1"><b>Studio</b><span class="sp"></span><small>Contenu généré par IA</small></div></header>
+<main id="vue"></main>
+<script src="/ui.js"></script>
+<script>
+const ESPACES = [
+  ['Produire', [
+    ['/atelier', 'montage', 'Atelier', 'Du personnage à la vidéo montée : idées, scénario, textes, images, clips, son, montage. Plusieurs personnages.'],
+    ['/social', 'envoyer', 'Réseaux', "Selfies tous publics pour faire vivre les comptes : semaine écrite et calculée d'avance, file à valider, texte et image prêts à publier."],
+    ['/hub', 'lora', 'Hub', 'Modèles et LoRA : catalogue par modèle de base et par catégorie, LoRA retenues, chargement sur le volume, veille.']]],
+  ['Outils', [
+    ['/test', 'image', 'Test', "Essayer des réglages d'image (décor, cadrage, poses, corps, LoRA), voir les résultats, valider ou supprimer."],
+    ['/tri', 'archiver', 'Tri', 'Classer les clips et images produits : soft, payant, à refaire, rejeté.'],
+    ['/nouveau', 'ecrire', 'Plan', "Ancien formulaire : un lot en trois temps, écrit à la main. Pour un nouveau projet, passer par l'atelier."]]],
+];
+$('#vue').innerHTML = ESPACES.map(([titre, l]) => `<h2>${titre}</h2>` + l.map(([u, i, n, d]) =>
+  `<a class="card" href="${u}">${ic(i)}<span><b>${n}</b><span class="mut">${esc(d)}</span></span></a>`).join('')).join('');
+</script>
+</body></html>
