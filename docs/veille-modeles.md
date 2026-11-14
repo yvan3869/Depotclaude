@@ -1,7 +1,6 @@
 # Veille des modèles
 
-Relevé du 14/11/2026. Sources : articles et guides publics, à recouper avec les fiches officielles avant toute
-décision. Ce qui n'est confirmé que par un seul article est signalé comme tel.
+Relevé du 14/11/2026. Sources : articles et guides publics, à recouper avec les fiches officielles avant toute décision. Ce qui n'est confirmé que par un seul article est signalé comme tel.
 
 ## Ce que nous utilisons
 
@@ -62,8 +61,7 @@ décision. Ce qui n'est confirmé que par un seul article est signalé comme tel
 
 ## LoRA : où chercher
 
-La recherche sur le web ne remonte rien d'utile sur les LoRA : c'est l'onglet **Catalogue** qui sert à cela, il
-interroge Civitai et Hugging Face en direct, triés par nombre de téléchargements. Relevé du 14/11/2026 :
+La recherche sur le web ne remonte rien d'utile sur les LoRA : c'est l'onglet **Catalogue** qui sert à cela, il interroge Civitai et Hugging Face en direct, triés par nombre de téléchargements. Relevé du 14/11/2026 :
 
 - **Z-Image, Réalisme** : choix large sur Civitai (plus de 24 fiches).
 - **Z-Image, Smartphone et photo amateur** : 6 fiches sur Civitai. C'est la catégorie la plus utile pour le temps 1.
