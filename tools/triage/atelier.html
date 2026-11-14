@@ -15,6 +15,8 @@
   .takes img { width:36px; height:64px; object-fit:cover; border-radius:4px; border:2px solid transparent; flex:none; cursor:pointer; opacity:.6; }
   .takes img.on { border-color:var(--acc); opacity:1; }
   .takes button.on { border-color:var(--acc); color:var(--acc); }
+  .vd { display:flex; flex-wrap:wrap; gap:5px; margin-top:4px; }
+  .vd button { border-radius:16px; } .vd button.on { border-color:var(--warn); color:var(--warn); } .vd button.on[data-c=ok] { border-color:var(--ok); color:var(--ok); }
   video.fin { width:100%; max-width:300px; border-radius:8px; display:block; margin:8px auto; background:#000; }
   .ver { display:flex; gap:8px; align-items:center; padding:4px 0; font-size:14px; }
 </style></head><body>
@@ -30,6 +32,8 @@ const vue = $('#vue');
 let E = null, D = null, P = null, cur = localStorage.getItem('perso') || '', autoEcrire = '', timer = null, tSave = null, sig = {}, T = 1;
 const ETAPES = [['idee', 'Idée'], ['ecrit', 'Scénario'], ['images', 'Images'], ['clips', 'Clips'], ['monte', 'Montage'], ['valide', 'Validée']];
 const TEMPS = {1: ['Accroche', 'tous publics'], 2: ['Montée', 'suggestif'], 3: ['Dévoilé', 'nu, sans acte'], 4: ['Final', 'explicite']}, NT = [1, 2, 3, 4];
+const TIR = t => (P.tirage || {})[t] || (t <= 2 ? 'ref' : 'direct');
+const VERDICTS = [['ok', 'Bonne'], ['tenue', 'Tenue fausse'], ['geste', 'Geste absent'], ['objet', 'Objet en trop'], ['visage', 'Visage'], ['corps', 'Corps'], ['decor', 'Décor'], ['cadrage', 'Cadrage']];
 const QUOI = {1: 'Tous publics, pour les réseaux : elle donne envie de voir la suite. Le rédacteur IA peut l\'écrire, la relire et l\'analyser.',
   2: 'Suggestif poussé : lingerie, nu suggéré, rien d\'explicite. Offert ou réservé aux abonnés, c\'est le temps qui convertit. Le rédacteur IA peut l\'écrire, sauf les scènes qui portent des LoRA.',
   3: 'Nudité explicite, sans acte. Pour l\'abonnement ou un paiement bas. Ce temps est à votre main : le rédacteur IA ne l\'écrit pas, ne le relit pas et ne l\'analyse pas.',
@@ -190,7 +194,7 @@ function rendreProjet() {
       ${T > 2 && P.suite ? `<div style="margin-top:6px">Suite annoncée : ${esc(P.suite)}</div>` : ''}
       ${T > 2 ? '<div class="mut" style="margin-top:6px">Ajouter les scènes ici, ou importer un plan déposé par votre agent dans server/jobs/atelier/.</div>' : ''}
       ${`<div style="margin-top:8px;font-size:14px">LoRA par défaut de ce temps : ${DEF ? `<b>${esc(DEF)}</b>` : '<span class="mut">aucune</span>'} <a href="#/loras">Bibliothèque</a> · <a href="/hub">Hub</a></div>
-        <div class="aide">Posées sur chaque scène ajoutée à ce temps, et sur les plans importés qui ne disent rien des LoRA. Chaque scène reste modifiable.</div>
+        <div class="aide">Posées sur chaque scène ajoutée à ce temps et sur les plans importés qui ne disent rien des LoRA. Au calcul, une scène sans LoRA prend celles de son temps ; celles d'une scène priment. Une LoRA ne se charge jamais d'après la description : elle doit être nommée ici ou sur la scène.</div>
         ${DEF && SC.length ? `<div class="row"><button class="s" data-a="poserdefauts">${ic('lora')}Poser ces LoRA sur les scènes de ce temps</button></div>` : ''}`}</div>
     ${T === 2 ? `<div class="panel">
       ${f('brief2', 'Consigne pour la montée (facultatif)', P.brief2, {area: 1, rows: 2, aide: 'En français. Ce que ce temps doit montrer de plus que l\'accroche : même lieu, un cran plus loin ; la tenue peut se défaire.'})}
@@ -233,6 +237,9 @@ function rendreProjet() {
       <label>Image de référence<select data-k="reference"><option value="">Aucune : chaque image est créée à partir de sa description</option>
         ${P.scenes.filter((s, i) => s.temps === 1 && s.still && !(s.raccord === 'continu' && P.scenes.slice(0, i).some(x => x.temps === 1))).map(s => `<option value="${s.id}" ${s.id === P.reference ? 'selected' : ''}>Scène ${P.scenes.filter(x => x.temps === 1).indexOf(s) + 1} du temps 1 : ${esc(s.titre)}</option>`).join('')}</select>
         ${aide('Avec une image de référence, les autres images en sont tirées par retouche : même personne, même pièce, même tenue, seule la pose change ; elle garde aussi le cadrage de la référence, donc une scène dont la description contient « close-up » est tirée à part, avec la fiche de continuité. À choisir une fois l\'image de cette scène réussie. Les scènes « libres » et celles qui portent des LoRA gardent leur propre image.')}</label>
+      ${P.reference ? `<label>Images du temps ${T}<select data-tir="${T}"><option value="ref" ${TIR(T) === 'ref' ? 'selected' : ''}>Tirées de l'image de référence (même pièce, même tenue, pose proche)</option>
+        <option value="direct" ${TIR(T) === 'direct' ? 'selected' : ''}>Créées à part (visage du personnage et fiche de continuité)</option></select>
+        ${aide('Tirée de la référence, une image garde sa tenue et sa pose : bon pour un temps où elle reste habillée et bouge peu. Créée à part, la tenue et la pose suivent la description de la scène, au prix d\'un décor moins constant. Par défaut : référence aux temps 1 et 2, à part aux temps 3 et 4.')}</label>` : ''}
     </div></details>
 
     ${sec('scenes', 'Scènes', `${SC.length}, environ ${Math.round(SC.reduce((a, s) => a + (s.duree || 5), 0) + (T === 1 && P.montage.carton ? 2.6 : 0))} s`)}
@@ -373,6 +380,7 @@ function majDyn() {
           <button class="s" data-a="clip" ${occ || !(cont ? (D.choix[pv.id] || {}).clip : c.image) || !s.motion ? 'disabled' : ''}>${ic(c.clip ? 'refaire' : 'clip')}${c.clip ? 'Autre clip' : 'Créer le clip'}</button></div>
         <div class="mut" style="margin-top:6px">${c.clip ? 'Clip prêt.' : cont ? ((D.choix[pv.id] || {}).clip ? (t.clips.length ? 'Le clip précédent a changé : ce clip est à refaire.' : 'Suite du clip précédent : prête à lancer.') : 'Suite du clip précédent : créer d\'abord celui-ci.')
           : c.image ? (t.clips.length && !clips.length ? 'L\'image a changé : le clip est à refaire.' : 'Image prête : la vérifier avant de lancer le clip.') : ''}</div>
+        ${c.image && !cont ? `<div class="mut" style="margin-top:8px">Votre verdict sur cette image</div><div class="vd">${VERDICTS.map(([k, lab]) => `<button class="s ${((D.verdicts || {})[c.image] || []).includes(k) ? 'on' : ''}" data-a="verdict" data-c="${k}" data-n="${c.image}">${lab}</button>`).join('')}</div>` : ''}
         ${(rl => rl && rl.image === c.image ? `<div class="${rl.ok ? 'okc' : 'err'}" style="margin-top:6px;font-size:13px">Relecture : ${rl.ok ? 'rien à signaler.' : esc(rl.constat)}${!rl.ok && rl.consigne ? ` <span class="mut">${esc(rl.consigne)}</span>` : ''}</div>` : '')((((D.relecture || {})[s.temps] || {}).scenes || {})[s.id])}
       </div>`, 'm' + s.id);
   }
@@ -428,7 +436,7 @@ function surveiller() {
     if (!P) return clearInterval(timer);
     try {
       const n = await api('/api/a/projet?id=' + P.id), avant = D.prod.etat, avantCh = D.chaine.etat, avantSon = D.son.etat;
-      for (const k of ['choix', 'prises', 'finals', 'etape', 'montage', 'prod', 'devis', 'depots', 'chaine', 'son', 'controle', 'relecture', 'publication', 'infos', 'analyses', 'planches']) D[k] = n[k];
+      for (const k of ['choix', 'prises', 'finals', 'etape', 'montage', 'prod', 'devis', 'depots', 'chaine', 'son', 'controle', 'relecture', 'publication', 'infos', 'analyses', 'planches', 'verdicts']) D[k] = n[k];
       majDyn();
       if (avant === 'en cours' && n.prod.etat !== 'en cours') etat();
       if (avantSon === 'en cours' && n.son.etat !== 'en cours') { clearInterval(timer); timer = null; toast(n.son.etat === 'termine' ? 'Sons prêts' : 'Sons en échec', n.son.etat === 'termine'); await etat(); return recharger(); }
@@ -506,6 +514,8 @@ const actions = {
   supprimer: (el, sid) => confirm('Supprimer cette scène ?') && structure(() => P.scenes = P.scenes.filter(s => s.id !== sid)),
   monte: (el, sid) => structure(() => echanger(sid, -1)),
   descend: (el, sid) => structure(() => echanger(sid, 1)),
+  verdict: async el => { const n = el.dataset.n, l = new Set((D.verdicts || {})[n] || []); l.has(el.dataset.c) ? l.delete(el.dataset.c) : l.add(el.dataset.c);
+    D.verdicts = (await api('/api/a/verdict', {id: P.id, image: n, codes: [...l]})).verdicts; majDyn(); },
   prise: (el, sid) => structure(() => { sc(sid).image = el.dataset.n; sc(sid).clip = ''; }),
   priseclip: (el, sid) => structure(() => sc(sid).clip = el.dataset.n),
   image: (el, sid) => produire('images', [sid]),
@@ -540,6 +550,7 @@ vue.addEventListener('input', e => {
   const t = e.target, k = t.dataset.k;
   if (t.id === 'hd') return sig.hd = t.checked;
   if (t.dataset.ch) { CH[t.dataset.ch] = t.type === 'checkbox' ? t.checked : t.value; delete sig.prod; return majDyn(); }
+  if (t.dataset.tir && P) { P.tirage = {...(P.tirage || {}), [t.dataset.tir]: t.value}; return essai(structure)(() => {}); }
   if (!k || !P) return;
   const v = t.type === 'checkbox' ? t.checked : t.type === 'number' || k === 'nb_scenes' || k === 'nb2' || k === 'cran' || k === 'cible' ? +t.value : t.value;
   if (t.dataset.s) sc(t.dataset.s)[k] = v; else if (t.dataset.m) P.montage[k] = v; else if (t.dataset.c) P.continuite[k] = v; else P[k] = v;

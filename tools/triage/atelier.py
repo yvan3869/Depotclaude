@@ -141,6 +141,16 @@ CAMERAS = ("", "avance", "recul", "gauche", "droite")
 AMPLE = 0.08  # ampleur d'un mouvement de camera sur un clip (une image fixe prend 0,10)
 # Rendu au montage : tel quel ; rendu d'un telephone (nettete, contraste, grain qui bouge) ; le meme, tenu a la main
 RENDUS = ("net", "telephone", "main")
+# Tirage des images d'un temps quand le projet a une image de reference : "ref" = par retouche de la reference (meme
+# piece, meme tenue, pose proche), "direct" = chaque image creee a part (LoRA du visage et fiche de continuite)
+TIRAGES = ("ref", "direct")
+# Verdict du proprietaire sur une image : des cases, pas de texte (l'assistant corrige les reglages sans voir l'image)
+VERDICTS = ("ok", "tenue", "geste", "objet", "visage", "corps", "decor", "cadrage")
+
+
+def _tirage(p, t):
+    v = (p.get("tirage") or {}).get(str(t))
+    return v if v in TIRAGES else "ref" if t <= 2 else "direct"
 MARGE = 0.03  # le tremble de main recadre dans une image agrandie d'autant
 JOINT = 1 / 32  # a un raccord continu, la premiere image du clip suivant repete la derniere du precedent : elle est retiree
 
@@ -549,6 +559,7 @@ class Atelier:
                              "noir": bool(m.get("noir", True)), "simage": bool(m.get("simage", True)),
                              "rendu": m.get("rendu") if m.get("rendu") in RENDUS else "net" if old.get("montage") else "main",  # nouveau projet : tenu a la main
                              "style": m.get("style") if m.get("style") in STYLES else "doux"}}
+            p["tirage"] = {str(k): _tirage({"tirage": b.get("tirage", old.get("tirage"))}, k) for k in TEMPS}
             p["scenes"] = [self._scene(s, p) for s in (b["scenes"] if "scenes" in b else old.get("scenes") or [])][:30]
             ref = b.get("reference", old.get("reference"))
             p["reference"] = ref if ref in [s["id"] for s in p["scenes"] if s["temps"] == 1] else ""
@@ -558,6 +569,20 @@ class Atelier:
                     raise ValueError("Validation refusée. " + " ".join(bloc))
             _dump(self.dj / pid / "projet.json", p)
             return p
+
+    def verdict(self, b):
+        """Cases cochees par le proprietaire sous une image (projets/<id>/verdicts.json)."""
+        with self.lock:
+            f = self._pdir(b["id"]) / "verdicts.json"
+            v, n = _load(f, {}), str(b.get("image") or "")
+            if not re.fullmatch(rf"{b['id']}r\d+_s\d+\.png", n):
+                raise ValueError("image inconnue")
+            codes = [c for c in VERDICTS if c in (b.get("codes") or [])]
+            v.pop(n, None)
+            if codes:
+                v[n] = codes
+            _dump(f, v)
+            return v
 
     def prises(self, pid):
         """Prises de chaque scene, de la plus ancienne a la plus recente. "source" : image dont un clip est tire ;
@@ -671,6 +696,7 @@ class Atelier:
         return {"projet": p, "choix": {s["id"]: {"image": s["image"], "clip": s["clip"]} for s in e["scenes"]}, "prises": pr,
                 "finals": finals, "etape": self._etape(e, finals[1]), "montage": mt, "prod": self.prod(pid),
                 "devis": {t: self.devis(e, t) for t in TEMPS}, "depots": [x for x in self.depots() if x.get("projet") == pid],
+                "verdicts": _load(self._pdir(pid) / "verdicts.json", {}),
                 "chaine": self.chaine_vue(pid), "son": (self.sons.get(pid) or {"etat": ""}) | {"a_faire": len(self._sons_lot(p, False)), "prets": self._sons_prets(p),
                                                                                          "image": {t: len(self._simage_lot(p, t, e=e)) for t in TEMPS}},
                 "controle": {t: self._ctl(p, t) for t in TEMPS}, "relecture": self.relecture(pid),
@@ -1289,6 +1315,7 @@ class Atelier:
             d = self._pdir(pid)
             n = len(list((d / "runs").glob("r*.json"))) + 1 if (d / "runs").is_dir() else 1
             shots, media, prec, ch_s = [], d / "media", _prec(p), {s["id"]: s for s in p["scenes"]}
+            defauts = self._defauts()  # LoRA du temps, pour une scene qui n'en nomme aucune
             if quoi == "images":
                 ids = [i for i in self._a_imager(p, ch, {s["temps"] for s in p["scenes"]} if want else (int(b.get("temps") or 1),), bool(want))
                        if not want or i in want]
@@ -1296,16 +1323,18 @@ class Atelier:
                 ref = p.get("reference") if not (prec.get(p.get("reference")) and ch_s[p["reference"]]["raccord"] == "continu") else ""
                 base = f"{pid}r{n}_{ref}.png" if ref in ids else ch.get(ref, {}).get("image") if ref else ""
                 for s in sorted((s for s in p["scenes"] if s["id"] in ids), key=lambda s: s["id"] != ref):
+                    lo = s["loras"] or defauts.get(s["temps"], "")  # scene sans LoRA : celles de son temps
                     if ch[s["id"]]["image"]:  # nouvelle prise demandee : autre tirage
                         s["seed"] = random.randint(1, 999999)
                     s["image"], s["clip"] = "", ""  # la prise retenue sera la nouvelle
-                    if base and s["id"] != ref and not s["libre"] and not self._lora_image(s) and not GROS_PLAN.search(s["still"]):
+                    if (base and s["id"] != ref and not s["libre"] and _tirage(p, s["temps"]) == "ref"
+                            and not self._lora_image({"loras": lo}) and not GROS_PLAN.search(s["still"])):
                         shots.append({"name": s["id"], "image": str(media / base), "edit": self._still(p, s), "seed": s["seed"]}
                                      | ({"tenue_libre": True} if s["temps"] >= 2 else {}))
                     else:
                         shots.append({"name": s["id"], "still": self._still(p, s), "seed": s["seed"], "tattoos": s["tattoos"],
                                       "body": bool((perso.get("generation") or {}).get("corps"))}
-                                     | ({"loras": _loras_plan(s["loras"])} if s["loras"] else {}))
+                                     | ({"loras": _loras_plan(lo)} if lo else {}))
             else:
                 ids = self._a_cliper(p, ch, int(b.get("temps") or 1), want)
                 suiv = {prec[s["id"]]["id"]: s for s in p["scenes"] if prec[s["id"]]}
@@ -1327,6 +1356,9 @@ class Atelier:
                         sh["end_image"] = str(media / ch[nx["id"]]["image"])
                     elif s["end_edit"]:
                         sh["end_edit"] = s["end_edit"]
+                    lo = s["loras"] or defauts.get(s["temps"], "")  # LoRA video (famille Wan 2.2) : le pilote trie
+                    if lo:
+                        sh["loras"] = _loras_plan(lo)
                     s["clip"] = ""
                     shots.append(sh)
             if not shots:
@@ -1685,6 +1717,8 @@ class Atelier:
             return self.analyser(b)
         if path == "/api/a/monter":
             return self.monter(b)
+        if path == "/api/a/verdict":
+            return {"verdicts": self.verdict(b)}
         if path == "/api/a/son":
             return self.son(b)
         if path == "/api/a/chaine":
