@@ -311,8 +311,8 @@ function rendreProjet() {
         <label class="c"><input type="checkbox" data-m="1" data-k="noir" ${P.montage.noir ? 'checked' : ''}>Fin au noir</label></div>
       <div class="aide">${T === 1 ? 'Carton de fin : 2,6 s avec le texte « Carton de fin » de l\'étape 2. ' : ''}Fin au noir : la dernière image s'éteint en fondu au lieu de couper net.</div>
       <div class="gt">Son</div>
-      <label>Musique<select data-m="1" data-k="musique"><option value="">Aucune</option>${E.musiques.map(m => `<option ${m === P.montage.musique ? 'selected' : ''}>${esc(m)}</option>`).join('')}</select>
-        ${aide(E.musiques.length ? 'Coupée à la durée de la vidéo. Pour en ajouter : déposer des fichiers mp3 dans data/audio sur le serveur.' : 'Aucun fichier : déposer des mp3 dans data/audio sur le serveur.')}</label>
+      <label>Musique ou ambiance<select data-m="1" data-k="musique"><option value="">Aucune</option>${E.musiques.map(m => `<option ${m === P.montage.musique ? 'selected' : ''}>${esc(m)}</option>`).join('')}</select>
+        ${aide(E.musiques.length ? 'Coupée à la durée de la vidéo, reprise en boucle si elle est plus courte. Pour en ajouter : déposer des mp3 dans data/audio sur le serveur, ou faire fabriquer une ambiance par « pilot son ».' : 'Aucun fichier : déposer des mp3 dans data/audio sur le serveur, ou faire fabriquer une ambiance par « pilot son ».')}</label>
       <div id="mont"></div>
     </div></details>
     <div class="row" style="margin-top:24px"><span class="sp"></span><button class="d" data-a="archiver">${ic('archiver')}Archiver ce projet</button></div>`;

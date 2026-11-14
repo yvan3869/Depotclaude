@@ -258,3 +258,9 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
   etapes intermediaires de 0,6 Go), sorties 0,9 Go. Il manque environ 2 Go pour le son ; rien n'est supprime sans
   l'accord du proprietaire. Depense : 0,09 $ (depot interrompu et deux pods de mesure). Depense du jour : 3,11 $ sur
   7,50 $. Hub : une fiche au nom adulte est ecartee des categories tous publics meme sans marque de la source.
+- 14/11, nuit : son, essai reussi. Avec l'accord du proprietaire, les 7 etapes intermediaires de `lea_lora`
+  (`leamorel_t2v_low_v1-0000NN`, 4,3 Go) ont ete supprimees du volume ; la version finale reste. Modeles du son
+  deposes (5,7 Go, 5 min, une seule fois), puis trois ambiances de cuisine de 20 s en 6 s chacune :
+  `data/audio/girls_ai_cuisine_1.m4a` a `_3.m4a`. p0004 remonte avec la premiere (`final_v5.mp4`, piste son AAC).
+  Non juge a l'oreille par l'assistant : au proprietaire d'ecouter. Depense : 0,10 $. Depense du jour : 3,21 $ sur
+  7,50 $. Une ambiance seule, modeles en place : un pod de 2 a 3 min, environ 0,03 a 0,05 $.

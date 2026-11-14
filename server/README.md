@@ -85,7 +85,7 @@ Page `/atelier` du studio (`tools/triage/atelier.py`, `atelier.html`). Tout se f
 - **Production** : images (pod de veille) puis clips (pod propre au lancement), devis affiche, plafond
   du jour applique par le pilote. Une nouvelle prise ne remplace pas l'ancienne : on choisit.
 - **Montage** (ffmpeg, sans GPU) : clips ou images fixes en zoom lent, textes incrustes, carton de fin
-  floute avec l'appel a l'action, coupe ou fondu, musique deposee dans `data/audio/`. Versions `final_vN.mp4`.
+  floute avec l'appel a l'action, coupe ou fondu, musique ou ambiance de `data/audio/` (deposee, ou fabriquee par `pilot son "<phrase en anglais>" --nom cuisine --variantes 3`, environ 0,05 $). Versions `final_vN.mp4`.
 
 Redacteur IA : service hote `girls-ai-writer` (`server/writer/`), qui lit les demandes dans
 `data/ecriture/` et appelle `claude -p` sans outils ni connecteurs (`--tools "" --strict-mcp-config`), avec
