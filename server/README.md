@@ -133,3 +133,7 @@ Trois reglages par projet pour qu'une video garde le meme lieu, la meme tenue et
   rend le clip continu "a refaire" : la page le dit et le bouton "Creer les clips manquants" le reprend. Une jointure
   n'est propre que si la fin du clip d'amont et le debut du clip continu ne sont pas rognes.
 Pilote : champs de plan `edit` (avec `image`), `suite_de`, `end_image` (`server/jobs/modele.yaml`, modele 2026-11-14e).
+Controle des plans (14/11/2026) : chaque projet et chaque depot est relu avant calcul par `tools/triage/controle.py`
+(regles fixes, sans GPU ni IA) : fiche de continuite, point de vue, premier plan, un geste par clip, texte a l'ecran,
+progression (`cran` de 1 a 5 par scene), duree, raccords. Les remarques s'affichent au-dessus de "Images et clips" ;
+elles ne bloquent rien.

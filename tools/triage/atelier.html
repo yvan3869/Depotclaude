@@ -29,7 +29,7 @@
   button.s { padding:5px 9px; font-size:13px; }
   .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:10px; }
   .row > .g { flex:1; min-width:120px; } .row label { margin-top:0; }
-  .mut { color:var(--mut); font-size:13px; } .err { color:var(--bad); } .okc { color:var(--ok); }
+  .mut { color:var(--mut); font-size:13px; } .err { color:var(--bad); } .rq { margin:6px 0 0; padding-left:18px; font-size:14px; } .rq li { margin:4px 0; } .okc { color:var(--ok); }
   .steps { display:flex; gap:4px; margin:10px 0; overflow-x:auto; }
   .steps span { flex:1; text-align:center; font-size:12px; padding:4px 6px; border-radius:4px; background:var(--panel); color:var(--mut); white-space:nowrap; }
   .steps span.done { background:#1f3a2c; color:var(--ok); } .steps span.cur { background:#173748; color:var(--acc); }
@@ -81,7 +81,7 @@ const ETAPES = [['idee', 'Idée'], ['ecrit', 'Scénario'], ['images', 'Images'],
 const TEMPS = {1: ['Accroche', 'tous publics'], 2: ['Montée', 'abonnés'], 3: ['Final', 'privé, payant']};
 const CONSIGNES_T2 = ['Plus lente, plus intime', 'Plus près de la caméra', 'Tenue plus défaite, toujours suggestif', 'Fin qui annonce mieux le final privé'];
 const depotHtml = x => `<div class="var"><b>${esc(x.titre || x.fichier)}</b> <span class="mut">${esc(x.fichier)}, ${esc(x.date)}</span>
-  ${x.erreur ? `<div class="err">Refusé : ${esc(x.erreur)}</div>` : `<div class="mut">${x.n} plan(s) pour le temps ${x.temps}${x.projet ? '' : ', nouveau projet'}${x.perime ? ' ; écrit d\'après un modèle périmé' : ''}${x.note ? ' ; ' + esc(x.note) : ''}</div>
+  ${x.erreur ? `<div class="err">Refusé : ${esc(x.erreur)}</div>` : `<div class="mut">${x.n} plan(s) pour le temps ${x.temps}${x.projet ? '' : ', nouveau projet'}${x.perime ? ' ; écrit d\'après un modèle périmé' : ''}${x.remarques ? ` ; ${x.remarques} remarque(s) au contrôle des plans` : ''}${x.note ? ' ; ' + esc(x.note) : ''}</div>
   <div class="row" style="margin-top:6px">${x.importe ? '<span class="okc">Importé</span>' : `<button class="p s" data-a="importer" data-n="${esc(x.fichier)}">${x.change ? 'Réimporter (fichier modifié)' : 'Importer dans le projet'}</button>`}</div>`}</div>`;
 const CONSIGNES = ['Plus aguicheur, plus de tension', 'Accroche plus forte dès la première seconde', 'Coupe plus frustrante à la fin', 'Plus drôle, plus d\'autodérision', 'Autre lieu, autre tenue', 'Plus court'];
 const CONSIGNES_SCENE = ['Plus sensuelle, toujours suggestive', 'Plus près de la caméra', 'Geste plus simple et plus lent', 'Texte à l\'écran plus percutant', 'Autre tenue'];
@@ -229,8 +229,9 @@ function planifier() { $('#sauve').textContent = '...'; clearTimeout(tSave); tSa
 async function sauver() {
   if (!P || !tSave) return;
   clearTimeout(tSave); tSave = null;
-  await api('/api/a/projet', P);
+  const r = await api('/api/a/projet', P);
   $('#sauve').textContent = 'enregistré';
+  if (r.controle && D) { D.controle = r.controle; majDyn(); }
 }
 async function structure(f) { f(); tSave = 1; await sauver(); await recharger(); }  // changement de structure : enregistrer puis relire
 const sc = sid => P.scenes.find(s => s.id === sid);
@@ -302,6 +303,7 @@ function rendreProjet() {
         <select data-s="${s.id}" data-k="role">${[['accroche', 'Accroche'], ['montee', 'Montée'], ['chute', 'Chute']].map(([v, l]) => `<option value="${v}" ${v === s.role ? 'selected' : ''}>${l}</option>`).join('')}</select>
         <button class="s" data-a="monte" ${i ? '' : 'disabled'}>Haut</button><button class="s" data-a="descend" ${i < SC.length - 1 ? '' : 'disabled'}>Bas</button></div>
       <div class="media" data-sid="${s.id}"></div>
+      <label>Cran dans la progression (il ne doit pas redescendre)<select data-s="${s.id}" data-k="cran">${[0, 1, 2, 3, 4, 5].map(v => `<option value="${v}" ${v === (s.cran || 0) ? 'selected' : ''}>${v ? v + (v === 1 ? ' : anodin' : v === 5 ? ' : le plus osé de ce temps' : '') : 'Non renseigné'}</option>`).join('')}</select></label>
       ${i ? `<label>Raccord avec la scène précédente<select data-s="${s.id}" data-k="raccord">${RACCORDS.map(([v, l]) => `<option value="${v}" ${v === s.raccord ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
         ${s.raccord === 'continu' ? '<div class="mut" style="margin-top:4px">Pas d\'image propre : le clip part de la dernière image du clip précédent et le montage les colle sans coupe. Si le clip précédent est refait, celui-ci est à refaire. Ne pas rogner la fin du clip précédent ni le début de celui-ci.</div>'
           : s.raccord === 'arrivee' ? '<div class="mut" style="margin-top:4px">Le clip précédent se termine sur l\'image de cette scène (clip début/fin, deux fois le prix d\'un clip simple). Créer cette image avant le clip précédent ; si elle change, il est à refaire.</div>' : ''}` : ''}
@@ -323,6 +325,7 @@ function rendreProjet() {
     <button data-a="ajouter">Ajouter une scène</button>
 
     <h2>${T === 1 ? '4. ' : ''}Images et clips</h2>
+    <div class="panel" id="controle"></div>
     <div class="panel" id="prod"></div>
 
     <h2>${T === 1 ? '5. ' : ''}Montage <small>${TEMPS[T][0].toLowerCase()}</small></h2>
@@ -347,6 +350,10 @@ function majDyn() {
   const set = (el, html, k) => { if (el && sig[k] !== html) { sig[k] = html; el.innerHTML = html; } };
   const i = ETAPES.findIndex(e => e[0] === D.etape);
   set($('#etapes'), ETAPES.map((e, j) => `<span class="${j < i ? 'done' : j === i ? 'cur' : ''}">${e[1]}</span>`).join(''), 'etapes');
+  const rq = (D.controle || {})[T] || [], nSc = sid => P.scenes.filter(s => s.temps === T).findIndex(s => s.id === sid) + 1;
+  set($('#controle'), `<b>Contrôle des plans</b> <span class="mut">avant de payer un calcul</span>` + (rq.length
+    ? `<ul class="rq">${rq.map(x => `<li class="${x.grave ? 'err' : ''}">${x.scene ? `<b>Scène ${nSc(x.scene)}</b> : ` : ''}${esc(x.msg)}</li>`).join('')}</ul>`
+    : `<div class="okc">Aucune remarque.</div>`), 'controle');
   const c = D.chaine, occ = D.prod.etat === 'en cours' || c.etat === 'en cours', actif = c.etat === 'en cours' || c.etat === 'pause';
   const ETATS = {'en cours': 'Chaîne en cours', pause: 'Chaîne en pause', termine: 'Chaîne terminée', arretee: 'Chaîne arrêtée', erreur: 'Chaîne en erreur'};
   set($('#chaine'), `<b>Production en chaîne du projet</b>
@@ -409,7 +416,7 @@ function surveiller() {
     if (!P) return clearInterval(timer);
     try {
       const n = await api('/api/a/projet?id=' + P.id), avant = D.prod.etat, avantCh = D.chaine.etat;
-      for (const k of ['choix', 'prises', 'finals', 'etape', 'montage', 'prod', 'devis', 'depots', 'chaine']) D[k] = n[k];
+      for (const k of ['choix', 'prises', 'finals', 'etape', 'montage', 'prod', 'devis', 'depots', 'chaine', 'controle']) D[k] = n[k];
       majDyn();
       if (avant === 'en cours' && n.prod.etat !== 'en cours') etat();
       if (avantCh === 'en cours' && n.chaine.etat !== 'en cours') toast({pause: 'Images prêtes : choisir les prises, puis Continuer', termine: 'Chaîne terminée', arretee: 'Chaîne arrêtée', erreur: 'Chaîne en erreur'}[n.chaine.etat] || '', n.chaine.etat !== 'erreur');
@@ -502,7 +509,7 @@ vue.addEventListener('input', e => {
   if (t.id === 'hd') return sig.hd = t.checked;
   if (t.dataset.ch) { CH[t.dataset.ch] = t.type === 'checkbox' ? t.checked : t.value; delete sig.prod; return majDyn(); }
   if (!k || !P) return;
-  const v = t.type === 'checkbox' ? t.checked : t.type === 'number' || k === 'nb_scenes' || k === 'nb2' ? +t.value : t.value;
+  const v = t.type === 'checkbox' ? t.checked : t.type === 'number' || k === 'nb_scenes' || k === 'nb2' || k === 'cran' ? +t.value : t.value;
   if (t.dataset.s) sc(t.dataset.s)[k] = v; else if (t.dataset.m) P.montage[k] = v; else if (t.dataset.c) P.continuite[k] = v; else P[k] = v;
   if (k === 'raccord' || k === 'reference') return essai(structure)(() => {});  // le devis et les boutons en dependent
   planifier();

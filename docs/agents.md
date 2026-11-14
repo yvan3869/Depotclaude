@@ -114,6 +114,20 @@ Trois outils evitent qu'une video change de piece, de tenue ou de personne d'une
     Pour amener un mouvement de camera ou de pose vers un cadre precis.
   Le premier plan d'un temps est toujours une coupe.
 
+## Controle des plans
+L'atelier relit chaque depot et chaque projet avant tout calcul, sans GPU (`tools/triage/controle.py`), et
+affiche ses remarques dans la page (nombre de remarques sur la ligne du depot, detail dans le projet).
+Rien n'est bloque, mais un depot sans remarque est l'objectif. Ce qui est verifie :
+- fiche de continuite remplie (lieu, tenue, point de vue) ; tenue non repetee dans les `still` ; heure du
+  `still` coherente avec la fiche ;
+- point de vue respecte : si un telephone filme, il n'est pas dans sa main ;
+- premier plan du temps 1 : un `motion` et un texte d'accroche ;
+- un seul geste par `motion`, aucun mouvement de camera, aucun geste de la liste des gestes qui ratent ;
+- `texte` de 7 mots au plus, sans emoji ;
+- progression : chaque plan porte `cran`, de 1 (anodin) a 5 (le plus ose de ce temps), qui ne redescend pas ;
+- duree : le temps 1 vise 20 s au plus (un clip dure 5 s) ;
+- raccords possibles (un plan continu suit un plan qui a un `motion` ; pas trois continus de suite).
+
 Lire la fiche et l'image de reference du projet dans `projet.json` (`continuite`, `reference`) avant
 d'ecrire les temps 2 et 3 : elles s'appliquent a eux aussi.
 
@@ -162,9 +176,10 @@ d'ecrire les temps 2 et 3 : elles s'appliquent a eux aussi.
            motion: "She ..."  # facultatif : sans lui, la scene reste une image fixe
            texte: ""          # texte incruste au montage (facultatif)
            raccord: coupe     # coupe, continu ou arrivee (facultatif)
+           cran: 1            # 1 a 5, ne redescend pas (voir "Controle des plans")
 
    Champs repris par plan : `name`, `still`, `motion`, `end_edit`, `tattoos`, `loras`, `seed`,
-   `titre`, `texte`, `voix`, `role`, `raccord`, `libre`. De 1 a 10 plans par fichier. `steps`, `image`,
+   `titre`, `texte`, `voix`, `role`, `raccord`, `libre`, `cran`. De 1 a 10 plans par fichier. `steps`, `image`,
    `edit`, `suite_de`, `end_image` et `character` ne sont pas repris (un depot qui en porte est refuse) ; `body` et `dest` sont inutiles (le temps et la fiche du personnage en
    tiennent lieu). Un fichier par projet et par temps.
    Video entiere : trois fichiers. Deposer d'abord celui du temps 1 sans `projet` (avec `personnage`

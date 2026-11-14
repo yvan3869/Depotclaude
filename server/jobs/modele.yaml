@@ -11,7 +11,7 @@
 #   2026-11-14b  depot dans l'atelier : bloc "atelier", champs de plan titre, texte, voix, role.
 #   2026-11-14c  bloc "atelier" : textes de publication du temps 1 (pitch, accroche, legende, cta, hashtags).
 #   2026-11-14d  bloc "atelier" : date du personnage (date_perso, fictive) et contexte du moment, avec le temps 1.
-#   2026-11-14e  continuite : bloc "atelier" continuite et reference, champs de plan raccord et libre (atelier) ;
+#   2026-11-14e  continuite : bloc "atelier" continuite et reference, champs de plan raccord, libre et cran (atelier) ;
 #                champs de plan edit, suite_de et end_image (pilote).
 
 modele: "2026-11-14e"
@@ -84,6 +84,8 @@ shots:
     #                        # montage les colle sans coupe ; "still" reste obligatoire et decrit l'image attendue),
     #                        # arrivee (le clip precedent se termine sur l'image de ce plan ; cout double pour lui)
     # libre: false           # true : autre lieu ou autre tenue, sans la fiche de continuite ni l'image de reference
+    # cran: 1                # niveau du plan dans la progression du temps, de 1 (anodin) a 5 (le plus ose de ce temps) ;
+    #                        # il ne redescend pas d'un plan au suivant (verifie par le controle des plans)
 
   # 2. Image puis clip de 5 s : un seul geste lent, phrase en anglais commencant par "She".
   - name: clip01

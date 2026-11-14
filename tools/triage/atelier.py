@@ -27,6 +27,7 @@ import time
 from pathlib import Path
 
 import moteur_local
+from controle import controle
 
 AGE_MIN = 21
 ETAPES = ("idee", "ecrit", "images", "clips", "monte", "valide")
@@ -54,6 +55,7 @@ CONTRAINTES TECHNIQUES (modèles d'image et de vidéo)
 - "end_edit" : presque toujours "". À remplir seulement si la pose doit changer nettement entre le début et la fin du clip (assise puis debout) : une phrase en anglais qui décrit la pose finale, même cadrage.
 - "raccord" : "coupe" (la scène a sa propre image, le montage coupe : changement de cadrage ou d'angle) ou "continu" (la scène prolonge la précédente sans coupe visible : son clip démarre sur la dernière image du clip précédent, même cadrage, le geste s'enchaîne). Utilise "continu" quand deux gestes se suivent dans le même cadre ; pas plus de deux scènes continues de suite, et jamais sur la première scène. Le "still" d'une scène continue décrit quand même l'image attendue à cet instant.
 - "texte" : texte incrusté pendant la scène, dans la langue du personnage, 7 mots au plus. Aucun emoji, ni là ni dans l'accroche (la police de montage ne les affiche pas). "voix" : phrase de voix off dans sa voix, 12 mots au plus, ou "".
+- "cran" : niveau de la scène dans la progression, entier de 1 (anodin) à 5 (le plus osé du temps, toujours suggestif). Il ne redescend jamais d'une scène à la suivante et la dernière scène porte le plus haut.
 - "tattoos" : false si la tenue couvre les épaules et la poitrine (pull, peignoir fermé), sinon true.
 - "role" : "accroche", "montee" ou "chute".
 - Le personnage ne prétend jamais être une personne réelle. Aucune personne réelle, aucune marque, aucun mineur, rien qui évoque la jeunesse.
@@ -64,7 +66,7 @@ Un seul objet JSON valide, sans texte autour, sans bloc de code. Les champs "tit
 SCHEMA = ('{"titre": "...", "pitch": "une phrase", "accroche": "texte à l\'écran de la première seconde", '
           '"continuite": {"lieu": "...", "tenue": "...", "cheveux": "", "lumiere": "...", "pdv": "..."}, '
           '"scenes": [{"titre": "...", "role": "accroche|montee|chute", "raccord": "coupe|continu", "still": "...", "motion": "...", "end_edit": "", '
-          '"texte": "...", "voix": "", "tattoos": true}], "legende": "légende de la publication, 1 à 2 phrases, avec l\'appel à l\'action", '
+          '"texte": "...", "voix": "", "cran": 1, "tattoos": true}], "legende": "légende de la publication, 1 à 2 phrases, avec l\'appel à l\'action", '
           '"cta": "carton de fin, 6 mots au plus", "hashtags": "3 à 5 mots-dièse"}')
 
 
@@ -253,7 +255,7 @@ class Atelier:
             raise FileNotFoundError(pid)
         for s in p.get("scenes") or []:  # projets d'avant les trois temps
             s.setdefault("temps", 1), s.setdefault("loras", ""), s.setdefault("origine", "")
-            s.setdefault("raccord", "coupe"), s.setdefault("libre", False)
+            s.setdefault("raccord", "coupe"), s.setdefault("libre", False), s.setdefault("cran", 0)
         p["continuite"] = _cont(p.get("continuite"))
         p.setdefault("reference", "")
         p.setdefault("brief2", ""), p.setdefault("nb2", 3), p.setdefault("depots", {})
@@ -269,6 +271,7 @@ class Atelier:
                 "temps": int(d.get("temps") or 1) if str(d.get("temps") or 1) in ("1", "2", "3") else 1,
                 "loras": _loras(d.get("loras")), "origine": _s(d.get("origine"), 120),
                 "raccord": d.get("raccord") if d.get("raccord") in RACCORDS else "coupe", "libre": bool(d.get("libre")),
+                "cran": min(5, max(0, int(d.get("cran") or 0))) if str(d.get("cran") or 0).isdigit() else 0,
                 "still": _s(d.get("still"), 1200), "motion": _s(d.get("motion"), 600), "end_edit": _s(d.get("end_edit"), 600),
                 "texte": _s(d.get("texte"), 120), "voix": _s(d.get("voix"), 240), "tattoos": bool(d.get("tattoos", True)),
                 "seed": int(d.get("seed") or random.randint(1, 999999)), "image": _s(d.get("image"), 80), "clip": _s(d.get("clip"), 80),
@@ -396,7 +399,7 @@ class Atelier:
         return {"projet": p, "choix": {s["id"]: {"image": s["image"], "clip": s["clip"]} for s in e["scenes"]}, "prises": pr,
                 "finals": finals, "etape": self._etape(e, finals[1]), "montage": mt, "prod": self.prod(pid),
                 "devis": {t: self.devis(e, t) for t in TEMPS}, "depots": [x for x in self.depots() if x.get("projet") == pid],
-                "chaine": self.chaine_vue(pid)}
+                "chaine": self.chaine_vue(pid), "controle": {t: controle(p, t) for t in TEMPS}}
 
     def liste(self):
         out = []
@@ -452,7 +455,7 @@ class Atelier:
 
     def _texte_projet(self, p, temps=1):
         """Texte d'un temps du projet pour le redacteur. Le temps 3 ne lui est jamais envoye."""
-        keep = ("id", "titre", "role", "raccord", "still", "motion", "end_edit", "texte", "voix", "tattoos")
+        keep = ("id", "titre", "role", "raccord", "cran", "still", "motion", "end_edit", "texte", "voix", "tattoos")
         tete = {k: p.get(k) for k in ("titre", "pitch", "accroche", "legende", "cta", "hashtags")} if temps == 1 else {}
         return json.dumps(tete | {"continuite": p["continuite"], "scenes": [{k: s[k] for k in keep} for s in p["scenes"] if s["temps"] == temps]}, ensure_ascii=False, indent=1)
 
@@ -494,7 +497,7 @@ class Atelier:
                 raise ValueError("le temps 3 est à votre main : le rédacteur IA ne l'écrit pas")
             prompt = (f"PERSONNAGE\n{self._fiche(perso)}\n\n{moment}SCÉNARIO\n{self._texte_projet(proj, sc['temps'])}\n\nCOMMANDE\nRéécris uniquement la scène \"{sc['id']}\" "
                       f"selon la consigne : {consigne or 'plus forte, plus sensuelle, toujours suggestive'}\n\nFORMAT\n"
-                      '{"titre": "...", "role": "...", "raccord": "coupe|continu", "still": "...", "motion": "...", "end_edit": "", "texte": "...", "voix": "", "tattoos": true}')
+                      '{"titre": "...", "role": "...", "raccord": "coupe|continu", "still": "...", "motion": "...", "end_edit": "", "texte": "...", "voix": "", "cran": 1, "tattoos": true}')
         elif kind == "temps2":
             if not [s for s in proj["scenes"] if s["temps"] == 1]:
                 raise ValueError("écrire d'abord le teaser (temps 1) : la montée en est la suite")
@@ -504,7 +507,7 @@ class Atelier:
                       "intime, regard plus appuyé, tenue plus défaite). Même lieu et même tenue que le teaser : la fiche de continuité du projet est "
                       "ajoutée automatiquement à chaque \"still\", ne la répète pas et ne la renvoie pas. Même registre : suggestif, jamais explicite. Pas d'appel à l'action ; la dernière scène laisse seulement entendre "
                       f"qu'un final privé existe, sans le décrire.\n{'Consigne : ' + (consigne or proj.get('brief2')) if (consigne or proj.get('brief2')) else ''}\n\nFORMAT\n"
-                      '{"scenes": [{"titre": "...", "role": "accroche|montee|chute", "raccord": "coupe|continu", "still": "...", "motion": "...", "end_edit": "", "texte": "...", "voix": "", "tattoos": true}]}')
+                      '{"scenes": [{"titre": "...", "role": "accroche|montee|chute", "raccord": "coupe|continu", "still": "...", "motion": "...", "end_edit": "", "texte": "...", "voix": "", "cran": 1, "tattoos": true}]}')
         elif kind == "legendes":
             prompt = (f"PERSONNAGE\n{self._fiche(perso)}\n\n{moment}SCÉNARIO\n{self._texte_projet(proj)}\n\nCOMMANDE\nPropose {min(n, 5)} variantes d'accroche, de légende "
                       f"et de carton de fin pour cette vidéo, d'angles différents (défi, confidence, humour, promesse, urgence). {consigne}\n\nFORMAT\n"
@@ -552,7 +555,7 @@ class Atelier:
             if kind == "scene":
                 for i, s in enumerate(p["scenes"]):
                     if s["id"] == sid:
-                        p["scenes"][i] = self._scene({**s, **{k: res[k] for k in ("titre", "role", "raccord", "still", "motion", "end_edit", "texte", "voix", "tattoos") if k in res}}, p)
+                        p["scenes"][i] = self._scene({**s, **{k: res[k] for k in ("titre", "role", "raccord", "cran", "still", "motion", "end_edit", "texte", "voix", "tattoos") if k in res}}, p)
             else:
                 t = 2 if kind == "temps2" else 1  # les scenes des autres temps ne bougent pas
                 old = {s["id"]: s for s in p["scenes"] if s["temps"] == t}
@@ -642,11 +645,13 @@ class Atelier:
                                  "(raccords : champ \"raccord\" ; image de référence : \"atelier.reference\")")
             if sh.get("raccord", "coupe") not in RACCORDS:
                 raise ValueError(f"plan {nom} : \"raccord\" vaut coupe, continu ou arrivee")
+            if sh.get("cran") not in (None, 1, 2, 3, 4, 5):
+                raise ValueError(f"plan {nom} : \"cran\" est un entier de 1 à 5")
             seed = sh.get("seed") or (int(d["seed"]) + (0 if d.get("same_seed") else i) if d.get("seed") else 0)
             scenes.append({"titre": sh.get("titre") or nom, "role": sh.get("role"), "temps": a["temps"], "still": sh["still"], "motion": sh.get("motion"),
                            "end_edit": sh.get("end_edit"), "texte": sh.get("texte"), "voix": sh.get("voix"), "tattoos": sh.get("tattoos", True),
                            "loras": sh.get("loras", d.get("loras")), "seed": seed, "origine": f"{f.name}:{nom}",
-                           "raccord": sh.get("raccord"), "libre": bool(sh.get("libre"))})
+                           "raccord": sh.get("raccord"), "libre": bool(sh.get("libre")), "cran": sh.get("cran")})
         # textes de publication : seulement avec le temps 1, et seulement ceux qui sont remplis
         lim = {"pitch": 400, "accroche": 120, "legende": 600, "cta": 120, "hashtags": 200}
         textes = {k: _s(a.get(k), n) for k, n in lim.items() if a["temps"] == 1 and _s(a.get(k), n)}
@@ -687,6 +692,9 @@ class Atelier:
                 x |= {k: pl[k] for k in ("projet", "temps", "personnage", "titre", "note")} | {"n": len(pl["scenes"]), "perime": bool(modele) and pl["modele"] != modele}
                 if not x["projet"]:  # depot sans projet deja importe : il appartient au projet qu'il a ouvert
                     x["projet"] = self._rattache(f.name)
+                fiche = pl["textes"].get("continuite") or (self._raw(x["projet"])["continuite"] if x["projet"] and self._existe(x["projet"]) else {})
+                x["remarques"] = len(controle({"continuite": fiche, "accroche": pl["textes"].get("accroche"), "scenes": [
+                    {**s, "id": str(i)} for i, s in enumerate(pl["scenes"])]}, pl["temps"]))
                 if x["projet"] and not self._existe(x["projet"]):
                     x["erreur"] = f"projet {x['projet']} inconnu"
                 elif x["projet"]:
@@ -1067,7 +1075,8 @@ class Atelier:
         if path == "/api/a/personnage":
             return {"personnage": self.save_perso(b)}
         if path == "/api/a/projet":
-            return {"projet": self.save_projet(b)}
+            p = self.save_projet(b)
+            return {"projet": p, "controle": {t: controle(p, t) for t in TEMPS}}
         if path == "/api/a/ecrire":
             return self.ecrire(b)
         if path == "/api/a/produire":
