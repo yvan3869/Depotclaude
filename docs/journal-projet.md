@@ -155,6 +155,8 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
 - Scene en sous-scenes enchainees (essai du 14/11, 2 sous-scenes) : une reussie, une avec un fondu
   fantome au milieu, parce que l'image de fin avait un cadrage plus large que l'image de depart.
   L'image de fin doit garder le meme cadrage ; consigne renforcee dans le pilote, a reverifier.
+- Page Test : pod garde en veille entre deux tests (arret apres 10 min sans test). Mesure du
+  14/11 : premier test 163 s, test suivant sur le meme pod 17 s.
 ## Couts constates
 - Volume : ~0,35 $/jour. Sessions de generation : 0,20 a 0,30 $ chacune.
 - Entrainement du LoRA : ~3 $ (RTX 5090 a 1,39 $/h, ~2 h 15 installation comprise).

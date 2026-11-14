@@ -57,7 +57,10 @@ hasard un element de chaque liste cochee. Les listes de base sont tous publics a
 elements que vous ajoutez dans l'interface sont enregistres dans `data/listes_perso.json`.
 Les tests sont ranges dans `data/tests/<date>/` : images, descriptions, journal. Un test peut etre
 marque OK ou pas OK, annote, repris, supprime. Un reglage marque OK se rappelle dans la page Plan.
-Un seul test a la fois. Chaque test demarre un pod (2 a 5 min de demarrage, environ 0,10 $).
+Un seul test a la fois. Le premier test demarre un pod (2 a 5 min) ; les suivants le reutilisent
+(quelques secondes). Le pod s'arrete seul apres 10 minutes sans test ; la page affiche son etat,
+son cout en cours et un bouton "Arreter le pod". Son nom commence par `girls-ai-studio-` : le
+service `girls-ai-pod-reaper` le supprime de toute facon au-dela de 105 minutes d'age.
 
 Page Plan : dans le champ Mouvement, plusieurs actions separees par "puis" ou ";" deviennent des
 sous-scenes : pour chacune, le pilote fabrique l'image de fin a partir de la precedente, calcule un

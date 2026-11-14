@@ -47,6 +47,10 @@
     <button id="go">Générer</button><span id="msg" class="hint"></span>
   </div>
 </section>
+<section><h2>Pod</h2>
+  <div class="row" style="margin-top:0"><span id="pod">Éteint. Le prochain test le démarre (2 à 5 minutes).</span><button class="small" id="podstop" style="display:none">Arrêter le pod</button></div>
+  <p class="hint">Le pod reste allumé entre deux tests et s'arrête seul après 10 minutes sans test.</p>
+</section>
 <section><h2>Tests déjà faits</h2>
   <div class="row"><label><input type="checkbox" id="onlyok"> Seulement les réglages validés</label><span id="state" class="hint"></span></div>
   <div id="tests"></div>
@@ -86,7 +90,7 @@ function params() {
 $('go').onclick = async () => {
   $('msg').textContent = 'Envoi...';
   const d = await api('/api/test', params());
-  $('msg').textContent = !d.ok ? 'Erreur : ' + d.error : d.started ? 'Test lancé : le pod démarre, comptez quelques minutes.' : 'Fichier créé. À lancer dans server/ : ' + d.command;
+  $('msg').textContent = !d.ok ? 'Erreur : ' + d.error : d.started ? 'Test lancé. Si le pod était éteint, comptez 2 à 5 minutes avant la première image.' : 'Fichier créé. À lancer dans server/ : ' + d.command;
   loadTests();
 };
 function recall(t) {
@@ -100,6 +104,11 @@ let tests = [];
 async function loadTests() {
   const d = await api('/api/tests'); tests = d.tests;
   $('state').textContent = d.running ? 'Un test est en cours...' : '';
+  const p = d.pod || {on:false};
+  $('podstop').style.display = p.on && !d.running ? '' : 'none';
+  $('pod').textContent = !p.on ? 'Éteint. Le prochain test le démarre (2 à 5 minutes).'
+    : `Allumé depuis ${p.minutes} min (${p.gpu || 'GPU'}, ${p.cost_per_hr} $/h, environ ${p.cost_usd} $). ` +
+      (d.running ? 'Test en cours.' : `Arrêt automatique dans ${Math.max(0, Math.round((p.idle_max_s - p.idle_s) / 60))} min.`);
   const only = $('onlyok').checked;
   $('tests').innerHTML = tests.filter(t => !only || t.verdict === true).map(t => {
     const lab = (n) => ((studio && studio.loras.find(x => x.name === n)) || {label:n}).label;
@@ -120,7 +129,8 @@ $('tests').addEventListener('click', async (e) => {
   if (b.recall) recall(tests.find(t => t.id === b.recall));
   if (b.del && confirm('Supprimer ce test et ses images ?')) { await api('/api/test/delete', {id:b.del}); loadTests(); }
 });
+$('podstop').onclick = async () => { const d = await api('/api/pod/stop', {}); if (!d.ok) alert(d.error); loadTests(); };
 $('zoom').onclick = () => { $('zoom').style.display = 'none'; };
 $('onlyok').onchange = loadTests;
-loadStudio(); loadTests(); setInterval(() => { if (!document.querySelector('[data-note]:focus')) loadTests(); }, 12000);
+loadStudio(); loadTests(); setInterval(() => { if (!document.querySelector('[data-note]:focus')) loadTests(); }, 8000);
 </script></body></html>

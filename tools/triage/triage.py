@@ -17,6 +17,7 @@ import re
 import shutil
 import subprocess
 import sys
+import threading
 import time
 from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -141,6 +142,84 @@ class Studio:
         self.tests = data / "tests"
         self.repo = Path(os.environ.get("REPO_DIR", HERE.parents[1]))
         self.proc = None
+        self.podfile = data / "studio_pod.json"
+        self.lock = threading.Lock()
+        threading.Thread(target=self._watch, daemon=True).start()
+
+    # --- Pod garde en veille entre deux tests -------------------------------------------------
+    # Le premier test cree le pod ; les suivants le reutilisent. Sans test pendant IDLE_S secondes,
+    # il est supprime. Son nom commence par "girls-ai-" : le service girls-ai-pod-reaper du serveur
+    # le supprime de toute facon s'il depasse l'age maximal (filet de securite).
+    IDLE_S = int(os.environ.get("STUDIO_IDLE_S", "600"))
+
+    def _rp(self):
+        srv = str(self.repo / "server")
+        if srv not in sys.path:
+            sys.path.insert(0, srv)
+        from pilot import runpod
+        return runpod
+
+    def pod(self):
+        try:
+            return json.loads(self.podfile.read_text(encoding="utf-8"))
+        except (FileNotFoundError, ValueError):
+            return None
+
+    def pod_info(self):
+        p = self.pod()
+        if not p:
+            return {"on": False}
+        now = time.time()
+        return {"on": True, "gpu": p.get("gpu"), "cost_per_hr": p.get("cost"), "minutes": round((now - p["created"]) / 60, 1),
+                "cost_usd": round((now - p["created"]) / 3600 * (p.get("cost") or 0), 2),
+                "idle_s": 0 if self.running() else int(now - p["last_used"]), "idle_max_s": self.IDLE_S}
+
+    def _save_pod(self, p):
+        self.podfile.write_text(json.dumps(p), encoding="utf-8")
+
+    def ensure_pod(self):
+        """Renvoie l'identifiant du pod de veille, en le creant s'il n'existe pas ou plus."""
+        import yaml
+        rp = self._rp()
+        with self.lock:
+            p = self.pod()
+            if p and not any(x.get("id") == p["id"] for x in rp.list_pods()):
+                p = None  # supprime entre-temps (delai, filet de securite, console RunPod)
+            if not p:
+                infra = yaml.safe_load((self.repo / "persona" / "production.yaml").read_text(encoding="utf-8"))["infra"]
+                pid, cost, gpu = rp.create_pod(infra, f"girls-ai-studio-{int(time.time())}")
+                p = {"id": pid, "cost": cost, "gpu": gpu, "created": time.time()}
+            p["last_used"] = time.time()
+            self._save_pod(p)
+            return p["id"]
+
+    def stop_pod(self):
+        if self.running():
+            raise ValueError("un test est en cours : attendre sa fin avant d'arreter le pod")
+        with self.lock:
+            p = self.pod()
+            if p:
+                try:
+                    self._rp().delete_pod(p["id"])
+                except Exception as e:  # deja supprime : rien a faire ; autre erreur : on garde la trace
+                    if "404" not in str(e):
+                        raise ValueError(f"suppression du pod refusee : {str(e)[:200]}")
+                self.podfile.unlink(missing_ok=True)
+
+    def _watch(self):
+        while True:
+            time.sleep(30)
+            try:
+                p = self.pod()
+                if not p:
+                    continue
+                if self.running():
+                    p["last_used"] = time.time()
+                    self._save_pod(p)
+                elif time.time() - p["last_used"] > self.IDLE_S:
+                    self.stop_pod()
+            except Exception:
+                pass
 
     def lists(self):
         base = json.loads((HERE / "listes_test.json").read_text(encoding="utf-8"))
@@ -221,9 +300,8 @@ class Studio:
         rec = {"id": tid, "date": time.strftime("%d/%m/%Y %H:%M"), "params": b, "prompts": prompts, "verdict": None, "note": ""}
         (d / "test.json").write_text(json.dumps(rec, ensure_ascii=False, indent=2), encoding="utf-8")
         cmd = [sys.executable, "-m", "pilot", "run", str(jobp), "--stills-only", "--data", str(self.data), "--out", str(d)]
-        if os.environ.get("STUDIO_POD_ID"):  # mise au point : reutiliser un pod deja demarre
-            cmd += ["--pod-id", os.environ["STUDIO_POD_ID"]]
         if self.can_run():
+            cmd += ["--pod-id", os.environ.get("STUDIO_POD_ID") or self.ensure_pod()]
             self.proc = subprocess.Popen(cmd, cwd=str(self.repo / "server"), stdout=open(d / "log.txt", "w"), stderr=subprocess.STDOUT)
             return {"id": tid, "started": True}
         return {"id": tid, "started": False,
@@ -299,7 +377,7 @@ def make_handler(t: Triage, token: str):
                 return self.js({"lists": studio.lists(), "loras": studio.loras(), "can_run": studio.can_run(),
                                 "running": studio.running(), "formats": list(FORMATS)})
             if u.path == "/api/tests":
-                return self.js({"tests": studio.list(), "running": studio.running()})
+                return self.js({"tests": studio.list(), "running": studio.running(), "pod": studio.pod_info()})
             if u.path.startswith("/tfile/"):
                 try:
                     tid, _, name = unquote(u.path[7:]).partition("/")
@@ -370,6 +448,9 @@ def make_handler(t: Triage, token: str):
                 if u.path == "/api/test/verdict":
                     studio.verdict(body["id"], body.get("ok"), body.get("note"))
                     return self.js({"ok": True})
+                if u.path == "/api/pod/stop":
+                    studio.stop_pod()
+                    return self.js({"ok": True})
                 if u.path == "/api/test/delete":
                     studio.delete(body["id"])
                     return self.js({"ok": True})
@@ -377,7 +458,7 @@ def make_handler(t: Triage, token: str):
                     return self.js({"ok": True, **write_job(t.root.parent / "jobs", body)})
                 if u.path == "/api/undo":
                     return self.js({"ok": True, "name": t.undo()})
-            except (FileNotFoundError, ValueError, KeyError) as e:
+            except (FileNotFoundError, ValueError, KeyError, RuntimeError) as e:
                 return self.js({"ok": False, "error": str(e)}, 400)
             self.send(404, b"not found", "text/plain")
 
