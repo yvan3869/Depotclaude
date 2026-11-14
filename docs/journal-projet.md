@@ -219,3 +219,7 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
   controle du point de vue, gros plan tire a part). Cinq images d'essai de la scene 3 : 0,09 $. Deux voies ecartees :
   la retouche garde le cadrage de la reference, meme avec une consigne de zoom ou une reference recadree.
   Depense du jour : 2,48 $ sur 7,50 $. p0004 remonte (`final_v2.mp4`) : les deux defauts de texte ont disparu.
+- 14/11, nuit : hub des modeles et des LoRA en service (`/hub`, commit 490832a) : catalogue Civitai et Hugging Face
+  avec vignettes, categories liees aux temps, retenues, chargement sur le volume au clic, veille
+  (`docs/veille-modeles.md`). Verifie en service : recherche, retenir, regler, retirer, quatre onglets a 390 px.
+  Non essaye (payant) : le chargement sur le volume et une LoRA video dans un clip. Aucune depense.
