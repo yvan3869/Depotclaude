@@ -270,3 +270,13 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
   pod, range `data/audio/pNNNN_ambiance.m4a` (45 s) et le choisit comme bande-son. Essai sur p0004 : fichier pret,
   niveau moyen -17,8 dB, remonte en `final_v6.mp4`. Depense : 0,02 $. Depense du jour : 3,23 $ sur 7,50 $.
   Reste pour le son : voix off, musique, son cale sur les gestes.
+- 14/11, nuit : bruit des gestes (modele de plan 2026-11-14k). Priorite du proprietaire pour le son : gestes,
+  puis voix off (facultative), puis voix du personnage ; pas de musique. Aucun modele « qui regarde la video »
+  n'est utilisable ici : MMAudio est sous licence non commerciale, HunyuanVideo-Foley exclut l'Union europeenne,
+  LTX-2 ne tient pas sur le volume. Voie retenue : chaque scene porte `son` (une phrase en anglais, un seul bruit
+  bref), fabrique par Stable Audio Open sur le meme pod que l'ambiance (« Fabriquer les sons », seuls les sons
+  nouveaux ou changes ; `data/audio/bruits/pNNNN_sN.m4a`). Au montage, le bruit est pose la ou l'image du plan
+  bouge le plus, sinon a une seconde du debut ; le champ « Instant (s) » le fixe a la main. Limite : c'est un
+  calage sur le mouvement, approximatif. Essai sur p0004 : deux bruits (gorgee, tasse posee), `final_v7.mp4`, le
+  premier cale sur le geste a 5,12 s, le second par defaut (image fixe). Non juge a l'oreille par l'assistant.
+  Depense : 0,02 $ (pod de 1,3 min). Depense du jour : 3,24 $ sur 7,50 $.
