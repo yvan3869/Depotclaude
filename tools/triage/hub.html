@@ -98,7 +98,7 @@ function vueRetenues() {
       <label>Mots déclencheurs (anglais)<input data-r="trigger" value="${esc(x.trigger)}">${aide('Ajoutés d\'office à la description quand la LoRA sert.')}</label>
       <div class="row"><button class="s p" data-a="regler" data-c="${esc(x.cle)}">${ic('valider')}Enregistrer</button><span class="sp"></span>
         <button class="s d" data-a="retirer" data-c="${esc(x.cle)}">${ic('supprimer')}Retirer</button></div></details>
-    ${x.chargee ? '' : `<label class="c" style="margin-top:8px"><input type="checkbox" data-k="${esc(x.cle)}"${coche.has(x.cle) ? ' checked' : ''}${x.commercial ? '' : ' disabled'}>${x.commercial ? 'À charger dans le prochain lot' : 'Ne se charge pas : usage commercial non admis'}</label>`}</div>`;
+    ${x.chargee ? '' : `<label class="c" style="margin-top:8px"><input type="checkbox" data-k="${esc(x.cle)}"${coche.has(x.cle) ? ' checked' : ''}>${x.commercial ? 'À charger dans le prochain lot' : 'À charger dans le prochain lot. Licence : usage commercial non admis, à vos risques pour une vidéo publiée.'}</label>`}</div>`;
   vue.innerHTML = `<details class="sec" data-sec="hub-att"${ouv('hub-att', true)}><summary><span class="n">1</span>À charger<small>${att.length} LoRA</small></summary>
       ${att.map(carte).join('') || '<p class="mut">Rien à charger. Retenir des fiches dans le catalogue.</p>'}
       ${att.length ? `<div class="panel"><div class="acts"><div class="act"><button class="p" data-a="charger"${bloque ? ' disabled' : ''}>${ic('telecharger')}Charger sur le volume</button>

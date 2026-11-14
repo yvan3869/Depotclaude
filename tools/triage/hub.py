@@ -299,8 +299,6 @@ class Hub:
             x = d.get(c)
             if not x:
                 raise ValueError("LoRA non retenue")
-            if not x["commercial"]:
-                raise ValueError(f"« {x['label']} » : {x['licence']}. Le projet est commercial : elle ne se charge pas.")
             if any(f["mo"] > MAX_MO for f in x["fichiers"]):
                 raise ValueError(f"« {x['label']} » : fichier de plus de {MAX_MO} Mo")
             if x["source"] == "civitai" and not os.environ.get("CIVITAI_TOKEN"):
