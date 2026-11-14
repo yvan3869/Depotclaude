@@ -360,10 +360,11 @@ class Social:
                 else:
                     k["etat"], k["erreur"] = "echec", motif
             _dump(self.d / "posts.json", P)
-            m = re.findall(r'"cost_usd": ([\d.]+)', journal)
+            # sur le pod de veille le pilote ne donne que la duree : cout = duree x tarif du pod (la veille qui suit n'y est pas)
+            m, mn, tarif = re.findall(r'"cost_usd": ([\d.]+)', journal), re.findall(r'"minutes": ([\d.]+)', journal), (self.studio.pod() or {}).get("cost")
             with open(self.d / "depenses.jsonl", "a", encoding="utf-8") as f:
                 f.write(json.dumps({"jour": datetime.date.today().isoformat(), "run": run["nom"], "images": faits, "demandees": len(run["ids"]),
-                                    "usd": float(m[-1]) if m else None}) + "\n")
+                                    "usd": float(m[-1]) if m else round(float(mn[-1]) / 60 * tarif, 2) if mn and tarif else None}) + "\n")
             (self.d / "run.json").unlink(missing_ok=True)
             self.run = None
 
