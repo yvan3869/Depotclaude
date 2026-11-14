@@ -264,3 +264,9 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
   `data/audio/girls_ai_cuisine_1.m4a` a `_3.m4a`. p0004 remonte avec la premiere (`final_v5.mp4`, piste son AAC).
   Non juge a l'oreille par l'assistant : au proprietaire d'ecouter. Depense : 0,10 $. Depense du jour : 3,21 $ sur
   7,50 $. Une ambiance seule, modeles en place : un pod de 2 a 3 min, environ 0,03 a 0,05 $.
+- 14/11, nuit : ambiance sonore dans l'atelier (modele de plan 2026-11-14j). Le projet porte une phrase
+  `ambiance` (en anglais, fond sonore du lieu, sans musique ni voix), ecrite par le redacteur avec le scenario du
+  temps 1 ou deposee par un agent (bloc `atelier`). Etape Montage, rubrique Son : « Fabriquer l'ambiance » loue un
+  pod, range `data/audio/pNNNN_ambiance.m4a` (45 s) et le choisit comme bande-son. Essai sur p0004 : fichier pret,
+  niveau moyen -17,8 dB, remonte en `final_v6.mp4`. Depense : 0,02 $. Depense du jour : 3,23 $ sur 7,50 $.
+  Reste pour le son : voix off, musique, son cale sur les gestes.
