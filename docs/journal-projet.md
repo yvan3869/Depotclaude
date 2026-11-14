@@ -291,3 +291,9 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
   (`data/work/mmaudio/`, copies `projets/p0004/mmaudio_*.mp4` : s2 avec et sans phrase, s1 et s4 sans phrase).
   Environ 2,5 min par clip, modele recharge a chaque fois. Non juge a l'oreille par l'assistant ; pas encore
   branche dans l'atelier. Depense : 0,51 $ en tout. Depense du jour : 3,75 $ sur 7,50 $.
+- 14/11, nuit : essai de voix. Qwen3-TTS 1.7B VoiceDesign (Apache 2.0, voix creee par description, aucune
+  personne reelle), en francais, dans `girls-ai-voix` sur le volume (5,6 Go, torch repris de `girls-ai-mmaudio`).
+  Deux descriptions de voix, trois phrases chacune : `data/work/voix/voix_*.wav` (24 kHz, 2 a 6 s), assemblees en
+  `projets/p0004/voix_a.m4a` et `voix_b.m4a`. Non juge a l'oreille par l'assistant. A verifier a l'ecoute : le
+  naturel du francais, et si la voix reste la meme d'une phrase a l'autre (chaque phrase est creee a part).
+  Depense : 0,13 $ (pod de 10,5 min, installation comprise). Depense du jour : 3,88 $ sur 7,50 $.
