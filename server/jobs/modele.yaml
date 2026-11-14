@@ -10,8 +10,9 @@
 #   2026-11-14   premiere version : champs character, image, tattoos, body, end_edit, steps.
 #   2026-11-14b  depot dans l'atelier : bloc "atelier", champs de plan titre, texte, voix, role.
 #   2026-11-14c  bloc "atelier" : textes de publication du temps 1 (pitch, accroche, legende, cta, hashtags).
+#   2026-11-14d  bloc "atelier" : date du personnage (date_perso, fictive) et contexte du moment, avec le temps 1.
 
-modele: "2026-11-14c"
+modele: "2026-11-14d"
 name: monlot                 # prefixe des fichiers produits (lettres, chiffres, _), unique par lancement
 
 # --- Facultatif : plans deposes dans l'atelier (docs/agents.md, "Deposer des plans") --------------
@@ -30,6 +31,10 @@ name: monlot                 # prefixe des fichiers produits (lettres, chiffres,
 #   legende: ""              # legende de la publication, avec l'appel a l'action
 #   cta: ""                  # appel a l'action du carton de fin
 #   hashtags: ""
+#   # Moment vecu par le personnage, lu seulement avec temps: 1. Absent : celui du projet est garde.
+#   date_perso: "2026-12-19" # date FICTIVE, entre guillemets, AAAA-MM-JJ : le jour ou le personnage vit la scene.
+#                            # Ce n'est ni la date d'ecriture, ni celle du calcul, ni celle du depot.
+#   contexte: ""             # contexte du moment, une ligne en francais (meteo, fete proche, ce qu'elle vit)
 
 # --- Facultatif : autre personnage que celui de persona/production.yaml --------------------------
 # Un champ absent garde la valeur de production.yaml. Bloc a supprimer pour Lea.

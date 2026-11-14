@@ -1,4 +1,4 @@
-# Piloter la generation depuis un autre agent (14/11/2026, revu le 14/11 : trois temps, depot dans l'atelier)
+# Piloter la generation depuis un autre agent (14/11/2026, revu le 14/11 : trois temps, depot dans l'atelier, date du personnage)
 
 Fiche destinee a un agent installe sur le serveur Oracle (par exemple OpenClaw) et configure par le
 proprietaire. L'agent ecrit des fichiers de plans. Il les depose dans l'Atelier, ou le proprietaire
@@ -19,6 +19,9 @@ Les memes mots servent dans la page Atelier, dans les fichiers et dans les echan
 | Depot | Un fichier de plans place dans `server/jobs/atelier/`, pour un projet et un temps. |
 | Prise | Un resultat calcule pour une scene (image ou clip). Il peut y en avoir plusieurs ; le proprietaire choisit. |
 | Montage | La video finale d'un temps, en versions numerotees. |
+| Date du personnage | Date fictive du projet : le jour ou le personnage vit la scene. Champ `date_perso`, `AAAA-MM-JJ`. |
+| Contexte du moment | Une ligne libre du proprietaire sur ce que le personnage vit ces jours-la. Champ `contexte`. |
+| Dates reelles | `cree` et `modifie` dans `projet.json` : quand le projet a ete cree et modifie sur le serveur. Sans effet sur le contenu. |
 
 Ne pas dire "sequence" ni "phase" pour un temps, ni "lot" pour un projet.
 
@@ -56,9 +59,39 @@ Le temps 1 porte en plus les textes de publication : `pitch` (resume en francais
 personnage est cree par IA), `cta` (carton de fin), `hashtags`. Ils sont dans la langue du
 personnage (champ `langue` de sa fiche), sans emoji (la police de montage ne les affiche pas).
 
+## Date du personnage et dates reelles
+Un projet porte deux sortes de dates, a ne jamais confondre.
+
+- **Date du personnage** (`date_perso`, fictive). C'est le jour ou le personnage vit la scene, dans
+  son monde. Le proprietaire la choisit proche du jour de publication prevu : une video ecrite en
+  novembre pour etre publiee le 19 decembre porte `2026-12-19`. Quand l'agent ecrit ou parle de
+  "la date" d'un projet sans autre precision, c'est celle-ci.
+- **Dates reelles** (`cree`, `modifie`) : horodatage du serveur. Elles ne disent rien de la scene et
+  ne servent jamais a ecrire. Le jour ou l'agent travaille ne compte pas non plus.
+
+Ce que la date du personnage impose, sur les trois temps du projet :
+- la saison (hemisphere nord, le personnage vit en France sauf mention contraire dans sa fiche) :
+  tenue, meteo, activite, et dans chaque `still` une lumiere et une heure du jour plausibles (nuit a
+  17 h 30 en decembre, jour jusqu'a 21 h 30 en juin) ;
+- le jour de la semaine (travail, week-end) et les reperes du calendrier a dix jours pres (Noel,
+  nouvel an, Saint-Valentin, 14 juillet, rentree, Halloween...) ;
+- le `contexte` saisi par le proprietaire, a reprendre tel quel s'il est rempli.
+
+Limites : ne pas ecrire la date elle-meme dans les textes ; aucune actualite reelle (politique, faits
+divers, sport, sorties) et aucune personne reelle, meme si la date y invite. Seuls comptent la
+saison, le calendrier et le `contexte`.
+
+Continuite : les projets d'un meme personnage forment sa chronologie, classee par date du personnage.
+Avant d'ecrire, lire les projets voisins (`date_perso` proche dans `server/data/projets/*/projet.json`,
+meme `personnage`) pour ne pas contredire ni repeter ce qu'elle a fait ces jours-la.
+
+Si `date_perso` est vide dans le projet et que le proprietaire n'a rien dit, la lui demander plutot
+que de prendre la date du jour.
+
 ## Deposer des plans dans l'atelier
 1. **Lire le projet** : `server/data/projets/pNNNN/projet.json` (lecture seule). On y trouve le
-   personnage, le pitch et les scenes deja ecrites, chacune avec son `temps`. Reprendre dans chaque
+   personnage, le pitch, la date du personnage (`date_perso`), le `contexte` et les scenes deja
+   ecrites, chacune avec son `temps`. Reprendre dans chaque
    `still` exactement les memes mots de lieu et de tenue que les scenes du temps 1, et repartir de
    l'instant ou le temps precedent s'arrete. Fiches des personnages : `persona/personnages/<slug>.json`
    (versions modifiees dans la page : `server/data/personnages/`).
@@ -79,6 +112,9 @@ personnage (champ `langue` de sa fiche), sans emoji (la police de montage ne les
          legende: ""
          cta: ""
          hashtags: ""
+         # avec temps: 1 seulement, facultatifs (absents : ceux du projet sont gardes) :
+         date_perso: "2026-12-19"   # date du personnage, fictive, entre guillemets
+         contexte: ""               # contexte du moment, une ligne en francais
        defaults:
          seed: 100
          loras: []            # noms du catalogue : docker compose run --rm pilot lora list
@@ -96,9 +132,12 @@ personnage (champ `langue` de sa fiche), sans emoji (la police de montage ne les
    Video entiere : trois fichiers. Deposer d'abord celui du temps 1 sans `projet` (avec `personnage`
    et `titre`) ; une fois importe, le proprietaire donne le numero du projet cree, a reporter dans
    `projet` pour les fichiers des temps 2 et 3. Ne pas deviner ce numero.
+   Date du personnage : pour un nouveau projet, la mettre dans le fichier du temps 1 (celle donnee par
+   le proprietaire) ; sans elle, la page prend le jour de l'import. Pour un projet existant, ne pas la
+   remettre : celle du projet fait foi. Une date mal formee bloque le depot.
 3. **Ne pas lancer le pilote sur ce fichier.** Il apparait dans la page du projet (ou a l'accueil de
    l'atelier s'il ne vise aucun projet), avec son erreur s'il est mal forme (bloc `atelier` absent,
-   `temps` invalide, nom en double, `still` manquant, modele perime). Le proprietaire appuie sur
+   `temps` invalide, nom en double, `still` manquant, date mal formee, modele perime). Le proprietaire appuie sur
    "Importer dans le projet" : les plans deviennent des scenes du temps indique.
 4. **Corriger** : modifier le meme fichier, sans changer les `name`. La page signale le changement
    et le proprietaire reimporte ; les scenes sont remplacees une a une, et l'image deja calculee est

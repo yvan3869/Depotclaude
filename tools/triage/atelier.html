@@ -168,11 +168,11 @@ function vueProjets() {
     ${p.lora ? '' : '<p class="mut">Ce personnage n\'a pas de LoRA : son visage variera d\'une image à l\'autre.</p>'}
     <div id="idees"></div>
     ${E.depots.length ? `<h2>Plans déposés par l'agent <small>sans projet</small></h2><div class="panel">${E.depots.map(depotHtml).join('')}</div>` : ''}
-    <h2>Projets <small>${liste.length}</small></h2>
+    <h2>Projets <small>${liste.length}, par date du personnage</small></h2>
     ${liste.map(x => `<a class="card" href="#/p/${x.id}">
       <div class="th" ${x.vignette ? `style="background-image:url('/afile/${x.id}/${esc(x.vignette)}')"` : ''}></div>
-      <div><b>${esc(x.titre)}</b><span class="mut">${esc(x.pitch)}</span>
-      <span class="badge ${x.etape === 'valide' ? 'v' : ''}">${lab[x.etape]}</span> <span class="mut">${x.scenes} scènes${x.temps.length > 1 ? ', temps ' + x.temps.join(' ') : ''}, ${esc(x.modifie || '')}</span></div></a>`).join('')
+      <div><b>${esc(x.titre)}</b><span class="mut">${x.date_perso ? 'Elle le vit le ' + dfr(x.date_perso) : 'Sans date du personnage'}</span><span class="mut">${esc(x.pitch)}</span>
+      <span class="badge ${x.etape === 'valide' ? 'v' : ''}">${lab[x.etape]}</span> <span class="mut">${x.scenes} scènes${x.temps.length > 1 ? ', temps ' + x.temps.join(' ') : ''}, modifié le ${esc(x.modifie || '')}</span></div></a>`).join('')
       || '<p class="mut">Aucune vidéo pour ce personnage. Commencer par « Trouver des idées ».</p>'}`;
 }
 async function creer(titre, brief) {
@@ -238,6 +238,7 @@ function echanger(sid, sens) {  // avec la scene voisine du meme temps
   const m = P.scenes.filter(s => s.temps === T), k = m.findIndex(s => s.id === sid), a = P.scenes.indexOf(m[k]), b = P.scenes.indexOf(m[k + sens]);
   if (b >= 0) [P.scenes[a], P.scenes[b]] = [P.scenes[b], P.scenes[a]];
 }
+const dfr = d => d ? new Date(d + 'T12:00').toLocaleDateString('fr-FR', {weekday: 'short', day: 'numeric', month: 'long', year: 'numeric'}) : '';
 const f = (k, lab, v, o = {}) => `<label>${lab}${o.area ? `<textarea ${o.at || ''} rows="${o.rows || 2}" placeholder="${esc(o.ph || '')}">${esc(v)}</textarea>`
   : `<input ${o.at || ''} type="${o.type || 'text'}" ${o.step ? `step="${o.step}"` : ''} value="${esc(v)}" placeholder="${esc(o.ph || '')}">`}</label>`.replace('<textarea ', `<textarea data-k="${k}" `).replace('<input ', `<input data-k="${k}" `);
 
@@ -263,6 +264,9 @@ function rendreProjet() {
     <div class="panel">
       ${f('brief', 'Idée de départ (français, quelques mots suffisent)', P.brief, {area: 1, rows: 2, ph: 'Elle rentre du sport, trop chaud, elle hésite à enlever son pull devant la caméra'})}
       ${f('suite', 'Ce que la suite payante montre (à votre main, facultatif)', P.suite, {area: 1, rows: 1})}
+      ${f('date_perso', 'Date du personnage (fictive : le jour où elle vit la scène ; viser le jour de publication)', P.date_perso, {type: 'date'})}
+      ${f('contexte', 'Contexte du moment (facultatif : météo, événement, ce qu\'elle vit ces jours-ci)', P.contexte, {area: 1, rows: 1, ph: 'Premier froid sur Lyon, elle prépare ses cadeaux de Noël'})}
+      <div class="mut">La saison, les fêtes proches et ce contexte guident l'idée, la tenue, la lumière et les textes des trois temps. Dates réelles : créé le ${esc(P.cree || '')}, modifié le ${esc(P.modifie || '')}.</div>
       <div class="row"><label class="g">Scènes<select data-k="nb_scenes">${[2, 3, 4, 5, 6].map(n => `<option ${n === P.nb_scenes ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
         <button class="p" data-a="ecrire">${vide ? 'Écrire le scénario' : 'Tout réécrire'}</button>
         ${vide ? '' : '<button data-a="retoucher">Retoucher</button>'}</div>

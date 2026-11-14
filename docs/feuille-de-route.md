@@ -55,6 +55,8 @@ le meme decor et la meme tenue ; le lot arrive au tri classe par destination.
 4 ter. Trois temps dans l'atelier (fait le 14/11) : chaque projet porte l'accroche, la montee et le
    final, chacun avec ses scenes et son montage. L'agent OpenClaw du proprietaire depose ses plans
    dans `server/jobs/atelier/` ; le proprietaire les importe depuis la page (`docs/agents.md`).
+   Chaque projet porte une date du personnage (fictive) et un contexte du moment : saison, calendrier
+   et projets voisins guident l'ecriture ; la liste des projets suit cette chronologie (fait le 14/11).
 5. Pilote ouvert aux LoRA choisis par le proprietaire, avec la procedure pour les deposer sur le volume.
 6. Son : voix de Lea, voix off, puis essai d'InfiniteTalk.
 7. Comptes et lancement : validation Fanvue, prix, messages automatiques, premieres publications ;

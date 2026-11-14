@@ -104,5 +104,10 @@ Un agent tiers depose ses plans dans `server/jobs/atelier/<nom>.yaml` (bloc `ate
 la page les affiche, avec leurs erreurs, et le bouton "Importer dans le projet" en fait des scenes.
 Un depot du temps 1 peut porter les textes de publication (pitch, accroche, legende, cta, hashtags).
 Les plans importes ne sont pas ecrases par le redacteur. Marche a suivre de l'agent : `docs/agents.md`.
+Date du personnage : chaque projet porte une date fictive (`date_perso`, le jour ou le personnage vit la
+scene, a choisir proche du jour de publication) et un contexte du moment. Le redacteur en tire la saison,
+le jour de la semaine et les fetes proches, pour l'idee, la tenue, la lumiere et les textes ; il voit aussi
+les projets voisins du personnage. La liste des projets suit cette date. `cree` et `modifie` restent les
+dates reelles du serveur. Un depot du temps 1 peut porter `date_perso` et `contexte`.
 Vocabulaire commun a la page et a l'agent (projet, idee, pitch, temps, scene, plan, depot, prise, montage) :
 tableau en tete de `docs/agents.md`.

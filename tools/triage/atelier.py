@@ -13,6 +13,7 @@ est a la main du proprietaire, ou alimente par un plan depose par son agent dans
 Donnees : data/personnages/<slug>.json, data/projets/<id>/ (projet.json, runs/, media/, final_vN.mp4),
 data/ecriture/ (demandes et reponses du redacteur), data/audio/ (musiques deposees par le proprietaire).
 """
+import datetime
 import json
 import os
 import random
@@ -82,6 +83,44 @@ def _dump(p, obj):
 
 def _s(x, n=2000):
     return " ".join(str(x or "").split())[:n]
+
+
+JOURS = ("lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche")
+MOIS = ("janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre")
+# Reperes a date fixe (mois, jour) ; le redacteur complete de lui-meme les fetes mobiles.
+REPERES = (((1, 1), "jour de l'an"), ((1, 6), "galette des rois"), ((2, 2), "Chandeleur"), ((2, 14), "Saint-Valentin"), ((3, 20), "début du printemps"),
+           ((4, 1), "1er avril"), ((5, 1), "1er mai"), ((6, 21), "début de l'été, fête de la musique"), ((7, 14), "14 juillet"), ((8, 15), "15 août"),
+           ((9, 1), "rentrée"), ((9, 22), "début de l'automne"), ((10, 31), "Halloween"), ((11, 1), "Toussaint"), ((11, 11), "11 novembre"),
+           ((12, 21), "début de l'hiver"), ((12, 25), "Noël"), ((12, 31), "réveillon du nouvel an"))
+
+
+def _date(x):
+    """Date du personnage : "AAAA-MM-JJ" valide, sinon ""."""
+    try:
+        return datetime.date.fromisoformat(str(x or "").strip()).isoformat()
+    except ValueError:
+        return ""
+
+
+def _moment(d, contexte=""):
+    """Decrit au redacteur la date du personnage (fictive) : jour, saison (hemisphere nord), reperes a dix jours pres."""
+    if not _date(d):
+        return ""
+    j = datetime.date.fromisoformat(d)
+    saison = "hiver" if (j.month, j.day) < (3, 20) or (j.month, j.day) >= (12, 21) else "printemps" if (j.month, j.day) < (6, 21) \
+        else "été" if (j.month, j.day) < (9, 22) else "automne"
+    pres = []
+    for (m, q), nom in REPERES:
+        for an in (j.year - 1, j.year, j.year + 1):
+            e = (datetime.date(an, m, q) - j).days
+            if abs(e) <= 10:
+                pres.append(f"{nom} ({'le jour même' if e == 0 else f'dans {e} j' if e > 0 else f'il y a {-e} j'})")
+    return (f"MOMENT\nDate du personnage (fictive : le jour où elle vit la scène, pas la date réelle d'aujourd'hui) : {JOURS[j.weekday()]} {j.day} "
+            f"{MOIS[j.month - 1]} {j.year}, {saison}.\n{'Repères proches : ' + ' ; '.join(pres) + chr(10) if pres else ''}"
+            f"{'Contexte du moment donné par le propriétaire : ' + contexte + chr(10) if contexte else ''}"
+            "Ancre la vidéo dans ce moment : activité, tenue, lumière et météo de saison dans \"still\" (heure du jour cohérente avec la durée du jour), "
+            "allusions naturelles dans les textes. N'écris pas la date elle-même. N'invente aucune actualité réelle et ne cite aucune personne réelle : "
+            "seuls les repères ci-dessus et le contexte donné comptent.\n\n")
 
 
 def _json_de(texte):
@@ -192,6 +231,7 @@ class Atelier:
         for s in p.get("scenes") or []:  # projets d'avant les trois temps
             s.setdefault("temps", 1), s.setdefault("loras", ""), s.setdefault("origine", "")
         p.setdefault("brief2", ""), p.setdefault("nb2", 3), p.setdefault("depots", {})
+        p.setdefault("date_perso", ""), p.setdefault("contexte", "")
         return p
 
     def _scene(self, d, proj):
@@ -217,7 +257,8 @@ class Atelier:
                 nums = [int(d.name[1:]) for d in self.dj.iterdir() if re.fullmatch(r"p\d{4}", d.name)]
                 pid = f"p{max(nums, default=0) + 1:04d}"
                 (self.dj / pid / "media").mkdir(parents=True)
-                old = {"id": pid, "personnage": b["personnage"], "cree": time.strftime("%Y-%m-%d %H:%M"), "next": 1}
+                old = {"id": pid, "personnage": b["personnage"], "cree": time.strftime("%Y-%m-%d %H:%M"), "next": 1,
+                       "date_perso": time.strftime("%Y-%m-%d")}
             m = b.get("montage") or old.get("montage") or {}
             p = {"id": pid, "personnage": old["personnage"], "cree": old.get("cree"), "modifie": time.strftime("%Y-%m-%d %H:%M"),
                  "next": int(old.get("next") or 1), "titre": _s(b.get("titre", old.get("titre")), 100) or "Sans titre",
@@ -226,6 +267,8 @@ class Atelier:
                  "nb_scenes": max(2, min(int(b.get("nb_scenes", old.get("nb_scenes")) or 3), 8)),
                  "brief2": _s(b.get("brief2", old.get("brief2")), 1500), "nb2": max(2, min(int(b.get("nb2", old.get("nb2")) or 3), 6)),
                  "depots": old.get("depots") or {},
+                 # date_perso : date fictive, celle du jour ou le personnage vit la scene ; cree et modifie : dates reelles
+                 "date_perso": _date(b.get("date_perso", old.get("date_perso"))), "contexte": _s(b.get("contexte", old.get("contexte")), 400),
                  "pitch": _s(b.get("pitch", old.get("pitch")), 400), "accroche": _s(b.get("accroche", old.get("accroche")), 120),
                  "legende": _s(b.get("legende", old.get("legende")), 600), "cta": _s(b.get("cta", old.get("cta")), 120),
                  "hashtags": _s(b.get("hashtags", old.get("hashtags")), 200), "attente": old.get("attente") or "",
@@ -311,10 +354,10 @@ class Atelier:
             p = self._eff(p)
             finals = self._finals(p["id"])
             out.append({"id": p["id"], "personnage": p["personnage"], "titre": p["titre"], "pitch": p.get("pitch", ""),
-                        "modifie": p.get("modifie"), "etape": self._etape(p, finals), "scenes": len(p["scenes"]),
+                        "modifie": p.get("modifie"), "cree": p.get("cree"), "date_perso": p.get("date_perso", ""), "etape": self._etape(p, finals), "scenes": len(p["scenes"]),
                         "temps": sorted({s["temps"] for s in p["scenes"]}),
                         "vignette": next((s["image"] for s in p["scenes"] if s["image"]), ""), "final": finals[-1] if finals else ""})
-        return out
+        return sorted(out, key=lambda x: (x["date_perso"] or "0", x["id"]), reverse=True)  # chronologie du personnage, la plus recente d'abord
 
     def fichier(self, pid, name):
         d = self._pdir(pid)
@@ -360,19 +403,34 @@ class Atelier:
         tete = {k: p.get(k) for k in ("titre", "pitch", "accroche", "legende", "cta", "hashtags")} if temps == 1 else {}
         return json.dumps(tete | {"scenes": [{k: s[k] for k in keep} for s in p["scenes"] if s["temps"] == temps]}, ensure_ascii=False, indent=1)
 
+    def _voisins(self, slug, dp, proj=None):
+        """Projets du meme personnage les plus proches dans sa chronologie, pour la continuite."""
+        if not dp:
+            return ""
+        j = datetime.date.fromisoformat(dp)
+        v = [x for x in self.liste() if x["personnage"] == slug and x["date_perso"] and not (proj and x["id"] == proj["id"])]
+        v = sorted(v, key=lambda x: abs((datetime.date.fromisoformat(x["date_perso"]) - j).days))[:5]
+        if not v:
+            return ""
+        return ("AUTRES VIDÉOS DU PERSONNAGE AUTOUR DE CETTE DATE (dates du personnage)\n"
+                + "\n".join(f"- {x['date_perso']} : {x['titre']}. {x['pitch']}" for x in sorted(v, key=lambda x: x["date_perso"]))
+                + "\nReste cohérent avec elles (ce qu'elle a déjà fait ou annoncé) sans les répéter.\n\n")
+
     def ecrire(self, b):
         kind = b.get("kind")
         consigne = _s(b.get("consigne"), 1500)
         proj = self._raw(b["projet"]) if b.get("projet") else None
         perso = self.perso(proj["personnage"] if proj else b.get("personnage")) if kind != "personnage" else None
         n = max(1, min(int(b.get("n") or 8), 12))
+        dp = proj["date_perso"] if proj else _date(b.get("date_perso")) or (time.strftime("%Y-%m-%d") if kind == "idees" else "")
+        moment = _moment(dp, proj["contexte"] if proj else _s(b.get("contexte"), 400)) + (self._voisins(perso["slug"], dp, proj) if perso else "")
         if kind == "scenario":
-            prompt = (f"PERSONNAGE\n{self._fiche(perso)}\n\nCOMMANDE\nÉcris le scénario complet d'un teaser en {proj['nb_scenes']} scènes.\n"
+            prompt = (f"PERSONNAGE\n{self._fiche(perso)}\n\n{moment}COMMANDE\nÉcris le scénario complet d'un teaser en {proj['nb_scenes']} scènes.\n"
                       f"Idée de départ : {proj.get('brief') or 'libre, choisis l angle le plus vendeur pour ce personnage'}\n"
                       f"Suite payante annoncée : {proj.get('suite') or 'non précisée, reste vague sur son contenu'}\n"
                       f"{'Consigne : ' + consigne if consigne else ''}\n\nFORMAT\n{SCHEMA}")
         elif kind == "retouche":
-            prompt = (f"PERSONNAGE\n{self._fiche(perso)}\n\nSCÉNARIO ACTUEL\n{self._texte_projet(proj)}\n\nCOMMANDE\nRéécris ce scénario selon la consigne : "
+            prompt = (f"PERSONNAGE\n{self._fiche(perso)}\n\n{moment}SCÉNARIO ACTUEL\n{self._texte_projet(proj)}\n\nCOMMANDE\nRéécris ce scénario selon la consigne : "
                       f"{consigne or 'rends-le plus accrocheur et plus vendeur'}\nGarde le champ \"id\" des scènes que tu conserves, et laisse leur \"still\" "
                       f"identique au mot près si l'image ne doit pas changer. Une scène nouvelle n'a pas d'\"id\".\n\nFORMAT\n{SCHEMA}")
         elif kind == "scene":
@@ -381,13 +439,13 @@ class Atelier:
                 raise ValueError("scène inconnue")
             if sc["temps"] == 3:
                 raise ValueError("le temps 3 est à votre main : le rédacteur IA ne l'écrit pas")
-            prompt = (f"PERSONNAGE\n{self._fiche(perso)}\n\nSCÉNARIO\n{self._texte_projet(proj, sc['temps'])}\n\nCOMMANDE\nRéécris uniquement la scène \"{sc['id']}\" "
+            prompt = (f"PERSONNAGE\n{self._fiche(perso)}\n\n{moment}SCÉNARIO\n{self._texte_projet(proj, sc['temps'])}\n\nCOMMANDE\nRéécris uniquement la scène \"{sc['id']}\" "
                       f"selon la consigne : {consigne or 'plus forte, plus sensuelle, toujours suggestive'}\n\nFORMAT\n"
                       '{"titre": "...", "role": "...", "still": "...", "motion": "...", "end_edit": "", "texte": "...", "voix": "", "tattoos": true}')
         elif kind == "temps2":
             if not [s for s in proj["scenes"] if s["temps"] == 1]:
                 raise ValueError("écrire d'abord le teaser (temps 1) : la montée en est la suite")
-            prompt = (f"PERSONNAGE\n{self._fiche(perso)}\n\nTEASER PUBLIC (temps 1, déjà écrit)\n{self._texte_projet(proj)}\n\nCOMMANDE\n"
+            prompt = (f"PERSONNAGE\n{self._fiche(perso)}\n\n{moment}TEASER PUBLIC (temps 1, déjà écrit)\n{self._texte_projet(proj)}\n\nCOMMANDE\n"
                       f"Écris le temps 2 : la suite réservée aux abonnés, en {proj['nb2']} scènes. Ce n'est plus une publicité, c'est la récompense de "
                       "l'abonnement : elle reprend à l'instant où le teaser a coupé et va un cran plus loin à chaque scène (plus près, plus lente, plus "
                       "intime, regard plus appuyé, tenue plus défaite). Même lieu et même tenue que le teaser, avec exactement les mêmes mots dans "
@@ -395,12 +453,12 @@ class Atelier:
                       f"qu'un final privé existe, sans le décrire.\n{'Consigne : ' + (consigne or proj.get('brief2')) if (consigne or proj.get('brief2')) else ''}\n\nFORMAT\n"
                       '{"scenes": [{"titre": "...", "role": "accroche|montee|chute", "still": "...", "motion": "...", "end_edit": "", "texte": "...", "voix": "", "tattoos": true}]}')
         elif kind == "legendes":
-            prompt = (f"PERSONNAGE\n{self._fiche(perso)}\n\nSCÉNARIO\n{self._texte_projet(proj)}\n\nCOMMANDE\nPropose {min(n, 5)} variantes d'accroche, de légende "
+            prompt = (f"PERSONNAGE\n{self._fiche(perso)}\n\n{moment}SCÉNARIO\n{self._texte_projet(proj)}\n\nCOMMANDE\nPropose {min(n, 5)} variantes d'accroche, de légende "
                       f"et de carton de fin pour cette vidéo, d'angles différents (défi, confidence, humour, promesse, urgence). {consigne}\n\nFORMAT\n"
                       '{"variantes": [{"angle": "...", "accroche": "...", "legende": "...", "cta": "..."}]}')
         elif kind == "idees":
             deja = [x["titre"] for x in self.liste() if x["personnage"] == perso["slug"]]
-            prompt = (f"PERSONNAGE\n{self._fiche(perso)}\n\nCOMMANDE\nPropose {n} idées de teasers différentes, classées de la plus vendeuse à la moins vendeuse. "
+            prompt = (f"PERSONNAGE\n{self._fiche(perso)}\n\n{moment}COMMANDE\nPropose {n} idées de teasers différentes, classées de la plus vendeuse à la moins vendeuse. "
                       f"Varie les lieux, les tenues et les mécaniques d'accroche. {('Thème : ' + consigne) if consigne else ''}\n"
                       f"Déjà faites, à ne pas répéter : {', '.join(deja) or 'aucune'}\n\nFORMAT\n"
                       '{"idees": [{"titre": "...", "pitch": "ce qui se passe, en deux phrases", "accroche": "texte de la première seconde"}]}')
@@ -531,6 +589,13 @@ class Atelier:
         # textes de publication : seulement avec le temps 1, et seulement ceux qui sont remplis
         lim = {"pitch": 400, "accroche": 120, "legende": 600, "cta": 120, "hashtags": 200}
         textes = {k: _s(a.get(k), n) for k, n in lim.items() if a["temps"] == 1 and _s(a.get(k), n)}
+        if a.get("date_perso"):  # date du personnage (fictive) ; YAML peut la lire comme une date
+            if not _date(a["date_perso"]):
+                raise ValueError('"atelier.date_perso" : date au format AAAA-MM-JJ')
+            if a["temps"] == 1:
+                textes["date_perso"] = _date(a["date_perso"])
+        if a["temps"] == 1 and _s(a.get("contexte"), 400):
+            textes["contexte"] = _s(a.get("contexte"), 400)
         return {"projet": str(a.get("projet") or ""), "temps": a["temps"], "personnage": str(a.get("personnage") or ""),
                 "titre": _s(a.get("titre"), 100), "note": _s(a.get("note"), 300), "modele": str(j.get("modele") or ""), "scenes": scenes,
                 "textes": textes}
