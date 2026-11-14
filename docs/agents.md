@@ -232,7 +232,12 @@ Les LoRA supplementaires (hors LoRA du personnage) se gerent dans la page `/atel
   `loras` (ni dans le plan ni dans `defaults`) les recoit a l'import ; `loras: []` veut dire aucune ; une liste
   ecrite est prise telle quelle. A un nouvel import, une scene deja importee garde les LoRA que le proprietaire
   lui a posees dans la page tant que le plan n'en dit rien.
-  Au calcul (images et clips), une scene qui n'a aucune LoRA prend celles de son temps ; celles d'une scene priment.
+- **LoRA du projet et d'un temps** (`loras` au projet : `"0"` = tout le projet, `"1"` a `"4"` = un temps ; choisies
+  par le proprietaire dans la section LoRA de la page, ce n'est pas un champ de plan). Au calcul (images et clips),
+  une scene recoit celles du projet, puis de son temps, puis les siennes ; pour un meme nom la derniere force
+  l'emporte. Une LoRA que sa categorie n'admet pas a ce temps est laissee de cote. Le `loras` d'un plan sert donc
+  rarement : seulement pour une LoRA propre a une scene. Les mots declencheurs du catalogue sont ajoutes par le
+  pilote (a l'image, ou au mouvement pour une LoRA video) : ne pas les ecrire dans le plan.
   Une LoRA n'est jamais chargee d'apres ce que dit la description : seulement si elle est nommee.
 - **Verdict du proprietaire** : sous chaque image retenue, des cases (bonne, tenue fausse, geste absent, objet en
   trop, visage, corps, decor, cadrage), gardees dans `verdicts.json` du projet (`{image: [codes]}`, rendu par

@@ -338,3 +338,11 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
   4,28 $ sur 7,50 $. Corrige au passage : le script de deploiement reecrivait la chaine en pause sans sa version,
   la migration trois vers quatre temps se rejouait (temps de la chaine de p0003 retablis a 1, 2, 3, 4).
   Disque : 31 Go sur 197.
+- 15/11 : LoRA au niveau du projet (demande du proprietaire : tout se regle au niveau du temps, rarement de la
+  scene). Champ de projet `loras` (`"0"` tout le projet, `"1"` a `"4"` un temps), section « LoRA » en haut de chaque
+  temps : puces du catalogue a toucher, force, mots declencheurs affiches (le pilote les ajoute seul). Une scene
+  recoit projet + temps + les siennes ; une LoRA non admise a un temps y est ignoree. Les « LoRA par defaut »
+  globales (champ texte de la Bibliotheque, jamais remplies) sont retirees de la page. Constat sur le catalogue :
+  5 LoRA seulement, dont 2 de la categorie nu, sans mot declencheur note, aucune de pose ou d'acte, aucune LoRA de
+  clip pour adultes : c'est la cause probable des gestes non rendus aux temps 3 et 4. Verifie sur p0004 (LoRA
+  effectives par temps, capture), remis a vide. Aucune depense.
