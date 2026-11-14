@@ -180,6 +180,9 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
 - 14/11, 0 h a 0 h 40 : mise au point du studio (depot de LoRA, test d'images, scene en sous-scenes), ~0,45 $.
   Total depuis le 13/11 au soir : ~8,50 $ sur le plafond de 10 $.
 - 14/11 matin : essai ceinture, RTX PRO 4500, 2,4 min, 0,03 $. Plafond courant : 7,50 $/jour.
+- 14/11, essais de l'atelier : 3 images (0,02 $), un demarrage de pod avorte (0,01 $), un clip 480p
+  (0,08 $), pod de veille ~10 min (0,07 $). Total ~0,18 $ ; depense du jour 0,66 $ sur 7,50 $.
+
 ## Comptes (13/11/2026)
 - Gmail `lea.morel.ai@gmail.com` (nom affiche Lea Morel).
 - Instagram : suspendu une seconde fois le 13/11 apres la verification par selfie (photo du

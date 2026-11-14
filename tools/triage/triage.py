@@ -348,6 +348,8 @@ class Studio:
 
 def make_handler(t: Triage, token: str):
     studio = Studio(t.root.parent)
+    from atelier import Atelier
+    at = Atelier(t.root.parent, studio.repo, studio)
     class H(BaseHTTPRequestHandler):
         def log_message(self, *a):
             pass
@@ -377,10 +379,22 @@ def make_handler(t: Triage, token: str):
             q = parse_qs(u.query)
             if not self.authed(q):
                 return self.send(403, b"forbidden", "text/plain")
-            if u.path in ("/", "/tri", "/test"):
+            if u.path in ("/", "/tri", "/test", "/atelier"):
                 extra = {"Set-Cookie": f"t={token}; HttpOnly; SameSite=Strict"} if token else None
-                page = {"/": "home.html", "/tri": "index.html", "/test": "test.html"}[u.path]
+                page = {"/": "home.html", "/tri": "index.html", "/test": "test.html", "/atelier": "atelier.html"}[u.path]
                 return self.send(200, (HERE / page).read_bytes(), "text/html; charset=utf-8", extra)
+            if u.path.startswith("/api/a/"):
+                try:
+                    res = at.get(u.path, q)
+                except (FileNotFoundError, ValueError, KeyError, TypeError, RuntimeError) as e:
+                    return self.js({"ok": False, "error": str(e)}, 400)
+                return self.js({"ok": True, **res}) if res is not None else self.send(404, b"not found", "text/plain")
+            if u.path.startswith("/afile/"):
+                try:
+                    pid, _, name = unquote(u.path[7:]).partition("/")
+                    return self.serve_file(at.fichier(pid, name))
+                except (FileNotFoundError, ValueError):
+                    return self.send(404, b"not found", "text/plain")
             if u.path == "/api/studio":
                 return self.js({"lists": studio.lists(), "loras": studio.loras(), "can_run": studio.can_run(),
                                 "running": studio.running(), "formats": list(FORMATS)})
@@ -445,6 +459,9 @@ def make_handler(t: Triage, token: str):
             n = int(self.headers.get("Content-Length", 0) or 0)
             try:
                 body = json.loads(self.rfile.read(n) or b"{}")
+                if u.path.startswith("/api/a/"):
+                    res = at.post(u.path, body)
+                    return self.js({"ok": True, **res}) if res is not None else self.send(404, b"not found", "text/plain")
                 if u.path == "/api/move":
                     t.move(str(body["name"]), str(body["to"]))
                     return self.js({"ok": True})
@@ -466,7 +483,7 @@ def make_handler(t: Triage, token: str):
                     return self.js({"ok": True, **write_job(t.root.parent / "jobs", body)})
                 if u.path == "/api/undo":
                     return self.js({"ok": True, "name": t.undo()})
-            except (FileNotFoundError, ValueError, KeyError, RuntimeError) as e:
+            except (FileNotFoundError, ValueError, KeyError, TypeError, RuntimeError) as e:
                 return self.js({"ok": False, "error": str(e)}, 400)
             self.send(404, b"not found", "text/plain")
 

@@ -1,0 +1,486 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Atelier</title>
+<style>
+  :root { --bg:#111417; --panel:#1b2026; --line:#2c333b; --txt:#e8eaed; --mut:#8b949e; --acc:#3fa7d6; --ok:#4caf7a; --bad:#d9655b; --warn:#d6a23f; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--txt); font:15px/1.45 system-ui,sans-serif; }
+  a { color:var(--acc); text-decoration:none; }
+  header { position:sticky; top:0; z-index:5; background:var(--bg); border-bottom:1px solid var(--line); padding:8px 12px; }
+  header .l1 { display:flex; align-items:center; gap:10px; max-width:820px; margin:0 auto; }
+  header .l1 b { font-size:17px; } header .sp { flex:1; }
+  header small { color:var(--mut); white-space:nowrap; }
+  .chips { display:flex; gap:6px; overflow-x:auto; max-width:820px; margin:6px auto 0; padding-bottom:2px; }
+  .chip { flex:none; border:1px solid var(--line); background:var(--panel); color:var(--txt); border-radius:16px; padding:5px 12px; font-size:14px; cursor:pointer; }
+  .chip.on { border-color:var(--acc); color:var(--acc); }
+  main { max-width:820px; margin:0 auto; padding:12px 12px 80px; }
+  h2 { font-size:16px; margin:22px 0 8px; display:flex; align-items:center; gap:8px; }
+  h2 small { color:var(--mut); font-weight:400; }
+  .panel { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:12px; margin-bottom:10px; }
+  label { display:block; color:var(--mut); font-size:13px; margin-top:8px; }
+  label.c { display:flex; align-items:center; gap:8px; color:var(--txt); font-size:14px; }
+  input, textarea, select { width:100%; background:#0d1013; color:var(--txt); border:1px solid var(--line); border-radius:6px; padding:8px; font:16px/1.4 system-ui,sans-serif; margin-top:3px; }
+  input[type=checkbox] { width:18px; height:18px; margin:0; flex:none; }
+  textarea { resize:vertical; min-height:44px; field-sizing:content; }
+  input:focus, textarea:focus, select:focus { outline:none; border-color:var(--acc); }
+  button { background:var(--panel); color:var(--txt); border:1px solid var(--line); border-radius:6px; padding:8px 12px; font:14px system-ui,sans-serif; cursor:pointer; }
+  button.p { background:var(--acc); border-color:var(--acc); color:#06131a; font-weight:600; }
+  button.d { color:var(--bad); } button:disabled { opacity:.45; cursor:default; }
+  button.s { padding:5px 9px; font-size:13px; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:10px; }
+  .row > .g { flex:1; min-width:120px; } .row label { margin-top:0; }
+  .mut { color:var(--mut); font-size:13px; } .err { color:var(--bad); } .okc { color:var(--ok); }
+  .steps { display:flex; gap:4px; margin:10px 0; overflow-x:auto; }
+  .steps span { flex:1; text-align:center; font-size:12px; padding:4px 6px; border-radius:4px; background:var(--panel); color:var(--mut); white-space:nowrap; }
+  .steps span.done { background:#1f3a2c; color:var(--ok); } .steps span.cur { background:#173748; color:var(--acc); }
+  .card { display:flex; gap:10px; background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:8px; margin-bottom:8px; color:var(--txt); cursor:pointer; }
+  .card .th { width:54px; height:96px; border-radius:5px; background:#0d1013 center/cover; flex:none; }
+  .card b { display:block; } .card .mut { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .badge { display:inline-block; font-size:12px; border-radius:4px; padding:1px 7px; background:#173748; color:var(--acc); margin-top:4px; }
+  .badge.v { background:#1f3a2c; color:var(--ok); }
+  .scene { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:10px; margin-bottom:10px; }
+  .scene .sh { display:flex; gap:6px; align-items:center; }
+  .scene .sh b { width:24px; height:24px; border-radius:12px; background:#173748; color:var(--acc); text-align:center; flex:none; font-size:13px; line-height:24px; }
+  .scene .sh input { margin:0; flex:1; min-width:0; } .scene .sh select { width:auto; margin:0; }
+  .media { display:flex; gap:10px; margin-top:10px; }
+  .media .pv { width:112px; aspect-ratio:9/16; background:#0d1013; border-radius:6px; overflow:hidden; flex:none; display:flex; align-items:center; justify-content:center; color:var(--mut); font-size:12px; text-align:center; }
+  .media .pv img, .media .pv video { width:100%; height:100%; object-fit:cover; display:block; }
+  .media .side { flex:1; min-width:0; }
+  .takes { display:flex; gap:5px; overflow-x:auto; margin:4px 0 8px; }
+  .takes img { width:36px; height:64px; object-fit:cover; border-radius:4px; border:2px solid transparent; flex:none; cursor:pointer; opacity:.6; }
+  .takes img.on { border-color:var(--acc); opacity:1; }
+  .takes button.on { border-color:var(--acc); color:var(--acc); }
+  pre { background:#0d1013; border-radius:6px; padding:8px; margin:8px 0 0; font-size:12px; white-space:pre-wrap; word-break:break-word; color:var(--mut); }
+  video.fin { width:100%; max-width:300px; border-radius:8px; display:block; margin:8px auto; background:#000; }
+  details { margin-top:8px; } summary { color:var(--mut); font-size:13px; cursor:pointer; }
+  .var { border-top:1px solid var(--line); padding:8px 0; }
+  #busy { position:fixed; inset:0; background:rgba(8,10,12,.82); z-index:20; display:none; align-items:center; justify-content:center; text-align:center; padding:24px; }
+  #busy.on { display:flex; } #busy b { font-size:17px; display:block; margin-bottom:6px; }
+  #toast { position:fixed; left:12px; right:12px; bottom:14px; z-index:30; background:#2a1c1b; border:1px solid var(--bad); color:var(--txt); border-radius:8px; padding:10px 12px; display:none; max-width:796px; margin:0 auto; }
+  #toast.ok { background:#16271e; border-color:var(--ok); }
+  dialog { background:var(--panel); color:var(--txt); border:1px solid var(--line); border-radius:10px; padding:14px; width:min(92vw,520px); }
+  dialog::backdrop { background:rgba(0,0,0,.6); }
+</style></head><body>
+<header>
+  <div class="l1"><a href="/">Studio</a><b>Atelier</b><span class="sp"></span><small id="sauve"></small><small id="redac"></small><small id="gpu"></small></div>
+  <div class="chips" id="persos"></div>
+</header>
+<main id="vue"></main>
+<div id="busy"><div><b id="busyt"></b><span class="mut" id="busys"></span></div></div>
+<div id="toast"></div>
+<dialog id="dlg"><b id="dlgt"></b><div class="chips" id="dlgc" style="flex-wrap:wrap;margin-top:10px"></div>
+  <textarea id="dlgi" rows="2" placeholder="Consigne libre"></textarea>
+  <div class="row"><span class="sp" style="flex:1"></span><button id="dlgn">Annuler</button><button class="p" id="dlgo">Lancer</button></div></dialog>
+<script>
+const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const usd = x => x == null ? '?' : Number(x).toFixed(2).replace('.', ',') + ' $';
+const vue = $('#vue');
+let E = null, D = null, P = null, cur = localStorage.getItem('perso') || '', autoEcrire = '', timer = null, tSave = null, sig = {};
+const ETAPES = [['idee', 'Idée'], ['ecrit', 'Scénario'], ['images', 'Images'], ['clips', 'Clips'], ['monte', 'Montage'], ['valide', 'Validée']];
+const CONSIGNES = ['Plus aguicheur, plus de tension', 'Accroche plus forte dès la première seconde', 'Coupe plus frustrante à la fin', 'Plus drôle, plus d\'autodérision', 'Autre lieu, autre tenue', 'Plus court'];
+const CONSIGNES_SCENE = ['Plus sensuelle, toujours suggestive', 'Plus près de la caméra', 'Geste plus simple et plus lent', 'Texte à l\'écran plus percutant', 'Autre tenue'];
+
+async function api(path, body) {
+  const r = await fetch(path, body ? {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)} : {});
+  const j = await r.json().catch(() => ({ok: false, error: 'réponse illisible (' + r.status + ')'}));
+  if (!j.ok) throw new Error(j.error || 'erreur');
+  return j;
+}
+function toast(msg, ok) {
+  const t = $('#toast'); t.textContent = msg; t.className = ok ? 'ok' : ''; t.style.display = 'block';
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.style.display = 'none', ok ? 2500 : 7000);
+}
+const essai = f => async (...a) => { try { return await f(...a); } catch (e) { busy(); toast(e.message); } };
+function busy(msg) {
+  clearInterval(busy.t); $('#busy').className = msg ? 'on' : '';
+  if (!msg) return;
+  const t0 = Date.now(); $('#busyt').textContent = msg;
+  const tick = () => $('#busys').textContent = Math.round((Date.now() - t0) / 1000) + ' s. Vous pouvez verrouiller le téléphone : le résultat sera là au retour.';
+  tick(); busy.t = setInterval(tick, 1000);
+}
+function demander(titre, chips) {
+  return new Promise(res => {
+    const d = $('#dlg'); $('#dlgt').textContent = titre; $('#dlgi').value = '';
+    $('#dlgc').innerHTML = chips.map(c => `<span class="chip">${esc(c)}</span>`).join('');
+    $('#dlgc').onclick = e => { if (e.target.classList.contains('chip')) $('#dlgi').value = e.target.textContent; };
+    $('#dlgo').onclick = () => { d.close(); res($('#dlgi').value.trim()); };
+    $('#dlgn').onclick = () => { d.close(); res(null); };
+    d.oncancel = () => res(null);
+    d.showModal();
+  });
+}
+function copier(txt) {
+  const ta = document.createElement('textarea'); ta.value = txt; document.body.appendChild(ta); ta.select();
+  try { document.execCommand('copy'); toast('Copié', true); } catch (e) { toast('Copie impossible'); }
+  ta.remove();
+}
+
+// --- Etat general, barre du haut -------------------------------------------------------------------
+async function etat() {
+  E = await api('/api/a/etat');
+  const actifs = E.personnages.filter(p => p.statut !== 'archive');
+  if (!actifs.some(p => p.slug === cur)) cur = actifs[0]?.slug || '';
+  $('#persos').innerHTML = actifs.map(p => `<span class="chip ${p.slug === cur ? 'on' : ''}" data-slug="${esc(p.slug)}">${esc(p.nom)}</span>`).join('')
+    + '<span class="chip" data-slug="">Personnages</span>';
+  $('#gpu').textContent = E.depense ? `GPU ${usd(E.depense.jour)} / ${usd(E.depense.plafond)}` : '';
+  $('#redac').innerHTML = E.redacteur ? '<span class="okc">Rédacteur IA</span>' : '<span style="color:var(--warn)">Rédacteur de secours</span>';
+}
+$('#persos').onclick = e => {
+  const c = e.target.closest('.chip'); if (!c) return;
+  if (!c.dataset.slug) return location.hash = '#/persos';
+  cur = c.dataset.slug; localStorage.setItem('perso', cur);
+  if (location.hash === '#/' || !location.hash) route(); else location.hash = '#/';
+};
+const perso = () => E.personnages.find(p => p.slug === cur);
+
+// --- Routage ---------------------------------------------------------------------------------------
+async function route() {
+  clearInterval(timer); timer = null;
+  if (P) await sauver();
+  D = P = null; sig = {};
+  const h = location.hash.slice(2).split('/');
+  try {
+    await etat();
+    if (h[0] === 'p' && h[1]) await ouvrirProjet(h[1]);
+    else if (h[0] === 'persos') vuePersos();
+    else if (h[0] === 'perso') await vuePerso(h[1] || '');
+    else vueProjets();
+  } catch (e) { vue.innerHTML = `<p class="err">${esc(e.message)}</p><p><a href="#/">Retour</a></p>`; }
+  window.scrollTo(0, 0);
+}
+window.onhashchange = route;
+
+// --- Liste des projets -----------------------------------------------------------------------------
+function vueProjets() {
+  const p = perso();
+  if (!p) return vue.innerHTML = '<p class="mut">Aucun personnage.</p><button class="p" onclick="location.hash=\'#/perso\'">Créer un personnage</button>';
+  const liste = E.projets.filter(x => x.personnage === cur);
+  const lab = Object.fromEntries(ETAPES);
+  vue.innerHTML = `
+    <div class="row" style="margin-top:0"><button class="p" data-a="nouveau">Nouvelle vidéo</button><button data-a="idees">Trouver des idées</button>
+      <span class="sp" style="flex:1"></span><a href="#/perso/${esc(cur)}">Fiche de ${esc(p.nom.split(' ')[0])}</a></div>
+    ${p.lora ? '' : '<p class="mut">Ce personnage n\'a pas de LoRA : son visage variera d\'une image à l\'autre.</p>'}
+    <div id="idees"></div>
+    <h2>Vidéos <small>${liste.length}</small></h2>
+    ${liste.map(x => `<a class="card" href="#/p/${x.id}">
+      <div class="th" ${x.vignette ? `style="background-image:url('/afile/${x.id}/${esc(x.vignette)}')"` : ''}></div>
+      <div><b>${esc(x.titre)}</b><span class="mut">${esc(x.pitch)}</span>
+      <span class="badge ${x.etape === 'valide' ? 'v' : ''}">${lab[x.etape]}</span> <span class="mut">${x.scenes} scènes, ${esc(x.modifie || '')}</span></div></a>`).join('')
+      || '<p class="mut">Aucune vidéo pour ce personnage. Commencer par « Trouver des idées ».</p>'}`;
+}
+async function creer(titre, brief) {
+  const r = await api('/api/a/projet', {personnage: cur, titre, brief});
+  if (brief) autoEcrire = r.projet.id;
+  location.hash = '#/p/' + r.projet.id;
+}
+async function idees() {
+  const theme = await demander('Idées de vidéos : un thème ? (facultatif)', ['Matin au lit', 'Après le sport', 'Soirée, tenue habillée', 'Salle de bain', 'Humour, raté du quotidien']);
+  if (theme === null) return;
+  const fin = r => {
+    $('#idees').innerHTML = `<h2>Idées <small>${r.moteur === 'secours' ? 'structures types (rédacteur IA arrêté)' : 'classées de la plus vendeuse à la moins vendeuse'}</small></h2>`
+      + r.resultat.idees.map((x, i) => `<div class="panel"><b>${esc(x.titre)}</b><div class="mut">${esc(x.pitch)}</div>
+        <div style="margin-top:4px">« ${esc(x.accroche)} »</div><div class="row"><button class="p s" data-a="idee" data-i="${i}">Écrire cette vidéo</button></div></div>`).join('');
+    idees.r = r.resultat.idees;
+  };
+  ecrire({kind: 'idees', personnage: cur, consigne: theme, n: 8}, fin, 'Recherche d\'idées');
+}
+
+// --- Ecriture --------------------------------------------------------------------------------------
+async function ecrire(body, fin, msg) {
+  if (P) await sauver();
+  const r = await api('/api/a/ecrire', body);
+  if (r.etat === 'pret') return fin(r);
+  attendre(r.rid, fin, msg);
+}
+function attendre(rid, fin, msg) {
+  busy(msg || 'Rédaction en cours');
+  const t = setInterval(async () => {
+    try {
+      const r = await api('/api/a/ecrire?rid=' + rid);
+      if (r.etat !== 'pret') return;
+      clearInterval(t); busy(); fin(r);
+    } catch (e) { clearInterval(t); busy(); toast(e.message); if (P) recharger(); }
+  }, 2000);
+}
+
+// --- Projet ----------------------------------------------------------------------------------------
+async function ouvrirProjet(id) {
+  D = await api('/api/a/projet?id=' + id); P = D.projet;
+  rendreProjet();
+  if (P.attente) attendre(P.attente, recharger);
+  else if (autoEcrire === id) { autoEcrire = ''; ecrire({kind: 'scenario', projet: id}, recharger, 'Écriture du scénario'); }
+  surveiller();
+}
+async function recharger() {
+  const y = window.scrollY;
+  D = await api('/api/a/projet?id=' + P.id); P = D.projet; sig = {};
+  rendreProjet(); window.scrollTo(0, y); surveiller(); etat();
+}
+function planifier() { $('#sauve').textContent = '...'; clearTimeout(tSave); tSave = setTimeout(essai(sauver), 900); }
+async function sauver() {
+  if (!P || !tSave) return;
+  clearTimeout(tSave); tSave = null;
+  await api('/api/a/projet', P);
+  $('#sauve').textContent = 'enregistré';
+}
+async function structure(f) { f(); tSave = 1; await sauver(); await recharger(); }  // changement de structure : enregistrer puis relire
+const sc = sid => P.scenes.find(s => s.id === sid);
+const f = (k, lab, v, o = {}) => `<label>${lab}${o.area ? `<textarea ${o.at || ''} rows="${o.rows || 2}" placeholder="${esc(o.ph || '')}">${esc(v)}</textarea>`
+  : `<input ${o.at || ''} type="${o.type || 'text'}" ${o.step ? `step="${o.step}"` : ''} value="${esc(v)}" placeholder="${esc(o.ph || '')}">`}</label>`.replace('<textarea ', `<textarea data-k="${k}" `).replace('<input ', `<input data-k="${k}" `);
+
+function rendreProjet() {
+  const p = perso() || {nom: P.personnage}, vide = !P.scenes.length;
+  vue.innerHTML = `
+    <div class="row" style="margin-top:0"><a href="#/">Vidéos de ${esc((E.personnages.find(x => x.slug === P.personnage) || p).nom)}</a><span class="sp" style="flex:1"></span><span class="mut">${P.id}</span></div>
+    <input data-k="titre" value="${esc(P.titre)}" style="font-size:18px;font-weight:600;margin-top:8px">
+    <div class="steps" id="etapes"></div>
+
+    <h2>1. Idée</h2>
+    <div class="panel">
+      ${f('brief', 'Idée de départ (français, quelques mots suffisent)', P.brief, {area: 1, rows: 2, ph: 'Elle rentre du sport, trop chaud, elle hésite à enlever son pull devant la caméra'})}
+      ${f('suite', 'Ce que la suite payante montre (à votre main, facultatif)', P.suite, {area: 1, rows: 1})}
+      <div class="row"><label class="g">Scènes<select data-k="nb_scenes">${[2, 3, 4, 5, 6].map(n => `<option ${n === P.nb_scenes ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
+        <button class="p" data-a="ecrire">${vide ? 'Écrire le scénario' : 'Tout réécrire'}</button>
+        ${vide ? '' : '<button data-a="retoucher">Retoucher</button>'}</div>
+      <div class="mut" style="margin-top:6px">${E.redacteur ? 'Le rédacteur IA écrit le scénario, les textes et le découpage en scènes.' : 'Rédacteur IA arrêté : un scénario type sera tiré d\'une structure toute faite.'}
+        ${vide ? '' : ' « Retoucher » garde les images des scènes inchangées.'}</div>
+    </div>
+
+    <h2>2. Textes ${P.pitch ? `<small>${esc(P.pitch)}</small>` : ''}</h2>
+    <div class="panel">
+      ${f('accroche', 'Accroche (affichée en haut de la première scène)', P.accroche)}
+      ${f('legende', 'Légende de la publication', P.legende, {area: 1})}
+      <div class="row"><div class="g">${f('cta', 'Carton de fin', P.cta)}</div><div class="g">${f('hashtags', 'Mots-dièse', P.hashtags)}</div></div>
+      <div class="row"><button data-a="variantes" ${vide ? 'disabled' : ''}>Proposer des variantes</button><button data-a="copier">Copier légende et mots-dièse</button></div>
+      <div id="variantes"></div>
+    </div>
+
+    <h2>3. Scènes <small>${P.scenes.length}, environ ${Math.round(P.scenes.reduce((a, s) => a + (s.duree || 5), 0) + (P.montage.carton ? 2.6 : 0))} s</small></h2>
+    ${P.scenes.map((s, i) => `<div class="scene" data-sid="${s.id}">
+      <div class="sh"><b>${i + 1}</b><input data-s="${s.id}" data-k="titre" value="${esc(s.titre)}" placeholder="Titre">
+        <select data-s="${s.id}" data-k="role">${[['accroche', 'Accroche'], ['montee', 'Montée'], ['chute', 'Chute']].map(([v, l]) => `<option value="${v}" ${v === s.role ? 'selected' : ''}>${l}</option>`).join('')}</select>
+        <button class="s" data-a="monte" ${i ? '' : 'disabled'}>Haut</button><button class="s" data-a="descend" ${i < P.scenes.length - 1 ? '' : 'disabled'}>Bas</button></div>
+      <div class="media" data-sid="${s.id}"></div>
+      ${f('texte', 'Texte à l\'écran', s.texte, {at: `data-s="${s.id}"`})}
+      ${f('still', 'Image de départ (anglais)', s.still, {area: 1, rows: 3, at: `data-s="${s.id}"`})}
+      ${f('motion', 'Mouvement du clip (anglais, un seul geste lent)', s.motion, {area: 1, at: `data-s="${s.id}"`})}
+      <details><summary>Voix off, image de fin, rognage</summary>
+        ${f('voix', 'Voix off (gardée pour plus tard : pas encore de synthèse vocale)', s.voix, {at: `data-s="${s.id}"`})}
+        ${f('end_edit', 'Pose de fin du clip (anglais ; vide = clip simple, moitié prix)', s.end_edit, {area: 1, rows: 1, at: `data-s="${s.id}"`})}
+        <div class="row"><div class="g">${f('debut', 'Début du clip (s)', s.debut, {type: 'number', step: '0.1', at: `data-s="${s.id}"`})}</div>
+          <div class="g">${f('duree', 'Durée gardée (s, 0 = tout)', s.duree, {type: 'number', step: '0.1', at: `data-s="${s.id}"`})}</div></div>
+        <label class="c" style="margin-top:10px"><input type="checkbox" data-s="${s.id}" data-k="tattoos" ${s.tattoos ? 'checked' : ''}>Épaules et poitrine visibles (tatouages)</label>
+      </details>
+      <div class="row"><button class="s" data-a="recrire">Réécrire la scène</button><button class="s" data-a="dupliquer">Dupliquer</button><span class="sp" style="flex:1"></span><button class="s d" data-a="supprimer">Supprimer</button></div>
+    </div>`).join('')}
+    <button data-a="ajouter">Ajouter une scène</button>
+
+    <h2>4. Images et clips</h2>
+    <div class="panel" id="prod"></div>
+
+    <h2>5. Montage</h2>
+    <div class="panel">
+      <div class="row" style="margin-top:0">
+        <label class="g">Transition<select data-m="1" data-k="transition"><option value="coupe" ${P.montage.transition === 'coupe' ? 'selected' : ''}>Coupe franche</option><option value="fondu" ${P.montage.transition === 'fondu' ? 'selected' : ''}>Fondu</option></select></label>
+        <label class="g">Format<select data-m="1" data-k="format">${[['vertical', 'Vertical 9:16'], ['carre', 'Carré'], ['paysage', 'Paysage 16:9']].map(([v, l]) => `<option value="${v}" ${v === P.montage.format ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+        <label class="g">Musique<select data-m="1" data-k="musique"><option value="">Aucune</option>${E.musiques.map(m => `<option ${m === P.montage.musique ? 'selected' : ''}>${esc(m)}</option>`).join('')}</select></label>
+      </div>
+      <div class="row"><label class="c"><input type="checkbox" data-m="1" data-k="textes" ${P.montage.textes ? 'checked' : ''}>Textes à l'écran</label>
+        <label class="c"><input type="checkbox" data-m="1" data-k="carton" ${P.montage.carton ? 'checked' : ''}>Carton de fin</label>
+        <label class="c"><input type="checkbox" data-m="1" data-k="label" ${P.montage.label ? 'checked' : ''}>Mention « AI character »</label></div>
+      ${E.musiques.length ? '' : '<div class="mut" style="margin-top:6px">Musique : déposer des fichiers mp3 dans data/audio sur le serveur.</div>'}
+      <div id="mont"></div>
+    </div>
+    <div class="row"><span class="sp" style="flex:1"></span><button class="d" data-a="archiver">Archiver ce projet</button></div>`;
+  majDyn();
+}
+
+// Zones qui changent pendant un calcul : rendues a part pour ne pas toucher aux champs en cours de saisie.
+function majDyn() {
+  const set = (el, html, k) => { if (el && sig[k] !== html) { sig[k] = html; el.innerHTML = html; } };
+  const i = ETAPES.findIndex(e => e[0] === D.etape);
+  set($('#etapes'), ETAPES.map((e, j) => `<span class="${j < i ? 'done' : j === i ? 'cur' : ''}">${e[1]}</span>`).join(''), 'etapes');
+  const occ = D.prod.etat === 'en cours';
+  for (const s of P.scenes) {
+    const c = D.choix[s.id] || {}, t = D.prises[s.id] || {images: [], clips: [], source: {}}, u = n => `/afile/${P.id}/${n}`;
+    const clips = t.clips.filter(x => t.source[x] === c.image);
+    set($(`.media[data-sid="${s.id}"]`), `
+      <div class="pv">${c.clip ? `<video src="${u(c.clip)}" poster="${u(c.image)}" muted loop playsinline controls preload="none"></video>`
+        : c.image ? `<a href="${u(c.image)}" target="_blank"><img src="${u(c.image)}" loading="lazy"></a>` : 'pas encore d\'image'}</div>
+      <div class="side">
+        ${t.images.length > 1 ? `<div class="mut">Prises</div><div class="takes">${t.images.map(n => `<img src="${u(n)}" loading="lazy" class="${n === c.image ? 'on' : ''}" data-a="prise" data-n="${n}">`).join('')}</div>` : ''}
+        ${clips.length > 1 ? `<div class="takes">${clips.map((n, j) => `<button class="s ${n === c.clip ? 'on' : ''}" data-a="priseclip" data-n="${n}">Clip ${j + 1}</button>`).join('')}</div>` : ''}
+        <div class="row" style="margin-top:0"><button class="s" data-a="image" ${occ || !s.still ? 'disabled' : ''}>${c.image ? 'Autre image' : 'Créer l\'image'}</button>
+          <button class="s" data-a="clip" ${occ || !c.image || !s.motion ? 'disabled' : ''}>${c.clip ? 'Autre clip' : 'Créer le clip'}</button></div>
+        <div class="mut" style="margin-top:6px">${c.clip ? 'Clip prêt.' : c.image ? 'Image prête : la vérifier avant de lancer le clip.' : ''}</div>
+      </div>`, 'm' + s.id);
+  }
+  const d = D.devis, pr = D.prod;
+  set($('#prod'), `
+    <div class="row" style="margin-top:0"><button class="p" data-a="images" ${occ || !d.images.n ? 'disabled' : ''}>Créer les images manquantes (${d.images.n})</button><span class="mut">${d.images.n ? 'environ ' + usd(d.images.usd) : ''}</span></div>
+    <div class="row"><button class="p" data-a="clips" ${occ || !d.clips.n ? 'disabled' : ''}>Créer les clips manquants (${d.clips.n})</button>
+      <span class="mut">${d.clips.n ? `environ ${usd(d.clips.usd)} en 480p, ${usd(d.clips.usd_hd)} en 720p` : ''}</span></div>
+    <label class="c" style="margin-top:8px"><input type="checkbox" id="hd" ${sig.hd ? 'checked' : ''}>Clips en 720p (quatre fois plus cher : à garder pour la version finale)</label>
+    <div class="mut" style="margin-top:6px">${E.can_run ? 'Chaque lancement passe par le plafond GPU du jour. Les clips démarrent leur propre pod (2 à 5 minutes d\'attente).' : 'Clé RunPod absente : lancement impossible.'}</div>
+    ${pr.etat ? `<div style="margin-top:8px"><b class="${pr.etat === 'en cours' ? '' : pr.etat === 'termine' ? 'okc' : 'err'}">${{'en cours': 'Calcul en cours', termine: 'Dernier calcul terminé', arrete: 'Dernier calcul arrêté', interrompu: 'Dernier calcul interrompu'}[pr.etat]}</b>
+      ${pr.cout != null ? ` <span class="mut">${usd(pr.cout)}</span>` : ''}${pr.echecs ? ` <span class="err">${pr.echecs} échec(s)</span>` : ''}<pre>${esc(pr.log)}</pre></div>` : ''}`, 'prod');
+  const m = D.montage, fin = D.finals.at(-1), u = n => `/afile/${P.id}/${n}`;
+  set($('#mont'), `
+    <div class="row"><button class="p" data-a="monter" ${m.etat === 'en cours' ? 'disabled' : ''}>${m.etat === 'en cours' ? 'Montage en cours...' : fin ? 'Remonter (nouvelle version)' : 'Monter la vidéo'}</button>
+      <span class="mut">Les scènes sans clip sont montées en image fixe avec un zoom lent.</span></div>
+    ${m.etat === 'erreur' ? `<pre class="err">${esc(m.erreur)}</pre>` : ''}
+    ${fin ? `<video class="fin" src="${u(fin)}" controls playsinline preload="metadata"></video>
+      <div class="row"><b>${fin.replace('final_', '').replace('.mp4', '')}</b><a href="${u(fin)}" download="${P.id}_${fin}">Télécharger</a><span class="sp" style="flex:1"></span>
+        <button class="s" data-a="tri" data-n="${fin}">Envoyer au Tri</button><button class="s d" data-a="suppfinal" data-n="${fin}">Supprimer</button></div>
+      <div class="row"><button class="${P.statut === 'valide' ? '' : 'p'}" data-a="statut" data-v="${P.statut === 'valide' ? '' : 'valide'}">${P.statut === 'valide' ? 'Retirer la validation' : 'Valider pour publication'}</button>
+        <button data-a="statut" data-v="${P.statut === 'publie' ? 'valide' : 'publie'}">${P.statut === 'publie' ? 'Publiée (annuler)' : 'Marquer publiée'}</button></div>
+      ${D.finals.length > 1 ? `<details><summary>Versions précédentes (${D.finals.length - 1})</summary>${D.finals.slice(0, -1).reverse().map(n => `<div class="row"><a href="${u(n)}" target="_blank">${n}</a>
+        <span class="sp" style="flex:1"></span><button class="s d" data-a="suppfinal" data-n="${n}">Supprimer</button></div>`).join('')}</details>` : ''}` : ''}`, 'mont');
+}
+function surveiller() {
+  clearInterval(timer); timer = null;
+  if (!D || (D.prod.etat !== 'en cours' && D.montage.etat !== 'en cours')) return;
+  timer = setInterval(async () => {
+    if (!P) return clearInterval(timer);
+    try {
+      const n = await api('/api/a/projet?id=' + P.id), avant = D.prod.etat;
+      for (const k of ['choix', 'prises', 'finals', 'etape', 'montage', 'prod', 'devis']) D[k] = n[k];
+      majDyn();
+      if (avant === 'en cours' && n.prod.etat !== 'en cours') etat();
+      if (n.prod.etat !== 'en cours' && n.montage.etat !== 'en cours') { clearInterval(timer); timer = null; }
+    } catch (e) {}
+  }, 4000);
+}
+async function produire(quoi, scenes) {
+  await sauver();
+  const hd = $('#hd')?.checked;
+  await api('/api/a/produire', {id: P.id, quoi, scenes, hd});
+  toast(quoi === 'images' ? 'Images lancées' : 'Clips lancés', true);
+  await recharger();
+}
+
+const actions = {
+  nouveau: () => creer('', ''),
+  idees,
+  idee: el => { const x = idees.r[+el.dataset.i]; return creer(x.titre, `${x.pitch} Accroche : ${x.accroche}`); },
+  ecrire: async () => {
+    if (P.scenes.length && !confirm('Remplacer tout le scénario ? Les images et clips déjà produits ne seront plus rattachés.')) return;
+    ecrire({kind: 'scenario', projet: P.id}, recharger, 'Écriture du scénario');
+  },
+  retoucher: async () => { const c = await demander('Retoucher le scénario', CONSIGNES); if (c !== null) ecrire({kind: 'retouche', projet: P.id, consigne: c}, recharger, 'Réécriture'); },
+  recrire: async (el, sid) => { const c = await demander('Réécrire la scène', CONSIGNES_SCENE); if (c !== null) ecrire({kind: 'scene', projet: P.id, scene: sid, consigne: c}, recharger, 'Réécriture de la scène'); },
+  variantes: () => ecrire({kind: 'legendes', projet: P.id, n: 4}, r => {
+    actions.v = r.resultat.variantes || [];
+    $('#variantes').innerHTML = actions.v.map((v, i) => `<div class="var"><span class="mut">${esc(v.angle)}</span><div><b>${esc(v.accroche)}</b></div><div>${esc(v.legende)}</div>
+      <div class="mut">Carton : ${esc(v.cta)}</div><div class="row" style="margin-top:6px"><button class="s" data-a="variante" data-i="${i}">Utiliser</button></div></div>`).join('');
+  }, 'Recherche de variantes'),
+  variante: el => structure(() => { const v = actions.v[+el.dataset.i]; P.accroche = v.accroche; P.legende = v.legende; P.cta = v.cta; }),
+  copier: () => copier([P.legende, P.hashtags].filter(Boolean).join('\n\n')),
+  ajouter: () => structure(() => P.scenes.push({titre: '', role: 'montee', still: '', motion: '', texte: '', tattoos: true})),
+  dupliquer: (el, sid) => structure(() => { const i = P.scenes.findIndex(s => s.id === sid); P.scenes.splice(i + 1, 0, {...P.scenes[i], id: null, seed: 0, image: '', clip: ''}); }),
+  supprimer: (el, sid) => confirm('Supprimer cette scène ?') && structure(() => P.scenes = P.scenes.filter(s => s.id !== sid)),
+  monte: (el, sid) => structure(() => { const i = P.scenes.findIndex(s => s.id === sid); P.scenes.splice(i - 1, 0, P.scenes.splice(i, 1)[0]); }),
+  descend: (el, sid) => structure(() => { const i = P.scenes.findIndex(s => s.id === sid); P.scenes.splice(i + 1, 0, P.scenes.splice(i, 1)[0]); }),
+  prise: (el, sid) => structure(() => { sc(sid).image = el.dataset.n; sc(sid).clip = ''; }),
+  priseclip: (el, sid) => structure(() => sc(sid).clip = el.dataset.n),
+  image: (el, sid) => produire('images', [sid]),
+  clip: (el, sid) => produire('clips', [sid]),
+  images: () => produire('images'),
+  clips: () => {
+    const d = D.devis.clips, hd = $('#hd').checked;
+    if (confirm(`Lancer ${d.n} clip(s), environ ${usd(hd ? d.usd_hd : d.usd)} ? Vérifier d'abord que les images conviennent.`)) return produire('clips');
+  },
+  monter: async () => { await sauver(); await api('/api/a/monter', {id: P.id}); await recharger(); },
+  tri: async el => { const r = await api('/api/a/final/tri', {id: P.id, fichier: el.dataset.n}); toast('Copiée dans le Tri : ' + r.fichier, true); },
+  suppfinal: async el => { if (confirm('Supprimer ' + el.dataset.n + ' ?')) { await api('/api/a/final/supprimer', {id: P.id, fichier: el.dataset.n}); await recharger(); } },
+  statut: el => structure(() => P.statut = el.dataset.v),
+  archiver: async () => { if (confirm('Archiver ce projet ? Il disparaît de la liste, ses fichiers restent sur le serveur.')) { P.statut = 'archive'; tSave = 1; await sauver(); P = null; location.hash = '#/'; } },
+  persoia: persoIA, persosauver: persoSauver, persoarchiver: () => persoSauver('archive'), persoreactiver: () => persoSauver('actif'),
+};
+vue.addEventListener('click', e => {
+  const el = e.target.closest('[data-a]'); if (!el || el.disabled) return;
+  const a = actions[el.dataset.a]; if (!a) return;
+  if (el.tagName !== 'A') e.preventDefault();
+  essai(a)(el, el.closest('[data-sid]')?.dataset.sid);
+});
+vue.addEventListener('input', e => {
+  const t = e.target, k = t.dataset.k;
+  if (t.id === 'hd') return sig.hd = t.checked;
+  if (!k || !P) return;
+  const v = t.type === 'checkbox' ? t.checked : t.type === 'number' || k === 'nb_scenes' ? +t.value : t.value;
+  if (t.dataset.s) sc(t.dataset.s)[k] = v; else if (t.dataset.m) P.montage[k] = v; else P[k] = v;
+  planifier();
+});
+window.addEventListener('beforeunload', () => { if (P && tSave) navigator.sendBeacon?.('/api/a/projet', new Blob([JSON.stringify(P)], {type: 'application/json'})); });
+
+// --- Personnages -----------------------------------------------------------------------------------
+function vuePersos() {
+  vue.innerHTML = `<div class="row" style="margin-top:0"><a href="#/">Retour aux vidéos</a><span class="sp" style="flex:1"></span><button class="p" onclick="location.hash='#/perso'">Nouveau personnage</button></div>
+    <h2>Personnages</h2>` + E.personnages.map(p => `<a class="card" href="#/perso/${esc(p.slug)}"><div><b>${esc(p.nom)}${p.statut === 'archive' ? ' (archivé)' : ''}</b>
+      <span class="mut">${esc(p.accroche)}</span><span class="mut">${p.age} ans, publie en ${esc(p.langue)}, ${p.lora ? 'LoRA en place' : 'sans LoRA'}, ${E.projets.filter(x => x.personnage === p.slug).length} vidéo(s)</span></div></a>`).join('');
+}
+const FICHE = [['identite', 'Identité (métier, ville, situation)'], ['apparence', 'Apparence'], ['voix', 'Voix, tics de langage'], ['personnalite', 'Personnalité, défauts'],
+  ['seduction', 'Manière de séduire'], ['univers', 'Univers, routine, fil rouge'], ['limites', 'Limites']];
+async function vuePerso(slug) {
+  const p = slug ? await api('/api/a/personnage?slug=' + encodeURIComponent(slug)) : {nom: '', age: '', langue: 'en', fiche: {}, lieux: [], tenues: [], ecriture: {plateforme: 'Fanvue'}, generation: {lora_strength: 1}};
+  const i = (k, lab, v, o = {}) => `<label>${lab}${o.area ? `<textarea data-p="${k}" rows="${o.rows || 2}" placeholder="${esc(o.ph || '')}">${esc(v)}</textarea>`
+    : `<input data-p="${k}" type="${o.type || 'text'}" ${o.step ? `step="${o.step}"` : ''} value="${esc(v)}" placeholder="${esc(o.ph || '')}">`}</label>`;
+  const g = p.generation || {}, w = p.ecriture || {};
+  vue.innerHTML = `<div class="row" style="margin-top:0"><a href="#/persos">Personnages</a></div>
+    <h2>${slug ? esc(p.nom) : 'Nouveau personnage'}</h2>
+    ${slug ? '' : `<div class="panel"><label>Concept, en une ou deux phrases<textarea id="concept" rows="2" placeholder="Une barmaid de nuit à Marseille, brune, tatouée, grande gueule et tendre"></textarea></label>
+      <div class="row"><button class="p" data-a="persoia" ${E.redacteur ? '' : 'disabled'}>Rédiger la fiche avec l'IA</button><span class="mut">${E.redacteur ? 'La fiche reste modifiable avant enregistrement.' : 'Rédacteur IA arrêté : remplir la fiche à la main.'}</span></div></div>`}
+    <div class="panel"><input type="hidden" data-p="slug" value="${esc(slug)}">
+      <div class="row" style="margin-top:0"><div class="g">${i('nom', 'Nom', p.nom)}</div><div style="width:84px">${i('age', 'Âge (21 au moins)', p.age, {type: 'number'})}</div>
+        <div style="width:110px"><label>Publie en<select data-p="langue"><option value="en" ${p.langue === 'en' ? 'selected' : ''}>anglais</option><option value="fr" ${p.langue === 'fr' ? 'selected' : ''}>français</option></select></label></div></div>
+      ${i('accroche', 'La phrase qui la résume', p.accroche)}
+      ${FICHE.map(([k, l]) => i('fiche.' + k, l, p.fiche?.[k], {area: 1})).join('')}
+    </div>
+    <h2>Lieux et tenues <small>un par ligne : français | anglais</small></h2>
+    <div class="panel">${i('lieux', 'Lieux', (p.lieux || []).join('\n'), {area: 1, rows: 5, ph: 'sa cuisine | in her small kitchen with a wooden counter'})}
+      ${i('tenues', 'Tenues', (p.tenues || []).join('\n'), {area: 1, rows: 5, ph: 'robe d\'été | a light summer dress with thin straps'})}</div>
+    <h2>Écriture</h2>
+    <div class="panel">${i('ecriture.ton', 'Ton', w.ton)}${i('ecriture.cta', 'Appel à l\'action habituel (carton de fin)', w.cta)}
+      <div class="row"><div class="g">${i('ecriture.plateforme', 'Plateforme payante', w.plateforme)}</div><div class="g">${i('ecriture.hashtags', 'Mots-dièse', w.hashtags)}</div></div>
+      ${i('ecriture.interdits', 'À ne jamais écrire ou montrer', w.interdits, {area: 1})}</div>
+    <h2>Génération <small>réglages envoyés au modèle d'image</small></h2>
+    <div class="panel">${i('generation.zimage_prefix', 'Début de chaque description (anglais : mot déclencheur, cheveux, yeux)', g.zimage_prefix, {area: 1, ph: 'a woman with long dark hair and brown eyes,'})}
+      <div class="row"><div class="g">${i('generation.lora', 'Fichier LoRA du visage (vide : visage variable)', g.lora)}</div><div style="width:90px">${i('generation.lora_strength', 'Force', g.lora_strength, {type: 'number', step: '0.1'})}</div></div>
+      ${i('generation.corps', 'Corps (anglais, à votre main, ajouté à chaque image)', g.corps, {area: 1})}
+      ${i('generation.suffixe', 'Fin de chaque description (vide : réglage commun)', g.suffixe, {area: 1, rows: 1})}
+      ${i('generation.note', 'Note pour le rédacteur (ce que le LoRA porte déjà)', g.note, {area: 1, rows: 1})}
+      <div class="mut" style="margin-top:6px">Sans LoRA, le visage change d'une image à l'autre. L'entraînement d'un LoRA coûte environ 2 $ et se fait hors de cette page.</div></div>
+    <div class="row"><button class="p" data-a="persosauver">Enregistrer</button><span class="sp" style="flex:1"></span>
+      ${slug ? (p.statut === 'archive' ? '<button data-a="persoreactiver">Réactiver</button>' : '<button class="d" data-a="persoarchiver">Archiver</button>') : ''}</div>
+    <p class="mut">Personnages fictifs, adultes, sans ressemblance avec une personne réelle, présentés comme créés par IA.</p>`;
+  vuePerso.statut = p.statut || 'actif';
+}
+function lirePerso() {
+  const o = {};
+  for (const el of $$('[data-p]', vue)) {
+    const ks = el.dataset.p.split('.'), v = ['lieux', 'tenues'].includes(ks[0]) ? el.value.split('\n').map(x => x.trim()).filter(Boolean) : el.value;
+    if (ks.length === 1) o[ks[0]] = v; else (o[ks[0]] ||= {})[ks[1]] = v;
+  }
+  return o;
+}
+async function persoSauver(statut) {
+  const o = lirePerso(); o.statut = typeof statut === 'string' ? statut : vuePerso.statut; o.nouveau = !o.slug;
+  const r = await api('/api/a/personnage', o);
+  if (o.statut !== 'archive') { cur = r.personnage.slug; localStorage.setItem('perso', cur); }
+  toast('Personnage enregistré', true);
+  location.hash = o.statut === 'archive' ? '#/persos' : '#/';
+}
+async function persoIA() {
+  const c = $('#concept').value.trim(); if (!c) return toast('Décrire le personnage en une ou deux phrases');
+  ecrire({kind: 'personnage', consigne: c}, r => {
+    const p = r.resultat, put = (k, v) => { const el = $(`[data-p="${k}"]`, vue); if (el && v != null) el.value = Array.isArray(v) ? v.join('\n') : v; };
+    for (const k of ['nom', 'age', 'langue', 'accroche', 'lieux', 'tenues']) put(k, p[k]);
+    for (const grp of ['fiche', 'ecriture', 'generation']) for (const [k, v] of Object.entries(p[grp] || {})) put(grp + '.' + k, v);
+    toast('Fiche rédigée : relire puis enregistrer', true);
+  }, 'Rédaction de la fiche');
+}
+
+setInterval(() => { if (!document.hidden) etat().catch(() => {}); }, 60000);
+route();
+</script></body></html>

@@ -71,3 +71,26 @@ Toute creation de pod (pilote, page Test, `lora add`) passe par un controle : si
 (heure de Paris) atteint `infra.daily_cap_usd` (7,50 $ dans `persona/production.yaml`), le pod
 n'est pas cree. Registre : `data/depenses.jsonl` (creation et suppression de chaque pod, tarif).
 Depense du jour : `docker compose run --rm pilot depenses`. Fiche pour un agent tiers : `docs/agents.md`.
+
+## Atelier : de l'idee a la video montee (14/11/2026)
+Page `/atelier` du studio (`tools/triage/atelier.py`, `atelier.html`). Tout se fait depuis le telephone.
+
+- **Personnages** : une fiche par personnage (identite, voix, maniere de seduire, lieux, tenues, ton,
+  reglages d'image). Modeles dans `persona/personnages/<slug>.json` ; les modifications faites dans la
+  page vont dans `data/personnages/`. Age minimal 21 ans, refuse en dessous.
+- **Projets** (`data/projets/pNNNN/`) : idee, scenario, textes, scenes, prises, montages.
+- **Ecriture** : idees, scenario complet (accroche, legende, carton de fin, scenes avec image, mouvement,
+  texte a l'ecran, voix off), retouche sur consigne, reecriture d'une scene, variantes de legende, fiche
+  de personnage. Registre suggestif uniquement ; l'explicite reste dans les champs libres du proprietaire.
+- **Production** : images (pod de veille) puis clips (pod propre au lancement), devis affiche, plafond
+  du jour applique par le pilote. Une nouvelle prise ne remplace pas l'ancienne : on choisit.
+- **Montage** (ffmpeg, sans GPU) : clips ou images fixes en zoom lent, textes incrustes, carton de fin
+  floute avec l'appel a l'action, coupe ou fondu, musique deposee dans `data/audio/`. Versions `final_vN.mp4`.
+
+Redacteur IA : service hote `girls-ai-writer` (`server/writer/`), qui lit les demandes dans
+`data/ecriture/` et appelle `claude -p` sans outils, avec l'abonnement Claude du compte `debian`.
+Aucune cle dans le conteneur. S'il est arrete, la page bascule sur des structures types (`moteur_local.py`).
+
+    sudo cp server/writer/girls-ai-writer.service /etc/systemd/system/
+    sudo systemctl daemon-reload && sudo systemctl enable --now girls-ai-writer
+    journalctl -u girls-ai-writer -n 20

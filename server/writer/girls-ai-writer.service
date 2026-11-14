@@ -1,0 +1,13 @@
+[Unit]
+Description=girls-ai : redacteur IA de l'atelier (scenarios, textes), via Claude Code sans outils
+After=network-online.target
+
+[Service]
+User=debian
+WorkingDirectory=/home/debian/Depotclaude/server
+ExecStart=/usr/bin/python3 -u /home/debian/Depotclaude/server/writer/girls_ai_writer.py /home/debian/Depotclaude/server/data/ecriture
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

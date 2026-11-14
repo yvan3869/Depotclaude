@@ -78,7 +78,9 @@ def resolve_loras(cfg, wanted):
 def cmd_run(a):
     cfg = load_config(a)
     job = yaml.safe_load(open(a.job, encoding="utf-8"))
-    infra, models, char = cfg["infra"], cfg["models"], cfg["character"]
+    # "character" dans le fichier de plans : reglages d'un autre personnage (atelier), poses sur ceux
+    # de production.yaml. Un champ absent garde la valeur de production.yaml.
+    infra, models, char = cfg["infra"], cfg["models"], {**cfg["character"], **(job.get("character") or {})}
     d = {**{"still_size": [720, 1280], "clip_size": [480, 832], "mode": "natural", "smooth": True, "grain": True,
             "seed": 1}, **job.get("defaults", {})}
     data = Path(a.data)
@@ -133,6 +135,11 @@ def cmd_run(a):
                 continue
             try:
                 t = time.time()
+                if s.get("image"):  # image deja produite et choisie (atelier) : pas de nouveau tirage
+                    src = Path(s["image"])
+                    stills[name] = (src if src.is_absolute() else data / src).read_bytes()
+                    (work / f"{name}.png").write_bytes(stills[name])
+                    continue
                 if cfg.get("image_model", "wan") == "zimage":
                     # tattoos: false dans un plan = tenue couvrante ; sans cela le modele dessine
                     # les tatouages par-dessus ou les double.
