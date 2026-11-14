@@ -114,8 +114,10 @@ Trois outils evitent qu'une video change de piece, de tenue ou de personne d'une
 - **Image de reference** (`reference`, au projet) : une fois choisie, les autres images sont fabriquees a
   partir d'elle par retouche (meme personne, meme piece, meme tenue, nouvelle pose). Prendre le plan le
   plus large, celui qui montre le mieux le lieu et la tenue. Une retouche garde le cadrage de la reference,
-  sauf si le `still` nomme le sien : "close-up" (ou "extreme close-up") rapproche la camera, "wide shot" ou
-  "full-body shot" l'eloigne. Ecrire ces mots tels quels en tete du `still`. Les plans `libre` et ceux qui portent des
+  avec une exception : si le `still` contient "close-up", la reference est recadree sur le haut et le centre
+  de l'image avant la retouche, ce qui donne un gros plan du visage. La reference doit donc etre un plan
+  taille, visage en haut au centre. Aucun autre changement de cadrage ne passe par la retouche : pour un plan
+  plus large que la reference, mettre `libre: true`. Les plans `libre` et ceux qui portent des
   LoRA supplementaires gardent leur propre tirage.
 - **Raccord** (`raccord`, par plan, par rapport au plan precedent du meme temps) :
   - `coupe` (defaut) : le plan a sa propre image, le montage coupe. Pour un changement de cadrage ou d'angle.
