@@ -287,6 +287,8 @@ function rendreProjet() {
         <label class="g">Format<select data-m="1" data-k="format">${[['vertical', 'Vertical 9:16'], ['carre', 'Carré'], ['paysage', 'Paysage 16:9']].map(([v, l]) => `<option value="${v}" ${v === P.montage.format ? 'selected' : ''}>${l}</option>`).join('')}</select>${aide('Vertical pour les réseaux et le téléphone.')}</label>
         <label class="g">Transition<select data-m="1" data-k="transition"><option value="coupe" ${P.montage.transition === 'coupe' ? 'selected' : ''}>Coupe franche</option><option value="fondu" ${P.montage.transition === 'fondu' ? 'selected' : ''}>Fondu</option></select>${aide('Entre deux scènes en raccord « coupe ». Les raccords continus restent collés sans coupe.')}</label>
       </div>
+      <label>Rendu<select data-m="1" data-k="rendu">${[['net', 'Net : tel que calculé'], ['telephone', 'Téléphone posé : netteté, contraste, grain'], ['main', 'Téléphone tenu à la main : le même, avec un léger tremblé']].map(([v, l]) => `<option value="${v}" ${v === (P.montage.rendu || 'net') ? 'selected' : ''}>${l}</option>`).join('')}</select>
+        ${aide('Appliqué au montage, sous les textes, sans recalcul. « Tenu à la main » convient à un selfie ou à quelqu\'un qui filme, pas à un téléphone posé. Le montage est un peu plus long et le fichier plus lourd.')}</label>
       <div class="gt">Texte</div>
       <label class="c" style="margin-top:6px"><input type="checkbox" data-m="1" data-k="textes" ${P.montage.textes ? 'checked' : ''}>Textes à l'écran</label>
       <div class="aide">Incruste l'accroche et le texte de chaque scène. Sur la première scène, l'accroche s'affiche d'abord, le texte de la scène ensuite.</div>

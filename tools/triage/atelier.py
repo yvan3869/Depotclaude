@@ -128,6 +128,9 @@ STYLES = {"doux": ("Poppins-SemiBold.ttf", 1.0, False), "contour": ("Poppins-Sem
 # Une retouche garde le cadrage de la reference, quoi que dise la consigne (essais du 14/11/2026) : un gros plan a son propre tirage.
 GROS_PLAN = re.compile(r"\bclose[- ]?up\b", re.I)
 GARDE = 0.3  # avant un raccord sans coupe, le texte du plan s'efface : le suivant apparait a la jointure, jamais les deux
+# Rendu au montage : tel quel ; rendu d'un telephone (nettete, contraste, grain qui bouge) ; le meme, tenu a la main
+RENDUS = ("net", "telephone", "main")
+MARGE = 0.03  # le tremble de main recadre dans une image agrandie d'autant
 JOINT = 1 / 32  # a un raccord continu, la premiere image du clip suivant repete la derniere du precedent : elle est retiree
 
 
@@ -529,6 +532,7 @@ class Atelier:
                              "label": bool(m.get("label", False)), "musique": _s(m.get("musique"), 120),
                              "cible": int(m.get("cible") or 0) if int(m.get("cible") or 0) in CIBLES else 0,
                              "noir": bool(m.get("noir", True)),
+                             "rendu": m.get("rendu") if m.get("rendu") in RENDUS else "net",
                              "style": m.get("style") if m.get("style") in STYLES else "doux"}}
             p["scenes"] = [self._scene(s, p) for s in (b["scenes"] if "scenes" in b else old.get("scenes") or [])][:30]
             ref = b.get("reference", old.get("reference"))
@@ -1710,6 +1714,32 @@ def _teinte(src, t=None):
     return [sum(b[i::3]) / 1024 for i in range(3)] if len(b) == 3072 else None
 
 
+def _pair(x):
+    return 2 * round(x / 2)
+
+
+def _telephone():
+    """Filtres du rendu d'un telephone : nettete accentuee, noirs releves et hautes lumieres retenues, couleurs un peu
+    plus vives, grain de capteur qui change a chaque image. A poser a la resolution finale, avant les textes."""
+    return ["unsharp=5:5:0.55:5:5:0", "curves=all='0/0.025 0.25/0.26 0.75/0.775 1/0.975'", "eq=saturation=1.04",
+            "noise=c0s=6:c0f=t+u:c1s=3:c1f=t:c2s=3:c2f=t"]
+
+
+def _tremble(w, h, graine, t0=0.0):
+    """Filtres du tremble d'un telephone tenu a la main, sur une image agrandie de MARGE : une derive lente, un
+    fremissement rapide et une tres legere rotation, puis le recadrage a w x h. Rien n'est tire au hasard d'un montage
+    a l'autre : `graine` fixe les phases, `t0` est l'instant du plan dans son groupe (le mouvement ne saute pas a un
+    raccord sans coupe)."""
+    r = random.Random(graine)
+    ph = [r.uniform(0, 6.283) for _ in range(7)]
+    k = w / 1080
+    onde = lambda a, f, p: f"{a * k:.2f}*sin({6.2832 * f:.3f}*(t+{t0:.3f})+{p:.2f})"
+    x = "+".join([onde(5.5, 0.23, ph[0]), onde(2.5, 0.61, ph[1]), onde(0.8, 2.9, ph[2])])
+    y = "+".join([onde(8.0, 0.19, ph[3]), onde(3.5, 0.53, ph[4]), onde(1.0, 3.4, ph[5])])
+    return [f"rotate=a='0.0030*sin({6.2832 * 0.31:.3f}*(t+{t0:.3f})+{ph[6]:.2f})':bilinear=1",
+            f"crop={w}:{h}:x='(iw-ow)/2+{x}':y='(ih-oh)/2+{y}'"]
+
+
 def _plans(p, media):
     """Decoupe du montage : pour chaque scene qui a un clip ou une image, {"s", "deb", "dur", "colle"}.
     `colle` : le plan suit le precedent sans coupe (raccord continu ou arrivee, les deux clips entiers a la jointure) ;
@@ -1751,8 +1781,12 @@ def monter(p, media, tmp, out, audio_dir, plateforme=""):
     m = p["montage"]
     w, h = FORMATS[m["format"]]
     fps, x = 32, 0.35
-    base = f"scale={w}:{h}:force_original_aspect_ratio=increase:flags=lanczos,crop={w}:{h}"
-    fin = f"fps={fps},setsar=1,format=yuv420p"
+    rendu = m.get("rendu") or "net"
+    w2, h2 = (_pair(w * (1 + MARGE)), _pair(h * (1 + MARGE))) if rendu == "main" else (w, h)
+    base = f"scale={w2}:{h2}:force_original_aspect_ratio=increase:flags=lanczos,crop={w2}:{h2}"
+    tel = _telephone() if rendu != "net" else []
+    fin = ",".join([f"fps={fps}"] + tel + ["setsar=1,format=yuv420p"])
+    t0 = 0.0  # instant du plan dans son groupe de plans colles (tremble de main)
     enc = ["-an", "-c:v", "libx264", "-crf", "18", "-preset", "veryfast", "-video_track_timescale", "16384"]
     style = m.get("style") or "doux"
     label = _texte(tmp, "label", "AI character", 0.015, 0.04, w, h, alpha=0.92, contour=True) if m["label"] else []
@@ -1763,6 +1797,10 @@ def monter(p, media, tmp, out, audio_dir, plateforme=""):
     for i, pl in enumerate(plans):
         s, deb, dur = pl["s"], pl["deb"], pl["dur"]
         txt = []
+        if not pl["colle"]:
+            t0, gr = 0.0, i
+        main = _tremble(w, h, f"{p['id']}-{gr}", t0) if rendu == "main" else []
+        t0 += dur - FONDU_JOINT / fps
         if m["textes"]:
             tete = i == 0 and p.get("accroche") and p["accroche"] != s["texte"]
             # un seul texte a la fois, aussi a un raccord sans coupe (les deux plans s'y fondent sur quelques images) :
@@ -1786,14 +1824,14 @@ def monter(p, media, tmp, out, audio_dir, plateforme=""):
                     couleur = ["colorchannelmixer=rr={:.4f}:gg={:.4f}:bb={:.4f}".format(*gains)]
             else:
                 gains = [1.0, 1.0, 1.0]
-            ins, graphe = _poser(",".join([base] + couleur + [fin]), txt + label, queue)
+            ins, graphe = _poser(",".join([base] + couleur + main + [fin]), txt + label, queue)
             _ff("-ss", f"{deb:.3f}", "-t", f"{dur:.3f}", "-i", media / s["clip"], *ins, *graphe, *enc, seg)
         else:  # pas de clip : image en zoom lent, pour qu'elle ne paraisse pas figee
             nb = round(dur * fps)
             zoom = (f"scale={w * 2}:{h * 2}:force_original_aspect_ratio=increase:flags=lanczos,crop={w * 2}:{h * 2},"
-                    f"zoompan=z='1+0.1*on/{nb}':x='iw/2-(iw/zoom/2)':y='ih*0.42-(ih/zoom*0.42)':d={nb}:s={w}x{h}:fps={fps}")
+                    f"zoompan=z='1+0.1*on/{nb}':x='iw/2-(iw/zoom/2)':y='ih*0.42-(ih/zoom*0.42)':d={nb}:s={w2}x{h2}:fps={fps}")
             gains = [1.0, 1.0, 1.0]
-            ins, graphe = _poser(zoom + ",setsar=1,format=yuv420p", txt + label, queue)
+            ins, graphe = _poser(",".join([zoom] + main + tel + ["setsar=1,format=yuv420p"]), txt + label, queue)
             _ff("-i", media / s["image"], *ins, *graphe, "-frames:v", nb, *enc, seg)
         if pl["colle"]:
             segs[-1].append(seg)
@@ -1809,7 +1847,7 @@ def monter(p, media, tmp, out, audio_dir, plateforme=""):
             _ff("-i", media / derniere["clip"], "-frames:v", "1", fond)
         txt = _texte(tmp, "cta", p["cta"], 0.044, 0.46, w, h, style) + _texte(tmp, "plat", plateforme, 0.022, 0.56, w, h, "doux", alpha=0.85)
         seg = tmp / "carton.mp4"
-        ins, graphe = _poser(",".join([base, "boxblur=28:3,eq=brightness=-0.22:saturation=0.8", fin]), txt + label, noir(carton))
+        ins, graphe = _poser(",".join([base, f"crop={w}:{h}", "boxblur=28:3,eq=brightness=-0.22:saturation=0.8", fin]), txt + label, noir(carton))
         _ff("-loop", "1", "-t", f"{carton}", "-i", fond, *ins, *graphe, *enc, seg)
         segs.append([seg])
         durs.append(_duree(seg))
@@ -1857,7 +1895,7 @@ def monter(p, media, tmp, out, audio_dir, plateforme=""):
         acc -= FONDU_JOINT / fps if pl["colle"] else 0
         debuts.append(round(acc - (x * groupe if fondu else 0), 2))
         acc += dur
-    return {"duree": round(total, 2), "label": bool(m["label"]), "cible": m.get("cible") or 0, "plans": len(plans),
+    return {"duree": round(total, 2), "label": bool(m["label"]), "rendu": rendu, "cible": m.get("cible") or 0, "plans": len(plans),
             "debuts": debuts, "colle": [x["colle"] for x in plans], "carton": round(total - carton, 2) if carton else 0,
             "images": sum(1 for x in plans if not x["s"]["clip"]), "colles": sum(1 for x in plans if x["colle"]),
             "prises": [[x["s"]["id"], x["s"]["clip"] or x["s"]["image"]] for x in plans]}
