@@ -297,3 +297,10 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
   `projets/p0004/voix_a.m4a` et `voix_b.m4a`. Non juge a l'oreille par l'assistant. A verifier a l'ecoute : le
   naturel du francais, et si la voix reste la meme d'une phrase a l'autre (chaque phrase est creee a part).
   Depense : 0,13 $ (pod de 10,5 min, installation comprise). Depense du jour : 3,88 $ sur 7,50 $.
+- 14/11, nuit : son d'apres l'image dans l'atelier (commit `d15655f`). Le proprietaire a juge MMAudio a
+  l'ecoute (« ca colle a l'image »). `pilot sonimage` : lot de clips retenus d'un temps, script sur le pod (modele
+  charge une fois), lance par un terminal de Jupyter (client websocket en bibliotheque standard), sons ranges dans
+  `data/audio/image/<clip>.m4a`. Etape Montage : bouton « Son d'apres l'image », case « L'utiliser au montage » ;
+  le son du clip remplace le bruit du geste, l'ambiance reste en fond. Essai sur p0004 : 3 clips, pod de 3,7 min,
+  0,04 $ ; `final_v8.mp4` (s1, s2, s4 par l'image ; s3, image fixe, garde son bruit). Non juge a l'oreille par
+  l'assistant. Depense du jour : 3,92 $ sur 7,50 $.
