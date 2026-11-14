@@ -137,6 +137,23 @@ Trois outils evitent qu'une video change de piece, de tenue ou de personne d'une
   - `arrivee` : le clip precedent se termine exactement sur l'image de ce plan (cout double pour ce clip).
     Pour amener un mouvement de camera ou de pose vers un cadre precis.
   Le premier plan d'un temps est toujours une coupe.
+- **Transition** (`transition`, par plan, quand son raccord est `coupe`) : comment le montage passe du plan precedent
+  a celui-ci. Fabriquee au montage, sans calcul ni cout.
+  - vide : le reglage du projet (coupe franche en general) ; `coupe` : coupe franche meme si le projet est en fondu ;
+  - `fondu` (0,35 s) : le temps passe, on retrouve le personnage plus tard ;
+  - `filage` (0,2 s) : panoramique file tres rapide, comme une main qui tourne le telephone. Pour changer de lieu,
+    d'angle ou de moment en gardant du rythme ;
+  - `zoom` : la fin du plan precedent avance vite dans l'image (0,3 s), puis fondu tres court. Pour arriver sur un plan plus serre (plan large puis gros plan).
+- **Camera** (`camera`, par plan) : mouvement lent pendant le plan, fabrique au montage par recadrage (8 % de l'image).
+  `avance` (la tension monte, on s'approche d'elle), `recul` (on decouvre le decor ou la tenue), `gauche`, `droite`
+  (glissement lateral, pour un plan d'ambiance). Vide : camera fixe. Dans un groupe de plans en raccord sans coupe,
+  le mouvement est celui du premier plan et dure tout le groupe : ne rien mettre sur les suivants.
+- **Penser le decoupage en ecrivant les plans** : decider pour chaque plan comment on y arrive et si la camera bouge.
+  Reperes : la plupart des passages restent des coupes franches ; une ou deux transitions marquees (`filage`, `zoom`)
+  par temps, la ou la video bascule (changement de lieu, passage au gros plan, chute) ; une camera qui bouge sur un
+  plan sur deux au plus, de preference `avance` sur le plan le plus fort ; alterner les cadrages d'un plan au suivant
+  (large, moyen, serre) pour que la transition ait quelque chose a relier. Ne jamais ecrire un mouvement de camera
+  dans `motion` (zoom, pan, travelling) : le modele video le rate, alors que `camera` le rend a coup sur.
 
 ## Controle des plans
 L'atelier relit chaque depot et chaque projet avant tout calcul, sans GPU (`tools/triage/controle.py`), et
@@ -151,7 +168,9 @@ Rien n'est bloque, mais un depot sans remarque est l'objectif. Ce qui est verifi
 - `texte` de 7 mots au plus, sans emoji ;
 - progression : chaque plan porte `cran`, de 1 (anodin) a 5 (le plus ose de ce temps), qui ne redescend pas ;
 - duree : le temps 1 vise 20 s au plus (un clip dure 5 s) ;
-- raccords possibles (un plan continu suit un plan qui a un `motion` ; pas trois continus de suite).
+- raccords possibles (un plan continu suit un plan qui a un `motion` ; pas trois continus de suite) ;
+- `transition` et `camera` places la ou ils ont un effet (pas sur le premier plan pour la transition, pas sur un plan
+  en raccord sans coupe), et pas trop de transitions marquees.
 
 Lire la fiche et l'image de reference du projet dans `projet.json` (`continuite`, `reference`) avant
 d'ecrire les temps 2, 3 et 4 : elles s'appliquent a eux aussi.
@@ -205,7 +224,8 @@ Les textes sont incrustes sans bandeau, en blanc sur une ombre douce : eviter de
 zone tres claire et chargee de l'image (drap blanc froisse, fenetre en plein jour) ; le decrire dans le `still` si
 besoin ("plain dark wall behind her"). Un plan sans `motion` dure 2 s au montage, en zoom lent. Apres chaque montage,
 une planche de controle (les images cles cote a cote) s'affiche sous la video : c'est elle que le proprietaire regarde
-pour juger raccords et textes.
+pour juger raccords et textes. Une transition recouvre la fin d'un plan et le debut du suivant (0,2 a 0,35 s) : ne pas
+y placer un geste ni un texte important. Elle est remplacee par une coupe si l'un des deux plans dure moins d'une seconde.
 
 ## Deposer des plans dans l'atelier
 1. **Lire le projet** : `server/data/projets/pNNNN/projet.json` (lecture seule). On y trouve le
@@ -252,10 +272,12 @@ pour juger raccords et textes.
            motion: "She ..."  # facultatif : sans lui, la scene reste une image fixe
            texte: ""          # texte incruste au montage (facultatif)
            raccord: coupe     # coupe, continu ou arrivee (facultatif)
+           transition: ""     # "", coupe, fondu, filage ou zoom (facultatif, voir "Continuite et raccords")
+           camera: ""         # "", avance, recul, gauche ou droite (facultatif)
            cran: 1            # 1 a 5, ne redescend pas (voir "Controle des plans")
 
    Champs repris par plan : `name`, `still`, `motion`, `end_edit`, `tattoos`, `loras`, `seed`,
-   `titre`, `texte`, `voix`, `role`, `raccord`, `libre`, `cran`. De 1 a 10 plans par fichier. `steps`, `image`,
+   `titre`, `texte`, `voix`, `role`, `raccord`, `transition`, `camera`, `libre`, `cran`. De 1 a 10 plans par fichier. `steps`, `image`,
    `edit`, `suite_de`, `end_image` et `character` ne sont pas repris (un depot qui en porte est refuse) ; `body` et `dest` sont inutiles (le temps et la fiche du personnage en
    tiennent lieu). Un fichier par projet et par temps.
    Video entiere : quatre fichiers. Deposer d'abord celui du temps 1 sans `projet` (avec `personnage`

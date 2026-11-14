@@ -164,6 +164,8 @@ function echanger(sid, sens) {  // avec la scene voisine du meme temps
 }
 const CONT = [['lieu', 'Lieu', 'in a small Parisian bathroom with white tiles and a round mirror'], ['tenue', 'Tenue', 'wearing a white ribbed tank top and grey cotton shorts'],
   ['cheveux', 'Coiffure du jour', 'hair in a loose bun'], ['lumiere', 'Lumière', 'soft morning window light'], ['pdv', 'Point de vue', 'shot at eye level on a phone', 'Décrire la vue, pas l\'appareil : un téléphone « posé sur le comptoir » serait dessiné dans l\'image.']];
+const TRANSITIONS = [['', 'Celle du projet'], ['coupe', 'Coupe franche'], ['fondu', 'Fondu : le temps passe'], ['filage', 'Filé : panoramique très rapide'], ['zoom', 'Zoom : avancée rapide dans l\'image']];
+const CAMERAS = [['', 'Fixe'], ['avance', 'Avance lentement'], ['recul', 'Recule lentement'], ['gauche', 'Glisse vers la gauche'], ['droite', 'Glisse vers la droite']];
 const RACCORDS = [['coupe', 'Coupe : la scène a sa propre image'], ['continu', 'Continu : suite du clip précédent, sans coupe visible'], ['arrivee', 'Arrivée : le clip précédent finit sur l\'image de cette scène']];
 const CH = {t1: true, t2: true, t3: true, t4: true, mode: 'pause', refaire: false, hd: false};  // reglages de la chaine de production
 const dfr = d => d ? new Date(d + 'T12:00').toLocaleDateString('fr-FR', {weekday: 'short', day: 'numeric', month: 'long', year: 'numeric'}) : '';
@@ -258,6 +260,10 @@ function rendreProjet() {
       ${i ? `<label>Raccord avec la scène précédente<select data-s="${s.id}" data-k="raccord">${RACCORDS.map(([v, l]) => `<option value="${v}" ${v === s.raccord ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
         ${s.raccord === 'continu' ? '<div class="mut" style="margin-top:4px">Pas d\'image propre : le clip part de la dernière image du clip précédent et le montage les colle sans coupe. Si le clip précédent est refait, celui-ci est à refaire. Ne pas rogner la fin du clip précédent ni le début de celui-ci.</div>'
           : s.raccord === 'arrivee' ? '<div class="mut" style="margin-top:4px">Le clip précédent se termine sur l\'image de cette scène (clip début/fin, deux fois le prix d\'un clip simple). Créer cette image avant le clip précédent ; si elle change, il est à refaire.</div>' : ''}` : ''}
+      ${i && (s.raccord || 'coupe') === 'coupe' ? `<label>Transition avec la scène précédente<select data-s="${s.id}" data-k="transition">${TRANSITIONS.map(([v, l]) => `<option value="${v}" ${v === (s.transition || '') ? 'selected' : ''}>${l}</option>`).join('')}</select>
+        ${aide('Fabriquée au montage, sans calcul. Une ou deux transitions marquées par vidéo, là où elle bascule.')}</label>` : ''}
+      ${!i || (s.raccord || 'coupe') === 'coupe' ? `<label>Caméra pendant la scène<select data-s="${s.id}" data-k="camera">${CAMERAS.map(([v, l]) => `<option value="${v}" ${v === (s.camera || '') ? 'selected' : ''}>${l}</option>`).join('')}</select>
+        ${aide('Mouvement lent fabriqué au montage par recadrage. Il se prolonge sur les scènes en raccord sans coupe qui suivent. Une image fixe avance toujours un peu.')}</label>` : ''}
       <details><summary>Réglages avancés : pose de fin, rognage, tatouages, scène libre, voix off</summary>
         ${f('end_edit', 'Pose de fin du clip (anglais)', s.end_edit, {area: 1, rows: 1, at: `data-s="${s.id}"`,
           aide: 'La pose sur laquelle le clip doit finir. Vide : clip simple, moitié prix.'})}

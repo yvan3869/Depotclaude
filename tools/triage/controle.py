@@ -82,6 +82,9 @@ def controle(p, temps, lib=None):
         r(f"Progression : cran non renseigné sur {crans.count(0)} scène(s).")
     elif len(sc) > 1 and max(crans) == min(crans):
         r("Progression plate : toutes les scènes ont le même cran.")
+    marquees = sum(1 for s in sc if s.get("transition") in ("filage", "zoom"))
+    if marquees > max(2, len(sc) // 3):
+        r(f"{marquees} transitions marquées (filage, zoom) pour {len(sc)} scènes : l'effet s'use. Une ou deux, là où la vidéo bascule.")
     tel = bool(re.search(r"phone", c.get("pdv") or "", re.I)) and not re.search(r"mirror", c.get("pdv") or "", re.I)
     nuit_f, jour_f = (bool(rx.search(f"{c.get('lumiere', '')} {c.get('lieu', '')}")) for rx in (_NUIT, _JOUR))
     suite, haut = 0, 0
@@ -94,6 +97,10 @@ def controle(p, temps, lib=None):
             r("Raccord continu impossible : la scène précédente n'a pas de mouvement, donc pas de clip à prolonger.", s, True)
         if i > 0 and s.get("raccord") == "arrivee" and not sc[i - 1].get("motion"):
             r("Raccord d'arrivée sans effet : la scène précédente n'a pas de mouvement.", s)
+        if s.get("transition") and (i == 0 or s.get("raccord") in ("continu", "arrivee")):
+            r("Transition sans effet : " + ("c'est la première scène." if i == 0 else "le raccord de cette scène est sans coupe."), s)
+        if s.get("camera") and i > 0 and s.get("raccord") in ("continu", "arrivee"):
+            r("Caméra sans effet : dans un raccord sans coupe, le mouvement de caméra est celui de la première scène du groupe.", s)
         suite = suite + 1 if continu else 0
         if suite == 3:
             r("Trois scènes continues de suite : les couleurs et le visage dérivent d'un clip à l'autre. Remettre une coupe.", s)
@@ -107,7 +114,8 @@ def controle(p, temps, lib=None):
                 r("Plusieurs gestes dans un clip de 5 s : le second est rarement exécuté. "
                   "Un geste par scène ; le suivant va dans une scène en raccord continu.", s)
             if _CAMERA.search(motion):
-                r("Mouvement de caméra demandé : le modèle le rend mal. Changer de cadrage se fait par une nouvelle scène.", s)
+                r("Mouvement de caméra demandé dans le mouvement : le modèle le rend mal. Le retirer du texte et choisir le champ "
+                  "« Caméra » de la scène (fabriqué au montage) ; changer de cadrage se fait par une nouvelle scène.", s)
             for rx, nom in _RATES:
                 if rx.search(motion):
                     r(f"Geste qui rate souvent : {nom}.", s)

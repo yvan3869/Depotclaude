@@ -62,6 +62,8 @@ CONTRAINTES TECHNIQUES (modèles d'image et de vidéo)
 - "motion" : en anglais, UN geste simple et lent, en une phrase commençant par "She". Gestes fiables : regarder l'objectif, sourire lentement, pencher la tête, se mordre la lèvre, se pencher vers la caméra, marcher vers la caméra, faire glisser une bretelle, ajuster un décolleté, s'étirer doucement, boire, respirer. Gestes interdits (ils ratent) : tourner le dos, attacher ses cheveux, passer la main devant le visage, renverser la tête, éclater de rire, cheveux au vent, manipuler un objet compliqué, changer de vêtement.
 - "end_edit" : presque toujours "". À remplir seulement si la pose doit changer nettement entre le début et la fin du clip (assise puis debout) : une phrase en anglais qui décrit la pose finale, même cadrage.
 - "raccord" : "coupe" (la scène a sa propre image, le montage coupe : changement de cadrage ou d'angle) ou "continu" (la scène prolonge la précédente sans coupe visible : son clip démarre sur la dernière image du clip précédent, même cadrage, le geste s'enchaîne). Utilise "continu" quand deux gestes se suivent dans le même cadre ; pas plus de deux scènes continues de suite, et jamais sur la première scène. Le "still" d'une scène continue décrit quand même l'image attendue à cet instant.
+- "transition" : comment le montage passe de la scène précédente à celle-ci, quand le raccord est "coupe". "" (coupe franche, le cas général), "fondu" (le temps passe), "filage" (panoramique filé très rapide : changement de lieu, d'angle ou de moment, donne du rythme), "zoom" (avancée rapide dans l'image : pour arriver sur un plan plus serré). Une ou deux transitions marquées par vidéo, au moment où elle bascule ; jamais sur la première scène ni sur une scène "continu".
+- "camera" : mouvement de caméra lent pendant la scène, fabriqué au montage : "" (fixe), "avance" (la caméra s'approche : la tension monte), "recul" (elle s'éloigne : on découvre), "gauche" ou "droite" (glissement latéral). N'écris jamais de mouvement de caméra dans "motion" : il rate. Sur une scène "continu", laisse "" (le mouvement de la scène précédente se prolonge). Pas plus d'une scène sur deux.
 - "texte" : texte incrusté pendant la scène, dans la langue du personnage, 7 mots au plus. Aucun emoji, ni là ni dans l'accroche (la police de montage ne les affiche pas). "voix" : phrase de voix off dans sa voix, 12 mots au plus, ou "".
 - "cran" : niveau de la scène dans la progression, entier de 1 (anodin) à 5 (le plus osé du temps, toujours suggestif). Il ne redescend jamais d'une scène à la suivante et la dernière scène porte le plus haut.
 - "tattoos" : false si la tenue couvre les épaules et la poitrine (pull, peignoir fermé), sinon true.
@@ -73,7 +75,7 @@ Un seul objet JSON valide, sans texte autour, sans bloc de code. Les champs "tit
 
 SCHEMA = ('{"titre": "...", "pitch": "une phrase", "accroche": "texte à l\'écran de la première seconde", '
           '"continuite": {"lieu": "...", "tenue": "...", "cheveux": "", "lumiere": "...", "pdv": "..."}, '
-          '"scenes": [{"titre": "...", "role": "accroche|montee|chute", "raccord": "coupe|continu", "still": "...", "motion": "...", "end_edit": "", '
+          '"scenes": [{"titre": "...", "role": "accroche|montee|chute", "raccord": "coupe|continu", "transition": "", "camera": "", "still": "...", "motion": "...", "end_edit": "", '
           '"texte": "...", "voix": "", "cran": 1, "tattoos": true}], "legende": "légende de la publication, 1 à 2 phrases, avec l\'appel à l\'action", '
           '"cta": "carton de fin, 6 mots au plus", "hashtags": "3 à 5 mots-dièse"}')
 
@@ -128,6 +130,13 @@ STYLES = {"doux": ("Poppins-SemiBold.ttf", 1.0, False), "contour": ("Poppins-Sem
 # Une retouche garde le cadrage de la reference, quoi que dise la consigne (essais du 14/11/2026) : un gros plan a son propre tirage.
 GROS_PLAN = re.compile(r"\bclose[- ]?up\b", re.I)
 GARDE = 0.3  # avant un raccord sans coupe, le texte du plan s'efface : le suivant apparait a la jointure, jamais les deux
+# Passage au plan suivant quand le raccord est une coupe : (transition xfade de ffmpeg, duree en secondes).
+# Le champ vide d'une scene suit le reglage du projet (coupe ou fondu).
+TRANSITIONS = {"coupe": None, "fondu": ("fade", 0.35), "filage": ("slideleft", 0.2), "zoom": ("fade", 0.12)}
+POUSSE = (0.3, 0.35)  # transition "zoom" : le plan qui sort avance vite dans l'image (duree, ampleur) avant un fondu tres court
+# Mouvement de camera lent d'un plan, fabrique au montage par recadrage (le modele video les rend mal)
+CAMERAS = ("", "avance", "recul", "gauche", "droite")
+AMPLE = 0.08  # ampleur d'un mouvement de camera sur un clip (une image fixe prend 0,10)
 # Rendu au montage : tel quel ; rendu d'un telephone (nettete, contraste, grain qui bouge) ; le meme, tenu a la main
 RENDUS = ("net", "telephone", "main")
 MARGE = 0.03  # le tremble de main recadre dans une image agrandie d'autant
@@ -480,6 +489,7 @@ class Atelier:
         for s in p.get("scenes") or []:  # projets d'avant le decoupage en temps
             s.setdefault("temps", 1), s.setdefault("loras", ""), s.setdefault("origine", "")
             s.setdefault("raccord", "coupe"), s.setdefault("libre", False), s.setdefault("cran", 0)
+            s.setdefault("transition", ""), s.setdefault("camera", "")
         p["continuite"] = _cont(p.get("continuite"))
         p.setdefault("reference", "")
         p.setdefault("brief2", ""), p.setdefault("nb2", 3), p.setdefault("depots", {})
@@ -495,6 +505,8 @@ class Atelier:
                 "temps": int(d.get("temps") or 1) if str(d.get("temps") or 1) in ("1", "2", "3", "4") else 1,
                 "loras": _loras(d.get("loras")), "origine": _s(d.get("origine"), 120),
                 "raccord": d.get("raccord") if d.get("raccord") in RACCORDS else "coupe", "libre": bool(d.get("libre")),
+                "transition": d.get("transition") if d.get("transition") in TRANSITIONS else "",
+                "camera": d.get("camera") if d.get("camera") in CAMERAS else "",
                 "cran": min(5, max(0, int(d.get("cran") or 0))) if str(d.get("cran") or 0).isdigit() else 0,
                 "still": _s(d.get("still"), 1200), "motion": _s(d.get("motion"), 600), "end_edit": _s(d.get("end_edit"), 600),
                 "texte": _s(d.get("texte"), 120), "voix": _s(d.get("voix"), 240), "tattoos": bool(d.get("tattoos", True)),
@@ -718,7 +730,7 @@ class Atelier:
         (nu, porno, non classee)."""
         if temps not in (1, 2):
             raise ValueError("les temps 3 et 4 sont à votre main : le rédacteur IA ne les lit pas")
-        keep = ("id", "titre", "role", "raccord", "cran", "still", "motion", "end_edit", "texte", "voix", "tattoos")
+        keep = ("id", "titre", "role", "raccord", "transition", "camera", "cran", "still", "motion", "end_edit", "texte", "voix", "tattoos")
         tete = {k: p.get(k) for k in ("titre", "pitch", "accroche", "legende", "cta", "hashtags")} if temps == 1 else {}
         return json.dumps(tete | {"continuite": p["continuite"], "scenes": [{k: s[k] for k in keep} for s in p["scenes"] if s["temps"] == temps and not self._reservee(s)]}, ensure_ascii=False, indent=1)
 
@@ -764,7 +776,7 @@ class Atelier:
                       f"selon la consigne : {consigne or 'plus forte, plus sensuelle, toujours suggestive'}\n"
                       + ("Dans ce temps la tenue de la fiche de continuité n'est pas ajoutée au \"still\" : il dit lui-même ce qu'elle porte à cet instant.\n" if sc["temps"] == 2 else "")
                       + "\nFORMAT\n"
-                      '{"titre": "...", "role": "...", "raccord": "coupe|continu", "still": "...", "motion": "...", "end_edit": "", "texte": "...", "voix": "", "cran": 1, "tattoos": true}')
+                      '{"titre": "...", "role": "...", "raccord": "coupe|continu", "transition": "", "camera": "", "still": "...", "motion": "...", "end_edit": "", "texte": "...", "voix": "", "cran": 1, "tattoos": true}')
         elif kind == "temps2":
             if not [s for s in proj["scenes"] if s["temps"] == 1]:
                 raise ValueError("écrire d'abord le teaser (temps 1) : la montée en est la suite")
@@ -777,7 +789,7 @@ class Atelier:
                       "instant (\"wearing ...\"), en partant de la tenue du teaser. Registre : suggestif poussé, jamais explicite. La tenue peut se défaire jusqu'à la lingerie, la nudité peut être suggérée "
                       "(dos nu, épaule, drap, serviette, cadrage coupé, contre-jour) mais rien d'intime n'est visible et il n'y a aucun acte. Pas d'appel à l'action ; "
                       f"la dernière scène laisse seulement entendre qu'une suite plus dévoilée existe, sans la décrire.\n{'Consigne : ' + (consigne or proj.get('brief2')) if (consigne or proj.get('brief2')) else ''}\n\nFORMAT\n"
-                      '{"scenes": [{"titre": "...", "role": "accroche|montee|chute", "raccord": "coupe|continu", "still": "...", "motion": "...", "end_edit": "", "texte": "...", "voix": "", "cran": 1, "tattoos": true}]}')
+                      '{"scenes": [{"titre": "...", "role": "accroche|montee|chute", "raccord": "coupe|continu", "transition": "", "camera": "", "still": "...", "motion": "...", "end_edit": "", "texte": "...", "voix": "", "cran": 1, "tattoos": true}]}')
         elif kind == "legendes":
             prompt = (f"PERSONNAGE\n{self._fiche(perso)}\n\n{moment}SCÉNARIO\n{self._texte_projet(proj)}\n\nCOMMANDE\nPropose {min(n, 5)} variantes d'accroche, de légende "
                       f"et de carton de fin pour cette vidéo, d'angles différents (défi, confidence, humour, promesse, urgence). {consigne}\n\nFORMAT\n"
@@ -825,7 +837,7 @@ class Atelier:
             if kind == "scene":
                 for i, s in enumerate(p["scenes"]):
                     if s["id"] == sid:
-                        p["scenes"][i] = self._scene({**s, **{k: res[k] for k in ("titre", "role", "raccord", "cran", "still", "motion", "end_edit", "texte", "voix", "tattoos") if k in res}}, p)
+                        p["scenes"][i] = self._scene({**s, **{k: res[k] for k in ("titre", "role", "raccord", "transition", "camera", "cran", "still", "motion", "end_edit", "texte", "voix", "tattoos") if k in res}}, p)
             else:
                 t = 2 if kind == "temps2" else 1  # les scenes des autres temps ne bougent pas
                 old = {s["id"]: s for s in p["scenes"] if s["temps"] == t}
@@ -838,7 +850,7 @@ class Atelier:
                 scenes = []
                 for d in res.get("scenes") or []:
                     o = old.get(d.get("id")) or {}
-                    scenes.append(self._scene({**{k: o[k] for k in ("id", "seed", "image", "clip", "debut", "duree", "raccord", "libre") if k in o}, **d,
+                    scenes.append(self._scene({**{k: o[k] for k in ("id", "seed", "image", "clip", "debut", "duree", "raccord", "libre", "transition", "camera") if k in o}, **d,
                                                **({"id": o["id"]} if o else {"id": None}), "temps": t, "loras": o.get("loras", ""), "origine": ""}, p))
                 if not scenes:
                     raise ValueError("le rédacteur n'a renvoyé aucune scène")
@@ -1087,13 +1099,18 @@ class Atelier:
                                  "(raccords : champ \"raccord\" ; image de référence : \"atelier.reference\")")
             if sh.get("raccord", "coupe") not in RACCORDS:
                 raise ValueError(f"plan {nom} : \"raccord\" vaut coupe, continu ou arrivee")
+            if (sh.get("transition") or "") not in ("", *TRANSITIONS):
+                raise ValueError(f"plan {nom} : \"transition\" vaut coupe, fondu, filage ou zoom")
+            if (sh.get("camera") or "") not in CAMERAS:
+                raise ValueError(f"plan {nom} : \"camera\" vaut avance, recul, gauche ou droite")
             if sh.get("cran") not in (None, 1, 2, 3, 4, 5):
                 raise ValueError(f"plan {nom} : \"cran\" est un entier de 1 à 5")
             seed = sh.get("seed") or (int(d["seed"]) + (0 if d.get("same_seed") else i) if d.get("seed") else 0)
             scenes.append({"titre": sh.get("titre") or nom, "role": sh.get("role"), "temps": a["temps"], "still": sh["still"], "motion": sh.get("motion"),
                            "end_edit": sh.get("end_edit"), "texte": sh.get("texte"), "voix": sh.get("voix"), "tattoos": sh.get("tattoos", True),
                            "loras": sh.get("loras", d.get("loras")), "seed": seed, "origine": f"{f.name}:{nom}",
-                           "raccord": sh.get("raccord"), "libre": bool(sh.get("libre")), "cran": sh.get("cran")})
+                           "raccord": sh.get("raccord"), "libre": bool(sh.get("libre")), "cran": sh.get("cran"),
+                           "transition": sh.get("transition"), "camera": sh.get("camera")})
         # textes de publication : seulement avec le temps 1, et seulement ceux qui sont remplis
         lim = {"pitch": 400, "accroche": 120, "legende": 600, "cta": 120, "hashtags": 200}
         textes = {k: _s(a.get(k), n) for k, n in lim.items() if a["temps"] == 1 and _s(a.get(k), n)}
@@ -1740,6 +1757,19 @@ def _tremble(w, h, graine, t0=0.0):
             f"crop={w}:{h}:x='(iw-ow)/2+{x}':y='(ih-oh)/2+{y}'"]
 
 
+def _camera(cam, ample, w, h, fps, t0, total, d=1, pousse=None):
+    """Filtre d'un mouvement de camera lent, sur une image agrandie deux fois : il recadre un peu plus serre et fait
+    glisser le cadre. `t0` et `total` : instant du plan dans son groupe et duree du groupe (le mouvement ne repart pas
+    a un raccord sans coupe). `d` : images sorties par image recue (1 pour un clip, toutes pour une image fixe).
+    `pousse` : instant du plan ou commence l'avancee rapide qui precede une transition "zoom"."""
+    a = f"min(1,(on/{fps}+{t0:.3f})/{max(0.1, total):.3f})"
+    z = {"avance": f"1+{ample}*{a}", "recul": f"1+{ample}*(1-{a})"}.get(cam, f"{1 + ample}" if cam else "1")
+    if pousse is not None:
+        z = f"({z})*(1+{POUSSE[1]}*pow(max(0,(on/{fps}-{pousse:.3f})/{POUSSE[0]}),2))"
+    x = {"droite": f"(iw-iw/zoom)*{a}", "gauche": f"(iw-iw/zoom)*(1-{a})"}.get(cam, "iw/2-(iw/zoom/2)")
+    return f"zoompan=z='{z}':x='{x}':y='ih*0.42-(ih/zoom*0.42)':d={d}:s={w}x{h}:fps={fps}"
+
+
 def _plans(p, media):
     """Decoupe du montage : pour chaque scene qui a un clip ou une image, {"s", "deb", "dur", "colle"}.
     `colle` : le plan suit le precedent sans coupe (raccord continu ou arrivee, les deux clips entiers a la jointure) ;
@@ -1780,13 +1810,14 @@ def monter(p, media, tmp, out, audio_dir, plateforme=""):
     accroche sur la premiere scene, carton de fin, fondu au noir, musique. Ecrit `out` et renvoie ce qui a ete monte."""
     m = p["montage"]
     w, h = FORMATS[m["format"]]
-    fps, x = 32, 0.35
+    fps = 32
     rendu = m.get("rendu") or "net"
     w2, h2 = (_pair(w * (1 + MARGE)), _pair(h * (1 + MARGE))) if rendu == "main" else (w, h)
     base = f"scale={w2}:{h2}:force_original_aspect_ratio=increase:flags=lanczos,crop={w2}:{h2}"
     tel = _telephone() if rendu != "net" else []
     fin = ",".join([f"fps={fps}"] + tel + ["setsar=1,format=yuv420p"])
-    t0 = 0.0  # instant du plan dans son groupe de plans colles (tremble de main)
+    base2 = f"scale={2 * w2}:{2 * h2}:force_original_aspect_ratio=increase:flags=lanczos,crop={2 * w2}:{2 * h2}"
+    t0 = 0.0  # instant du plan dans son groupe de plans colles (tremble de main, mouvement de camera)
     enc = ["-an", "-c:v", "libx264", "-crf", "18", "-preset", "veryfast", "-video_track_timescale", "16384"]
     style = m.get("style") or "doux"
     label = _texte(tmp, "label", "AI character", 0.015, 0.04, w, h, alpha=0.92, contour=True) if m["label"] else []
@@ -1794,13 +1825,20 @@ def monter(p, media, tmp, out, audio_dir, plateforme=""):
     segs, durs = [], []  # segs : groupes de segments ; rien ne separe les segments d'un meme groupe
     plans, carton = _plans(p, media)
     noir = lambda dur: [f"fade=t=out:st={max(0, dur - NOIR):.3f}:d={NOIR}"] if m.get("noir") else []
+    gr, gdur = 0, {}  # rang du premier plan d'un groupe -> duree du groupe
+    for i, pl in enumerate(plans):
+        gr = gr if pl["colle"] else i
+        gdur[gr] = gdur.get(gr, 0.0) + pl["dur"] - (FONDU_JOINT / fps if pl["colle"] else 0)
     for i, pl in enumerate(plans):
         s, deb, dur = pl["s"], pl["deb"], pl["dur"]
         txt = []
         if not pl["colle"]:
             t0, gr = 0.0, i
+        cam = plans[gr]["s"].get("camera") or ""  # le mouvement d'un groupe est celui de son premier plan
         main = _tremble(w, h, f"{p['id']}-{gr}", t0) if rendu == "main" else []
-        t0 += dur - FONDU_JOINT / fps
+        t0c, t0 = t0, t0 + dur - FONDU_JOINT / fps
+        suivant = plans[i + 1] if i + 1 < len(plans) else None
+        pousse = dur - POUSSE[0] if suivant and not suivant["colle"] and suivant["s"].get("transition") == "zoom" and dur > 1 else None
         if m["textes"]:
             tete = i == 0 and p.get("accroche") and p["accroche"] != s["texte"]
             # un seul texte a la fois, aussi a un raccord sans coupe (les deux plans s'y fondent sur quelques images) :
@@ -1824,12 +1862,12 @@ def monter(p, media, tmp, out, audio_dir, plateforme=""):
                     couleur = ["colorchannelmixer=rr={:.4f}:gg={:.4f}:bb={:.4f}".format(*gains)]
             else:
                 gains = [1.0, 1.0, 1.0]
-            ins, graphe = _poser(",".join([base] + couleur + main + [fin]), txt + label, queue)
+            avant = [base2] + couleur + [f"fps={fps}", _camera(cam, AMPLE, w2, h2, fps, t0c, gdur[gr], 1, pousse)] if cam or pousse is not None else [base] + couleur
+            ins, graphe = _poser(",".join(avant + main + [fin]), txt + label, queue)
             _ff("-ss", f"{deb:.3f}", "-t", f"{dur:.3f}", "-i", media / s["clip"], *ins, *graphe, *enc, seg)
         else:  # pas de clip : image en zoom lent, pour qu'elle ne paraisse pas figee
             nb = round(dur * fps)
-            zoom = (f"scale={w * 2}:{h * 2}:force_original_aspect_ratio=increase:flags=lanczos,crop={w * 2}:{h * 2},"
-                    f"zoompan=z='1+0.1*on/{nb}':x='iw/2-(iw/zoom/2)':y='ih*0.42-(ih/zoom*0.42)':d={nb}:s={w2}x{h2}:fps={fps}")
+            zoom = base2 + "," + _camera(cam or "avance", 0.1, w2, h2, fps, 0, dur, nb, pousse)
             gains = [1.0, 1.0, 1.0]
             ins, graphe = _poser(",".join([zoom] + main + tel + ["setsar=1,format=yuv420p"]), txt + label, queue)
             _ff("-i", media / s["image"], *ins, *graphe, "-frames:v", nb, *enc, seg)
@@ -1859,43 +1897,68 @@ def monter(p, media, tmp, out, audio_dir, plateforme=""):
         liste.write_text("".join(f"file '{s}'\n" for s in fichiers), encoding="utf-8")
         _ff("-f", "concat", "-safe", "0", "-i", liste, "-c", "copy", *opts, sortie)
 
-    def fondre(fichiers, ds, d, sortie, *opts):
-        args, fc, acc, prev = [], [], 0.0, "0:v"
+    def fondre(fichiers, ds, trans, sortie, *opts):
+        """Enchaine des segments par des transitions xfade ; trans[i] = (transition, duree) entre i et i + 1."""
+        args, fc, flous, acc, prev = [], [], [], 0.0, "0:v"
         for seg in fichiers:
             args += ["-i", seg]
         for i in range(1, len(fichiers)):
+            nom, d = trans[i - 1]
             acc += ds[i - 1] - d
-            fc.append(f"[{prev}][{i}:v]xfade=transition=fade:duration={d:.5f}:offset={acc:.3f}[v{i}]")
+            fc.append(f"[{prev}][{i}:v]xfade=transition={nom}:duration={d:.5f}:offset={acc:.3f}[v{i}]")
             prev = f"v{i}"
+            if nom == "slideleft":  # panoramique file : le glissement est noye dans un flou horizontal
+                flous.append(f"gblur=sigma=42:sigmaV=0:steps=2:enable='between(t,{acc - 0.04:.3f},{acc + d + 0.04:.3f})'")
+        if flous:
+            fc.append(f"[{prev}]{','.join(flous)}[vf]")
+            prev = "vf"
         _ff(*args, "-filter_complex", ";".join(fc), "-map", f"[{prev}]", *opts, sortie)
 
     k = 0
+    tetes = []  # premier plan de chaque groupe (None pour le carton de fin)
     for i, g in enumerate(segs):  # un groupe continu devient un seul segment, ses jointures fondues sur quelques images
+        tetes.append(plans[k]["s"] if k < len(plans) else None)
         if len(g) > 1:
-            fondre(g, durs[k:k + len(g)], FONDU_JOINT / fps, tmp / f"groupe{i}.mp4", *enc)
+            fondre(g, durs[k:k + len(g)], [("fade", FONDU_JOINT / fps)] * (len(g) - 1), tmp / f"groupe{i}.mp4", *enc)
             segs[i] = [tmp / f"groupe{i}.mp4"]
         k += len(g)
     segs = [g[0] for g in segs]
     durs = [_duree(g) for g in segs]
-    if m["transition"] == "fondu" and len(segs) > 1:
-        fondre(segs, durs, x, muet, "-an", "-c:v", "libx264", "-crf", "18", "-preset", "medium", "-pix_fmt", "yuv420p", "-movflags", "+faststart")
-        total = sum(durs) - x * (len(segs) - 1)
-    else:
-        coller(segs, muet, "-movflags", "+faststart")
-        total = sum(durs)
+    # passage d'un groupe au suivant : celui que demande le premier plan du groupe, sinon le reglage du projet
+    passages, noms = [None], []
+    for j in range(1, len(segs)):
+        nom = (tetes[j] or {}).get("transition") or m["transition"]
+        tr = TRANSITIONS.get(nom)
+        passages.append(tr if tr and min(durs[j - 1], durs[j]) > 3 * tr[1] else None)
+        noms.append(nom if passages[-1] else "coupe")
+    suites = []  # suites de segments relies par une transition ; entre deux suites, coupe franche
+    j = 0
+    while j < len(segs):
+        fin_s = j + 1
+        while fin_s < len(segs) and passages[fin_s]:
+            fin_s += 1
+        if fin_s - j > 1:
+            sortie = tmp / f"suite{j}.mp4"
+            fondre(segs[j:fin_s], durs[j:fin_s], passages[j + 1:fin_s], sortie, *enc)
+            suites.append(sortie)
+        else:
+            suites.append(segs[j])
+        j = fin_s
+    coller(suites, muet, "-movflags", "+faststart")
+    total = sum(durs) - sum(tr[1] for tr in passages if tr)
     if m.get("musique"):
         src = (audio_dir / m["musique"]).resolve()
         if src.parent != audio_dir.resolve() or not src.is_file():
             raise RuntimeError("musique introuvable dans data/audio")
         _ff("-i", muet, "-stream_loop", "-1", "-i", src, "-map", "0:v", "-map", "1:a", "-c:v", "copy", "-c:a", "aac", "-b:a", "160k",
             "-af", f"afade=t=in:d=0.4,afade=t=out:st={max(0, total - 1.2):.2f}:d=1.2", "-t", f"{total:.2f}", "-movflags", "+faststart", out)
-    fondu, debuts, groupe, acc = m["transition"] == "fondu" and len(plans) - sum(x["colle"] for x in plans) + bool(carton) > 1, [], -1, 0.0
-    for pl, dur in zip(plans, durs_plans):  # instant ou chaque plan commence dans la video (un fondu recouvre x secondes)
+    debuts, groupe, acc = [], -1, 0.0
+    for pl, dur in zip(plans, durs_plans):  # instant ou chaque plan commence dans la video (une transition recouvre sa duree)
         groupe += not pl["colle"]
-        acc -= FONDU_JOINT / fps if pl["colle"] else 0
-        debuts.append(round(acc - (x * groupe if fondu else 0), 2))
+        acc -= FONDU_JOINT / fps if pl["colle"] else (passages[groupe][1] if passages[groupe] else 0)
+        debuts.append(round(max(0, acc), 2))
         acc += dur
-    return {"duree": round(total, 2), "label": bool(m["label"]), "rendu": rendu, "cible": m.get("cible") or 0, "plans": len(plans),
+    return {"duree": round(total, 2), "label": bool(m["label"]), "rendu": rendu, "passages": noms, "cible": m.get("cible") or 0, "plans": len(plans),
             "debuts": debuts, "colle": [x["colle"] for x in plans], "carton": round(total - carton, 2) if carton else 0,
             "images": sum(1 for x in plans if not x["s"]["clip"]), "colles": sum(1 for x in plans if x["colle"]),
             "prises": [[x["s"]["id"], x["s"]["clip"] or x["s"]["image"]] for x in plans]}

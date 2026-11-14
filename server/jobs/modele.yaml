@@ -24,8 +24,10 @@
 #   2026-11-14h  LoRA classees par categorie (hub) : une LoRA n'est admise qu'a partir du temps de sa categorie, temps 1
 #                compris ; un depot qui en nomme une trop tot est refuse. "loras" peut nommer une LoRA video (Wan 2.2) :
 #                elle s'applique au clip du plan, pas a son image.
+#   2026-11-14i  champs de plan transition et camera (atelier) : passage au plan et mouvement de camera lent, fabriques
+#                au montage. Ne plus ecrire de mouvement de camera dans "motion".
 
-modele: "2026-11-14h"
+modele: "2026-11-14i"
 name: monlot                 # prefixe des fichiers produits (lettres, chiffres, _), unique par lancement
 
 # --- Facultatif : plans deposes dans l'atelier (docs/agents.md, "Deposer des plans") --------------
@@ -95,6 +97,12 @@ shots:
     #                        # continu (pas d'image propre : le clip part de la derniere image du clip precedent et le
     #                        # montage les colle sans coupe ; "still" reste obligatoire et decrit l'image attendue),
     #                        # arrivee (le clip precedent se termine sur l'image de ce plan ; cout double pour lui)
+    # transition: ""         # passage du plan precedent a celui-ci, si le raccord est une coupe : "" (reglage du projet),
+    #                        # coupe, fondu (le temps passe), filage (panoramique file tres rapide : autre lieu, autre
+    #                        # angle, autre moment), zoom (avancee rapide : arriver sur un plan plus serre)
+    # camera: ""             # mouvement de camera lent pendant le plan, fabrique au montage : "" (fixe), avance, recul,
+    #                        # gauche, droite. Sans effet sur un plan en raccord continu ou arrivee (celui du premier
+    #                        # plan du groupe se prolonge)
     # libre: false           # true : autre lieu ou autre tenue, sans la fiche de continuite ni l'image de reference
     # cran: 1                # niveau du plan dans la progression du temps, de 1 (anodin) a 5 (le plus ose de ce temps) ;
     #                        # il ne redescend pas d'un plan au suivant (verifie par le controle des plans)
