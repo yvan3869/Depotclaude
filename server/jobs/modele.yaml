@@ -20,6 +20,7 @@
 #                Atelier, temps 2 a 4 : la tenue de la fiche de continuite n'est plus ajoutee aux "still" (chaque plan dit
 #                ce qu'elle porte) et "nsfw" est ajoute a la fin de chaque "still".
 #                REGLE : dans les temps 2, 3 et 4, chaque "still" dit ce qu'elle porte ou ne porte plus a cet instant.
+#                Un depot dont un plan ne le dit pas est refuse (sauf plan en raccord continu).
 
 modele: "2026-11-14g"
 name: monlot                 # prefixe des fichiers produits (lettres, chiffres, _), unique par lancement

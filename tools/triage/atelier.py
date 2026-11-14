@@ -31,7 +31,7 @@ import time
 from pathlib import Path
 
 import moteur_local
-from controle import CIBLE, controle
+from controle import CIBLE, controle, tenue_dite
 
 AGE_MIN = 21
 ETAPES = ("idee", "ecrit", "images", "clips", "monte", "valide")
@@ -1035,6 +1035,9 @@ class Atelier:
             noms.add(nom)
             if not _s(sh.get("still")):
                 raise ValueError(f"plan {nom} : \"still\" obligatoire")
+            if a["temps"] >= 2 and not (i and sh.get("raccord") == "continu") and not tenue_dite(sh["still"]):
+                raise ValueError(f"plan {nom} : dans les temps 2 à 4, \"still\" dit ce qu'elle porte ou ne porte plus à cet instant "
+                                 "(\"wearing ...\", \"naked\"...) ; la tenue de la fiche de continuité ne vaut que pour le temps 1")
             if [k for k in ("steps", "image", "edit", "suite_de", "end_image") if sh.get(k)]:
                 raise ValueError(f"plan {nom} : \"steps\", \"image\", \"edit\", \"suite_de\" et \"end_image\" ne sont pas repris par l'atelier "
                                  "(raccords : champ \"raccord\" ; image de référence : \"atelier.reference\")")

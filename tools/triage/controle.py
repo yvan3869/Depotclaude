@@ -23,7 +23,16 @@ _PDV_OBJET = re.compile(r"\b(phone|camera)\b[^,.;]*\b(propped|leaning|placed|res
                         r"|\b(propped|leaning|mounted)\b[^,.;]*\b(phone|camera)\b|\btripod\b", re.I)
 _NUIT = re.compile(r"\b(night|evening|dusk|candle\w*|lamp\w*|moonlight|dark outside)\b", re.I)
 _JOUR = re.compile(r"\b(daylight|sunlight|sunny|morning|noon|midday|afternoon sun|sunbeam\w*)\b", re.I)
-_TENUE = re.compile(r"\b(wear(s|ing)?|dressed|undress\w*|naked|nude|topless|bare|lingerie|underwear|towel|robe|sheet)\b", re.I)
+# Mots qui disent ce qu'elle porte ou ne porte plus (temps 2 a 4 : chaque image le dit, la fiche ne l'ajoute pas)
+_TENUE = re.compile(r"\b(wear(s|ing)?|worn|dressed|undress\w*|naked|nude|topless|bottomless|bare\w*|lingerie|underwear|towel|bathrobe|robe|sheet|"
+                    r"clothes|clothing|outfit|shirt|t-shirt|tee|top|bra|bralette|panties|thong|briefs|skirt|dress|jeans|pants|trousers|shorts|"
+                    r"leggings|jacket|cardigan|hoodie|sweater|pullover|blouse|bikini|swimsuit|bodysuit|stockings|tights|socks|heels|"
+                    r"unbuttoned|unzipped|stripped|nothing on)\b", re.I)
+
+
+def tenue_dite(still):
+    """Vrai si la description d'image dit quelque chose de la tenue."""
+    return bool(_TENUE.search(still or ""))
 _EMOJI = re.compile("[\U0001F000-\U0001FAFF☀-➿]")
 
 
@@ -103,7 +112,7 @@ def controle(p, temps, lib=None):
                 if rx.search(motion):
                     r(f"Geste qui rate souvent : {nom}.", s)
         if not s.get("libre"):
-            if temps >= 2 and still and not continu and not _TENUE.search(still):
+            if temps >= 2 and still and not continu and not tenue_dite(still):
                 r("Tenue non décrite : à partir du temps 2 la fiche de continuité ne l'ajoute plus, parce qu'elle se défait d'une scène "
                   "à l'autre. Dire dans la scène ce qu'elle porte à cet instant" + (" ; sinon elle garde à peu près celle de l'image de référence."
                                                                                  if p.get("reference") else "."), s)

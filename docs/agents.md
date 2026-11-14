@@ -38,8 +38,9 @@ Ne pas dire "sequence" ni "phase" pour un temps, ni "lot" pour un projet.
   dans `persona/production.yaml`).
 - **Tenue dans les temps 2, 3 et 4** : chaque `still` de ces temps dit ce qu'elle porte ou ne porte plus a cet
   instant, plan apres plan (la tenue part de celle du temps 1 et se defait). La `tenue` de la fiche de continuite ne
-  vaut que pour le temps 1 : elle n'est jamais ajoutee aux temps 2 a 4. Un plan qui ne dit rien de la tenue est une faute
-  (remarque "Tenue non decrite" au controle). Ne pas ecrire "nsfw" : l'atelier l'ajoute a chaque `still` de ces temps.
+  vaut que pour le temps 1 : elle n'est jamais ajoutee aux temps 2 a 4. Un plan qui ne dit rien de la tenue est une faute :
+  **le depot entier est refuse** (message "plan X : dans les temps 2 a 4, still dit ce qu'elle porte..."). Ecrire
+  "wearing ...", "naked", "topless" ou nommer le vetement. Seul un plan en raccord `continu` en est dispense. Ne pas ecrire "nsfw" : l'atelier l'ajoute a chaque `still` de ces temps.
 - Un seul lancement a la fois. Ne jamais redemarrer le conteneur `triage`.
 - Ne rien modifier hors de `server/jobs/` (fichiers de plans de l'agent, dont `server/jobs/atelier/`).
   Le reste du depot et `server/data/` se lisent, ils ne s'ecrivent pas.
