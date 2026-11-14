@@ -161,6 +161,7 @@ class Atelier:
         self.lock = threading.Lock()
         self.montages = {}  # id du projet -> fil de montage en cours
         self.job = None     # {"projet", "quoi", "log"} : dernier lancement du pilote par l'atelier
+        self.ch = None      # chaine de production en cours ou derniere chaine (voir chaine())
         self._dep = (0, None)
 
     # --- Personnages ------------------------------------------------------------------------------
@@ -343,7 +344,8 @@ class Atelier:
             mt = {"etat": "erreur", "erreur": "montage interrompu (interface redémarrée)"}
         return {"projet": p, "choix": {s["id"]: {"image": s["image"], "clip": s["clip"]} for s in e["scenes"]}, "prises": pr,
                 "finals": finals, "etape": self._etape(e, finals[1]), "montage": mt, "prod": self.prod(pid),
-                "devis": {t: self.devis(e, t) for t in TEMPS}, "depots": [x for x in self.depots() if x.get("projet") == pid]}
+                "devis": {t: self.devis(e, t) for t in TEMPS}, "depots": [x for x in self.depots() if x.get("projet") == pid],
+                "chaine": self.chaine_vue(pid)}
 
     def liste(self):
         out = []
@@ -652,6 +654,8 @@ class Atelier:
                 raise ValueError("trop de scènes dans ce projet")
             p["scenes"] = sorted(reste + neuves, key=lambda s: s["temps"])
             p.update(pl["textes"])
+            if pl["temps"] == 1 and not p["brief"]:  # l'idee de depart d'un projet depose est son pitch
+                p["brief"] = p["pitch"]
             p.setdefault("depots", {})[f.name] = int(f.stat().st_mtime)
             p["modifie"] = time.strftime("%Y-%m-%d %H:%M")
             _dump(self.dj / pid / "projet.json", p)
@@ -666,10 +670,12 @@ class Atelier:
                 "clips": {"n": len(clp), "usd": round(sum(0.07 if s["end_edit"] else 0.035 for s in clp) + 0.12, 2),
                           "usd_hd": round(sum(0.26 if s["end_edit"] else 0.13 for s in clp) + 0.12, 2)}}
 
-    def produire(self, b):
+    def produire(self, b, chaine=False):
         pid, quoi = b["id"], b.get("quoi")
         if quoi not in ("images", "clips"):
             raise ValueError("lancement inconnu")
+        if not chaine and self.chaine_active():
+            raise ValueError(f"une chaîne de production est en cours (projet {self.ch['projet']}) : attendre sa fin ou l'arrêter")
         if self.studio.running():
             raise ValueError("un calcul est déjà en cours : attendre sa fin")
         if not self.studio.can_run():
@@ -732,6 +738,134 @@ class Atelier:
         m = re.search(r'"cost_usd": ([\d.]+)', log)
         return {"etat": etat, "quoi": self.job["quoi"] if ici else "", "log": "\n".join(log.strip().splitlines()[-4:])[-600:],
                 "echecs": log.count("ECHEC"), "cout": float(m.group(1)) if m else None}
+
+    # --- Chaine : images, pause, puis clips et montage de chaque temps ------------------------------
+    def chaine_active(self):
+        return bool(self.ch and self.ch["etat"] == "en cours")
+
+    def chaine_vue(self, pid):
+        c = self.ch
+        if not c or c["projet"] != pid:
+            return {"etat": "", "ailleurs": c["projet"] if self.chaine_active() else ""}
+        return {k: c[k] for k in ("projet", "temps", "mode", "refaire", "hd", "etat", "etape", "erreur", "journal", "stop")}
+
+    def _images_chaine(self, p, ch, temps, refaire):
+        return [s["id"] for s in p["scenes"] if s["temps"] in temps and s["still"] and (refaire or not ch[s["id"]]["image"])]
+
+    def devis_chaine(self, pid, temps, refaire, hd):
+        """Ce que la chaine va calculer et son cout estime (memes couts unitaires que devis())."""
+        p = self._raw(pid)
+        ch = self._choix(p)
+        img = self._images_chaine(p, ch, temps, refaire)
+        usd, clips, montages = (0.003 * len(img) + (0 if self.studio.pod() else 0.05)) if img else 0, 0, 0
+        for t in temps:
+            sc = [s for s in p["scenes"] if s["temps"] == t]
+            c = [s for s in sc if s["still"] and s["motion"] and (s["id"] in img or not ch[s["id"]]["clip"])]
+            if c:  # un lancement de clips par temps : chacun demarre son pod
+                usd += sum(((0.26 if s["end_edit"] else 0.13) if hd else (0.07 if s["end_edit"] else 0.035)) for s in c) + 0.12
+            clips += len(c)
+            montages += bool([s for s in sc if s["still"]])
+        dep = self.depense() or {}
+        return {"images": len(img), "clips": clips, "montages": montages, "usd": round(usd, 2),
+                "reste": round(dep["plafond"] - dep["jour"], 2) if dep else None}
+
+    def chaine(self, b):
+        """Lance la chaine d'un projet pour les temps choisis : images de tous ces temps en un lancement, pause pour choisir
+        les prises (mode "pause") ou non (mode "complet"), puis clips et montage, un temps apres l'autre."""
+        pid = b["id"]
+        temps = sorted({int(t) for t in b.get("temps") or []} & set(TEMPS))
+        if not temps:
+            raise ValueError("choisir au moins un temps")
+        refaire, hd = bool(b.get("refaire")), bool(b.get("hd"))
+        dv = self.devis_chaine(pid, temps, refaire, hd)
+        if not dv["montages"]:
+            raise ValueError("aucune scène à produire dans les temps choisis")
+        if dv["reste"] is not None and dv["usd"] > dv["reste"]:
+            raise ValueError(f"devis de {dv['usd']:.2f} $ pour {dv['reste']:.2f} $ restants aujourd'hui : choisir moins de temps")
+        if b.get("essai"):
+            return {"devis": dv}
+        if self.chaine_active():
+            raise ValueError(f"une chaîne est déjà en cours (projet {self.ch['projet']})")
+        if self.studio.running():
+            raise ValueError("un calcul est déjà en cours : attendre sa fin")
+        if not self.studio.can_run():
+            raise ValueError("clé RunPod absente : lancement impossible depuis l'interface")
+        self.ch = {"projet": pid, "temps": temps, "mode": "complet" if b.get("mode") == "complet" else "pause", "refaire": refaire, "hd": hd,
+                   "etat": "en cours", "etape": "démarrage", "erreur": "", "journal": [], "stop": False}
+        threading.Thread(target=self._chaine, args=(self.ch, False), daemon=True).start()
+        return {"devis": dv, "etat": "en cours"}
+
+    def chaine_suite(self, b):
+        c = self.ch
+        if not c or c["projet"] != b["id"] or c["etat"] != "pause":
+            raise ValueError("aucune chaîne en pause pour ce projet")
+        c.update(etat="en cours", etape="reprise", stop=False)
+        threading.Thread(target=self._chaine, args=(c, True), daemon=True).start()
+        return {"etat": "en cours"}
+
+    def chaine_stop(self, b):
+        c = self.ch
+        if not c or c["projet"] != b["id"] or c["etat"] not in ("en cours", "pause"):
+            raise ValueError("aucune chaîne à arrêter pour ce projet")
+        if c["etat"] == "pause":
+            c.update(etat="arretee", etape="arrêtée à la pause")
+        else:
+            c["stop"] = True  # prise en compte a la fin de l'etape en cours
+        return {"etat": c["etat"]}
+
+    def _pas(self, c, texte):
+        c["etape"] = texte
+        c["journal"] = (c["journal"] + [f"{time.strftime('%H:%M')} {texte}"])[-12:]
+
+    def _lancer_chaine(self, c, quoi, **kw):
+        while self.studio.running():  # un test ou un autre calcul finit d'abord
+            time.sleep(5)
+        self.produire({"id": c["projet"], "quoi": quoi, "hd": c["hd"], **kw}, chaine=True)
+        while self.studio.running():
+            time.sleep(4)
+        r = self.prod(c["projet"])
+        if r["etat"] != "termine" or r["echecs"]:
+            raise RuntimeError(f"{quoi} : " + (f"{r['echecs']} échec(s)" if r["etat"] == "termine" else "calcul " + r["etat"]) + ". " + r["log"][-300:])
+
+    def _chaine(self, c, suite):
+        pid = c["projet"]
+        try:
+            if not suite:
+                p = self._raw(pid)
+                ids = self._images_chaine(p, self._choix(p), c["temps"], c["refaire"])
+                if ids:
+                    self._pas(c, f"images ({len(ids)})")
+                    self._lancer_chaine(c, "images", scenes=ids)
+                    if c["stop"]:
+                        return c.update(etat="arretee", etape="arrêtée après les images")
+                    if c["mode"] == "pause":
+                        self._pas(c, "pause : choisir les prises, puis Continuer")
+                        return c.update(etat="pause")
+            for t in c["temps"]:
+                e = self._eff(self._raw(pid))
+                if self.devis(e, t)["clips"]["n"]:
+                    self._pas(c, f"temps {t} : clips ({self.devis(e, t)['clips']['n']})")
+                    self._lancer_chaine(c, "clips", temps=t)
+                    if c["stop"]:
+                        return c.update(etat="arretee", etape=f"arrêtée après les clips du temps {t}")
+                e = self._eff(self._raw(pid))
+                if [s for s in e["scenes"] if s["temps"] == t and (s["clip"] or s["image"])]:
+                    self._pas(c, f"temps {t} : montage")
+                    while pid in self.montages:
+                        time.sleep(2)
+                    self.monter({"id": pid, "temps": t})
+                    while pid in self.montages:
+                        time.sleep(2)
+                    m = _load(self._pdir(pid) / "montage.json", {})
+                    if m.get("etat") != "pret":
+                        raise RuntimeError("montage : " + str(m.get("erreur") or "interrompu"))
+                if c["stop"] and t != c["temps"][-1]:
+                    return c.update(etat="arretee", etape=f"arrêtée après le temps {t}")
+            self._pas(c, "terminée")
+            c.update(etat="termine")
+        except Exception as e:
+            self._pas(c, "erreur : " + str(e)[-300:])
+            c.update(etat="erreur", erreur=str(e)[-500:])
 
     # --- Montage ----------------------------------------------------------------------------------
     def monter(self, b):
@@ -808,6 +942,12 @@ class Atelier:
             return self.produire(b)
         if path == "/api/a/monter":
             return self.monter(b)
+        if path == "/api/a/chaine":
+            return self.chaine(b)
+        if path == "/api/a/chaine/continuer":
+            return self.chaine_suite(b)
+        if path == "/api/a/chaine/arreter":
+            return self.chaine_stop(b)
         if path == "/api/a/depot/importer":
             return self.importer(b)
         if path == "/api/a/final/supprimer":

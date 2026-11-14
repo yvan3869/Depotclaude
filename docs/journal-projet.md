@@ -205,3 +205,5 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
   (lobes perces). La fiche Fanvue "Mes modifications corporelles" ne la mentionne pas : a completer si souhaite.
 - A faire : LoRA d'animation a valider, planification du pilote, branchement du controle qualite,
   montage et voix, contestation Instagram, compte TikTok, fin d'inscription Fanvue, publication.
+- 14/11, 11 h 20 : pod de clips `girls-ai-p0002r2` reste orphelin environ 2 min (redemarrage de `triage` trois
+  secondes apres un lancement du proprietaire), supprime a la main : ~0,03 $. Calcul a relancer.

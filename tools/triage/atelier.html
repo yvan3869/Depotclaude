@@ -238,6 +238,7 @@ function echanger(sid, sens) {  // avec la scene voisine du meme temps
   const m = P.scenes.filter(s => s.temps === T), k = m.findIndex(s => s.id === sid), a = P.scenes.indexOf(m[k]), b = P.scenes.indexOf(m[k + sens]);
   if (b >= 0) [P.scenes[a], P.scenes[b]] = [P.scenes[b], P.scenes[a]];
 }
+const CH = {t1: true, t2: true, t3: true, mode: 'pause', refaire: false, hd: false};  // reglages de la chaine de production
 const dfr = d => d ? new Date(d + 'T12:00').toLocaleDateString('fr-FR', {weekday: 'short', day: 'numeric', month: 'long', year: 'numeric'}) : '';
 const f = (k, lab, v, o = {}) => `<label>${lab}${o.area ? `<textarea ${o.at || ''} rows="${o.rows || 2}" placeholder="${esc(o.ph || '')}">${esc(v)}</textarea>`
   : `<input ${o.at || ''} type="${o.type || 'text'}" ${o.step ? `step="${o.step}"` : ''} value="${esc(v)}" placeholder="${esc(o.ph || '')}">`}</label>`.replace('<textarea ', `<textarea data-k="${k}" `).replace('<input ', `<input data-k="${k}" `);
@@ -250,6 +251,7 @@ function rendreProjet() {
     <input data-k="titre" value="${esc(P.titre)}" style="font-size:18px;font-weight:600;margin-top:8px">
     <div class="steps" id="etapes"></div>
     <div class="chips" style="margin:0 0 4px">${[1, 2, 3].map(t => `<button class="chip ${t === T ? 'on' : ''}" data-a="temps" data-t="${t}">${t}. ${TEMPS[t][0]} <small>${TEMPS[t][1]}, ${P.scenes.filter(s => s.temps === t).length}</small></button>`).join('')}</div>
+    <div class="panel" id="chaine"></div>
     ${T === 2 ? `<div class="panel">
       <div class="mut">La suite du teaser pour les abonnés : même lieu, même tenue, un cran plus loin. Registre suggestif.</div>
       ${f('brief2', 'Consigne pour la montée (facultatif)', P.brief2, {area: 1, rows: 2})}
@@ -330,7 +332,20 @@ function majDyn() {
   const set = (el, html, k) => { if (el && sig[k] !== html) { sig[k] = html; el.innerHTML = html; } };
   const i = ETAPES.findIndex(e => e[0] === D.etape);
   set($('#etapes'), ETAPES.map((e, j) => `<span class="${j < i ? 'done' : j === i ? 'cur' : ''}">${e[1]}</span>`).join(''), 'etapes');
-  const occ = D.prod.etat === 'en cours';
+  const c = D.chaine, occ = D.prod.etat === 'en cours' || c.etat === 'en cours', actif = c.etat === 'en cours' || c.etat === 'pause';
+  const ETATS = {'en cours': 'Chaîne en cours', pause: 'Chaîne en pause', termine: 'Chaîne terminée', arretee: 'Chaîne arrêtée', erreur: 'Chaîne en erreur'};
+  set($('#chaine'), `<b>Production en chaîne du projet</b>
+    <div class="mut">Images des temps cochés, puis clips et montage, un temps après l'autre. Ne calcule que ce qui manque.</div>
+    <div class="row">${[1, 2, 3].map(t => `<label class="c"><input type="checkbox" data-ch="t${t}" ${CH['t' + t] ? 'checked' : ''} ${actif ? 'disabled' : ''}>${t}. ${TEMPS[t][0]} (${P.scenes.filter(x => x.temps === t).length})</label>`).join('')}</div>
+    <div class="row"><label class="g">Déroulement<select data-ch="mode" ${actif ? 'disabled' : ''}><option value="pause" ${CH.mode === 'pause' ? 'selected' : ''}>Pause après les images, pour choisir les prises</option>
+      <option value="complet" ${CH.mode === 'complet' ? 'selected' : ''}>D'une traite, sans pause</option></select></label></div>
+    <div class="row"><label class="c"><input type="checkbox" data-ch="refaire" ${CH.refaire ? 'checked' : ''} ${actif ? 'disabled' : ''}>Tout refaire (nouvelles prises, les anciennes sont gardées)</label>
+      <label class="c"><input type="checkbox" data-ch="hd" ${CH.hd ? 'checked' : ''} ${actif ? 'disabled' : ''}>Clips en 720p</label></div>
+    <div class="row">${c.etat === 'pause' ? '<button class="p" data-a="chainesuite">Continuer : clips et montage</button>' : `<button class="p" data-a="chaine" ${occ || !E.can_run ? 'disabled' : ''}>Lancer la chaîne</button>`}
+      ${actif ? `<button data-a="chainestop" ${c.stop ? 'disabled' : ''}>${c.etat === 'pause' ? 'Abandonner la chaîne' : c.stop ? 'Arrêt demandé' : 'Arrêter après l\'étape en cours'}</button>` : ''}</div>
+    ${c.ailleurs ? `<div class="mut" style="margin-top:6px">Une chaîne tourne sur le projet ${esc(c.ailleurs)} : les lancements attendent sa fin.</div>` : ''}
+    ${c.etat ? `<div style="margin-top:8px"><b class="${c.etat === 'termine' ? 'okc' : c.etat === 'erreur' ? 'err' : ''}">${ETATS[c.etat]}</b> <span class="mut">temps ${c.temps.join(', ')} : ${esc(c.etape)}</span>
+      ${c.etat === 'erreur' ? `<pre class="err">${esc(c.erreur)}</pre>` : ''}<pre>${esc(c.journal.join('\n'))}</pre></div>` : ''}`, 'chaine');
   for (const s of P.scenes) {
     const c = D.choix[s.id] || {}, t = D.prises[s.id] || {images: [], clips: [], source: {}}, u = n => `/afile/${P.id}/${n}`;
     const clips = t.clips.filter(x => t.source[x] === c.image);
@@ -347,7 +362,9 @@ function majDyn() {
   }
   const d = D.devis[T], pr = D.prod;
   set($('#prod'), `
-    <div class="row" style="margin-top:0"><button class="p" data-a="images" ${occ || !d.images.n ? 'disabled' : ''}>Créer les images manquantes (${d.images.n})</button><span class="mut">${d.images.n ? 'environ ' + usd(d.images.usd) : ''}</span></div>
+    <div class="row" style="margin-top:0"><button class="p" data-a="chainetemps" ${occ || c.etat === 'pause' || !E.can_run ? 'disabled' : ''}>Tout produire pour ce temps</button>
+      <span class="mut">images, ${CH.mode === 'pause' ? 'pause, ' : ''}clips, montage (réglages : « Production en chaîne », en haut)</span></div>
+    <div class="row"><button class="p" data-a="images" ${occ || !d.images.n ? 'disabled' : ''}>Créer les images manquantes (${d.images.n})</button><span class="mut">${d.images.n ? 'environ ' + usd(d.images.usd) : ''}</span></div>
     <div class="row"><button class="p" data-a="clips" ${occ || !d.clips.n ? 'disabled' : ''}>Créer les clips manquants (${d.clips.n})</button>
       <span class="mut">${d.clips.n ? `environ ${usd(d.clips.usd)} en 480p, ${usd(d.clips.usd_hd)} en 720p` : ''}</span></div>
     <label class="c" style="margin-top:8px"><input type="checkbox" id="hd" ${sig.hd ? 'checked' : ''}>Clips en 720p (quatre fois plus cher : à garder pour la version finale)</label>
@@ -369,15 +386,16 @@ function majDyn() {
 }
 function surveiller() {
   clearInterval(timer); timer = null;
-  if (!D || (D.prod.etat !== 'en cours' && D.montage.etat !== 'en cours')) return;
+  if (!D || (D.prod.etat !== 'en cours' && D.montage.etat !== 'en cours' && D.chaine.etat !== 'en cours')) return;
   timer = setInterval(async () => {
     if (!P) return clearInterval(timer);
     try {
-      const n = await api('/api/a/projet?id=' + P.id), avant = D.prod.etat;
-      for (const k of ['choix', 'prises', 'finals', 'etape', 'montage', 'prod', 'devis', 'depots']) D[k] = n[k];
+      const n = await api('/api/a/projet?id=' + P.id), avant = D.prod.etat, avantCh = D.chaine.etat;
+      for (const k of ['choix', 'prises', 'finals', 'etape', 'montage', 'prod', 'devis', 'depots', 'chaine']) D[k] = n[k];
       majDyn();
       if (avant === 'en cours' && n.prod.etat !== 'en cours') etat();
-      if (n.prod.etat !== 'en cours' && n.montage.etat !== 'en cours') { clearInterval(timer); timer = null; }
+      if (avantCh === 'en cours' && n.chaine.etat !== 'en cours') toast({pause: 'Images prêtes : choisir les prises, puis Continuer', termine: 'Chaîne terminée', arretee: 'Chaîne arrêtée', erreur: 'Chaîne en erreur'}[n.chaine.etat] || '', n.chaine.etat !== 'erreur');
+      if (n.prod.etat !== 'en cours' && n.montage.etat !== 'en cours' && n.chaine.etat !== 'en cours') { clearInterval(timer); timer = null; }
     } catch (e) {}
   }, 4000);
 }
@@ -389,7 +407,22 @@ async function produire(quoi, scenes) {
   await recharger();
 }
 
+async function chaine(temps) {
+  if (!temps.length) return toast('Cocher au moins un temps');
+  await sauver();
+  const b = {id: P.id, temps, mode: CH.mode, refaire: CH.refaire, hd: CH.hd};
+  const d = (await api('/api/a/chaine', {...b, essai: true})).devis;
+  if (!confirm(`Chaîne, temps ${temps.join(', ')} : ${d.images} image(s), ${d.clips} clip(s), ${d.montages} montage(s), environ ${usd(d.usd)}`
+    + (d.reste == null ? '' : ` (reste aujourd'hui : ${usd(d.reste)})`) + `.\n${CH.mode === 'pause' && d.images ? 'Pause après les images pour choisir les prises.' : 'Sans pause : les clips partent de la dernière image de chaque scène.'}\nLancer ?`)) return;
+  await api('/api/a/chaine', b);
+  toast('Chaîne lancée', true);
+  await recharger();
+}
 const actions = {
+  chaine: () => chaine([1, 2, 3].filter(t => CH['t' + t])),
+  chainetemps: () => chaine([T]),
+  chainesuite: async () => { await sauver(); await api('/api/a/chaine/continuer', {id: P.id}); toast('Chaîne reprise', true); await recharger(); },
+  chainestop: async () => { await api('/api/a/chaine/arreter', {id: P.id}); await recharger(); },
   nouveau: () => creer('', ''),
   idees,
   idee: el => { const x = idees.r[+el.dataset.i]; return creer(x.titre, `${x.pitch} Accroche : ${x.accroche}`); },
@@ -406,7 +439,8 @@ const actions = {
     if (P && P.id === r.id) { T = r.temps; await recharger(); } else { await etat(); T = r.temps; ouvrirProjet.id = r.id; location.hash = '#/p/' + r.id; }
   },
   ecrire: async () => {
-    if (P.scenes.some(s => s.temps === 1) && !confirm('Remplacer tout le scénario ? Les images et clips déjà produits ne seront plus rattachés.')) return;
+    if (P.scenes.some(s => s.temps === 1) && !confirm((P.scenes.some(s => s.temps === 1 && s.origine) ? 'Ce temps contient des plans déposés par l\'agent : ils seront remplacés par le rédacteur IA. ' : '')
+      + 'Remplacer tout le scénario ? Les images et clips déjà produits ne seront plus rattachés.')) return;
     ecrire({kind: 'scenario', projet: P.id}, recharger, 'Écriture du scénario');
   },
   retoucher: async () => { const c = await demander('Retoucher le scénario', CONSIGNES); if (c !== null) ecrire({kind: 'retouche', projet: P.id, consigne: c}, recharger, 'Réécriture'); },
@@ -448,6 +482,7 @@ vue.addEventListener('click', e => {
 vue.addEventListener('input', e => {
   const t = e.target, k = t.dataset.k;
   if (t.id === 'hd') return sig.hd = t.checked;
+  if (t.dataset.ch) { CH[t.dataset.ch] = t.type === 'checkbox' ? t.checked : t.value; delete sig.prod; return majDyn(); }
   if (!k || !P) return;
   const v = t.type === 'checkbox' ? t.checked : t.type === 'number' || k === 'nb_scenes' || k === 'nb2' ? +t.value : t.value;
   if (t.dataset.s) sc(t.dataset.s)[k] = v; else if (t.dataset.m) P.montage[k] = v; else P[k] = v;

@@ -111,3 +111,10 @@ les projets voisins du personnage. La liste des projets suit cette date. `cree` 
 dates reelles du serveur. Un depot du temps 1 peut porter `date_perso` et `contexte`.
 Vocabulaire commun a la page et a l'agent (projet, idee, pitch, temps, scene, plan, depot, prise, montage) :
 tableau en tete de `docs/agents.md`.
+Production en chaine : le panneau "Production en chaine" d'un projet enchaine, pour les temps coches, les images
+(un seul lancement), puis pour chaque temps les clips et le montage. Deux deroulements : avec pause apres les images
+(par defaut, pour choisir les prises ; "Continuer" lance la suite) ou d'une traite. Seul ce qui manque est calcule,
+sauf "Tout refaire" (nouvelles prises, anciennes gardees). Le devis est affiche avant le lancement et refuse s'il
+depasse le reste du plafond du jour. Le bouton "Tout produire pour ce temps" fait la meme chose pour un seul temps.
+L'etat de la chaine est en memoire : un redemarrage de `triage` l'arrete (et laisse orphelin le pod d'un calcul en
+cours). Un depot du temps 1 sans idee remplit le champ "Idee" avec son pitch.
