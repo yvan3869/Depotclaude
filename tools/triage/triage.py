@@ -380,7 +380,7 @@ def make_handler(t: Triage, token: str):
             if not self.authed(q):
                 return self.send(403, b"forbidden", "text/plain")
             if u.path in ("/", "/tri", "/test", "/atelier"):
-                extra = {"Set-Cookie": f"t={token}; HttpOnly; SameSite=Strict"} if token else None
+                extra = {"Set-Cookie": f"t={token}; HttpOnly; SameSite=Strict; Max-Age=31536000; Path=/"} if token else None
                 page = {"/": "home.html", "/tri": "index.html", "/test": "test.html", "/atelier": "atelier.html"}[u.path]
                 return self.send(200, (HERE / page).read_bytes(), "text/html; charset=utf-8", extra)
             if u.path.startswith("/api/a/"):
