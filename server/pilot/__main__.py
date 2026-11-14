@@ -14,7 +14,7 @@ from .comfy import Comfy
 
 ROOT = Path(__file__).resolve().parents[2]
 PREFIX = "girls-ai-"
-MODELE = "2026-11-14f"  # version du format des plans : la meme que dans server/jobs/modele.yaml
+MODELE = "2026-11-14g"  # version du format des plans : la meme que dans server/jobs/modele.yaml
 INTERP = "minterpolate=fps=32:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1"
 
 
@@ -146,6 +146,9 @@ def cmd_run(a):
         stills, fins = {}, {}
         keep_ref = ("Keep exactly the same person, same face, same hair, same body, same tattoos, same clothes, same room, same furniture, "
                     "same light and same photo style. New photo of her in the same place, a moment later: ")
+        # "tenue_libre" : la tenue n'est pas gardee, elle est celle que decrit le plan (elle se defait d'un plan a l'autre)
+        keep_ref_libre = keep_ref.replace("same clothes, ", "").replace("New photo", "Her clothing is what the description below says "
+                                                                         "and may differ from the image. New photo")
 
         def over():
             if (time.time() - t0) / 60 > max_min:
@@ -166,7 +169,7 @@ def cmd_run(a):
                     stills[name] = (src if src.is_absolute() else data / src).read_bytes()
                     if s.get("edit"):  # nouvelle image tiree de celle-ci par retouche : meme personne, meme lieu, meme tenue
                         up = c.upload(f"ga_{name}_ref.png", stills[name])
-                        files = c.run(workflows.edit_image(models, up, keep_ref + s["edit"], *s["still_size"], seed, f"ga_{name}"))
+                        files = c.run(workflows.edit_image(models, up, (keep_ref_libre if s.get("tenue_libre") else keep_ref) + s["edit"], *s["still_size"], seed, f"ga_{name}"))
                         stills[name] = c.fetch(files[0])
                         entry["still_s"] = round(time.time() - t)
                         log(f"{name} : image par retouche ({entry['still_s']} s)")

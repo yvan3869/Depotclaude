@@ -16,8 +16,11 @@
 #   2026-11-14f  quatre temps : "atelier.temps" va de 1 a 4. Le 3 est maintenant le devoile (nudite, sans acte) et le
 #                final prive passe en 4. Un plan depose avec un modele plus ancien et temps: 3 est lu comme temps: 4.
 #                "loras" absent d'un plan depose : l'atelier pose les LoRA par defaut du temps ; "loras: []" : aucune.
+#   2026-11-14g  champ de plan tenue_libre (pilote, avec "edit") : la retouche ne garde pas la tenue de l'image de depart.
+#                Atelier, temps 2 a 4 : la tenue de la fiche de continuite n'est plus ajoutee aux "still" (chaque plan dit
+#                ce qu'elle porte) et "nsfw" est ajoute a la fin de chaque "still".
 
-modele: "2026-11-14f"
+modele: "2026-11-14g"
 name: monlot                 # prefixe des fichiers produits (lettres, chiffres, _), unique par lancement
 
 # --- Facultatif : plans deposes dans l'atelier (docs/agents.md, "Deposer des plans") --------------
@@ -121,6 +124,7 @@ shots:
   - name: img02
     image: "inbox/monlot_img01.png"
     edit: "medium shot, she leans on the sink and looks at the camera over her shoulder, amused"
+    # tenue_libre: true   # la tenue n'est pas gardee : elle est celle que decrit "edit" (elle se defait d'un plan a l'autre)
 
   # 7. Clip continu : il part de la derniere image du clip d'un plan place avant lui dans le meme fichier.
   #    Les deux clips se montent bout a bout sans coupe visible. La derive s'accumule : deux de suite au plus.

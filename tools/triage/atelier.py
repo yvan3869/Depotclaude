@@ -717,7 +717,9 @@ class Atelier:
             if sc["loras"]:
                 raise ValueError("scène à LoRA supplémentaires : elle reste à votre main")
             prompt = (f"PERSONNAGE\n{self._fiche(perso)}\n\n{moment}SCÉNARIO\n{self._texte_projet(proj, sc['temps'])}\n\nCOMMANDE\nRéécris uniquement la scène \"{sc['id']}\" "
-                      f"selon la consigne : {consigne or 'plus forte, plus sensuelle, toujours suggestive'}\n\nFORMAT\n"
+                      f"selon la consigne : {consigne or 'plus forte, plus sensuelle, toujours suggestive'}\n"
+                      + ("Dans ce temps la tenue de la fiche de continuité n'est pas ajoutée au \"still\" : il dit lui-même ce qu'elle porte à cet instant.\n" if sc["temps"] == 2 else "")
+                      + "\nFORMAT\n"
                       '{"titre": "...", "role": "...", "raccord": "coupe|continu", "still": "...", "motion": "...", "end_edit": "", "texte": "...", "voix": "", "cran": 1, "tattoos": true}')
         elif kind == "temps2":
             if not [s for s in proj["scenes"] if s["temps"] == 1]:
@@ -725,8 +727,10 @@ class Atelier:
             prompt = (f"PERSONNAGE\n{self._fiche(perso)}\n\n{moment}TEASER PUBLIC (temps 1, déjà écrit)\n{self._texte_projet(proj)}\n\nCOMMANDE\n"
                       f"Écris le temps 2 : la suite du teaser, en {proj['nb2']} scènes, offerte ou réservée aux abonnés. Ce n'est plus une publicité, c'est ce que "
                       "le teaser promettait : elle reprend à l'instant où le teaser a coupé et va un cran plus loin à chaque scène (plus près, plus lente, plus "
-                      "intime, regard plus appuyé, tenue plus défaite). Même lieu et même tenue que le teaser : la fiche de continuité du projet est "
-                      "ajoutée automatiquement à chaque \"still\", ne la répète pas et ne la renvoie pas. Registre : suggestif poussé, jamais explicite. La tenue peut se défaire jusqu'à la lingerie, la nudité peut être suggérée "
+                      "intime, regard plus appuyé, tenue plus défaite). Même lieu que le teaser : la fiche de continuité du projet est "
+                      "ajoutée automatiquement à chaque \"still\", ne la répète pas et ne la renvoie pas. Exception : dans ce temps la tenue de la fiche "
+                      "n'est pas ajoutée, parce qu'elle se défait d'une scène à l'autre. Chaque \"still\" dit donc en quelques mots ce qu'elle porte à cet "
+                      "instant (\"wearing ...\"), en partant de la tenue du teaser. Registre : suggestif poussé, jamais explicite. La tenue peut se défaire jusqu'à la lingerie, la nudité peut être suggérée "
                       "(dos nu, épaule, drap, serviette, cadrage coupé, contre-jour) mais rien d'intime n'est visible et il n'y a aucun acte. Pas d'appel à l'action ; "
                       f"la dernière scène laisse seulement entendre qu'une suite plus dévoilée existe, sans la décrire.\n{'Consigne : ' + (consigne or proj.get('brief2')) if (consigne or proj.get('brief2')) else ''}\n\nFORMAT\n"
                       '{"scenes": [{"titre": "...", "role": "accroche|montee|chute", "raccord": "coupe|continu", "still": "...", "motion": "...", "end_edit": "", "texte": "...", "voix": "", "cran": 1, "tattoos": true}]}')
@@ -859,7 +863,9 @@ class Atelier:
                 images.append({"scene": s["id"], "jpeg": base64.b64encode((Path(tmp) / "i.jpg").read_bytes()).decode()})
         c = p["continuite"]
         demande = ((f"ACCROCHE (texte à l'écran de la première seconde)\n{p['accroche']}\n\n" if t == 1 and p.get("accroche") else "")
-                   + "FICHE DE CONTINUITÉ (anglais)\n" + "\n".join(f"- {k} : {c[k] or 'non précisé'}" for k in CONT) + "\n\nSCÈNES RELUES\n"
+                   + "FICHE DE CONTINUITÉ (anglais)\n" + "\n".join(f"- {k} : {c[k] or 'non précisé'}" for k in CONT)
+                   + ("\nDans ce temps la tenue n'est pas figée : elle part de celle de la fiche et se défait d'une scène à l'autre. Ne signale un "
+                      "écart de tenue que s'il contredit la description de la scène." if t >= 2 else "") + "\n\nSCÈNES RELUES\n"
                    + "\n".join(f"- {s['id']} (scène {i}{', scène libre : hors fiche de continuité' if s['libre'] else ''}"
                                f"{', suite sans coupe de la scène précédente : image tirée de la fin de son clip' if i > 1 and s['raccord'] == 'continu' else ''})\n"
                                f"  image : {s['still'] or 'non décrite'}\n  geste du clip : {s['motion'] or 'aucun (image fixe)'}\n  texte à l'écran : {s['texte'] or 'aucun'}"
@@ -1142,9 +1148,14 @@ class Atelier:
 
     # --- Production (pilote) ----------------------------------------------------------------------
     def _still(self, p, s):
-        """Description envoyee au modele d'image : celle de la scene, suivie de la fiche de continuite du projet."""
-        c = [v.strip(" .,") for v in (p.get("continuite") or {}).values() if v]
-        return s["still"] if s["libre"] or not c else s["still"].rstrip(" .,") + ", " + ", ".join(c)
+        """Description envoyee au modele d'image : celle de la scene, suivie de la fiche de continuite du projet.
+        A partir du temps 2, la tenue de la fiche n'est pas ajoutee (elle se defait d'une scene a l'autre : chaque scene
+        dit ce qu'elle porte) et "nsfw" est toujours ajoute."""
+        t2 = s["temps"] >= 2
+        c = [] if s["libre"] else [v.strip(" .,") for k, v in (p.get("continuite") or {}).items() if v and not (t2 and k == "tenue")]
+        if t2 and not re.search(r"\bnsfw\b", s["still"], re.I):
+            c.append("nsfw")
+        return s["still"].rstrip(" .,") + ", " + ", ".join(c) if c else s["still"]
 
     def _a_imager(self, p, ch, temps, refaire=False):
         """Scenes d'un ou plusieurs temps dont l'image est a calculer (une scene continue n'a pas d'image a elle)."""
@@ -1216,7 +1227,8 @@ class Atelier:
                         s["seed"] = random.randint(1, 999999)
                     s["image"], s["clip"] = "", ""  # la prise retenue sera la nouvelle
                     if base and s["id"] != ref and not s["libre"] and not s["loras"] and not GROS_PLAN.search(s["still"]):
-                        shots.append({"name": s["id"], "image": str(media / base), "edit": self._still(p, s), "seed": s["seed"]})
+                        shots.append({"name": s["id"], "image": str(media / base), "edit": self._still(p, s), "seed": s["seed"]}
+                                     | ({"tenue_libre": True} if s["temps"] >= 2 else {}))
                     else:
                         shots.append({"name": s["id"], "still": self._still(p, s), "seed": s["seed"], "tattoos": s["tattoos"],
                                       "body": bool((perso.get("generation") or {}).get("corps"))}

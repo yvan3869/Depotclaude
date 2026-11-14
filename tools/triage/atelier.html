@@ -191,7 +191,7 @@ function rendreProjet() {
         <div class="aide">Posées sur chaque scène ajoutée à ce temps, et sur les plans importés qui ne disent rien des LoRA. Chaque scène reste modifiable.</div>
         ${DEF && SC.length ? `<div class="row"><button class="s" data-a="poserdefauts">${ic('lora')}Poser ces LoRA sur les scènes de ce temps</button></div>` : ''}` : ''}</div>
     ${T === 2 ? `<div class="panel">
-      ${f('brief2', 'Consigne pour la montée (facultatif)', P.brief2, {area: 1, rows: 2, aide: 'En français. Ce que ce temps doit montrer de plus que l\'accroche : même lieu, même tenue, un cran plus loin.'})}
+      ${f('brief2', 'Consigne pour la montée (facultatif)', P.brief2, {area: 1, rows: 2, aide: 'En français. Ce que ce temps doit montrer de plus que l\'accroche : même lieu, un cran plus loin ; la tenue peut se défaire.'})}
       <div class="row"><label class="g">Scènes<select data-k="nb2">${[2, 3, 4, 5, 6].map(n => `<option ${n === P.nb2 ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
         <button class="p" data-a="ecrire2" ${vide || !E.redacteur ? 'disabled' : ''}>${ic('ecrire')}${SC.length ? 'Réécrire la montée' : 'Écrire la montée'}</button></div>
       ${vide ? '<div class="mut" style="margin-top:6px">Écrire d\'abord le teaser (temps 1).</div>' : E.redacteur ? '' : '<div class="mut" style="margin-top:6px">Rédacteur IA arrêté : ajouter les scènes à la main.</div>'}</div>` : ''}
@@ -226,7 +226,8 @@ function rendreProjet() {
 
     ${sec('continuite', 'Continuité', 'ce qui ne change pas d\'une image à l\'autre, pour tous les temps', Object.values(P.continuite).some(Boolean) || !!P.reference)}
     <div class="panel"><div class="mut">En anglais. Ces éléments sont ajoutés à la description de chaque image : les écrire ici une seule fois, et ne garder dans chaque scène que le cadrage, la pose et l'expression. Laisser vide ce qui change en cours de vidéo.</div>
-      ${CONT.map(([k, lab, ph, aide]) => f(k, lab, P.continuite[k], {at: 'data-c="1"', ph, aide})).join('')}
+      ${CONT.map(([k, lab, ph, aide]) => f(k, lab, P.continuite[k], {at: 'data-c="1"', ph, aide: k === 'tenue' ? 'Temps 1 seulement. Dans les temps 2 à 4 elle n\'est pas ajoutée : elle se défait d\'une scène à l\'autre, chaque scène dit ce qu\'elle porte.' : aide})).join('')}
+      ${T > 1 ? '<div class="aide">Temps 2 à 4 : la tenue ci-dessus n\'est pas ajoutée aux images, et « nsfw » est ajouté d\'office à la fin de chaque description.</div>' : ''}
       <label>Image de référence<select data-k="reference"><option value="">Aucune : chaque image est créée à partir de sa description</option>
         ${P.scenes.filter((s, i) => s.temps === 1 && s.still && !(s.raccord === 'continu' && P.scenes.slice(0, i).some(x => x.temps === 1))).map(s => `<option value="${s.id}" ${s.id === P.reference ? 'selected' : ''}>Scène ${P.scenes.filter(x => x.temps === 1).indexOf(s) + 1} du temps 1 : ${esc(s.titre)}</option>`).join('')}</select>
         ${aide('Avec une image de référence, les autres images en sont tirées par retouche : même personne, même pièce, même tenue, seule la pose change ; elle garde aussi le cadrage de la référence, donc une scène dont la description contient « close-up » est tirée à part, avec la fiche de continuité. À choisir une fois l\'image de cette scène réussie. Les scènes « libres » et celles qui portent des LoRA gardent leur propre image.')}</label>
@@ -241,7 +242,8 @@ function rendreProjet() {
       <details class="pli" data-sec="sc:${P.id}:${s.id}"${ouv(`sc:${P.id}:${s.id}`)}><summary>Description : image, mouvement, texte, place dans la vidéo</summary>
       <div class="gt">Ce qu'on voit</div>
       ${s.raccord === 'continu' && i ? '' : f('still', 'Image de départ (anglais)', s.still, {area: 1, rows: 3, at: `data-s="${s.id}"`,
-        aide: 'Cadrage, pose, expression. Le lieu, la tenue, la coiffure et la lumière viennent de la fiche de continuité : ne pas les répéter ici.'})}
+        aide: T > 1 ? 'Cadrage, pose, expression, et ce qu\'elle porte à cet instant. Le lieu, la coiffure et la lumière viennent de la fiche de continuité ; « nsfw » est ajouté d\'office.'
+          : 'Cadrage, pose, expression. Le lieu, la tenue, la coiffure et la lumière viennent de la fiche de continuité : ne pas les répéter ici.'})}
       ${f('motion', 'Mouvement du clip (anglais)', s.motion, {area: 1, at: `data-s="${s.id}"`,
         aide: 'Un seul geste lent, sans mouvement de caméra : un clip dure 5 s. Vide : la scène reste une image fixe de 2 s avec un zoom lent, sans coût de clip.'})}
       ${T > 1 ? f('loras', 'LoRA supplémentaires', s.loras, {at: `data-s="${s.id}"`, ph: 'nom:0.6, autre',

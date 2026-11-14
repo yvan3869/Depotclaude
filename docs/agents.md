@@ -109,6 +109,9 @@ Trois outils evitent qu'une video change de piece, de tenue ou de personne d'une
   cadrage, la pose et l'expression** ; ne pas y repeter le lieu ni la tenue. Un champ ne contient que ce
   qui vaut pour toute la video ; ce qui change en route (elle retire une veste) reste dans les `still` et
   le champ correspondant reste vide. Un plan qui se passe ailleurs porte `libre: true`.
+  **Temps 2 a 4 (modele `2026-11-14g`)** : la `tenue` de la fiche n'est pas ajoutee, parce qu'elle se defait
+  d'un plan a l'autre. Chaque `still` de ces temps dit donc ce qu'elle porte a cet instant. L'atelier ajoute
+  aussi "nsfw" a la fin de chaque `still` de ces temps (plans `libre` compris) : ne pas l'ecrire soi-meme.
   Le `pdv` decrit la vue, jamais l'appareil comme un objet : "shot straight on at chest height on a phone",
   pas "phone propped on the counter, filming her" (le telephone serait dessine dans l'image).
 - **Image de reference** (`reference`, au projet) : une fois choisie, les autres images sont fabriquees a
@@ -116,7 +119,8 @@ Trois outils evitent qu'une video change de piece, de tenue ou de personne d'une
   plus large, celui qui montre le mieux le lieu et la tenue. Une retouche garde le cadrage de la reference,
   quoi que dise le `still`. Un plan dont le `still` contient "close-up" est donc tire a part (description et
   fiche de continuite, sans la reference) : ecrire ce mot tel quel pour obtenir un gros plan. Les plans `libre` et ceux qui portent des
-  LoRA supplementaires gardent leur propre tirage.
+  LoRA supplementaires gardent leur propre tirage. Dans les temps 2 a 4, la retouche ne garde pas la tenue de la
+  reference : elle prend celle que decrit le `still` (champ de pilote `tenue_libre`, pose par l'atelier).
 - **Raccord** (`raccord`, par plan, par rapport au plan precedent du meme temps) :
   - `coupe` (defaut) : le plan a sa propre image, le montage coupe. Pour un changement de cadrage ou d'angle.
   - `continu` : le plan n'a pas d'image propre. Son clip demarre sur la derniere image du clip precedent et
@@ -131,7 +135,7 @@ Trois outils evitent qu'une video change de piece, de tenue ou de personne d'une
 L'atelier relit chaque depot et chaque projet avant tout calcul, sans GPU (`tools/triage/controle.py`), et
 affiche ses remarques dans la page (nombre de remarques sur la ligne du depot, detail dans le projet).
 Rien n'est bloque, mais un depot sans remarque est l'objectif. Ce qui est verifie :
-- fiche de continuite remplie (lieu, tenue, point de vue) ; tenue non repetee dans les `still` ; heure du
+- fiche de continuite remplie (lieu, tenue, point de vue) ; tenue non repetee dans les `still` du temps 1, tenue decrite dans chaque `still` des temps 2 a 4 ; heure du
   `still` coherente avec la fiche ;
 - point de vue respecte : si un telephone filme, il n'est pas dans sa main ; le `pdv` ne decrit pas
   l'appareil comme un objet pose quelque part ;
