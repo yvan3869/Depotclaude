@@ -315,3 +315,15 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
   par l'assistant. Depense : 0,09 $ (pod de 7,8 min). Depense du jour : 4,02 $ sur 7,50 $.
 - 14/11, nuit : p0003 lance a la demande du proprietaire (« lance ») : chaine sur les temps 1 a 4, tout refaire,
   arret apres les images pour le choix des prises (17 images ; devis de la chaine entiere : 1,25 $).
+  Images de p0003 : 0,09 $, plus le pod de veille de l'atelier jusqu'a son arret. Le proprietaire a regarde les
+  images : « plein de trucs ne collent pas », pas de video. Chaine laissee en pause, rien d'autre produit.
+  Constat de l'assistant sur les temps 1 et 2 seulement : gestes et accessoires non rendus (meme pose debout
+  d'une image a l'autre), image de reference cheveux laches alors que la fiche dit queue-de-cheval, decor qui
+  change, peau lisse ; cause probable : chaque image part de la reference, qui impose sa pose. En attente de ce
+  qui gene le plus le proprietaire. Depense du jour : 4,22 $ sur 7,50 $.
+- 14/11, nuit : passe d'interface, premiere partie (commit `b079f25`). Accueil, Tri, Test et Plan chargent
+  `ui.css` : meme en-tete que l'atelier et le hub (lien Studio, titre), memes champs et boutons. Accueil : deux
+  groupes (Produire : Atelier, Reseaux, Hub ; Outils : Test, Tri, Plan), icones ; Plan signale comme ancien
+  formulaire. Test : lignes de LoRA en grille (nom, force, declencheur dessous), boutons de verdict en contour.
+  Atelier : les deux boutons « Tout refaire » du son s'appellent « Refaire tous les sons » et « Refaire d'apres
+  l'image ». Verifie par captures Chromium en 390 et 1100 px, sans debordement. Disque : 31 Go sur 197.
