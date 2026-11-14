@@ -233,3 +233,9 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
   « tenu a la main » (le meme, plus une derive lente, un fremissement et une rotation de 0,2 degre, continus aux
   raccords sans coupe). Aucun recalcul GPU. Essai sur p0004 (15 s) : montage 47 s en net, 81 s tenu a la main,
   fichier 10 puis 15 Mo ; `final_v3.mp4` de p0004 est en rendu tenu a la main. Aucune depense.
+- 14/11, nuit : transitions et camera au montage (modele de plan 2026-11-14i). Deux champs par scene, fabriques au
+  montage sans GPU : `transition` (coupe, fondu, filage = panoramique file de 0,2 s, zoom = avancee rapide du plan
+  qui sort puis fondu tres court) et `camera` (avance, recul, gauche, droite, par recadrage de 8 %, continue sur les
+  raccords sans coupe). Le redacteur les ecrit, le controle des plans les verifie, les depots des agents les portent
+  (`docs/agents.md`, « Continuite et raccords »). Essai sur p0004 : `final_v4.mp4` (file puis zoom, camera qui
+  avance sur le premier groupe), montage 90 s. Aucune depense. Disque : 30 Go sur 197.
