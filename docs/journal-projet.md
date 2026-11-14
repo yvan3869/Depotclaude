@@ -211,3 +211,7 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
   montage et voix, contestation Instagram, compte TikTok, fin d'inscription Fanvue, publication.
 - 14/11, 11 h 20 : pod de clips `girls-ai-p0002r2` reste orphelin environ 2 min (redemarrage de `triage` trois
   secondes apres un lancement du proprietaire), supprime a la main : ~0,03 $. Calcul a relancer.
+- 14/11, 15 h : essai p0004 (accroche tous publics "cafe du matin", 15 s) pour verifier le montage revu : 3 images
+  deux fois (point de vue mal ecrit la premiere fois : le telephone etait dessine dans le cadre) et 3 clips : 0,35 $.
+  Depense du jour : 2,26 $ sur 7,50 $. Constats : continuite tenue, raccord sans coupe propre, duree visee respectee ;
+  a corriger : l'accroche chevauche le texte de la scene suivante sur un raccord continu, mention IA trop pale.
