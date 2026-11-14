@@ -304,3 +304,14 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
   le son du clip remplace le bruit du geste, l'ambiance reste en fond. Essai sur p0004 : 3 clips, pod de 3,7 min,
   0,04 $ ; `final_v8.mp4` (s1, s2, s4 par l'image ; s3, image fixe, garde son bruit). Non juge a l'oreille par
   l'assistant. Depense du jour : 3,92 $ sur 7,50 $.
+- 14/11, nuit : retours du proprietaire sur `final_v8` (sons qui continuent sur une image fixe, sons trop forts
+  par rapport au reste) et sur la voix a (credible, mais on sent l'IA et le timbre change a la fin). Montage
+  (commit `6753fb3`) : le bruit du geste est coupe a la fin de son plan (fondu de 0,25 s, sauf raccord sans coupe)
+  et baisse de 6 dB ; chaque son d'apres l'image est mesure sur la part montee et mis a un niveau moyen de
+  -30 dB, crete retenue a -8 dB ; rendu « tenu a la main » par defaut pour un nouveau projet (les projets
+  existants ne changent pas). p0004 remonte : `final_v9.mp4`. Voix : essai de clonage de la voix a (Qwen3-TTS
+  Base, ajoute sur le volume dans `girls-ai-voix`), quatre phrases dont une de 9 s : voix c (clonage complet) et
+  voix d (timbre seul), `projets/p0004/voix_c.mp4` et `voix_d.mp4`, sur la page d'ecoute. Non juge a l'oreille
+  par l'assistant. Depense : 0,09 $ (pod de 7,8 min). Depense du jour : 4,02 $ sur 7,50 $.
+- 14/11, nuit : p0003 lance a la demande du proprietaire (« lance ») : chaine sur les temps 1 a 4, tout refaire,
+  arret apres les images pour le choix des prises (17 images ; devis de la chaine entiere : 1,25 $).
