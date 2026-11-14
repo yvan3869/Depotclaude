@@ -45,6 +45,8 @@ def controle(p, temps):
               "Chaque image décrit alors son décor et sa tenue de son côté : ils changent d'une scène à l'autre.")
     if not c.get("pdv"):
         r("Point de vue non déclaré dans la fiche de continuité (téléphone posé, miroir, quelqu'un qui filme).")
+    if temps == 1 and len(p.get("accroche") or "") > 44:
+        r(f"Accroche de {len(p['accroche'])} caractères : au-delà de 44 elle ne tient plus en deux lignes lisibles en haut de l'image.")
     clips = [s for s in sc if s.get("motion")]
     duree = sum(s.get("duree") or CLIP for s in clips) + 3 * (len(sc) - len(clips))
     if temps in CIBLE and duree > CIBLE[temps]:

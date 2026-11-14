@@ -147,7 +147,8 @@ en JPEG, voyagent dans la demande elle-meme ; le service les joint au message, t
 
 Montage (14/11/2026) : `monter()` dans `atelier.py`. Duree visee (15, 20 ou 30 s) : les plans sont raccourcis en
 proportion, 2 s au moins chacun, jamais du cote d'un raccord colle ni sur une duree reglee a la main. Sur la premiere
-scene l'accroche s'affiche d'abord, le texte de la scene ensuite (jamais deux textes a la fois). Fin en fondu au noir.
+scene l'accroche s'affiche d'abord, le texte de la scene ensuite (jamais deux textes a la fois). L'accroche est calee
+en haut de l'image, au-dessus de la tete : deux lignes au plus, la police retrecit pour y tenir (44 caracteres conseilles). Fin en fondu au noir.
 La mention "AI character" est toujours incrustee sur le temps 1 (facultative sur les temps 2 et 3). Chaque montage
 laisse sa fiche dans `data/projets/<id>/finals.json` (duree, debut de chaque plan, raccords colles, prises montees).
 "Valider pour publication" est refuse s'il n'y a pas de video ou si la derniere ne porte pas la mention ; la page

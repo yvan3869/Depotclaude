@@ -1401,16 +1401,23 @@ def _duree(path):
         raise RuntimeError(f"durée illisible : {Path(path).name}")
 
 
-def _texte(tmp, cle, texte, taille, centre, w, h, boite=True, quand=""):
+def _texte(tmp, cle, texte, taille, centre, w, h, boite=True, quand="", haut=False):
     """Filtres drawtext d'un texte centre sur la hauteur `centre` (fraction de h), une ligne par filtre.
-    `quand` : condition ffmpeg d'affichage (sur t, en secondes depuis le debut du segment), vide pour toujours."""
+    `quand` : condition ffmpeg d'affichage (sur t, en secondes depuis le debut du segment), vide pour toujours.
+    `haut` : texte du haut de l'image (accroche). `centre` est alors le bas du bloc, qui ne descend jamais plus bas
+    (le visage est dessous) ; la police retrecit jusqu'a tenir en deux lignes, et le bloc reste sous la mention IA."""
     texte = "".join(c for c in str(texte or "") if ord(c) < 0x2190).strip()  # la police n'a pas les emojis
     if not texte:
         return []
-    fs = round(h * taille)
-    lignes = textwrap.wrap(texte, max(8, int(w * 0.86 / (fs * 0.6)))) or [texte]
+    for k in (1, 0.9, 0.8, 0.7) if haut else (1,):
+        fs = round(h * taille * k)
+        lignes = textwrap.wrap(texte, max(8, int(w * 0.86 / (fs * 0.6)))) or [texte]
+        if len(lignes) <= 2:
+            break
     pas = round(fs * 1.45)
     y0 = round(h * centre - pas * len(lignes) / 2)
+    if haut:
+        y0 = max(round(h * 0.075), round(h * centre) - pas * len(lignes))
     out = []
     for i, li in enumerate(lignes):
         f = tmp / f"{cle}_{i}.txt"
@@ -1476,7 +1483,7 @@ def monter(p, media, tmp, out, audio_dir, plateforme=""):
             if i == 0 and p.get("accroche") and p["accroche"] != s["texte"]:
                 # un seul texte a la fois : l'accroche d'abord, le texte de la scene ensuite
                 bascule = min(2.5, dur / 2) if s["texte"] else 0
-                txt += _texte(tmp, f"acc{i}", p["accroche"], 0.04, 0.2, w, h, quand=f"lt(t,{bascule:.2f})" if bascule else "")
+                txt += _texte(tmp, f"acc{i}", p["accroche"], 0.04, 0.19, w, h, quand=f"lt(t,{bascule:.2f})" if bascule else "", haut=True)
                 txt += _texte(tmp, f"txt{i}", s["texte"], 0.034, 0.72, w, h, quand=f"gte(t,{bascule:.2f})")
             else:
                 txt += _texte(tmp, f"txt{i}", s["texte"], 0.034, 0.72, w, h)
