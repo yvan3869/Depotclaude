@@ -284,3 +284,10 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
   charge desormais une LoRA dont la licence n'admet pas l'usage commercial ; la mention reste affichee sur la
   fiche et a cote de la case de chargement. Le risque (retrait, reclamation) est celui du proprietaire pour toute
   video publiee ; les essais prives restent sans enjeu.
+- 14/11, nuit : essai de MMAudio (son fabrique d'apres la video, licence non commerciale) sur trois clips de
+  p0004, hors ComfyUI, dans `girls-ai-mmaudio` sur le volume (23 Go ; volume agrandi a 300 Go par le
+  proprietaire). Cinq pods : trois echecs d'installation ou de depot (torchaudio absent, enregistrement par
+  torchcodec incompatible avec la carte, depot refuse au demarrage du pod), puis quatre sons de 5 s obtenus
+  (`data/work/mmaudio/`, copies `projets/p0004/mmaudio_*.mp4` : s2 avec et sans phrase, s1 et s4 sans phrase).
+  Environ 2,5 min par clip, modele recharge a chaque fois. Non juge a l'oreille par l'assistant ; pas encore
+  branche dans l'atelier. Depense : 0,51 $ en tout. Depense du jour : 3,75 $ sur 7,50 $.
