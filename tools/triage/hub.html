@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hub - modèles et LoRA</title>
+<link rel="stylesheet" href="/ui.css">
+<style>
+  .grille { display:grid; grid-template-columns:repeat(auto-fill, minmax(165px, 1fr)); gap:10px; margin-top:10px; }
+  .fiche { background:var(--panel); border:1px solid var(--line); border-radius:var(--r); overflow:hidden; display:flex; flex-direction:column; }
+  .fiche .vg { aspect-ratio:3/4; background:var(--fond) center/cover no-repeat; display:flex; align-items:center; justify-content:center; color:var(--mut); font-size:12px; }
+  .fiche .tx { padding:8px; display:flex; flex-direction:column; gap:4px; flex:1; }
+  .fiche b { font-size:14px; line-height:1.25; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .fiche .row { margin-top:auto; padding-top:6px; }
+  .ret { display:flex; gap:10px; }
+  .ret .vg { width:84px; height:112px; flex:none; border-radius:5px; background:var(--fond) center/cover no-repeat; }
+  .ret .g { flex:1; min-width:0; }
+  .filtres { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .veille h3 { font-size:15px; margin:16px 0 4px; } .veille h4 { font-size:14px; margin:12px 0 2px; color:var(--acc); }
+  .veille p, .veille li { font-size:14px; } .veille ul { padding-left:18px; margin:4px 0; }
+  .temps { display:flex; gap:4px; flex-wrap:wrap; } .temps .badge.off { opacity:.35; }
+</style></head><body>
+<header><div class="l1"><a href="/">Studio</a><b>Hub</b><span class="sp"></span><small id="etat"></small></div>
+  <div class="chips" id="onglets"></div></header>
+<main id="vue"></main>
+<script src="/ui.js"></script>
+<script>
+let E = null, R = {resultats: [], suite: '', mots: ''}, F = {source: 'civitai', famille: 'zimage', cat: 'realisme', q: ''}, coche = new Set();
+const vue = $('#vue'), ONG = [['catalogue', 'Catalogue'], ['retenues', 'Retenues'], ['liste', 'Notre liste'], ['veille', 'Veille des modèles']];
+try { F = {...F, ...JSON.parse(localStorage.getItem('hub:filtres') || '{}'), q: ''}; } catch (e) {}
+const onglet = () => (location.hash.slice(2) || 'catalogue');
+const nb = n => n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1).replace('.', ',') + ' k' : String(n);
+const temps = c => `<span class="temps">${[1, 2, 3, 4].map(t => `<span class="badge ${t >= E.categories[c].temps ? 'v' : 'off'}">${t}</span>`).join('')}</span>`;
+const selCat = (v, attr) => `<select ${attr}>${Object.entries(E.categories).map(([k, c]) => `<option value="${k}"${k === v ? ' selected' : ''}>${esc(c.label)} (dès le temps ${c.temps})</option>`).join('')}</select>`;
+const vg = (u, cls = 'vg') => `<div class="${cls}"${u ? ` style="background-image:url('${esc(u)}')"` : ''}>${u ? '' : 'pas de vignette'}</div>`;
+
+async function charge() { E = await api('/api/h/etat'); entete(); }
+function entete() {
+  $('#onglets').innerHTML = ONG.map(([k, l]) => `<a class="chip${onglet() === k ? ' on' : ''}" href="#/${k}">${l}${k === 'retenues' ? ` <small>${E.retenues.length}</small>` : k === 'liste' ? ` <small>${E.interne.length}</small>` : ''}</a>`).join('');
+  $('#etat').textContent = E.en_cours ? 'chargement en cours' : E.occupe ? 'calcul en cours' : '';
+}
+function rendre() {
+  entete();
+  ({catalogue: vueCatalogue, retenues: vueRetenues, liste: vueListe, veille: vueVeille}[onglet()] || vueCatalogue)();
+}
+
+// --- Catalogue ---------------------------------------------------------------------------------------
+function vueCatalogue() {
+  const c = E.categories[F.cat], fam = E.familles[F.famille];
+  vue.innerHTML = `<div class="panel">
+      <div class="filtres">
+        <label>Modèle de base<select data-f="famille">${Object.entries(E.familles).map(([k, f]) => `<option value="${k}"${k === F.famille ? ' selected' : ''}>${esc(f.label)} (${f.usage})</option>`).join('')}</select></label>
+        <label>Source<select data-f="source"><option value="civitai"${F.source === 'civitai' ? ' selected' : ''}>Civitai</option><option value="hf"${F.source === 'hf' ? ' selected' : ''}>Hugging Face</option></select></label>
+      </div>
+      <label>Catégorie${selCat(F.cat, 'data-f="cat"')}${aide(esc(c.aide) + ' Utilisable aux temps ' + [1, 2, 3, 4].filter(t => t >= c.temps).join(', ') + '.')}</label>
+      <label>Recherche (anglais)<input data-f="q" value="${esc(F.q)}" placeholder="${esc(E.requetes[F.cat] || 'mots libres')}">${aide('Vide : la recherche habituelle de la catégorie. Les résultats sont triés par nombre de téléchargements.')}</label>
+      <div class="row"><button class="p" data-a="chercher">${ic('chercher')}Chercher</button><span class="mut">${fam.usage === 'clips' ? 'LoRA vidéo : appliquées au clip, pas à l\'image.' : 'LoRA d\'image.'}</span></div></div>
+    <div id="res"></div>`;
+  resultats();
+}
+function resultats() {
+  const el = $('#res'); if (!el) return;
+  el.innerHTML = R.resultats.length ? `<div class="mut" style="margin-top:12px">${R.resultats.length} fiche(s) pour « ${esc(R.mots)} ». Retenir une fiche la range dans « Retenues » ; rien n'est téléchargé à ce stade.</div>
+    <div class="grille">${R.resultats.map((x, i) => `<div class="fiche">${vg(x.vignette)}<div class="tx"><b>${esc(x.titre)}</b>
+      <span class="mut">${esc(x.base)} · ${x.mo ? x.mo + ' Mo' : 'taille ?'} · ${nb(x.telechargements)} téléch.</span>
+      <span class="mut ${x.commercial ? '' : 'avt'}">${esc(x.licence)}${x.fichiers.length > 1 ? ' · paire high/low' : ''}</span>
+      <div class="row"><button class="s${x.retenue ? '' : ' p'}" data-a="retenir" data-i="${i}"${x.retenue ? ' disabled' : ''}>${x.retenue ? 'Retenue' : ic('ajouter') + 'Retenir'}</button><a href="${esc(x.page)}" target="_blank" rel="noopener">Fiche</a></div></div></div>`).join('')}</div>
+    ${R.suite ? `<div class="row"><button data-a="suite">Voir la suite</button></div>` : ''}` : R.mots ? '<p class="mut">Aucune fiche pour cette recherche.</p>' : '';
+}
+async function chercher(suite) {
+  $$('[data-f]', vue).forEach(el => F[el.dataset.f] = el.value.trim());
+  try { localStorage.setItem('hub:filtres', JSON.stringify({source: F.source, famille: F.famille, cat: F.cat})); } catch (e) {}
+  busy('Recherche');
+  const r = await api('/api/h/chercher?' + new URLSearchParams({...F, cursor: suite ? R.suite : ''}));
+  busy();
+  R = {resultats: suite ? R.resultats.concat(r.resultats) : r.resultats, suite: r.suite, mots: r.mots};
+  resultats();
+}
+async function retenir(el) {
+  const x = R.resultats[+el.dataset.i];
+  E = await api('/api/h/retenir', {source: x.source, ref: x.ref, famille: x.famille, cat: F.cat});
+  x.retenue = true; entete(); resultats(); toast('Retenue dans la catégorie « ' + E.categories[F.cat].label + ' »', true);
+}
+
+// --- Retenues ----------------------------------------------------------------------------------------
+function vueRetenues() {
+  const att = E.retenues.filter(x => !x.chargee), ok = E.retenues.filter(x => x.chargee);
+  [...coche].forEach(c => att.some(x => x.cle === c) || coche.delete(c));
+  const mo = att.filter(x => coche.has(x.cle)).reduce((s, x) => s + x.mo, 0);
+  const bloque = E.en_cours ? 'Un chargement est en cours.' : E.occupe ? 'Un calcul est en cours : attendre sa fin.' : !E.can_run ? 'Clé RunPod absente.' : !coche.size ? 'Cocher les LoRA à charger.' : '';
+  const carte = x => `<div class="panel"><div class="ret">${vg(x.vignette)}<div class="g">
+      <b>${esc(x.label)}</b> ${x.chargee ? `<span class="badge ${x.volume === false ? 'a' : 'v'}">${x.volume === false ? 'absente du volume' : 'chargée'}</span>` : '<span class="badge">à charger</span>'}
+      <div class="mut">${esc(E.familles[x.famille].label)} · ${x.mo ? x.mo + ' Mo' : 'taille ?'} · <span class="${x.commercial ? '' : 'avt'}">${esc(x.licence)}</span></div>
+      <div class="mut">Nom à écrire dans une scène : <b style="color:var(--txt)">${esc(x.chargee ? x.catalogue : x.name)}</b> · force ${String(x.strength).replace('.', ',')}</div>
+      <div class="row tete" style="margin-top:6px">${temps(x.cat)}<a href="${esc(x.page)}" target="_blank" rel="noopener">Fiche</a></div></div></div>
+    <details class="pli"><summary>Régler</summary>
+      <label>Catégorie${selCat(x.cat, `data-r="cat"`)}${aide('Décide des temps où elle peut servir.')}</label>
+      <div class="row haut"><label class="g">Intitulé<input data-r="label" value="${esc(x.label)}"></label>
+        <label class="g">Force conseillée<input data-r="strength" type="number" step="0.05" value="${x.strength}"></label></div>
+      ${x.chargee ? '' : `<label>Nom court<input data-r="name" value="${esc(x.name)}">${aide('Minuscules, chiffres, tirets bas. Fixé une fois la LoRA chargée.')}</label>`}
+      <label>Mots déclencheurs (anglais)<input data-r="trigger" value="${esc(x.trigger)}">${aide('Ajoutés d\'office à la description quand la LoRA sert.')}</label>
+      <div class="row"><button class="s p" data-a="regler" data-c="${esc(x.cle)}">${ic('valider')}Enregistrer</button><span class="sp"></span>
+        <button class="s d" data-a="retirer" data-c="${esc(x.cle)}">${ic('supprimer')}Retirer</button></div></details>
+    ${x.chargee ? '' : `<label class="c" style="margin-top:8px"><input type="checkbox" data-k="${esc(x.cle)}"${coche.has(x.cle) ? ' checked' : ''}${x.commercial ? '' : ' disabled'}>${x.commercial ? 'À charger dans le prochain lot' : 'Ne se charge pas : usage commercial non admis'}</label>`}</div>`;
+  vue.innerHTML = `<details class="sec" data-sec="hub-att"${ouv('hub-att', true)}><summary><span class="n">1</span>À charger<small>${att.length} LoRA</small></summary>
+      ${att.map(carte).join('') || '<p class="mut">Rien à charger. Retenir des fiches dans le catalogue.</p>'}
+      ${att.length ? `<div class="panel"><div class="acts"><div class="act"><button class="p" data-a="charger"${bloque ? ' disabled' : ''}>${ic('telecharger')}Charger sur le volume</button>
+        <span class="mut">${bloque || `${coche.size} LoRA, ${mo} Mo. Un pod pour le lot, supprimé à la fin : environ 0,05 à 0,15 $.`} ${E.max_lot} par lot au plus.</span></div></div>
+        ${E.cle_civitai ? '' : '<div class="aide avt">Clé Civitai absente du service : seules les LoRA de Hugging Face se chargent.</div>'}</div>` : ''}
+      ${E.journal.length ? `<details class="pli"${E.en_cours ? ' open' : ''}><summary>Dernier chargement</summary><pre>${esc(E.journal.join('\n'))}</pre></details>` : ''}</details>
+    <details class="sec" data-sec="hub-ok"${ouv('hub-ok', true)}><summary><span class="n">2</span>Chargées<small>${ok.length} LoRA</small></summary>
+      <div class="mut">Disponibles dans l'atelier, aux temps que leur catégorie admet.</div>
+      ${ok.map(carte).join('') || '<p class="mut">Aucune pour l\'instant.</p>'}</details>`;
+}
+async function regler(el) {
+  const p = el.closest('.panel');
+  E = await api('/api/h/regler', {cle: el.dataset.c, ...Object.fromEntries($$('[data-r]', p).map(i => [i.dataset.r, i.value.trim()]))});
+  toast('Réglages enregistrés', true); rendre();
+}
+async function retirer(el) {
+  if (!confirm('Retirer cette LoRA des retenues ? Si elle est chargée, elle reste dans notre liste.')) return;
+  E = await api('/api/h/retirer', {cle: el.dataset.c}); rendre();
+}
+async function charger() {
+  if (!confirm(`Charger ${coche.size} LoRA sur le volume ? Un pod est loué le temps du dépôt (environ 0,05 à 0,15 $), puis supprimé.`)) return;
+  await api('/api/h/charger', {cles: [...coche]}); coche.clear(); toast('Chargement lancé', true); await charge(); rendre(); suivre();
+}
+let minuteur = null;
+function suivre() {
+  clearTimeout(minuteur);
+  minuteur = setTimeout(essai(async () => { const avant = E.en_cours; await charge(); if (onglet() === 'retenues' && !$('details.pli[open] input:focus')) rendre(); if (E.en_cours || avant) suivre(); }), 8000);
+}
+
+// --- Notre liste -------------------------------------------------------------------------------------
+function vueListe() {
+  const par = {};
+  E.interne.forEach(x => (par[x.cat] = par[x.cat] || []).push(x));
+  vue.innerHTML = `<div class="panel"><div class="mut">Les LoRA inscrites au catalogue interne, rangées par catégorie. Une scène d'un temps ne peut nommer que celles que sa catégorie admet.
+      Les défauts de chaque temps et l'inscription à la main se règlent dans <a href="/atelier#/loras">la bibliothèque de l'atelier</a>.</div>
+      <div style="margin-top:8px;font-size:14px">${E.inventaire ? `Inventaire du volume : <b>${esc(E.inventaire)}</b>` : '<span class="avt">Volume pas encore inventorié</span>'}</div></div>
+    ${Object.keys(E.categories).filter(k => par[k]).map(k => `<h2>${esc(E.categories[k].label)} <small>${par[k].length}</small> ${temps(k)}</h2>
+      ${par[k].map(x => `<div class="panel"><div class="ret">${x.vignette ? vg(x.vignette) : ''}<div class="g"><b>${esc(x.label)}</b>
+        <span class="badge ${x.volume === null ? 'i' : x.volume ? 'v' : 'a'}">${x.volume === null ? 'présence inconnue' : x.volume ? 'sur le volume' : 'absente du volume'}</span>
+        <div class="mut">${esc(E.familles[x.famille].label)} · nom : <b style="color:var(--txt)">${esc(x.name)}</b> · force ${String(x.strength).replace('.', ',')}</div>
+        <label>Catégorie${selCat(x.cat, `data-ic="${esc(x.name)}"`)}</label></div></div></div>`).join('')}`).join('') || '<p class="mut">Aucune LoRA inscrite.</p>'}
+    <h2>LoRA par défaut de chaque temps</h2>
+    <div class="panel">${[1, 2, 3, 4].map(t => `<div class="mut">Temps ${t} : <b style="color:var(--txt)">${esc((E.defauts || {})[t] || 'aucune')}</b></div>`).join('')}
+      <div class="aide">Posées sur chaque scène ajoutée à ce temps. Une scène qui porte une LoRA d'image est tirée directement, sans retouche depuis l'image de référence du projet.</div></div>`;
+}
+async function classer(el) {
+  const x = E.interne.find(l => l.name === el.dataset.ic);
+  await api('/api/a/lora', {name: x.name, label: x.label, file: x.file, strength: x.strength, trigger: x.trigger, note: x.note, cat: el.value, famille: x.famille});
+  toast('Catégorie enregistrée', true); await charge(); rendre();
+}
+
+// --- Veille ------------------------------------------------------------------------------------------
+function md(t) {
+  const lien = s => esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/`(.+?)`/g, '<code>$1</code>')
+    .replace(/\[(.+?)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  let out = '', liste = false;
+  for (const l of t.split('\n')) {
+    const li = /^\s*[-*] (.*)/.exec(l), h = /^(#{1,4}) (.*)/.exec(l);
+    if (liste && !li) { out += '</ul>'; liste = false; }
+    if (li) { out += (liste ? '' : '<ul>') + `<li>${lien(li[1])}</li>`; liste = true; }
+    else if (h) out += h[1].length === 1 ? '' : `<h${h[1].length + 1}>${lien(h[2])}</h${h[1].length + 1}>`;
+    else if (l.trim()) out += `<p>${lien(l)}</p>`;
+  }
+  return out + (liste ? '</ul>' : '');
+}
+function vueVeille() {
+  vue.innerHTML = E.veille ? `<div class="panel veille">${md(E.veille)}</div>` : '<p class="mut">La veille n\'est pas encore rédigée (docs/veille-modeles.md).</p>';
+}
+
+document.addEventListener('click', essai(async e => {
+  const el = e.target.closest('[data-a]'); if (!el) return;
+  await ({chercher: () => chercher(false), suite: () => chercher(true), retenir, regler, retirer, charger})[el.dataset.a](el);
+}));
+document.addEventListener('change', essai(async e => {
+  const el = e.target;
+  if (el.dataset.k) { el.checked && coche.size >= E.max_lot ? (el.checked = false, toast(E.max_lot + ' LoRA par lot au plus')) : el.checked ? coche.add(el.dataset.k) : coche.delete(el.dataset.k); vueRetenues(); }
+  else if (el.dataset.ic) await classer(el);
+  else if (el.dataset.f && el.dataset.f !== 'q') { F[el.dataset.f] = el.value; F.q = ''; R = {resultats: [], suite: '', mots: ''}; vueCatalogue(); }
+}));
+document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.dataset && e.target.dataset.f === 'q') essai(chercher)(false); });
+window.addEventListener('hashchange', rendre);
+essai(async () => { await charge(); rendre(); if (E.en_cours) suivre(); })();
+</script></body></html>

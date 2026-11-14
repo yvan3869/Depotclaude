@@ -40,6 +40,10 @@ page de reference. Un nouvel espace part de ce squelette :
 `essai(f)` (affiche l'erreur), `busy(msg)` (voile d'attente), `toast(msg, ok)`, `demander(titre, propositions)`
 (dialogue avec consigne libre), `copier(txt)`. Le voile, le message et le dialogue sont poses dans la page par `ui.js`.
 
+## Espaces
+
+`/atelier` (reference), `/hub` (modeles et LoRA : `hub.html`, `hub.py`, API `/api/h/*`).
+
 ## Reste a faire
 
 `home.html`, `index.html` (Tri) et `test.html` ont encore leurs styles propres ; les passer sur `/ui.css`

@@ -22,6 +22,8 @@ Les memes mots servent dans la page Atelier, dans les fichiers et dans les echan
 | Fiche de continuite | Ce qui ne change pas d'une image a l'autre dans un projet : lieu, tenue, coiffure, lumiere, point de vue. Bloc `continuite`. |
 | Image de reference | L'image d'une scene dont les autres images du projet sont tirees par retouche. Champ `reference`. |
 | Bibliotheque de LoRA | Page `/atelier#/loras` : les LoRA du catalogue, leur presence sur le volume, et les LoRA par defaut de chaque temps. |
+| Hub | Page `/hub` : catalogue Civitai et Hugging Face par modele de base et par categorie, LoRA retenues, chargement sur le volume, veille des modeles. |
+| Categorie d'une LoRA | Ce qu'elle apporte (realisme, smartphone, peau, lumiere, pose, mouvement, vitesse, tenue, corps, nu, porno, autre). Elle fixe le premier temps ou la LoRA est admise. |
 | Raccord | Lien d'une scene avec la precedente du meme temps : `coupe`, `continu` ou `arrivee`. |
 | Date du personnage | Date fictive du projet : le jour ou le personnage vit la scene. Champ `date_perso`, `AAAA-MM-JJ`. |
 | Contexte du moment | Une ligne libre du proprietaire sur ce que le personnage vit ces jours-la. Champ `contexte`. |
@@ -68,7 +70,7 @@ Ne pas reprendre un ancien fichier sans relire son `temps`.
 **Role de l'agent** : il peut ecrire une video entiere, c'est-a-dire les quatre temps, ou seulement
 ceux que le proprietaire lui demande. Sans consigne, il ecrit les temps 3 et 4 et laisse les temps 1 et 2
 au redacteur de l'atelier. Le redacteur de l'atelier, lui, n'ecrit, ne relit et n'analyse jamais les temps 3
-et 4, ni une scene qui porte des `loras`. Dans tous les
+et 4, ni une scene qui porte une LoRA reservee (categorie nu, porno ou non classee). Dans tous les
 cas l'agent depose ; le proprietaire importe, lance le calcul depuis la page, choisit les prises et monte.
 
 Le temps 1 porte en plus les textes de publication : `pitch` (resume en francais), `accroche`
@@ -159,7 +161,7 @@ Apres les images et avant les clips, le redacteur IA relit les images retenues d
 "Relire les images", ou d'office a la pause de la chaine) : meme personne, lieu et tenue de la fiche, defauts
 d'anatomie, image conforme au `still`, pose d'ou le `motion` peut partir, place pour le texte. Ses remarques
 s'affichent sous chaque image et valent tant que l'image retenue est celle relue. Les temps 3 et 4 et les plans
-qui portent des `loras` ne sont jamais relus : leur verification reste au proprietaire.
+qui portent une LoRA reservee (nu, porno, non classee) ne sont jamais relus : leur verification reste au proprietaire.
 
 ## LoRA supplementaires et bibliotheque
 Les LoRA supplementaires (hors LoRA du personnage) se gerent dans la page `/atelier#/loras` :
@@ -169,10 +171,18 @@ Les LoRA supplementaires (hors LoRA du personnage) se gerent dans la page `/atel
   (`lora_catalog`) et `server/data/lora_catalog.yaml`, ou par `docker compose run --rm pilot lora list`.
 - **Mots declencheurs** : le pilote les ajoute d'office a la fin du prompt d'image. Ne pas les recopier dans `still`.
 - **Force** : `loras: [nom]` prend la force conseillee ; `loras: [{name: nom, strength: 0.6}]` la remplace.
-- **LoRA par defaut d'un temps** : le proprietaire en fixe pour les temps 2, 3 et 4. Un plan depose **sans** champ
+- **Categorie et temps (modele `2026-11-14h`)** : chaque LoRA a une categorie, qui fixe le premier temps ou elle est
+  admise. Des le temps 1 : realisme, smartphone, peau, lumiere, pose, mouvement, vitesse. Des le temps 2 : tenue, corps.
+  Temps 3 et 4 : nu. Temps 4 : porno. Une LoRA non classee (`autre`) n'est admise qu'aux temps 3 et 4. Un depot dont un
+  plan nomme une LoRA trop tot est **refuse a l'import** ; le lancement d'un calcul aussi. Les categories et les LoRA
+  chargees se lisent dans `/hub` (onglet « Notre liste ») ; le champ `cat` figure dans le catalogue.
+- **LoRA video** : une LoRA de la famille Wan 2.2 (`famille: wan22` au catalogue) nommee dans `loras` s'applique au clip
+  du plan, pas a son image. Les autres s'appliquent a l'image ; une image qui porte une LoRA d'image est tiree
+  directement, sans retouche depuis l'image de reference.
+- **LoRA par defaut d'un temps** : le proprietaire en fixe pour chaque temps. Un plan depose **sans** champ
   `loras` (ni dans le plan ni dans `defaults`) les recoit a l'import ; `loras: []` veut dire aucune ; une liste
   ecrite est prise telle quelle. A un nouvel import, une scene deja importee garde les LoRA que le proprietaire
-  lui a posees dans la page tant que le plan n'en dit rien. Le temps 1 n'a pas de LoRA par defaut.
+  lui a posees dans la page tant que le plan n'en dit rien.
 - **Presence sur le volume** : a chaque lancement, le pilote note les fichiers du volume dans
   `server/data/lora_volume.json`. Le controle des plans signale comme grave une LoRA absente du catalogue ou dont le
   fichier n'est pas sur le volume : le calcul s'arreterait au demarrage du pod. N'employer que des noms du catalogue.

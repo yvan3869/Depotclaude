@@ -19,6 +19,22 @@ Z-Image de base fonctionne aussi sur Turbo mais demande une force plus elevee : 
 celui de Lea, entraine sur la base et applique a 1,4. Les autres familles (Flux, SDXL, Pony,
 Illustrious, Chroma, Qwen) ne fonctionnent pas.
 
+## Le hub : chercher, retenir, charger (14/11/2026)
+La page `/hub` du studio remplace la commande ci-dessous dans l'usage courant.
+
+- **Catalogue** : recherche sur Civitai ou Hugging Face, par modele de base (Z-Image pour les images, Wan 2.2 image
+  vers video pour les clips) et par categorie. Les vignettes sont chargees par le navigateur ; dans les categories
+  admises aux temps 1 et 2, les fiches et les vignettes pour adultes sont ecartees.
+- **Retenir** : la fiche est relue chez la source et rangee dans `data/hub.json` avec sa categorie. Rien n'est telecharge.
+- **Charger** : sur clic seulement, par lot de 6 au plus. Un pod pour le lot (`pilot lora sync`, environ 0,05 a 0,15 $,
+  consigne dans les depenses), supprime a la fin. Chaque LoRA est inscrite dans `data/lora_catalog.yaml` avec sa
+  categorie, sa famille et sa vignette. Une LoRA dont la licence n'admet pas l'usage commercial ne se charge pas.
+  Un fichier de plus de 1500 Mo est refuse. Une LoRA video en deux fichiers (high et low noise) est chargee en paire.
+- **Categories et temps** : `tools/triage/categories.py`. Une LoRA n'est proposee et acceptee dans une scene qu'a partir
+  du temps de sa categorie. Les LoRA de fond (realisme, smartphone, peau, lumiere) peuvent etre posees comme defauts
+  d'un temps ; celles de contenu se choisissent scene par scene.
+- La cle `CIVITAI_TOKEN` de `server/.env` est transmise au service `triage` pour la recherche et le chargement.
+
 ## Ajouter un LoRA de Civitai en une commande
 Dans `server/`, apres avoir mis `CIVITAI_TOKEN=<cle>` dans `server/.env` :
 

@@ -14,7 +14,7 @@ from .comfy import Comfy
 
 ROOT = Path(__file__).resolve().parents[2]
 PREFIX = "girls-ai-"
-MODELE = "2026-11-14g"  # version du format des plans : la meme que dans server/jobs/modele.yaml
+MODELE = "2026-11-14h"  # version du format des plans : la meme que dans server/jobs/modele.yaml
 INTERP = "minterpolate=fps=32:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1"
 
 
@@ -79,8 +79,18 @@ def resolve_loras(cfg, wanted):
         w = {"name": w} if isinstance(w, str) else dict(w)
         ref = cat.get(w["name"], {})
         out.append({"name": ref.get("file", w["name"]), "strength": float(w.get("strength", ref.get("strength", 1.0))),
-                    "trigger": ref.get("trigger", "")})
+                    "trigger": ref.get("trigger", ""), "low": ref.get("file_low", ""), "video": ref.get("famille") == "wan22"})
     return out
+
+
+def loras_image(l):
+    """LoRA d'image d'un plan (None : le plan ne dit rien, on garde extra_loras_still)."""
+    return None if l is None else [x for x in l if not x["video"]]
+
+
+def loras_video(l):
+    """LoRA video d'un plan : celles que le catalogue range dans la famille Wan 2.2. Elles s'appliquent au clip."""
+    return [x for x in l or [] if x["video"]]
 
 
 def inventaire(c, data):
@@ -131,7 +141,7 @@ def cmd_run(a):
         if char.get(lora_key) and char[lora_key] not in volume:
             raise RuntimeError(f"LoRA introuvable sur le volume : {char[lora_key]}")
         for sh in job["shots"]:  # verifier les LoRA supplementaires avant de calculer quoi que ce soit
-            for lo in resolve_loras(cfg, {**d, **sh}.get("loras")) or []:
+            for lo in [x for y in resolve_loras(cfg, {**d, **sh}.get("loras")) or [] for x in (y, {"name": y["low"]} if y["low"] else None) if x]:
                 if lo["name"] not in volume:
                     raise RuntimeError(f"LoRA introuvable sur le volume : {lo['name']}")
         # Deux passes : toutes les images, puis tous les clips. Evite de recharger les modeles
@@ -186,7 +196,7 @@ def cmd_run(a):
                     use_body = s.get("body", s.get("dest") in (char.get("zimage_body_dests") or []))
                     body = char.get("zimage_body", "") if use_body else ""
                     prompt = f"{char.get('zimage_prefix', char['prefix'])}{tat}{body}{s['still']}{char.get('zimage_suffix', '')}"
-                    extra = resolve_loras(cfg, s.get("loras"))
+                    extra = loras_image(resolve_loras(cfg, s.get("loras")))
                     trig = ", ".join(x["trigger"] for x in extra or [] if x.get("trigger"))
                     if trig:  # mots declencheurs des LoRA supplementaires
                         prompt = f"{prompt} {trig}"
@@ -267,13 +277,15 @@ def cmd_run(a):
                     if steps:
                         chains[name] = ends_of(s, name, seed)
                 suffix = char.get("motion_suffix", "")
+                vlo = loras_video(resolve_loras(cfg, s.get("loras")))  # LoRA video du plan, avec leurs mots declencheurs
+                suffix += "".join(f" {x['trigger']}" for x in vlo if x.get("trigger"))
                 parts = []
                 if steps:
                     for k, st in enumerate(steps, 1):
                         up = c.upload(f"ga_{name}_e{k - 1}.png", chains[name][k - 1])
                         end = c.upload(f"ga_{name}_e{k}.png", chains[name][k])
                         files = c.run(workflows.clip(models, char, up, st["motion"] + suffix, *s["clip_size"], seed + k,
-                                                     f"ga_{name}_p{k}", mode=s["mode"], end_image_name=end))
+                                                     f"ga_{name}_p{k}", mode=s["mode"], end_image_name=end, loras=vlo))
                         webm = work / f"{name}_p{k}.webm"
                         webm.write_bytes(c.fetch(files[0]))
                         parts.append(webm)
@@ -285,7 +297,7 @@ def cmd_run(a):
                         src = Path(s["end_image"])
                         end = c.upload(f"ga_{name}_end.png", (src if src.is_absolute() else data / src).read_bytes())
                     files = c.run(workflows.clip(models, char, up, s["motion"] + suffix, *s["clip_size"], seed,
-                                                 f"ga_{name}", mode=s["mode"], end_image_name=end))
+                                                 f"ga_{name}", mode=s["mode"], end_image_name=end, loras=vlo))
                     webm = work / f"{name}.webm"
                     webm.write_bytes(c.fetch(files[0]))
                     parts.append(webm)
@@ -334,6 +346,76 @@ def cmd_pods(a):
         print(p["id"], p.get("name"), p.get("desiredStatus"), p.get("costPerHr"), p.get("createdAt"))
 
 
+def deposer(pod_id, jtok, fname, blob):
+    """Depose un fichier dans le dossier des LoRA du volume par l'API de fichiers de Jupyter, en morceaux : le proxy
+    RunPod coupe les envois de plus de 100 Mo. Le dossier racine de Jupyter est /workspace (le volume)."""
+    import base64
+    from .http import request
+    url = f"https://{pod_id}-8888.proxy.runpod.net/api/contents/runpod-slim/ComfyUI/models/loras/{fname}"
+    size = 20 * 1024 * 1024
+    chunks = [blob[i:i + size] for i in range(0, len(blob), size)]
+    for i, ch in enumerate(chunks, 1):
+        request("PUT", url, headers={"Authorization": f"token {jtok}"}, timeout=600, data={
+            "type": "file", "format": "base64", "name": fname, "chunk": -1 if i == len(chunks) else i,
+            "content": base64.b64encode(ch).decode()})
+        log(f"depot de {fname} : {i}/{len(chunks)}")
+
+
+def lora_sync(a, data, catp, cat):
+    """Charge sur le volume les LoRA retenues dans le hub (data/hub_charger.json, ecrit par la page Hub), dans un seul pod,
+    et les inscrit au catalogue. Chaque element : {cle, name, label, strength, base, famille, cat, trigger, source,
+    vignette, fichiers: [{role: ""|"high"|"low", url, auth: ""|"civitai"}]}. Un echec n'arrete pas les suivantes."""
+    import secrets
+    from .http import request
+    file = data / "hub_charger.json"
+    todo = json.loads(file.read_text(encoding="utf-8")) if file.exists() else []
+    if not todo:
+        log("rien a charger")
+        return 0
+    cfg = load_config(a)
+    tok = os.environ.get("CIVITAI_TOKEN", "")
+    jtok = secrets.token_urlsafe(24)
+    pod_id, cost, gpu = runpod.create_pod(cfg["infra"], f"{PREFIX}lora-{int(time.time())}", env={"JUPYTER_PASSWORD": jtok})
+    log(f"pod {pod_id} cree ({gpu}, {cost} $/h)")
+    ok, deposes = 0, []
+    try:
+        c = Comfy(pod_id)
+        c.wait_ready()
+        for x in todo:
+            try:
+                noms = {}
+                for f in x["fichiers"]:
+                    blob = request("GET", f["url"], headers={"Authorization": f"Bearer {tok}"} if f.get("auth") == "civitai" and tok else {},
+                                   raw=True, timeout=1800)
+                    if len(blob) < 100000:
+                        raise RuntimeError("telechargement refuse (cle Civitai absente ou fichier reserve)")
+                    fname = f"{x['name']}{'_' + f['role'] if f.get('role') else ''}.safetensors"
+                    deposer(pod_id, jtok, fname, blob)
+                    noms[f.get("role") or ""] = fname
+                    deposes.append(fname)
+                    del blob
+                haut = noms.get("high") or noms.get("") or noms.get("low")
+                cat[x["name"]] = {"label": x.get("label") or x["name"], "file": haut, "strength": float(x.get("strength") or 0.6),
+                                  "base": x.get("base", ""), "famille": x.get("famille", "zimage"), "cat": x.get("cat", "autre"),
+                                  "trigger": x.get("trigger", ""), "source": x.get("source", ""), "vignette": x.get("vignette", ""),
+                                  "hub": x["cle"], **({"file_low": noms["low"]} if "low" in noms and haut != noms["low"] else {})}
+                catp.write_text(yaml.safe_dump(cat, allow_unicode=True, sort_keys=False), encoding="utf-8")
+                ok += 1
+                log(f"CHARGE {x['cle']} : {x['name']}")
+            except Exception as e:  # une LoRA refusee n'empeche pas les autres
+                log(f"ECHEC {x['cle']} : {str(e)[:300]}")
+        time.sleep(10)
+        vus = inventaire(c, data)
+        if set(deposes) - set(vus):  # ComfyUI ne liste un fichier neuf qu'apres un moment : l'inventaire le note quand meme
+            (data / "lora_volume.json").write_text(json.dumps({"date": time.strftime("%d/%m/%Y %H:%M"), "fichiers": sorted(set(vus) | set(deposes))}), encoding="utf-8")
+    finally:
+        runpod.delete_pod(pod_id)
+        log(f"pod {pod_id} supprime")
+    file.unlink(missing_ok=True)
+    log(f"rapport : {ok} LoRA chargee(s) sur {len(todo)}")
+    return 0
+
+
 def cmd_lora(a):
     """lora add : telecharge un LoRA de Civitai, le depose sur le volume et l'inscrit au catalogue.
     lora list : affiche le catalogue."""
@@ -346,6 +428,8 @@ def cmd_lora(a):
         for k, v in {**(yaml.safe_load(open(a.config, encoding="utf-8")).get("lora_catalog") or {}), **cat}.items():
             print(f"{v.get('label', k)}\n    nom court : {k} | fichier : {v.get('file')} | force {v.get('strength', 1.0)} | {v.get('base', '')} {v.get('trigger', '')}")
         return 0
+    if a.action == "sync":
+        return lora_sync(a, data, catp, cat)
     if a.action == "remove":
         if cat.pop(a.ref, None) is None:
             raise RuntimeError(f"{a.ref} n'est pas dans le catalogue")
@@ -404,17 +488,7 @@ def cmd_lora(a):
             raise RuntimeError("avec --pod-id, donner aussi --jupyter-token (mot de passe Jupyter du pod)")
         c = Comfy(pod_id)
         c.wait_ready()
-        # Depot par l'API de fichiers de Jupyter, en morceaux : le proxy RunPod coupe les envois de
-        # plus de 100 Mo. Le dossier racine de Jupyter est /workspace (le volume).
-        import base64
-        url = f"https://{pod_id}-8888.proxy.runpod.net/api/contents/runpod-slim/ComfyUI/models/loras/{fname}"
-        size = 20 * 1024 * 1024
-        chunks = [blob[i:i + size] for i in range(0, len(blob), size)]
-        for i, ch in enumerate(chunks, 1):
-            request("PUT", url, headers={"Authorization": f"token {jtok}"}, timeout=600, data={
-                "type": "file", "format": "base64", "name": fname, "chunk": -1 if i == len(chunks) else i,
-                "content": base64.b64encode(ch).decode()})
-            log(f"depot {i}/{len(chunks)}")
+        deposer(pod_id, jtok, fname, blob)
         seen = False
         for _ in range(6):  # la liste de ComfyUI peut mettre un moment a voir un fichier neuf
             if c.has_model("loras", fname):
@@ -453,8 +527,8 @@ def main():
     k.set_defaults(fn=cmd_reap)
     sub.add_parser("pods", help="liste les pods du compte").set_defaults(fn=cmd_pods)
     sub.add_parser("depenses", help="depense GPU du jour et plafond").set_defaults(fn=cmd_depenses)
-    lo = sub.add_parser("lora", help="LoRA supplementaires : add <adresse Civitai> --name nom | list | remove <nom>")
-    lo.add_argument("action", choices=["add", "list", "remove"])
+    lo = sub.add_parser("lora", help="LoRA supplementaires : add <adresse Civitai> --name nom | list | remove <nom> | sync (charge les LoRA retenues dans le hub)")
+    lo.add_argument("action", choices=["add", "list", "remove", "sync"])
     lo.add_argument("ref", nargs="?", default="")
     lo.add_argument("--name")
     lo.add_argument("--strength", type=float, default=0.6)

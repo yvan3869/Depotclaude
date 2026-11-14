@@ -15,6 +15,7 @@ services:
     environment:
       TRIAGE_TOKEN: ${TRIAGE_TOKEN:?definir TRIAGE_TOKEN dans .env}
       RUNPOD_API_KEY: ${RUNPOD_API_KEY:-}
+      CIVITAI_TOKEN: ${CIVITAI_TOKEN:-}  # hub : recherche et chargement des LoRA retenues
       REPO_DIR: /repo
       DATA_DIR: /data
     volumes:

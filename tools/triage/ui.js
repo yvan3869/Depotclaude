@@ -8,6 +8,7 @@ const aide = t => t ? `<span class="aide">${t}</span>` : '';
 // --- Icones : traits fins, couleur du texte. ic('nom') dans un bouton ; bi('nom', 'Libelle') pour une icone seule.
 const ICONES = {
   lancer: '<path d="M7 4v16l13-8z"/>',
+  chercher: '<circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/>',
   pause: '<path d="M8 5v14M16 5v14"/>',
   arret: '<rect x="6" y="6" width="12" height="12" rx="1"/>',
   refaire: '<path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/>',

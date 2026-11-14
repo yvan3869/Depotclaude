@@ -82,9 +82,11 @@ def edit_image(m, image_name, prompt, w, h, seed, prefix, steps=8):
     }
 
 
-def clip(m, char, image_name, prompt, w, h, seed, prefix, mode="natural", frames=81, end_image_name=None):
+def clip(m, char, image_name, prompt, w, h, seed, prefix, mode="natural", frames=81, end_image_name=None, loras=None):
     """Clip : Wan 2.2 I2V. mode 'fast' (4 pas, LoRA rapide partout) ou 'natural'
-    (4 pas high-noise sans LoRA rapide avec CFG 3,5, puis 4 pas low-noise rapides)."""
+    (4 pas high-noise sans LoRA rapide avec CFG 3,5, puis 4 pas low-noise rapides).
+    `loras` : LoRA video supplementaires, {"name": fichier du modele high-noise ou des deux, "low": fichier du modele
+    low-noise s'il est distinct, "strength"}. Un fichier dont le nom dit "high" ou "low" ne va que sur ce modele."""
     g = _common(m, prompt, char["negative_clip"])
     g["img"] = {"class_type": "LoadImage", "inputs": {"image": image_name}}
     g["i2v"] = {"class_type": "WanImageToVideo", "inputs": {
@@ -97,8 +99,16 @@ def clip(m, char, image_name, prompt, w, h, seed, prefix, mode="natural", frames
             "length": frames, "batch_size": 1, "start_image": ["img", 0], "end_image": ["img_end", 0]}}
     g["hi_u"] = {"class_type": "UNETLoader", "inputs": {"unet_name": m["i2v_high"], "weight_dtype": "default"}}
     g["lo_u"] = {"class_type": "UNETLoader", "inputs": {"unet_name": m["i2v_low"], "weight_dtype": "default"}}
-    hi = "hi_u" if mode == "natural" else _lora(g, "hi_fast", "hi_u", m["i2v_high_fast_lora"])
-    lo = "lo_u"
+    hi, lo = "hi_u", "lo_u"
+    for i, x in enumerate(loras or []):
+        f, low, st = x["name"], x.get("low") or "", float(x.get("strength", 1.0))
+        cote = "" if low else "high" if "high" in f.lower() else "low" if "low" in f.lower() else ""
+        if cote != "low":
+            hi = _lora(g, f"hi_x{i}", hi, f, st)
+        if low or cote != "high":
+            lo = _lora(g, f"lo_x{i}", lo, low or f, st)
+    if mode != "natural":
+        hi = _lora(g, "hi_fast", hi, m["i2v_high_fast_lora"])
     if char.get("lora_clip"):
         lo = _lora(g, "lo_char", lo, char["lora_clip"], char.get("lora_clip_strength", 1.0))
     lo = _lora(g, "lo_fast", lo, m["i2v_low_fast_lora"])

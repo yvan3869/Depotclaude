@@ -31,6 +31,7 @@ import time
 from pathlib import Path
 
 import moteur_local
+from categories import CATS, FAMILLES, reservee, temps_min
 from controle import CIBLE, controle, tenue_dite
 
 AGE_MIN = 21
@@ -287,16 +288,44 @@ class Atelier:
 
     def _defauts(self):
         d = _load(self.data / "lora_defauts.json", {})
-        return {t: _loras(d.get(str(t))) for t in TEMPS if t > 1}
+        return {t: _loras(d.get(str(t))) for t in TEMPS}
+
+    def _fiches(self, s):
+        """Fiches du catalogue des LoRA d'une scene (vide pour un nom inconnu du catalogue)."""
+        try:
+            cat = self._catalogue()
+        except Exception:
+            cat = {}
+        return [cat.get(n.partition(":")[0], {}) for n in str(s.get("loras") or "").split(", ") if n]
+
+    def _reservee(self, s):
+        """Vrai si la scene porte une LoRA qui releve du proprietaire seul (nu, porno, non classee) : elle n'est alors
+        jamais envoyee au redacteur, au relecteur ni a l'analyste."""
+        return any(reservee(v.get("cat")) for v in self._fiches(s))
+
+    def _admises(self, scenes):
+        """Refuse une scene qui nomme une LoRA que sa categorie n'admet pas a ce temps."""
+        tmin = self._lib()["tmin"]
+        for s in scenes:
+            for n in (x.partition(":")[0] for x in str(s.get("loras") or "").split(", ") if x):
+                if n in tmin and tmin[n][0] > s["temps"]:
+                    raise ValueError(f"« {n} » (catégorie {tmin[n][1]}) n'est admise qu'à partir du temps {tmin[n][0]} : "
+                                     f"la retirer de la scène « {s.get('titre') or s.get('id')} » du temps {s['temps']}")
+
+    def _lora_image(self, s):
+        """Vrai si la scene porte une LoRA d'image : son image est alors tiree directement, pas par retouche de la reference."""
+        return any(v.get("famille") != "wan22" for v in self._fiches(s))
 
     def _lib(self):
         """Ce que le controle des plans doit savoir des LoRA : fichier de chaque nom du catalogue, fichiers du volume (None si inconnu)."""
         try:
-            cat = {k: str(v.get("file") or k) for k, v in self._catalogue().items()}
+            brut = self._catalogue()
         except Exception:
-            cat = {}
+            brut = {}
+        cat = {k: str(v.get("file") or k) for k, v in brut.items()}
         vol = _load(self.data / "lora_volume.json", {})
-        return {"cat": cat, "volume": set(vol["fichiers"]) if isinstance(vol.get("fichiers"), list) else None, "date": vol.get("date", "")}
+        return {"tmin": {k: (temps_min(v.get("cat")), CATS.get(v.get("cat") or "autre", CATS["autre"])[0]) for k, v in brut.items()},
+                "bas": {k: str(v["file_low"]) for k, v in brut.items() if v.get("file_low")}, "cat": cat, "volume": set(vol["fichiers"]) if isinstance(vol.get("fichiers"), list) else None, "date": vol.get("date", "")}
 
     def _ctl(self, p, t):
         return controle(p, t, self._lib())
@@ -319,11 +348,14 @@ class Atelier:
         connus = {str(v.get("file") or k) for k, v in cat.items()}
         return {"loras": [{"name": k, "label": str(v.get("label") or k), "file": str(v.get("file") or ""), "strength": float(v.get("strength", 1.0)),
                            "trigger": str(v.get("trigger") or ""), "note": str(v.get("note") or ""), "base": str(v.get("base") or ""),
-                           "source": str(v.get("source") or ""), "ou": v["ou"],
+                           "source": str(v.get("source") or ""), "ou": v["ou"], "cat": v.get("cat") if v.get("cat") in CATS else "autre",
+                           "temps_min": temps_min(v.get("cat")), "famille": v.get("famille") if v.get("famille") in FAMILLES else "zimage",
+                           "vignette": str(v.get("vignette") or ""),
                            "volume": None if fichiers is None else str(v.get("file") or k) in fichiers} for k, v in cat.items()],
                 "inventaire": vol.get("date", ""),
                 "hors": sorted(f for f in fichiers or [] if f not in connus and f not in visages),
-                "defauts": self._defauts()}
+                "defauts": self._defauts(), "categories": {k: {"label": v[0], "temps": v[1], "aide": v[2]} for k, v in CATS.items()},
+                "familles": {k: {"label": v["label"], "usage": v["usage"]} for k, v in FAMILLES.items()}}
 
     def save_lora(self, b):
         """Inscrit ou corrige une LoRA du catalogue (force conseillee, mots declencheurs, note), ou la retire. Ecrit dans
@@ -351,21 +383,28 @@ class Atelier:
                     raise ValueError("force conseillée : entre 0,1 et 2")
                 cat[nom] = {**self._catalogue().get(nom, {}), **cat.get(nom, {}), "label": _s(b.get("label"), 80) or nom, "file": fichier,
                             "strength": round(force, 2), "trigger": _s(b.get("trigger"), 200), "note": _s(b.get("note"), 300)}
+                if b.get("cat") in CATS:
+                    cat[nom]["cat"] = b["cat"]
+                if b.get("famille") in FAMILLES:
+                    cat[nom]["famille"] = b["famille"]
                 cat[nom].pop("ou", None)
             f.write_text(yaml.safe_dump(cat, allow_unicode=True, sort_keys=False), encoding="utf-8")
         return self.bibliotheque()
 
     def save_defauts(self, b):
-        """LoRA par defaut de chaque temps (2 a 4) : posees sur les scenes ajoutees a la main ou importees sans "loras"."""
+        """LoRA par defaut de chaque temps : posees sur les scenes ajoutees a la main ou importees sans "loras".
+        Une LoRA n'est admise qu'a partir du temps de sa categorie."""
         lib, out = self._lib(), {}
         for t in TEMPS:
             txt = _loras((b.get("defauts") or {}).get(str(t)))
-            if t == 1 or not txt:
+            if not txt:
                 continue
             for x in _loras_plan(txt):
                 n = x["name"] if isinstance(x, dict) else x
-                if n not in lib["cat"] and not n.endswith(".safetensors"):
+                if n not in lib["cat"]:
                     raise ValueError(f"temps {t} : « {n} » n'est pas dans le catalogue")
+                if lib["tmin"][n][0] > t:
+                    raise ValueError(f"temps {t} : « {n} » (catégorie {lib['tmin'][n][1]}) n'est admise qu'à partir du temps {lib['tmin'][n][0]}")
             out[str(t)] = txt
         _dump(self.data / "lora_defauts.json", out)
         return self.bibliotheque()
@@ -671,12 +710,13 @@ class Atelier:
                            "ecriture": p.get("ecriture"), "note_generation": (p.get("generation") or {}).get("note")}, ensure_ascii=False, indent=1)
 
     def _texte_projet(self, p, temps=1):
-        """Texte d'un temps du projet pour le redacteur. Les temps 3 et 4 ne lui sont jamais envoyes, ni une scene a LoRA supplementaires."""
+        """Texte d'un temps du projet pour le redacteur. Les temps 3 et 4 ne lui sont jamais envoyes, ni une scene qui porte une LoRA reservee
+        (nu, porno, non classee)."""
         if temps not in (1, 2):
             raise ValueError("les temps 3 et 4 sont à votre main : le rédacteur IA ne les lit pas")
         keep = ("id", "titre", "role", "raccord", "cran", "still", "motion", "end_edit", "texte", "voix", "tattoos")
         tete = {k: p.get(k) for k in ("titre", "pitch", "accroche", "legende", "cta", "hashtags")} if temps == 1 else {}
-        return json.dumps(tete | {"continuite": p["continuite"], "scenes": [{k: s[k] for k in keep} for s in p["scenes"] if s["temps"] == temps and not s["loras"]]}, ensure_ascii=False, indent=1)
+        return json.dumps(tete | {"continuite": p["continuite"], "scenes": [{k: s[k] for k in keep} for s in p["scenes"] if s["temps"] == temps and not self._reservee(s)]}, ensure_ascii=False, indent=1)
 
     def _voisins(self, slug, dp, proj=None):
         """Projets du meme personnage les plus proches dans sa chronologie, pour la continuite."""
@@ -714,8 +754,8 @@ class Atelier:
                 raise ValueError("scène inconnue")
             if sc["temps"] not in (1, 2):
                 raise ValueError("les temps 3 et 4 sont à votre main : le rédacteur IA ne les écrit pas")
-            if sc["loras"]:
-                raise ValueError("scène à LoRA supplémentaires : elle reste à votre main")
+            if self._reservee(sc):
+                raise ValueError("scène à LoRA réservée (nu, porno ou non classée) : elle reste à votre main")
             prompt = (f"PERSONNAGE\n{self._fiche(perso)}\n\n{moment}SCÉNARIO\n{self._texte_projet(proj, sc['temps'])}\n\nCOMMANDE\nRéécris uniquement la scène \"{sc['id']}\" "
                       f"selon la consigne : {consigne or 'plus forte, plus sensuelle, toujours suggestive'}\n"
                       + ("Dans ce temps la tenue de la fiche de continuité n'est pas ajoutée au \"still\" : il dit lui-même ce qu'elle porte à cet instant.\n" if sc["temps"] == 2 else "")
@@ -853,7 +893,7 @@ class Atelier:
         p = self._raw(pid)
         d = self._pdir(pid)
         sc = [s for s in self._eff(p)["scenes"] if s["temps"] == t]
-        vus = [(i, s) for i, s in enumerate(sc, 1) if s["image"] and not s["loras"]][:8]
+        vus = [(i, s) for i, s in enumerate(sc, 1) if s["image"] and not self._reservee(s)][:8]
         if not vus:
             raise ValueError("aucune image à relire dans ce temps")
         images = []
@@ -943,8 +983,8 @@ class Atelier:
         t = 2 if m.group(1) else 1
         p, d = self._raw(pid), self._pdir(pid)
         sc = {s["id"]: s for s in p["scenes"] if s["temps"] == t}
-        if any(s["loras"] for s in sc.values()):
-            raise ValueError("ce temps contient une scène à LoRA supplémentaires : son analyse reste à votre main")
+        if any(self._reservee(s) for s in sc.values()):
+            raise ValueError("ce temps contient une scène à LoRA réservée (nu, porno ou non classée) : son analyse reste à votre main")
         src = d / nom
         if not src.is_file():
             raise ValueError("vidéo introuvable")
@@ -1133,6 +1173,7 @@ class Atelier:
                 garde = ("id", "seed", "image", "clip", "debut", "duree") if o and o["still"] == _s(d["still"], 1200) else ("id",) if o else ()
                 neuves.append(self._scene({**d, **{k: o[k] for k in garde}, "seed": (o.get("seed") if "seed" in garde else 0) or d["seed"],
                                            "id": o.get("id")}, p))
+            self._admises(neuves)
             reste = [s for s in p["scenes"] if s["origine"] not in old]
             if len(reste) + len(neuves) > 30:
                 raise ValueError("trop de scènes dans ce projet")
@@ -1212,6 +1253,7 @@ class Atelier:
             raise ValueError("clé RunPod absente : lancement impossible depuis l'interface")
         with self.lock:
             p = self._raw(pid)
+            self._admises(p["scenes"])
             pr = self.prises(pid)
             ch = self._choix(p, pr)
             perso = self.perso(p["personnage"])
@@ -1229,7 +1271,7 @@ class Atelier:
                     if ch[s["id"]]["image"]:  # nouvelle prise demandee : autre tirage
                         s["seed"] = random.randint(1, 999999)
                     s["image"], s["clip"] = "", ""  # la prise retenue sera la nouvelle
-                    if base and s["id"] != ref and not s["libre"] and not s["loras"] and not GROS_PLAN.search(s["still"]):
+                    if base and s["id"] != ref and not s["libre"] and not self._lora_image(s) and not GROS_PLAN.search(s["still"]):
                         shots.append({"name": s["id"], "image": str(media / base), "edit": self._still(p, s), "seed": s["seed"]}
                                      | ({"tenue_libre": True} if s["temps"] >= 2 else {}))
                     else:

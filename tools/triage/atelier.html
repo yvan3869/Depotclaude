@@ -173,7 +173,7 @@ const f = (k, lab, v, o = {}) => `<label>${lab}${o.area ? `<textarea ${o.at || '
 function rendreProjet() {
   const p = perso() || {nom: P.personnage}, vide = !P.scenes.some(s => s.temps === 1);
   const SC = P.scenes.filter(s => s.temps === T), dep = D.depots.filter(x => x.temps === T || x.erreur), DEF = (E.bibliotheque.defauts || {})[T] || '';
-  const LN = E.bibliotheque.loras.map(x => x.name).join(', ');
+  const LT = E.bibliotheque.loras.filter(x => x.temps_min <= T);  // LoRA que la categorie admet a ce temps
   let no = 0;  // numero de section, dans l'ordre de la page
   const sec = (cle, titre, sous = '', defaut = true) => `<details class="sec" data-sec="${cle}"${ouv(cle, defaut)}><summary><span class="n">${++no}</span>${titre}${sous ? `<small>${sous}</small>` : ''}</summary>`;
   $('#persos').style.display = 'none'; $('#onglets').style.display = '';
@@ -187,9 +187,9 @@ function rendreProjet() {
     <div class="panel"><b>${T}. ${TEMPS[T][0]}</b><div class="mut">${QUOI[T]}</div>
       ${T > 2 && P.suite ? `<div style="margin-top:6px">Suite annoncée : ${esc(P.suite)}</div>` : ''}
       ${T > 2 ? '<div class="mut" style="margin-top:6px">Ajouter les scènes ici, ou importer un plan déposé par votre agent dans server/jobs/atelier/.</div>' : ''}
-      ${T > 1 ? `<div style="margin-top:8px;font-size:14px">LoRA par défaut de ce temps : ${DEF ? `<b>${esc(DEF)}</b>` : '<span class="mut">aucune</span>'} <a href="#/loras">Bibliothèque</a></div>
+      ${`<div style="margin-top:8px;font-size:14px">LoRA par défaut de ce temps : ${DEF ? `<b>${esc(DEF)}</b>` : '<span class="mut">aucune</span>'} <a href="#/loras">Bibliothèque</a> · <a href="/hub">Hub</a></div>
         <div class="aide">Posées sur chaque scène ajoutée à ce temps, et sur les plans importés qui ne disent rien des LoRA. Chaque scène reste modifiable.</div>
-        ${DEF && SC.length ? `<div class="row"><button class="s" data-a="poserdefauts">${ic('lora')}Poser ces LoRA sur les scènes de ce temps</button></div>` : ''}` : ''}</div>
+        ${DEF && SC.length ? `<div class="row"><button class="s" data-a="poserdefauts">${ic('lora')}Poser ces LoRA sur les scènes de ce temps</button></div>` : ''}`}</div>
     ${T === 2 ? `<div class="panel">
       ${f('brief2', 'Consigne pour la montée (facultatif)', P.brief2, {area: 1, rows: 2, aide: 'En français. Ce que ce temps doit montrer de plus que l\'accroche : même lieu, un cran plus loin ; la tenue peut se défaire.'})}
       <div class="row"><label class="g">Scènes<select data-k="nb2">${[2, 3, 4, 5, 6].map(n => `<option ${n === P.nb2 ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
@@ -246,8 +246,9 @@ function rendreProjet() {
           : 'Cadrage, pose, expression. Le lieu, la tenue, la coiffure et la lumière viennent de la fiche de continuité : ne pas les répéter ici.'})}
       ${f('motion', 'Mouvement du clip (anglais)', s.motion, {area: 1, at: `data-s="${s.id}"`,
         aide: 'Un seul geste lent, sans mouvement de caméra : un clip dure 5 s. Vide : la scène reste une image fixe de 2 s avec un zoom lent, sans coût de clip.'})}
-      ${T > 1 ? f('loras', 'LoRA supplémentaires', s.loras, {at: `data-s="${s.id}"`, ph: 'nom:0.6, autre',
-        aide: `Noms de la bibliothèque, « nom:force », séparés par des virgules. Vide : aucune, en plus de celle du visage. ${LN ? 'Inscrites : ' + esc(LN) + '.' : 'Bibliothèque vide.'} Une scène qui porte des LoRA n'est jamais envoyée au rédacteur IA.`}) : ''}
+      ${f('loras', 'LoRA supplémentaires', s.loras, {at: `data-s="${s.id}"`, ph: 'nom:0.6, autre',
+        aide: `Noms de la bibliothèque, « nom:force », séparés par des virgules. Vide : aucune, en plus de celle du visage. Seules les LoRA que leur catégorie admet au temps ${T} sont acceptées. Une LoRA d'image fait tirer l'image directement, sans retouche depuis l'image de référence ; une LoRA vidéo s'applique au clip.`})}
+      ${LT.length ? `<div class="chips" style="margin:6px 0 0">${LT.map(x => `<button class="chip" data-a="loraplus" data-n="${esc(x.name)}" title="${esc(x.label)}">${ic('ajouter')}${esc(x.name)} <small>${esc(E.bibliotheque.categories[x.cat].label)}${x.famille === 'wan22' ? ', vidéo' : ''}</small></button>`).join('')}</div>` : `<div class="aide">Aucune LoRA admise à ce temps dans la bibliothèque. En retenir dans le <a href="/hub">hub</a>.</div>`}
       <div class="gt">Ce qui s'affiche</div>
       ${f('texte', 'Texte à l\'écran', s.texte, {at: `data-s="${s.id}"`, aide: '7 mots au plus, sans emoji. Vide : aucun texte sur cette scène.'})}
       <div class="gt">Place dans la vidéo</div>
@@ -478,6 +479,7 @@ const actions = {
   copier: () => copier([P.legende, P.hashtags].filter(Boolean).join('\n\n')),
   ajouter: () => structure(() => P.scenes.push({titre: '', role: 'montee', temps: T, still: '', motion: '', texte: '', tattoos: true, loras: (E.bibliotheque.defauts || {})[T] || ''})),
   poserdefauts: () => { const d = (E.bibliotheque.defauts || {})[T] || ''; if (d && confirm(`Poser « ${d} » sur toutes les scènes du temps ${T} ? Les LoRA déjà notées sur ces scènes sont remplacées.`)) return structure(() => P.scenes.filter(s => s.temps === T).forEach(s => s.loras = d)); },
+  loraplus: (el, sid) => structure(() => { const x = sc(sid), l = (x.loras || '').split(',').map(v => v.trim()).filter(Boolean); if (!l.some(v => v.split(':')[0] === el.dataset.n)) l.push(el.dataset.n); x.loras = l.join(', '); }),
   lorasauver: loraSauver, loraretirer: loraRetirer, loracorriger: el => loraForm(E.bibliotheque.loras.find(x => x.name === el.dataset.n)), lorainscrire: el => loraForm({file: el.dataset.n}), defautssauver: defautsSauver,
   dupliquer: (el, sid) => structure(() => { const i = P.scenes.findIndex(s => s.id === sid); P.scenes.splice(i + 1, 0, {...P.scenes[i], id: null, seed: 0, image: '', clip: '', origine: ''}); }),
   supprimer: (el, sid) => confirm('Supprimer cette scène ?') && structure(() => P.scenes = P.scenes.filter(s => s.id !== sid)),
@@ -527,11 +529,12 @@ function vueLoras() {
   vue.innerHTML = `<div class="row tete"><a class="lien" href="#/">${ic('retour')}Retour aux projets</a></div>
     <h2>Bibliothèque de LoRA <small>${B.loras.length} inscrite(s)</small></h2>
     <div class="panel"><div class="mut">Une LoRA ajoute au modèle d'image une tenue, une pose ou un style. Elle s'ajoute à la LoRA du visage, qui se règle dans la fiche du personnage.
-      Le fichier se dépose sur le volume par « pilot lora add » (docs/lora-supplementaires.md) ; cette page note comment s'en servir : force conseillée, mots déclencheurs, note.
+      Les LoRA se cherchent, se retiennent et se chargent sur le volume depuis le <a href="/hub">hub</a> ; cette page note comment s'en servir : catégorie, force conseillée, mots déclencheurs, note.
       Le choix des LoRA et leurs réglages sont à votre main.</div>
       <div style="margin-top:8px;font-size:14px">${B.inventaire ? `Inventaire du volume : <b>${esc(B.inventaire)}</b>` : '<span style="color:var(--warn)">Volume pas encore inventorié</span>'}</div>
       <div class="aide">Relevé au démarrage de chaque calcul d'images et après chaque « pilot lora add ». Sans inventaire, la présence d'un fichier ne peut pas être vérifiée avant de lancer.</div></div>
     ${B.loras.map(x => `<div class="panel"><b>${esc(x.label)}</b> <span class="badge ${x.volume === null ? 'i' : x.volume ? 'v' : 'a'}">${x.volume === null ? 'présence inconnue' : x.volume ? 'sur le volume' : 'absente du volume'}</span>
+      <div class="mut">${esc(B.categories[x.cat].label)}, dès le temps ${x.temps_min} · ${esc(B.familles[x.famille].label)}</div>
       <div class="mut">Nom à écrire dans une scène : <b style="color:var(--txt)">${esc(x.name)}</b> · force conseillée ${String(x.strength).replace('.', ',')}${x.base ? ' · ' + esc(x.base) : ''}</div>
       <div class="mut" style="word-break:break-all">${esc(x.file)}</div>
       ${x.trigger ? `<div style="font-size:14px;margin-top:4px">Mots déclencheurs : ${esc(x.trigger)}</div>` : ''}
@@ -547,16 +550,18 @@ function vueLoras() {
       ${l('label', 'Intitulé', '', {aide: 'Ce que fait la LoRA, en clair. Affiché dans cette page.'})}
       ${l('file', 'Fichier', '', {ph: 'nom_du_fichier.safetensors', aide: 'Nom du .safetensors tel qu\'il est sur le volume.'})}
       ${l('strength', 'Force conseillée', '0.8', {type: 'number', step: '0.05', aide: 'Entre 0,1 et 2. Utilisée quand la scène écrit le nom seul ; « nom:0.6 » dans une scène la remplace. Trop forte, elle déforme le visage.'})}
+      <label>Catégorie<select data-l="cat">${Object.entries(B.categories).map(([k, c]) => `<option value="${k}"${k === 'autre' ? ' selected' : ''}>${esc(c.label)} (dès le temps ${c.temps})</option>`).join('')}</select>${aide('Décide des temps où une scène peut la nommer. « Autre » : temps 3 et 4 seulement.')}</label>
+      <label>Modèle de base<select data-l="famille">${Object.entries(B.familles).map(([k, c]) => `<option value="${k}">${esc(c.label)} (${c.usage})</option>`).join('')}</select></label>
       ${l('trigger', 'Mots déclencheurs (anglais)', '', {aide: 'Ajoutés d\'office à la fin de la description de l\'image quand la LoRA est utilisée. Vide si la LoRA n\'en demande pas.'})}
       ${l('note', 'Note', '', {aide: 'Pour vous : à quoi elle sert, avec quelles poses, ce qui rate.'})}
       <div class="row"><button class="p" data-a="lorasauver">${ic('valider')}Enregistrer la LoRA</button></div></div>
     <h2>LoRA par défaut de chaque temps</h2>
-    <div class="panel"><div class="mut">Posées sur chaque scène ajoutée à ce temps, et sur les plans importés qui ne disent rien des LoRA. L'accroche n'en porte pas. Chaque scène reste modifiable.</div>
-      ${[2, 3, 4].map(t => `<label>${t}. ${TEMPS[t][0]} <span class="mut">${TEMPS[t][1]}</span><input data-d="${t}" value="${esc((B.defauts || {})[t] || '')}" placeholder="nom:0.6, autre">${aide(t === 2 ? 'Noms inscrits ci-dessus, « nom:force », séparés par des virgules. Vide : aucune.' : '')}</label>`).join('')}
+    <div class="panel"><div class="mut">Posées sur chaque scène ajoutée à ce temps, et sur les plans importés qui ne disent rien des LoRA. Une LoRA n'est admise qu'à partir du temps de sa catégorie. Chaque scène reste modifiable.</div>
+      ${[1, 2, 3, 4].map(t => `<label>${t}. ${TEMPS[t][0]} <span class="mut">${TEMPS[t][1]}</span><input data-d="${t}" value="${esc((B.defauts || {})[t] || '')}" placeholder="nom:0.6, autre">${aide(t === 1 ? 'Noms inscrits ci-dessus, « nom:force », séparés par des virgules. Vide : aucune.' : '')}</label>`).join('')}
       <div class="row"><button class="p" data-a="defautssauver">${ic('valider')}Enregistrer les défauts</button></div></div>`;
 }
 function loraForm(x) {
-  for (const k of ['name', 'label', 'file', 'strength', 'trigger', 'note']) if (x && x[k] != null) $(`[data-l="${k}"]`, vue).value = x[k];
+  for (const k of ['name', 'label', 'file', 'strength', 'trigger', 'note', 'cat', 'famille']) if (x && x[k] != null) $(`[data-l="${k}"]`, vue).value = x[k];
   $('#lform').scrollIntoView({behavior: 'smooth'});
 }
 async function loraSauver() {

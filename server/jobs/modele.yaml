@@ -21,8 +21,11 @@
 #                ce qu'elle porte) et "nsfw" est ajoute a la fin de chaque "still".
 #                REGLE : dans les temps 2, 3 et 4, chaque "still" dit ce qu'elle porte ou ne porte plus a cet instant.
 #                Un depot dont un plan ne le dit pas est refuse (sauf plan en raccord continu).
+#   2026-11-14h  LoRA classees par categorie (hub) : une LoRA n'est admise qu'a partir du temps de sa categorie, temps 1
+#                compris ; un depot qui en nomme une trop tot est refuse. "loras" peut nommer une LoRA video (Wan 2.2) :
+#                elle s'applique au clip du plan, pas a son image.
 
-modele: "2026-11-14g"
+modele: "2026-11-14h"
 name: monlot                 # prefixe des fichiers produits (lettres, chiffres, _), unique par lancement
 
 # --- Facultatif : plans deposes dans l'atelier (docs/agents.md, "Deposer des plans") --------------
@@ -72,7 +75,7 @@ defaults:
   seed: 100                  # tirage ; chaque plan ajoute son rang, sauf same_seed: true
   same_seed: false           # true : meme tirage pour tous les plans (comparaisons)
   char_strength: 1.4         # force du LoRA du personnage (1,2 a 1,4 ; en dessous, l'identite faiblit)
-  loras: []                  # LoRA supplementaires : [nom] ou [{name: nom, strength: 0.6}] ; voir "pilot lora list".
+  loras: []                  # LoRA supplementaires : [nom] ou [{name: nom, strength: 0.6}] ; voir "pilot lora list". Image ou video (clip).
                              # Plan depose dans l'atelier : retirer la ligne pour recevoir les LoRA par defaut du temps.
   mode: natural              # rendu du clip : natural (qualite) ou fast (4 pas, essais de mouvement)
   smooth: true               # interpolation a 32 images/s
