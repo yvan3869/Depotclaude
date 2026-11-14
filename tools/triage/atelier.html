@@ -337,7 +337,12 @@ function rendreProjet() {
       </div>
       <div class="row"><label class="c"><input type="checkbox" data-m="1" data-k="textes" ${P.montage.textes ? 'checked' : ''}>Textes à l'écran</label>
         ${T === 1 ? `<label class="c"><input type="checkbox" data-m="1" data-k="carton" ${P.montage.carton ? 'checked' : ''}>Carton de fin</label>` : ''}
-        <label class="c"><input type="checkbox" data-m="1" data-k="label" ${P.montage.label ? 'checked' : ''}>Mention « AI character »</label></div>
+        <label class="c"><input type="checkbox" data-m="1" data-k="noir" ${P.montage.noir ? 'checked' : ''}>Fin au noir</label>
+        ${T === 1 ? '<span class="mut">Mention « AI character » : toujours incrustée sur l\'accroche.</span>'
+          : `<label class="c"><input type="checkbox" data-m="1" data-k="label" ${P.montage.label ? 'checked' : ''}>Mention « AI character »</label>`}</div>
+      <div class="row"><label class="g">Durée visée<select data-m="1" data-k="cible">${[[0, 'Tout garder'], [15, '15 s'], [20, '20 s'], [30, '30 s']].map(([v, l]) => `<option value="${v}" ${v === (P.montage.cible || 0) ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+        ${T === 1 ? '<button class="s" data-a="teaser">Réglages teaser 15 s</button>' : ''}</div>
+      <div class="mut" style="margin-top:4px">Durée visée : les plans sont raccourcis en proportion (2 s au moins chacun), sans toucher aux raccords continus ni aux durées réglées à la main. Sur la première scène, l'accroche s'affiche d'abord, le texte de la scène ensuite.</div>
       ${E.musiques.length ? '' : '<div class="mut" style="margin-top:6px">Musique : déposer des fichiers mp3 dans data/audio sur le serveur.</div>'}
       <div id="mont"></div>
     </div>
@@ -402,7 +407,7 @@ function majDyn() {
     <div class="mut" style="margin-top:6px">${E.can_run ? 'Chaque lancement passe par le plafond GPU du jour. Les clips démarrent leur propre pod (2 à 5 minutes d\'attente).' : 'Clé RunPod absente : lancement impossible.'}</div>
     ${pr.etat ? `<div style="margin-top:8px"><b class="${pr.etat === 'en cours' ? '' : pr.etat === 'termine' ? 'okc' : 'err'}">${{'en cours': 'Calcul en cours', termine: 'Dernier calcul terminé', arrete: 'Dernier calcul arrêté', interrompu: 'Dernier calcul interrompu'}[pr.etat]}</b>
       ${pr.cout != null ? ` <span class="mut">${usd(pr.cout)}</span>` : ''}${pr.echecs ? ` <span class="err">${pr.echecs} échec(s)</span>` : ''}<pre>${esc(pr.log)}</pre></div>` : ''}`, 'prod');
-  const F = D.finals[T], m = D.montage, fin = F.at(-1), u = n => `/afile/${P.id}/${n}`;
+  const F = D.finals[T], m = D.montage, fin = F.at(-1), u = n => `/afile/${P.id}/${n}`, inf = fin && D.infos[fin];
   set($('#mont'), `
     <div class="row"><button class="p" data-a="monter" ${m.etat === 'en cours' ? 'disabled' : ''}>${m.etat === 'en cours' ? 'Montage en cours...' : fin ? 'Remonter (nouvelle version)' : 'Monter la vidéo'}</button>
       <span class="mut">Les scènes sans clip sont montées en image fixe avec un zoom lent.</span></div>
@@ -410,7 +415,9 @@ function majDyn() {
     ${fin ? `<video class="fin" src="${u(fin)}" controls playsinline preload="metadata"></video>
       <div class="row"><b>${fin.replace('final_', '').replace('.mp4', '').replace('_', ' ')}</b><a href="${u(fin)}" download="${P.id}_${fin}">Télécharger</a><span class="sp" style="flex:1"></span>
         <button class="s" data-a="tri" data-n="${fin}">Envoyer au Tri</button><button class="s d" data-a="suppfinal" data-n="${fin}">Supprimer</button></div>
-      ${T === 1 ? `<div class="row"><button class="${P.statut === 'valide' ? '' : 'p'}" data-a="statut" data-v="${P.statut === 'valide' ? '' : 'valide'}">${P.statut === 'valide' ? 'Retirer la validation' : 'Valider pour publication'}</button>
+      ${inf ? `<div class="mut">${inf.duree} s, ${inf.plans} plan(s)${inf.colles ? `, ${inf.colles} raccord(s) sans coupe` : ''}${inf.cible ? `, visée ${inf.cible} s` : ''}${inf.label ? ', mention IA' : ''}, montée le ${esc(inf.date)}</div>` : ''}
+      ${T === 1 && D.publication.length ? `<div style="margin-top:8px">${D.publication.map(x => `<div class="${x.grave ? 'err' : 'mut'}">${x.grave ? 'Bloquant : ' : 'À vérifier : '}${esc(x.msg)}</div>`).join('')}</div>` : ''}
+      ${T === 1 ? `<div class="row"><button class="${P.statut === 'valide' ? '' : 'p'}" data-a="statut" data-v="${P.statut === 'valide' ? '' : 'valide'}" ${!P.statut && D.publication.some(x => x.grave) ? 'disabled' : ''}>${P.statut === 'valide' ? 'Retirer la validation' : 'Valider pour publication'}</button>
         <button data-a="statut" data-v="${P.statut === 'publie' ? 'valide' : 'publie'}">${P.statut === 'publie' ? 'Publiée (annuler)' : 'Marquer publiée'}</button></div>` : ''}
       ${F.length > 1 ? `<details><summary>Versions précédentes (${F.length - 1})</summary>${F.slice(0, -1).reverse().map(n => `<div class="row"><a href="${u(n)}" target="_blank">${n}</a>
         <span class="sp" style="flex:1"></span><button class="s d" data-a="suppfinal" data-n="${n}">Supprimer</button></div>`).join('')}</details>` : ''}` : ''}`, 'mont');
@@ -423,7 +430,7 @@ function surveiller() {
     if (!P) return clearInterval(timer);
     try {
       const n = await api('/api/a/projet?id=' + P.id), avant = D.prod.etat, avantCh = D.chaine.etat;
-      for (const k of ['choix', 'prises', 'finals', 'etape', 'montage', 'prod', 'devis', 'depots', 'chaine', 'controle', 'relecture']) D[k] = n[k];
+      for (const k of ['choix', 'prises', 'finals', 'etape', 'montage', 'prod', 'devis', 'depots', 'chaine', 'controle', 'relecture', 'publication', 'infos']) D[k] = n[k];
       majDyn();
       if (avant === 'en cours' && n.prod.etat !== 'en cours') etat();
       if (avantCh === 'en cours' && n.chaine.etat !== 'en cours') toast({pause: 'Images prêtes : choisir les prises, puis Continuer', termine: 'Chaîne terminée', arretee: 'Chaîne arrêtée', erreur: 'Chaîne en erreur'}[n.chaine.etat] || '', n.chaine.etat !== 'erreur');
@@ -502,7 +509,8 @@ const actions = {
   monter: async () => { await sauver(); await api('/api/a/monter', {id: P.id, temps: T}); await recharger(); },
   tri: async el => { const r = await api('/api/a/final/tri', {id: P.id, fichier: el.dataset.n}); toast('Copiée dans le Tri : ' + r.fichier, true); },
   suppfinal: async el => { if (confirm('Supprimer ' + el.dataset.n + ' ?')) { await api('/api/a/final/supprimer', {id: P.id, fichier: el.dataset.n}); await recharger(); } },
-  statut: el => structure(() => P.statut = el.dataset.v),
+  statut: async el => { const av = P.statut; try { await structure(() => P.statut = el.dataset.v); } catch (e) { P.statut = av; throw e; } },
+  teaser: () => structure(() => Object.assign(P.montage, {cible: 15, transition: 'coupe', textes: true, carton: true, noir: true})),
   archiver: async () => { if (confirm('Archiver ce projet ? Il disparaît de la liste, ses fichiers restent sur le serveur.')) { P.statut = 'archive'; tSave = 1; await sauver(); P = null; location.hash = '#/'; } },
   persoia: persoIA, persosauver: persoSauver, persoarchiver: () => persoSauver('archive'), persoreactiver: () => persoSauver('actif'),
 };
@@ -517,7 +525,7 @@ vue.addEventListener('input', e => {
   if (t.id === 'hd') return sig.hd = t.checked;
   if (t.dataset.ch) { CH[t.dataset.ch] = t.type === 'checkbox' ? t.checked : t.value; delete sig.prod; return majDyn(); }
   if (!k || !P) return;
-  const v = t.type === 'checkbox' ? t.checked : t.type === 'number' || k === 'nb_scenes' || k === 'nb2' || k === 'cran' ? +t.value : t.value;
+  const v = t.type === 'checkbox' ? t.checked : t.type === 'number' || k === 'nb_scenes' || k === 'nb2' || k === 'cran' || k === 'cible' ? +t.value : t.value;
   if (t.dataset.s) sc(t.dataset.s)[k] = v; else if (t.dataset.m) P.montage[k] = v; else if (t.dataset.c) P.continuite[k] = v; else P[k] = v;
   if (k === 'raccord' || k === 'reference') return essai(structure)(() => {});  // le devis et les boutons en dependent
   planifier();
