@@ -248,3 +248,13 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
   (commit b6e2542). Depense du jour : 3,02 $ sur 7,50 $.
 - 14/11 : le proprietaire a pu rouvrir le compte Instagram de Lea ce matin. Instagram reste une cible de l'espace
   reseaux (`/social`), publication a la main apres validation, mention IA dans chaque legende et label natif.
+- 14/11, nuit : son, premiere marche. Commande `pilot son "<phrase en anglais>" --nom ... --duree 30 --variantes 3` :
+  ambiance sonore par Stable Audio Open 1.0 (licence Stability AI Community, usage commercial gratuit sous 1 M$ de
+  chiffre d'affaires ; noeuds d'origine de ComfyUI), rangee dans `data/audio/`, ou le montage la propose deja comme
+  musique. PAS ENCORE ESSAYEE JUSQU'AU BOUT : le depot du modele (4,9 Go) sur le volume a echoue a 2 Go, volume plein
+  (Errno 122). Le fichier partiel a ete supprime. Mesure du volume RunPod `lea-models` (150 Go) : environ 146 Go
+  occupes, dont modeles de ComfyUI 107 Go (diffusion 76, encodeurs de texte 24, LoRA 6,5), `train_models` 23,7 Go
+  (modeles d'entrainement : z_image_bf16 12,3 et umt5 11,4), `lea_lora` 7,2 Go (essais d'entrainement Wan, dont 7
+  etapes intermediaires de 0,6 Go), sorties 0,9 Go. Il manque environ 2 Go pour le son ; rien n'est supprime sans
+  l'accord du proprietaire. Depense : 0,09 $ (depot interrompu et deux pods de mesure). Depense du jour : 3,11 $ sur
+  7,50 $. Hub : une fiche au nom adulte est ecartee des categories tous publics meme sans marque de la source.

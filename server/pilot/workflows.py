@@ -126,3 +126,19 @@ def clip(m, char, image_name, prompt, w, h, seed, prefix, mode="natural", frames
     g["dec"] = {"class_type": "VAEDecode", "inputs": {"samples": ["ks_lo", 0], "vae": ["vae", 0]}}
     g["save"] = {"class_type": "SaveWEBM", "inputs": {"images": ["dec", 0], "filename_prefix": prefix, "codec": "vp9", "fps": 16.0, "crf": 18}}
     return g
+
+
+def son(prompt, neg, secondes, seed, prefix, steps=50):
+    """Ambiance sonore ou musique d'apres une phrase (Stable Audio Open 1.0, 47 s au plus, stereo 44,1 kHz)."""
+    return {
+        "ckpt": {"class_type": "CheckpointLoaderSimple", "inputs": {"ckpt_name": "stable-audio-open-1.0.safetensors"}},
+        "clip": {"class_type": "CLIPLoader", "inputs": {"clip_name": "t5-base.safetensors", "type": "stable_audio", "device": "default"}},
+        "pos": {"class_type": "CLIPTextEncode", "inputs": {"clip": ["clip", 0], "text": prompt}},
+        "neg": {"class_type": "CLIPTextEncode", "inputs": {"clip": ["clip", 0], "text": neg}},
+        "lat": {"class_type": "EmptyLatentAudio", "inputs": {"seconds": float(secondes), "batch_size": 1}},
+        "ks": {"class_type": "KSampler", "inputs": {
+            "model": ["ckpt", 0], "seed": seed, "steps": steps, "cfg": 5.0, "sampler_name": "dpmpp_3m_sde_gpu", "scheduler": "exponential",
+            "positive": ["pos", 0], "negative": ["neg", 0], "latent_image": ["lat", 0], "denoise": 1.0}},
+        "dec": {"class_type": "VAEDecodeAudio", "inputs": {"samples": ["ks", 0], "vae": ["ckpt", 2]}},
+        "save": {"class_type": "SaveAudio", "inputs": {"audio": ["dec", 0], "filename_prefix": prefix}},
+    }

@@ -303,6 +303,7 @@ Les fichiers de `server/jobs/atelier/` ne sont pas suivis par git. Le lancement 
     docker compose run --rm pilot run jobs/<plan>.yaml --stills-only  # images seules
     docker compose run --rm pilot run jobs/<plan>.yaml                # images puis clips (plans avec "motion")
     docker compose run --rm pilot lora list                           # LoRA supplementaires disponibles
+    docker compose run --rm pilot son "Quiet kitchen room tone" --nom cuisine   # ambiance sonore, rangee dans data/audio
     docker compose run --rm pilot pods                                # pods en cours
 
 Le pilote cree un pod, calcule, supprime le pod et ecrit un rapport (duree, cout) a la fin de sa

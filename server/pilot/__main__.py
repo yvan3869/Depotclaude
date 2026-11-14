@@ -346,19 +346,110 @@ def cmd_pods(a):
         print(p["id"], p.get("name"), p.get("desiredStatus"), p.get("costPerHr"), p.get("createdAt"))
 
 
-def deposer(pod_id, jtok, fname, blob):
-    """Depose un fichier dans le dossier des LoRA du volume par l'API de fichiers de Jupyter, en morceaux : le proxy
-    RunPod coupe les envois de plus de 100 Mo. Le dossier racine de Jupyter est /workspace (le volume)."""
+def deposer(pod_id, jtok, fname, blob, dossier="loras"):
+    """Depose un fichier dans un dossier de modeles du volume (les LoRA par defaut) par l'API de fichiers de Jupyter, en
+    morceaux : le proxy RunPod coupe les envois de plus de 100 Mo. Le dossier racine de Jupyter est /workspace (le
+    volume). `blob` : des octets, ou le chemin d'un fichier local, lu morceau par morceau (gros modeles)."""
     import base64
     from .http import request
-    url = f"https://{pod_id}-8888.proxy.runpod.net/api/contents/runpod-slim/ComfyUI/models/loras/{fname}"
+    url = f"https://{pod_id}-8888.proxy.runpod.net/api/contents/runpod-slim/ComfyUI/models/{dossier}/{fname}"
     size = 20 * 1024 * 1024
-    chunks = [blob[i:i + size] for i in range(0, len(blob), size)]
-    for i, ch in enumerate(chunks, 1):
-        request("PUT", url, headers={"Authorization": f"token {jtok}"}, timeout=600, data={
-            "type": "file", "format": "base64", "name": fname, "chunk": -1 if i == len(chunks) else i,
-            "content": base64.b64encode(ch).decode()})
-        log(f"depot de {fname} : {i}/{len(chunks)}")
+    total = blob.stat().st_size if isinstance(blob, Path) else len(blob)
+    n = max(1, -(-total // size))
+    src = blob.open("rb") if isinstance(blob, Path) else None
+    try:
+        for i in range(1, n + 1):
+            ch = src.read(size) if src else blob[(i - 1) * size:i * size]
+            request("PUT", url, headers={"Authorization": f"token {jtok}"}, timeout=600, data={
+                "type": "file", "format": "base64", "name": fname, "chunk": -1 if i == n else i,
+                "content": base64.b64encode(ch).decode()})
+            if n < 20 or i % 10 == 0 or i == n:
+                log(f"depot de {fname} : {i}/{n}")
+    finally:
+        if src:
+            src.close()
+
+
+# Modeles du son, deposes sur le volume au premier usage. Stable Audio Open 1.0 : licence Stability AI Community
+# (usage commercial gratuit sous 1 M$ de chiffre d'affaires annuel) ; t5-base : Apache 2.0.
+SON = {("checkpoints", "stable-audio-open-1.0.safetensors"): "https://huggingface.co/Comfy-Org/stable-audio-open-1.0/resolve/main/stable-audio-open-1.0.safetensors",
+       ("text_encoders", "t5-base.safetensors"): "https://huggingface.co/google-t5/t5-base/resolve/main/model.safetensors"}
+SON_NEG = "music, melody, speech, voice, talking, singing, distortion, low quality"
+
+
+def telecharger(url, dest: Path):
+    """Telecharge un gros fichier sur le disque, sans le garder en memoire."""
+    import urllib.request
+    from .http import UA, _ctx
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": UA}), timeout=120, context=_ctx) as r, dest.open("wb") as f:
+        shutil.copyfileobj(r, f, 4 * 1024 * 1024)
+    return dest
+
+
+def cmd_son(a):
+    """son "<phrase en anglais>" --nom ambiance : fabrique une ou plusieurs ambiances sonores et les range dans
+    data/audio/, ou le montage de l'atelier les propose (reglage « Musique »). Un pod pour tout le lot."""
+    import re
+    import secrets
+    data = Path(a.data)
+    nom = re.sub(r"[^a-z0-9_]+", "_", (a.nom or "ambiance").lower()).strip("_") or "ambiance"
+    secondes = max(3.0, min(47.0, a.duree))
+    cfg = load_config(a)
+    ff = os.environ.get("FFMPEG_BIN") or shutil.which("ffmpeg")
+    if not ff:
+        raise RuntimeError("ffmpeg introuvable")
+    jtok = secrets.token_urlsafe(24)
+    marque = data / "son_modeles.json"  # ecrit quand les modeles ont ete vus sur le volume
+    pre = {}
+    if not marque.exists():  # premier usage : telecharger avant de louer le pod
+        for (dossier, fname), url in SON.items():
+            log(f"telechargement de {fname}")
+            pre[fname] = telecharger(url, data / "work" / "son" / fname)
+    t0 = time.time()
+    pod_id, cost, gpu = runpod.create_pod(cfg["infra"], f"{PREFIX}son-{int(time.time())}", env={"JUPYTER_PASSWORD": jtok})
+    log(f"pod {pod_id} cree ({gpu}, {cost} $/h)")
+    faits = []
+    try:
+        c = Comfy(pod_id)
+        c.wait_ready()
+        for (dossier, fname), url in SON.items():
+            if c.has_model(dossier, fname):
+                continue
+            log(f"{fname} absent du volume : depot (une seule fois)")
+            deposer(pod_id, jtok, fname, pre.get(fname) or pre.setdefault(fname, telecharger(url, data / "work" / "son" / fname)), dossier)
+            for _ in range(18):  # ComfyUI ne liste un fichier neuf qu'apres un moment
+                if c.has_model(dossier, fname):
+                    break
+                time.sleep(10)
+            else:
+                raise RuntimeError(f"{fname} depose mais pas vu par ComfyUI")
+        marque.write_text(json.dumps({"date": time.strftime("%d/%m/%Y %H:%M"), "fichiers": [f for _, f in SON]}), encoding="utf-8")
+        (data / "audio").mkdir(parents=True, exist_ok=True)
+        for k in range(max(1, min(6, a.variantes))):
+            seed = a.seed + k
+            files = c.run(workflows.son(a.texte, a.neg, secondes, seed, f"{PREFIX}son"), timeout=900)
+            if not files:
+                raise RuntimeError("aucun son produit")
+            brut = data / "work" / "son" / f"{nom}_{seed}.flac"
+            brut.parent.mkdir(parents=True, exist_ok=True)
+            brut.write_bytes(c.fetch(files[0]))
+            out = data / "audio" / (f"{nom}.m4a" if a.variantes <= 1 else f"{nom}_{k + 1}.m4a")
+            # niveau regle a -23 LUFS : une ambiance reste en retrait ; fondus courts pour boucler sans claquement
+            subprocess.run([ff, "-y", "-loglevel", "error", "-i", str(brut), "-af",
+                            f"loudnorm=I=-23:TP=-2:LRA=11,afade=t=in:d=0.3,afade=t=out:st={secondes - 0.5:.2f}:d=0.5",
+                            "-ar", "44100", "-c:a", "aac", "-b:a", "160k", str(out)], check=True)
+            brut.unlink(missing_ok=True)
+            faits.append(out.name)
+            log(f"SON {out.name} ({secondes:.0f} s, tirage {seed})")
+    finally:
+        runpod.delete_pod(pod_id)
+        log(f"pod {pod_id} supprime")
+        for f in pre.values():
+            f.unlink(missing_ok=True)
+    mins = (time.time() - t0) / 60
+    print(json.dumps({"son": faits, "minutes": round(mins, 1), "cost_usd": round(mins / 60 * float(cost or 0), 2)}))
+    return 0
 
 
 def lora_sync(a, data, catp, cat):
@@ -537,6 +628,15 @@ def main():
     lo.add_argument("--jupyter-token")
     lo.add_argument("--data", default=os.environ.get("DATA_DIR", str(ROOT / "server" / "data")))
     lo.set_defaults(fn=cmd_lora)
+    so = sub.add_parser("son", help="ambiance sonore d'apres une phrase en anglais, rangee dans data/audio (Stable Audio Open)")
+    so.add_argument("texte")
+    so.add_argument("--nom", help="nom du fichier (lettres, chiffres, _)")
+    so.add_argument("--duree", type=float, default=30.0, help="secondes, 47 au plus")
+    so.add_argument("--variantes", type=int, default=1, help="nombre de tirages (6 au plus)")
+    so.add_argument("--seed", type=int, default=100)
+    so.add_argument("--neg", default=SON_NEG, help="ce qu'on ne veut pas entendre")
+    so.add_argument("--data", default=os.environ.get("DATA_DIR", str(ROOT / "server" / "data")))
+    so.set_defaults(fn=cmd_son)
     a = ap.parse_args()
     try:
         sys.exit(a.fn(a) or 0)
