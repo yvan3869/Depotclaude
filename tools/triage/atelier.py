@@ -618,6 +618,8 @@ class Atelier:
                     raise ValueError("nom de fichier invalide (lettres, chiffres, _ . -)")
                 pl = self._plan(f)
                 x |= {k: pl[k] for k in ("projet", "temps", "personnage", "titre", "note")} | {"n": len(pl["scenes"]), "perime": bool(modele) and pl["modele"] != modele}
+                if not x["projet"]:  # depot sans projet deja importe : il appartient au projet qu'il a ouvert
+                    x["projet"] = self._rattache(f.name)
                 if x["projet"] and not self._existe(x["projet"]):
                     x["erreur"] = f"projet {x['projet']} inconnu"
                 elif x["projet"]:
@@ -630,6 +632,13 @@ class Atelier:
             out.append(x)
         return out
 
+    def _rattache(self, nom):
+        """Projet ouvert par l'import d'un depot qui ne nommait pas de projet ("" si aucun)."""
+        for d in sorted(self.dj.glob("p*/projet.json"), reverse=True):
+            if nom in (_load(d, {}).get("depots") or {}):
+                return d.parent.name
+        return ""
+
     def importer(self, b):
         """Verse les plans d'un fichier depose dans les scenes d'un temps du projet. Un nouvel import du meme
         fichier met a jour ses scenes (reperees par leur origine) en gardant leurs images tant que "still" est inchange."""
@@ -637,7 +646,7 @@ class Atelier:
         if f.parent != self.dd or not f.is_file() or not re.fullmatch(r"[A-Za-z0-9_.-]{1,80}\.yaml", f.name):
             raise ValueError("fichier inconnu")
         pl = self._plan(f)
-        pid = pl["projet"]
+        pid = pl["projet"] or self._rattache(f.name)
         if not pid:  # depot sans projet : en ouvrir un
             pid = self.save_projet({"personnage": pl["personnage"] or b.get("personnage"), "titre": pl["titre"] or f.stem})["id"]
         with self.lock:
