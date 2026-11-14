@@ -2,16 +2,23 @@
 # Reseau "host" : le service ecoute directement sur l'adresse Tailscale, sans NAT Docker
 # (le NAT etait bloque par le pare-feu du serveur pour le trafic venant de Tailscale).
 services:
+  # Studio : tri, plan, test. Meme image que le pilote, car la page Test lance le pilote elle-meme.
+  # Apres une mise a jour :  docker compose up -d --build triage
   triage:
-    image: python:3.13-slim
+    build:
+      context: .
+      dockerfile: Dockerfile.pilot
     restart: unless-stopped
     network_mode: host
-    working_dir: /app
-    command: ["python", "-u", "triage.py", "--dir", "/data/inbox", "--host", "${TS_IP:?definir TS_IP dans .env}", "--port", "8790"]
+    working_dir: /repo/tools/triage
+    entrypoint: ["python", "-u", "triage.py", "--dir", "/data/inbox", "--host", "${TS_IP:?definir TS_IP dans .env}", "--port", "8790"]
     environment:
       TRIAGE_TOKEN: ${TRIAGE_TOKEN:?definir TRIAGE_TOKEN dans .env}
+      RUNPOD_API_KEY: ${RUNPOD_API_KEY:-}
+      REPO_DIR: /repo
+      DATA_DIR: /data
     volumes:
-      - ../tools/triage:/app:ro
+      - ..:/repo:ro
       - ${DATA_DIR:-./data}:/data
 
   # Pilote GPU : ne tourne pas en permanence. Lancement :
@@ -23,6 +30,7 @@ services:
     profiles: ["outils"]
     environment:
       RUNPOD_API_KEY: ${RUNPOD_API_KEY:-}
+      CIVITAI_TOKEN: ${CIVITAI_TOKEN:-}
       DATA_DIR: /data
     volumes:
       - ..:/repo:ro

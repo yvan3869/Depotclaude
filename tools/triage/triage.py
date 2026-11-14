@@ -15,6 +15,8 @@ import mimetypes
 import os
 import re
 import shutil
+import subprocess
+import sys
 import time
 from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -83,8 +85,13 @@ def write_job(jobs: Path, b: dict) -> dict:
     common = ", ".join(x.strip() for x in (str(b.get("decor", "")), str(b.get("tenue", ""))) if x.strip())
     # LoRA supplementaires : noms du catalogue (lora_catalog), separes par des virgules. Champ vide :
     # le plan garde le reglage general (extra_loras_still).
-    names = [x.strip() for x in str(b.get("loras", "")).split(",") if x.strip()]
-    loras = names or None
+    loras = []
+    for x in str(b.get("loras", "")).split(","):
+        nm, _, st = x.strip().partition(":")
+        if nm.strip():
+            loras.append({"name": nm.strip(), "strength": float(st)} if st.strip() else nm.strip())
+    loras = loras or None
+    corps = str(b.get("corps", "")).strip()
     shots = []
     for key, dest in (("accroche", "soft"), ("montee", "abonnes"), ("final", "payant")):
         still = str(b.get(f"{key}_still", "")).strip()
@@ -92,11 +99,16 @@ def write_job(jobs: Path, b: dict) -> dict:
             continue
         shot = {"name": f"{len(shots) + 1}_{key}", "dest": dest,
                 "still": ", ".join(x for x in (still, common) if x)}
+        if corps and dest != "soft":  # description du corps reprise d'un test valide (temps 2 et 3)
+            shot["still"] += ", " + corps
         motion = str(b.get(f"{key}_motion", "")).strip()
-        if motion:
+        parts = [x for x in SPLIT.split(motion) if x.strip()]
+        if len(parts) > 1:  # plusieurs actions ("..., puis ...") : sous-scenes enchainees debut/fin
+            shot["steps"] = parts
+        elif motion:
             shot["motion"] = motion
         end = str(b.get(f"{key}_end", "")).strip()
-        if end and motion:  # clip debut/fin : le pilote fabrique l'image de fin a partir de la premiere
+        if end and motion and "steps" not in shot:  # clip debut/fin : le pilote fabrique l'image de fin a partir de la premiere
             shot["end_edit"] = end
         if not b.get(f"{key}_tattoos", True):
             shot["tattoos"] = False
@@ -116,7 +128,139 @@ def write_job(jobs: Path, b: dict) -> dict:
             "command": f"docker compose run --rm pilot run /data/jobs/{path.name}"}
 
 
+LISTS = ("decor", "cadrage", "pose", "pose_perso", "tenue", "expression", "lumiere")
+FORMATS = {"portrait": [864, 1152], "vertical": [720, 1280], "carre": [1024, 1024], "paysage": [1152, 864]}
+SPLIT = re.compile(r"\s*(?:;|,?\s+puis\s+|,?\s+ensuite\s+)\s*", re.I)
+
+
+class Studio:
+    """Banc de test des prompts : listes, composition aleatoire, lancement du pilote, resultats."""
+
+    def __init__(self, data: Path):
+        self.data = data
+        self.tests = data / "tests"
+        self.repo = Path(os.environ.get("REPO_DIR", HERE.parents[1]))
+        self.proc = None
+
+    def lists(self):
+        base = json.loads((HERE / "listes_test.json").read_text(encoding="utf-8"))
+        perso = self._perso()
+        return {k: [{"t": x, "perso": False} for x in base.get(k, [])] + [{"t": x, "perso": True} for x in perso.get(k, [])]
+                for k in LISTS}
+
+    def _perso(self):
+        p = self.data / "listes_perso.json"
+        return json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
+
+    def edit_list(self, name, text, remove=False):
+        if name not in LISTS:
+            raise ValueError("liste inconnue")
+        text = " ".join(str(text).split())
+        if not text:
+            raise ValueError("texte vide")
+        perso = self._perso()
+        cur = perso.setdefault(name, [])
+        if remove:
+            if text in cur:
+                cur.remove(text)
+        elif text not in cur:
+            cur.append(text)
+        self.data.mkdir(parents=True, exist_ok=True)
+        (self.data / "listes_perso.json").write_text(json.dumps(perso, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    def loras(self):
+        try:
+            import yaml
+        except ImportError:
+            return []
+        cat = {}
+        prod = self.repo / "persona" / "production.yaml"
+        if prod.exists():
+            cat.update(yaml.safe_load(prod.read_text(encoding="utf-8")).get("lora_catalog") or {})
+        extra = self.data / "lora_catalog.yaml"
+        if extra.exists():
+            cat.update(yaml.safe_load(extra.read_text(encoding="utf-8")) or {})
+        return [{"name": k, "strength": v.get("strength", 0.6), "trigger": v.get("trigger", "")} for k, v in cat.items()]
+
+    def running(self):
+        return self.proc is not None and self.proc.poll() is None
+
+    def can_run(self):
+        return bool(os.environ.get("RUNPOD_API_KEY")) and (self.repo / "server" / "pilot").exists()
+
+    def compose(self, b, rng):
+        """Une description : un element tire au hasard dans chaque liste cochee, plus les champs libres."""
+        def pick(key):
+            vals = [str(x) for x in (b.get(key) or []) if str(x).strip()]
+            return rng.choice(vals) if vals else ""
+        poses = [str(x) for x in (b.get("pose") or []) + (b.get("pose_perso") or []) if str(x).strip()]
+        parts = [pick("cadrage"), rng.choice(poses) if poses else "", pick("expression"), pick("tenue"),
+                 pick("decor"), pick("lumiere"), str(b.get("corps", "")).strip(), str(b.get("libre", "")).strip()]
+        return ", ".join(x for x in parts if x)
+
+    def start(self, b):
+        import random
+        if self.running():
+            raise ValueError("un test est deja en cours : attendre sa fin")
+        n = max(1, min(int(b.get("n") or 4), 40))
+        seed = int(b.get("seed") or int(time.time()) % 100000)
+        rng = random.Random(seed)
+        tid = time.strftime("%Y%m%d_%H%M%S")
+        loras = [{"name": str(x["name"]), "strength": float(x["strength"])} for x in (b.get("loras") or [])]
+        prompts = [self.compose(b, rng) for _ in range(n)]
+        if not any(prompts):
+            raise ValueError("rien a generer : cocher au moins un element ou remplir un champ")
+        job = {"name": f"test_{tid}", "defaults": {"still_size": FORMATS.get(b.get("format"), FORMATS["portrait"]), "seed": seed},
+               "shots": [{"name": f"{i + 1:02d}", "still": p, "loras": loras, "tattoos": bool(b.get("tattoos", True))}
+                         for i, p in enumerate(prompts)]}
+        d = self.tests / tid
+        d.mkdir(parents=True, exist_ok=True)
+        jobp = d / "job.yaml"
+        jobp.write_text(json.dumps(job, ensure_ascii=False, indent=2), encoding="utf-8")
+        rec = {"id": tid, "date": time.strftime("%d/%m/%Y %H:%M"), "params": b, "prompts": prompts, "verdict": None, "note": ""}
+        (d / "test.json").write_text(json.dumps(rec, ensure_ascii=False, indent=2), encoding="utf-8")
+        cmd = [sys.executable, "-m", "pilot", "run", str(jobp), "--stills-only", "--data", str(self.data), "--out", str(d)]
+        if os.environ.get("STUDIO_POD_ID"):  # mise au point : reutiliser un pod deja demarre
+            cmd += ["--pod-id", os.environ["STUDIO_POD_ID"]]
+        if self.can_run():
+            self.proc = subprocess.Popen(cmd, cwd=str(self.repo / "server"), stdout=open(d / "log.txt", "w"), stderr=subprocess.STDOUT)
+            return {"id": tid, "started": True}
+        return {"id": tid, "started": False,
+                "command": f"docker compose run --rm pilot run /data/tests/{tid}/job.yaml --stills-only --out /data/tests/{tid}"}
+
+    def _dir(self, tid):
+        if not re.fullmatch(r"[0-9_]+", str(tid)):
+            raise ValueError("identifiant invalide")
+        d = self.tests / str(tid)
+        if not d.is_dir():
+            raise FileNotFoundError(tid)
+        return d
+
+    def list(self):
+        out = []
+        for d in sorted(self.tests.glob("*/test.json"), reverse=True):
+            rec = json.loads(d.read_text(encoding="utf-8"))
+            logp = d.parent / "log.txt"
+            log = logp.read_text(encoding="utf-8", errors="replace") if logp.exists() else ""
+            rec["images"] = sorted(x.name for x in d.parent.glob("*.png"))
+            rec["status"] = ("termine" if "rapport :" in log else "arrete" if "ARRET" in log
+                             else "en cours" if log and self.running() else "a lancer" if not log else "interrompu")
+            rec["log"] = "\n".join(log.strip().splitlines()[-3:])
+            out.append(rec)
+        return out
+
+    def verdict(self, tid, ok, note):
+        p = self._dir(tid) / "test.json"
+        rec = json.loads(p.read_text(encoding="utf-8"))
+        rec["verdict"], rec["note"] = ok, str(note or "")[:500]
+        p.write_text(json.dumps(rec, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    def delete(self, tid):
+        shutil.rmtree(self._dir(tid))
+
+
 def make_handler(t: Triage, token: str):
+    studio = Studio(t.root.parent)
     class H(BaseHTTPRequestHandler):
         def log_message(self, *a):
             pass
@@ -146,9 +290,21 @@ def make_handler(t: Triage, token: str):
             q = parse_qs(u.query)
             if not self.authed(q):
                 return self.send(403, b"forbidden", "text/plain")
-            if u.path == "/":
+            if u.path in ("/", "/tri", "/test"):
                 extra = {"Set-Cookie": f"t={token}; HttpOnly; SameSite=Strict"} if token else None
-                return self.send(200, PAGE, "text/html; charset=utf-8", extra)
+                page = {"/": "home.html", "/tri": "index.html", "/test": "test.html"}[u.path]
+                return self.send(200, (HERE / page).read_bytes(), "text/html; charset=utf-8", extra)
+            if u.path == "/api/studio":
+                return self.js({"lists": studio.lists(), "loras": studio.loras(), "can_run": studio.can_run(),
+                                "running": studio.running(), "formats": list(FORMATS)})
+            if u.path == "/api/tests":
+                return self.js({"tests": studio.list(), "running": studio.running()})
+            if u.path.startswith("/tfile/"):
+                try:
+                    tid, _, name = unquote(u.path[7:]).partition("/")
+                    return self.serve_file(t.safe(studio._dir(tid), name))
+                except (FileNotFoundError, ValueError):
+                    return self.send(404, b"not found", "text/plain")
             if u.path == "/nouveau":
                 return self.send(200, (HERE / "form.html").read_bytes(), "text/html; charset=utf-8")
             if u.path == "/api/list":
@@ -204,6 +360,17 @@ def make_handler(t: Triage, token: str):
                 body = json.loads(self.rfile.read(n) or b"{}")
                 if u.path == "/api/move":
                     t.move(str(body["name"]), str(body["to"]))
+                    return self.js({"ok": True})
+                if u.path == "/api/test":
+                    return self.js({"ok": True, **studio.start(body)})
+                if u.path == "/api/list":
+                    studio.edit_list(body.get("liste"), body.get("texte"), bool(body.get("remove")))
+                    return self.js({"ok": True})
+                if u.path == "/api/test/verdict":
+                    studio.verdict(body["id"], body.get("ok"), body.get("note"))
+                    return self.js({"ok": True})
+                if u.path == "/api/test/delete":
+                    studio.delete(body["id"])
                     return self.js({"ok": True})
                 if u.path == "/api/job":
                     return self.js({"ok": True, **write_job(t.root.parent / "jobs", body)})

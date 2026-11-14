@@ -45,3 +45,20 @@ Apres un `git pull`, redemarrer l'interface : `docker compose restart triage`.
 Le formulaire accepte le francais. Champs facultatifs : "Image de fin" (clip debut/fin, voir
 `jobs/exemple_debut_fin.yaml`) et "LoRA supplementaires" (noms de `lora_catalog`, voir
 `docs/lora-supplementaires.md`).
+
+## Studio : menu, page Test, scenes en sous-scenes (14/11/2026)
+L'adresse de l'interface ouvre maintenant un menu : Tri (`/tri`), Plan (`/nouveau`), Test (`/test`).
+Mise a jour : `git pull` puis `docker compose up -d --build triage` (l'interface utilise desormais
+la meme image que le pilote, car la page Test lance le pilote elle-meme).
+
+Page Test : listes a cocher (decor, cadrage, poses, tenue, expression, lumiere), champs libres
+(corps, complement), LoRA du catalogue avec force reglable, nombre d'images. Chaque image tire au
+hasard un element de chaque liste cochee. Les listes de base sont tous publics a suggestif ; les
+elements que vous ajoutez dans l'interface sont enregistres dans `data/listes_perso.json`.
+Les tests sont ranges dans `data/tests/<date>/` : images, descriptions, journal. Un test peut etre
+marque OK ou pas OK, annote, repris, supprime. Un reglage marque OK se rappelle dans la page Plan.
+Un seul test a la fois. Chaque test demarre un pod (2 a 5 min de demarrage, environ 0,10 $).
+
+Page Plan : dans le champ Mouvement, plusieurs actions separees par "puis" ou ";" deviennent des
+sous-scenes : pour chacune, le pilote fabrique l'image de fin a partir de la precedente, calcule un
+clip debut/fin, puis met les clips bout a bout. Une action par sous-scene, sans changement de cadrage.

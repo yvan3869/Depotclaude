@@ -21,7 +21,7 @@ def delete_pod(pod_id):
     request("DELETE", f"{API}/pods/{pod_id}", headers=_h())
 
 
-def create_pod(cfg, name):
+def create_pod(cfg, name, env=None):
     body = {
         "name": name, "templateId": cfg["template_id"], "imageName": cfg["image"],
         "cloudType": "SECURE", "computeType": "GPU", "gpuCount": 1,
@@ -30,6 +30,8 @@ def create_pod(cfg, name):
         "containerDiskInGb": cfg.get("container_disk_gb", 60),
         "ports": ["8188/http", "8888/http"], "interruptible": False,
     }
+    if env:
+        body["env"] = env
     last = None
     for attempt in range(cfg.get("create_attempts", 6)):
         try:

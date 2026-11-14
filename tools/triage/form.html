@@ -26,10 +26,14 @@
 <body>
 <main>
 <h1>Nouveau lot en trois temps</h1>
-<p class="hint">Un moment de vie, trois niveaux. Descriptions en français ou en anglais. Un temps laissé vide est ignoré. <a href="/">Retour au tri</a></p>
+<p class="hint">Un moment de vie, trois niveaux. Descriptions en français ou en anglais. Un temps laissé vide est ignoré. <a href="/">Studio</a> · <a href="/tri">Tri</a> · <a href="/test">Test</a></p>
 <form id="f">
 <section>
   <h2>Le moment</h2>
+  <label>Reprendre un réglage validé dans Test (décor, corps, LoRA)</label>
+  <select id="preset" style="width:100%;background:#0d1013;color:#e8eaed;border:1px solid #2c333b;border-radius:6px;padding:8px"><option value="">Aucun</option></select>
+  <label>Corps (description fixe, ajoutée aux temps 2 et 3)</label>
+  <input type="text" name="corps">
   <label>Nom du lot (lettres, chiffres, tirets bas)</label>
   <input type="text" name="name" required placeholder="matin_cuisine">
   <label>Décor, commun aux trois temps</label>
@@ -40,14 +44,14 @@
     <label style="margin:0"><input type="checkbox" name="hd"> Clips en 720p (environ 4 fois plus cher)</label>
     <label style="margin:0">Tirage <input type="number" name="seed" value="1" style="width:90px"></label>
   </div>
-  <label>LoRA supplémentaires (noms du catalogue de production.yaml, séparés par des virgules ; vide = réglage général)</label>
+  <label>LoRA supplémentaires (noms du catalogue séparés par des virgules, force facultative : detail:0.6 ; vide = réglage général)</label>
   <input type="text" name="loras" placeholder="detail">
 </section>
 <section>
   <h2>1. Accroche, tous publics (short Instagram / TikTok)</h2>
   <label>Image de départ : cadrage, pose, expression</label>
   <textarea name="accroche_still" placeholder="plan moyen, appuyée contre le plan de travail, une tasse de café dans les mains, sourire endormi, regard vers l'objectif"></textarea>
-  <label>Mouvement (geste simple et calme)</label>
+  <label>Mouvement : un geste simple. Plusieurs actions séparées par « puis » ou « ; » deviennent des sous-scènes enchaînées</label>
   <textarea name="accroche_motion" placeholder="Elle boit une gorgée de café, puis regarde l'objectif et rit doucement."></textarea>
   <label>Image de fin, facultatif : la seule chose qui change entre le début et la fin du clip (pose ou état)</label>
   <input type="text" name="accroche_end" placeholder="elle est maintenant debout à côté du lit, face à l'objectif">
@@ -83,6 +87,17 @@
 </section>
 </main>
 <script>
+fetch('/api/tests').then(r => r.json()).then(d => {
+  const sel = document.getElementById('preset'), ok = d.tests.filter(t => t.verdict === true);
+  ok.forEach(t => { const o = document.createElement('option'); o.value = t.id; o.textContent = t.date + (t.note ? ' : ' + t.note : ''); sel.appendChild(o); });
+  sel.onchange = () => {
+    const t = ok.find(x => x.id === sel.value); if (!t) return;
+    const f = document.getElementById('f'), p = t.params;
+    f.corps.value = p.corps || '';
+    if ((p.decor || []).length) f.decor.value = p.decor[0];
+    f.loras.value = (p.loras || []).map(l => l.name + ':' + l.strength).join(', ');
+  };
+});
 document.getElementById('f').addEventListener('submit', async (e) => {
   e.preventDefault();
   const fd = new FormData(e.target), body = {};

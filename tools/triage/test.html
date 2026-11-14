@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Test</title>
+<style>
+  :root { --bg:#111417; --panel:#1b2026; --text:#e8eaed; --muted:#8b949e; --line:#2c333b; --acc:#3fa7d6; --ok:#3fb950; --no:#e5534b; }
+  * { box-sizing:border-box; }
+  body { margin:0; padding:12px; background:var(--bg); color:var(--text); font:14px/1.4 system-ui,sans-serif; }
+  nav { display:flex; gap:14px; margin-bottom:12px; } nav a { color:var(--acc); text-decoration:none; } nav b { color:var(--text); }
+  main { max-width:1100px; margin:0 auto; }
+  section { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:12px; margin-bottom:12px; }
+  h2 { font-size:15px; margin:0 0 8px; } .hint { color:var(--muted); font-size:12px; }
+  .cols { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:12px; }
+  .list { max-height:210px; overflow:auto; border:1px solid var(--line); border-radius:6px; padding:6px; background:#0d1013; }
+  .list label { display:block; padding:2px 0; cursor:pointer; } .list label.perso { color:#d2a8ff; }
+  .list .del { color:var(--no); cursor:pointer; margin-left:6px; }
+  .add { display:flex; gap:6px; margin-top:6px; } .add input { flex:1; }
+  input[type=text], input[type=number], textarea, select { background:#0d1013; color:var(--text); border:1px solid var(--line); border-radius:6px; padding:6px; font:inherit; }
+  textarea { width:100%; min-height:54px; }
+  button { background:var(--acc); color:#06131a; border:0; border-radius:6px; padding:7px 14px; font:inherit; font-weight:600; cursor:pointer; }
+  button.small { padding:3px 8px; font-weight:500; background:#2c333b; color:var(--text); }
+  button.ok { background:var(--ok); } button.no { background:var(--no); color:#fff; }
+  .row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin-top:8px; }
+  .lora { display:flex; gap:8px; align-items:center; padding:2px 0; } .lora input[type=number] { width:70px; }
+  .test { border-top:1px solid var(--line); padding-top:10px; margin-top:10px; }
+  .test.ok { border-left:4px solid var(--ok); padding-left:8px; } .test.no { border-left:4px solid var(--no); padding-left:8px; }
+  .imgs { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:6px; margin:8px 0; }
+  .imgs img { width:100%; border-radius:4px; cursor:zoom-in; display:block; } .imgs figure { margin:0; } .imgs figcaption { font-size:11px; color:var(--muted); }
+  details { margin:4px 0; } pre { white-space:pre-wrap; background:#0d1013; padding:6px; border-radius:6px; margin:4px 0; font-size:12px; }
+  #zoom { position:fixed; inset:0; background:#000d; display:none; align-items:center; justify-content:center; cursor:zoom-out; } #zoom img { max-width:96vw; max-height:96vh; }
+</style></head><body><main>
+<nav><a href="/">Studio</a><a href="/tri">Tri</a><a href="/nouveau">Plan</a><b>Test</b></nav>
+<section>
+  <h2>Nouveau test d'images</h2>
+  <p class="hint">Cochez plusieurs éléments par liste : chaque image tire au hasard un élément de chaque liste cochée. Rien de coché dans une liste = liste ignorée. Les éléments ajoutés par vous (en violet) sont conservés. Le français est compris directement.</p>
+  <div class="cols" id="lists"></div>
+  <div class="cols" style="margin-top:12px">
+    <div><h2>Corps (description fixe, reprise dans chaque image)</h2><textarea id="corps"></textarea></div>
+    <div><h2>Complément libre (ajouté à chaque image)</h2><textarea id="libre"></textarea></div>
+  </div>
+  <h2 style="margin-top:12px">LoRA supplémentaires (cumulables)</h2>
+  <div id="loras" class="hint">Aucun LoRA au catalogue.</div>
+  <div class="row">
+    <label>Nombre d'images <select id="n"><option>1</option><option>2</option><option selected>4</option><option>6</option><option>8</option><option>12</option><option>16</option><option>20</option></select></label>
+    <label>Format <select id="format"><option value="portrait">Portrait 3:4</option><option value="vertical">Vertical 9:16</option><option value="carre">Carré</option><option value="paysage">Paysage 4:3</option></select></label>
+    <label>Tirage <input type="number" id="seed" placeholder="au hasard" style="width:110px"></label>
+    <label><input type="checkbox" id="tattoos" checked> Tatouages visibles</label>
+    <button id="go">Générer</button><span id="msg" class="hint"></span>
+  </div>
+</section>
+<section><h2>Tests déjà faits</h2>
+  <div class="row"><label><input type="checkbox" id="onlyok"> Seulement les réglages validés</label><span id="state" class="hint"></span></div>
+  <div id="tests"></div>
+</section>
+</main><div id="zoom"><img></div>
+<script>
+const TITLES = {decor:'Décor', cadrage:'Cadrage', pose:'Poses', pose_perso:'Poses ajoutées par vous', tenue:'Tenue', expression:'Expression', lumiere:'Lumière'};
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+async function api(path, body) {
+  const r = await fetch(path, body ? {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)} : undefined);
+  return r.json();
+}
+let studio = null, checked = {};
+function keep() { document.querySelectorAll('#lists input[type=checkbox]').forEach(c => { checked[c.dataset.l + '|' + c.value] = c.checked; }); }
+async function loadStudio() {
+  keep(); studio = await api('/api/studio');
+  $('lists').innerHTML = Object.keys(TITLES).map(k => `<div><h2>${TITLES[k]}</h2><div class="list">` +
+    (studio.lists[k].map(x => `<label class="${x.perso ? 'perso' : ''}"><input type="checkbox" data-l="${k}" value="${esc(x.t)}" ${checked[k + '|' + x.t] ? 'checked' : ''}> ${esc(x.t)}` +
+      (x.perso ? `<span class="del" data-l="${k}" data-t="${esc(x.t)}">supprimer</span>` : '') + `</label>`).join('') || '<span class="hint">Liste vide : ajoutez vos éléments ci-dessous.</span>') +
+    `</div><div class="add"><input type="text" placeholder="Ajouter à cette liste" data-add="${k}"><button class="small" data-addbtn="${k}">Ajouter</button></div></div>`).join('');
+  if (studio.loras.length) $('loras').innerHTML = studio.loras.map(l => `<div class="lora"><label><input type="checkbox" data-lora="${esc(l.name)}"> ${esc(l.name)}</label>` +
+    `force <input type="number" step="0.05" min="0" max="2" value="${l.strength}" data-force="${esc(l.name)}">` + (l.trigger ? `<span class="hint">déclencheur : ${esc(l.trigger)}</span>` : '') + `</div>`).join('');
+  if (!studio.can_run) $('msg').textContent = "Lancement automatique indisponible ici : une commande à lancer sera affichée.";
+}
+$('lists').addEventListener('click', async (e) => {
+  const b = e.target.dataset;
+  if (b.addbtn) { const inp = document.querySelector(`[data-add="${b.addbtn}"]`); if (inp.value.trim()) { await api('/api/list', {liste:b.addbtn, texte:inp.value}); checked[b.addbtn + '|' + inp.value.trim()] = true; await loadStudio(); } }
+  if (e.target.classList.contains('del')) { e.preventDefault(); await api('/api/list', {liste:b.l, texte:b.t, remove:true}); await loadStudio(); }
+});
+function params() {
+  const p = {corps:$('corps').value, libre:$('libre').value, n:+$('n').value, format:$('format').value, seed:$('seed').value, tattoos:$('tattoos').checked, loras:[]};
+  for (const k of Object.keys(TITLES)) p[k] = [...document.querySelectorAll(`#lists input[data-l="${k}"]:checked`)].map(c => c.value);
+  document.querySelectorAll('[data-lora]:checked').forEach(c => p.loras.push({name:c.dataset.lora, strength:+document.querySelector(`[data-force="${c.dataset.lora}"]`).value}));
+  return p;
+}
+$('go').onclick = async () => {
+  $('msg').textContent = 'Envoi...';
+  const d = await api('/api/test', params());
+  $('msg').textContent = !d.ok ? 'Erreur : ' + d.error : d.started ? 'Test lancé : le pod démarre, comptez quelques minutes.' : 'Fichier créé. À lancer dans server/ : ' + d.command;
+  loadTests();
+};
+function recall(t) {
+  const p = t.params; checked = {};
+  for (const k of Object.keys(TITLES)) (p[k] || []).forEach(v => { checked[k + '|' + v] = true; });
+  $('corps').value = p.corps || ''; $('libre').value = p.libre || ''; $('format').value = p.format || 'portrait'; $('tattoos').checked = p.tattoos !== false;
+  loadStudio().then(() => (p.loras || []).forEach(l => { const c = document.querySelector(`[data-lora="${l.name}"]`); if (c) { c.checked = true; document.querySelector(`[data-force="${l.name}"]`).value = l.strength; } }));
+  window.scrollTo(0, 0);
+}
+let tests = [];
+async function loadTests() {
+  const d = await api('/api/tests'); tests = d.tests;
+  $('state').textContent = d.running ? 'Un test est en cours...' : '';
+  const only = $('onlyok').checked;
+  $('tests').innerHTML = tests.filter(t => !only || t.verdict === true).map(t => {
+    const lor = (t.params.loras || []).map(l => `${l.name} à ${l.strength}`).join(', ') || 'aucun';
+    return `<div class="test ${t.verdict === true ? 'ok' : t.verdict === false ? 'no' : ''}"><b>${esc(t.date)}</b> · ${t.images.length}/${t.prompts.length} images · ${esc(t.status)} · LoRA : ${esc(lor)}` +
+      (t.status !== 'termine' && t.log ? `<pre>${esc(t.log)}</pre>` : '') +
+      `<div class="imgs">` + t.images.map((f, i) => `<figure><img loading="lazy" src="/tfile/${t.id}/${encodeURIComponent(f)}" data-zoom><figcaption>${esc(f.replace(/^test_[0-9_]+_/, '').replace('.png', ''))}</figcaption></figure>`).join('') + `</div>` +
+      `<details><summary>Descriptions générées</summary><pre>${t.prompts.map((p, i) => String(i + 1).padStart(2, '0') + '  ' + esc(p)).join('\n')}</pre></details>` +
+      `<div class="row"><button class="ok" data-v="1" data-id="${t.id}">Réglages OK</button><button class="no" data-v="0" data-id="${t.id}">Pas OK</button>` +
+      `<input type="text" placeholder="Note" value="${esc(t.note || '')}" data-note="${t.id}" style="flex:1;min-width:160px">` +
+      `<button class="small" data-recall="${t.id}">Reprendre ces réglages</button><button class="small" data-del="${t.id}">Supprimer</button></div></div>`;
+  }).join('') || '<p class="hint">Aucun test.</p>';
+}
+$('tests').addEventListener('click', async (e) => {
+  const b = e.target.dataset;
+  if ('zoom' in b) { $('zoom').querySelector('img').src = e.target.src; $('zoom').style.display = 'flex'; }
+  if (b.v) { await api('/api/test/verdict', {id:b.id, ok:b.v === '1', note:document.querySelector(`[data-note="${b.id}"]`).value}); loadTests(); }
+  if (b.recall) recall(tests.find(t => t.id === b.recall));
+  if (b.del && confirm('Supprimer ce test et ses images ?')) { await api('/api/test/delete', {id:b.del}); loadTests(); }
+});
+$('zoom').onclick = () => { $('zoom').style.display = 'none'; };
+$('onlyok').onchange = loadTests;
+loadStudio(); loadTests(); setInterval(() => { if (!document.querySelector('[data-note]:focus')) loadTests(); }, 12000);
+</script></body></html>

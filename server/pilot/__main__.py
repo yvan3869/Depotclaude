@@ -165,7 +165,8 @@ def cmd_run(a):
         # Chaque etape : l'image de fin est fabriquee par edition de l'image precedente, puis un clip
         # debut/fin relie les deux. L'image de fin d'une etape est l'image de depart de la suivante.
         keep = ("Keep exactly the same person, same face, same hair, same body, same clothes unless stated otherwise, "
-                "same room, same light, same camera position and same photo style. Change only this: ")
+                "same room, same light, same camera position, same framing, same distance to the camera and same photo style. "
+                "Change only this: ")
 
         def steps_of(s):
             if s.get("steps"):
@@ -289,9 +290,12 @@ def cmd_lora(a):
     tok = os.environ.get("CIVITAI_TOKEN", "")
     hdr = {"Authorization": f"Bearer {tok}"} if tok else {}
     m = re.search(r"models/(\d+)", a.ref) or re.fullmatch(r"(\d+)", a.ref)
-    if not m:
-        raise RuntimeError("reference attendue : adresse civitai.com/models/<numero> ou numero du modele")
     ver = re.search(r"modelVersionId=(\d+)", a.ref)
+    if not m and ver:  # seulement un numero de version : retrouver le modele
+        mid = request("GET", f"https://civitai.com/api/v1/model-versions/{ver.group(1)}", headers=hdr).get("modelId")
+        m = re.fullmatch(r"(\d+)", str(mid))
+    if not m:
+        raise RuntimeError("reference attendue : adresse civitai.com/models/<numero>, numero du modele, ou modelVersionId=<numero>")
     info = request("GET", f"https://civitai.com/api/v1/models/{m.group(1)}", headers=hdr)
     versions = info.get("modelVersions") or []
     v = next((x for x in versions if ver and str(x["id"]) == ver.group(1)), versions[0] if versions else None)
@@ -318,17 +322,37 @@ def cmd_lora(a):
     fname = f"{a.name}.safetensors"
     cfg = load_config(a)
     pod_id, own = a.pod_id, False
+    jtok = a.jupyter_token or os.environ.get("JUPYTER_TOKEN", "")
     try:
         if not pod_id:
-            pod_id, cost, gpu = runpod.create_pod(cfg["infra"], f"{PREFIX}lora-{int(time.time())}")
+            import secrets
+            jtok = secrets.token_urlsafe(24)
+            pod_id, cost, gpu = runpod.create_pod(cfg["infra"], f"{PREFIX}lora-{int(time.time())}", env={"JUPYTER_PASSWORD": jtok})
             own = True
             log(f"pod {pod_id} cree ({gpu}, {cost} $/h)")
+        elif not jtok:
+            raise RuntimeError("avec --pod-id, donner aussi --jupyter-token (mot de passe Jupyter du pod)")
         c = Comfy(pod_id)
         c.wait_ready()
-        body, h = multipart({"overwrite": "true", "subfolder": "loras"}, "image", fname, blob)
-        request("POST", c.base + "/upload/image", data=body, headers=h, timeout=900)
-        if not c.has_model("loras", fname):
-            raise RuntimeError("fichier depose mais non vu par ComfyUI (extra_model_paths.yaml absent du volume ?)")
+        # Depot par l'API de fichiers de Jupyter, en morceaux : le proxy RunPod coupe les envois de
+        # plus de 100 Mo. Le dossier racine de Jupyter est /workspace (le volume).
+        import base64
+        url = f"https://{pod_id}-8888.proxy.runpod.net/api/contents/runpod-slim/ComfyUI/models/loras/{fname}"
+        size = 20 * 1024 * 1024
+        chunks = [blob[i:i + size] for i in range(0, len(blob), size)]
+        for i, ch in enumerate(chunks, 1):
+            request("PUT", url, headers={"Authorization": f"token {jtok}"}, timeout=600, data={
+                "type": "file", "format": "base64", "name": fname, "chunk": -1 if i == len(chunks) else i,
+                "content": base64.b64encode(ch).decode()})
+            log(f"depot {i}/{len(chunks)}")
+        seen = False
+        for _ in range(6):  # la liste de ComfyUI peut mettre un moment a voir un fichier neuf
+            if c.has_model("loras", fname):
+                seen = True
+                break
+            time.sleep(10)
+        if not seen:
+            log("fichier depose sur le volume ; ComfyUI ne le liste pas encore, il le verra au prochain demarrage de pod")
     finally:
         if own and pod_id:
             runpod.delete_pod(pod_id)
@@ -364,6 +388,7 @@ def main():
     lo.add_argument("--strength", type=float, default=0.6)
     lo.add_argument("--force", action="store_true", help="accepter malgre une alerte (base, licence)")
     lo.add_argument("--pod-id")
+    lo.add_argument("--jupyter-token")
     lo.add_argument("--data", default=os.environ.get("DATA_DIR", str(ROOT / "server" / "data")))
     lo.set_defaults(fn=cmd_lora)
     a = ap.parse_args()

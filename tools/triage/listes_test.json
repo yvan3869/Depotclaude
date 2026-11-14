@@ -1,0 +1,82 @@
+{
+  "_note": "Listes de base du banc de test, tous publics a suggestif. Les ajouts faits dans l'interface sont enregistres a part (data/listes_perso.json) et ne sont pas ecrases par une mise a jour.",
+  "decor": [
+    "dans sa chambre, lit défait aux draps blancs, lumière du matin",
+    "dans sa salle de bain, miroir embué, carrelage clair",
+    "sous la douche, paroi vitrée, vapeur",
+    "dans sa cuisine en désordre, plan de travail en bois",
+    "sur le canapé de son salon, plaid, lumière de lampe le soir",
+    "dans son studio de pilates, murs blancs, plantes, parquet",
+    "sur son balcon, toits de la Croix-Rousse derrière elle",
+    "dans une chambre d'hôtel, grand lit, rideaux tirés",
+    "au bord d'une piscine, transat, plein soleil",
+    "sur une plage déserte au coucher du soleil",
+    "dans un sauna en bois, lumière tamisée",
+    "dans un vestiaire de salle de sport, casiers, banc",
+    "dans l'entrée de son appartement, devant le grand miroir",
+    "dans un bain moussant, bougies autour de la baignoire"
+  ],
+  "cadrage": [
+    "gros plan sur le visage",
+    "portrait en buste",
+    "plan américain, cadré à mi-cuisses",
+    "plan moyen",
+    "plein pied",
+    "vue de dessus, appareil au-dessus d'elle",
+    "contre-plongée légère",
+    "selfie à bout de bras",
+    "selfie dans le miroir, téléphone à la main",
+    "de dos, regard par-dessus l'épaule",
+    "vue subjective, comme vue par quelqu'un face à elle",
+    "de profil"
+  ],
+  "pose": [
+    "debout, déhanchée, une main sur la hanche",
+    "debout, adossée au mur, un genou plié",
+    "assise au bord du lit, penchée légèrement en avant",
+    "assise en tailleur",
+    "assise sur le plan de travail, jambes croisées",
+    "à genoux sur le lit, mains dans les cheveux",
+    "allongée sur le ventre, appuyée sur les coudes, pieds relevés",
+    "allongée sur le dos, un genou relevé, un bras au-dessus de la tête",
+    "allongée sur le côté, tête appuyée sur la main",
+    "de dos, cambrée, regard par-dessus l'épaule",
+    "penchée en avant, mains posées sur le lit",
+    "accroupie, mains sur les genoux",
+    "étirement, bras levés au-dessus de la tête",
+    "en train de retirer son haut, bras levés",
+    "une bretelle glissée sur l'épaule"
+  ],
+  "tenue": [
+    "brassière de sport vert sauge et legging assorti",
+    "débardeur blanc sans soutien-gorge et culotte en coton",
+    "chemise d'homme blanche trop grande, ouverte sur le devant",
+    "ensemble de lingerie en dentelle noire",
+    "nuisette en satin",
+    "peignoir de bain entrouvert",
+    "serviette de bain nouée autour d'elle",
+    "maillot de bain deux pièces",
+    "robe d'été légère décolletée",
+    "pull trop grand qui tombe sur une épaule, jambes nues"
+  ],
+  "expression": [
+    "sourire taquin, regard vers l'objectif",
+    "regard intense, lèvres entrouvertes",
+    "elle rit, yeux plissés",
+    "elle se mord la lèvre",
+    "yeux fermés, tête légèrement en arrière",
+    "regard par en dessous, un sourcil levé",
+    "air endormi, cheveux en bataille",
+    "clin d'œil"
+  ],
+  "lumiere": [
+    "lumière douce du matin par la fenêtre",
+    "lumière dorée de fin de journée",
+    "lumière tamisée d'une lampe de chevet",
+    "contre-jour devant la fenêtre",
+    "lumière de bougies",
+    "lumière crue du flash du téléphone",
+    "lumière froide de salle de bain"
+  ],
+  "pose_perso": []
+}

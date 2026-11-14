@@ -19,7 +19,23 @@ Z-Image de base fonctionne aussi sur Turbo mais demande une force plus elevee : 
 celui de Lea, entraine sur la base et applique a 1,4. Les autres familles (Flux, SDXL, Pony,
 Illustrious, Chroma, Qwen) ne fonctionnent pas.
 
-## Voie 1 : utiliser un LoRA existant (a essayer en premier, aucun entrainement)
+## Ajouter un LoRA de Civitai en une commande
+Dans `server/`, apres avoir mis `CIVITAI_TOKEN=<cle>` dans `server/.env` :
+
+    docker compose run --rm pilot lora add "https://civitai.com/models/<numero>?modelVersionId=<numero>" --name detail --strength 0.6
+    docker compose run --rm pilot lora add "modelVersionId=<numero>" --name autre
+    docker compose run --rm pilot lora list
+    docker compose run --rm pilot lora remove detail
+
+La commande lit la fiche Civitai, puis refuse si le modele de base n'est pas Z-Image ou Z-Image
+Turbo, si le fichier n'est pas un `.safetensors`, ou si la licence n'autorise pas l'usage
+commercial des images (`--force` passe outre, a vos risques). Elle demarre un pod, depose le
+fichier sur le volume, supprime le pod et inscrit le LoRA dans `data/lora_catalog.yaml` avec ses
+mots declencheurs, qui sont ajoutes automatiquement au prompt. Cout : environ 0,05 $.
+Ce catalogue du serveur complete celui de `persona/production.yaml`. Le LoRA apparait ensuite dans
+la page Test avec sa force reglable.
+
+## Voie 1 bis : deposer un LoRA a la main
 1. Dans la console RunPod, deployer un pod avec le volume `lea-models` (modele de pod habituel) et
    ouvrir JupyterLab.
 2. Dans un terminal JupyterLab :

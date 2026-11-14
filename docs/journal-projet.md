@@ -150,6 +150,11 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
   traduction necessaire dans le formulaire. Les cheveux sortent un peu moins cuivres qu'en anglais.
 - Sur certaines machines, le premier chargement de chaque modele depuis le volume prend 2 a 5 min :
   prevoir des delais d'attente longs.
+- Le proxy RunPod coupe les envois de plus de 100 Mo : deposer les gros fichiers par l'API de
+  fichiers de Jupyter, en morceaux (ce que fait "pilot lora add").
+- Scene en sous-scenes enchainees (essai du 14/11, 2 sous-scenes) : une reussie, une avec un fondu
+  fantome au milieu, parce que l'image de fin avait un cadrage plus large que l'image de depart.
+  L'image de fin doit garder le meme cadrage ; consigne renforcee dans le pilote, a reverifier.
 ## Couts constates
 - Volume : ~0,35 $/jour. Sessions de generation : 0,20 a 0,30 $ chacune.
 - Entrainement du LoRA : ~3 $ (RTX 5090 a 1,39 $/h, ~2 h 15 installation comprise).
@@ -163,6 +168,8 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
 - Fin de soiree du 13/11 : verification du LoRA v2 sur RTX 5090, ~0,30 $. Total de la soiree : ~7,50 $.
 - Nuit du 13 au 14/11, fin : essai debut/fin, test du francais et validation dans le pilote, ~0,50 $.
   Total de la soiree : ~8 $ sur le plafond de 10 $.
+- 14/11, 0 h a 0 h 40 : mise au point du studio (depot de LoRA, test d'images, scene en sous-scenes), ~0,45 $.
+  Total depuis le 13/11 au soir : ~8,50 $ sur le plafond de 10 $.
 ## Comptes (13/11/2026)
 - Gmail `lea.morel.ai@gmail.com` (nom affiche Lea Morel).
 - Instagram : suspendu une seconde fois le 13/11 apres la verification par selfie (photo du
