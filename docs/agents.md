@@ -26,19 +26,16 @@ sortie. Code de sortie 0 : tout est fait ; 1 : au moins un plan a echoue ; 2 : a
 pas de machine disponible, cle refusee).
 
 ## Format d'un fichier de plans
-    name: monlot                 # prefixe des fichiers produits (lettres, chiffres, _)
-    defaults:
-      still_size: [864, 1152]    # largeur, hauteur de l'image
-      seed: 100                  # tirage ; chaque plan ajoute son rang, sauf same_seed: true
-      same_seed: false           # true : meme tirage pour tous les plans (comparaisons)
-      char_strength: 1.4         # force du LoRA du personnage (1,2 a 1,4 ; en dessous, l'identite faiblit)
-      loras: []                  # LoRA supplementaires : [nom] ou [{name: nom, strength: 0.6}]
-    shots:
-      - name: img01
-        still: "description de l'image en anglais : cadrage, lieu, tenue, pose, expression, lumiere"
-      - name: img02
-        still: "..."
-        motion: "mouvement du clip de 5 s (facultatif)"
+**La seule reference est `server/jobs/modele.yaml`**, tenu a jour a chaque evolution du pilote.
+Avant d'ecrire un plan, relire ce fichier (il peut avoir change depuis la derniere fois), le copier
+sous un autre nom dans `server/jobs/` et l'adapter. Ne pas partir d'un ancien plan, d'un exemple du
+dossier ni de sa memoire : ils peuvent etre perimes.
+
+- Recopier la ligne `modele: "<date>"` telle quelle. Le pilote la compare a sa version et ecrit
+  "ATTENTION : plan ecrit d'apres le modele ..." si le plan est en retard : dans ce cas, refaire le
+  plan d'apres le modele en cours avant de relancer.
+- N'utiliser que les champs presents dans le modele. Un champ inconnu est ignore sans message.
+- Ne pas remplir `body` ni `dest` (reserves au proprietaire).
 
 Le debut du prompt qui decrit le personnage (mot declencheur, cheveux, yeux) est ajoute par le
 pilote : ne pas le repeter, ni decrire les tatouages (le LoRA les porte ; les decrire les double).

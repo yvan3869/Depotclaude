@@ -1,0 +1,69 @@
+# MODELE DE FICHIER DE PLANS : reference en cours de validite.
+# Tout plan s'ecrit en copiant ce fichier, puis en retirant ce qui ne sert pas. Ce modele est tenu a
+# jour a chaque evolution du pilote ; les autres fichiers de ce dossier sont des exemples dates, qui
+# peuvent etre en retard. Ne pas lancer ce fichier tel quel.
+#
+# La ligne "modele" ci-dessous est a recopier sans la changer : le pilote la compare a sa propre
+# version et previent dans son journal si le plan a ete ecrit d'apres un modele perime.
+#
+# Historique
+#   2026-11-14  premiere version : champs character, image, tattoos, body, end_edit, steps.
+
+modele: "2026-11-14"
+name: monlot                 # prefixe des fichiers produits (lettres, chiffres, _), unique par lancement
+
+# --- Facultatif : autre personnage que celui de persona/production.yaml --------------------------
+# Un champ absent garde la valeur de production.yaml. Bloc a supprimer pour Lea.
+# character:
+#   name: "Prenom Nom"
+#   zimage_prefix: "declencheur, a woman with ..., "   # debut de chaque description
+#   lora_still_zimage: "fichier.safetensors"           # LoRA du visage, present sur le volume
+#   lora_still_zimage_strength: 1.4
+#   zimage_tattoos: ""                                 # "" si le LoRA porte deja les tatouages
+#   zimage_body: ""                                    # redige par le proprietaire uniquement
+
+# --- Reglages communs a tous les plans (chacun peut etre repris dans un plan) ---------------------
+defaults:
+  still_size: [720, 1280]    # largeur, hauteur de l'image ; [864, 1152] pour une photo seule
+  clip_size: [480, 832]      # 480p pour les essais ; [720, 1280] coute environ quatre fois plus
+  seed: 100                  # tirage ; chaque plan ajoute son rang, sauf same_seed: true
+  same_seed: false           # true : meme tirage pour tous les plans (comparaisons)
+  char_strength: 1.4         # force du LoRA du personnage (1,2 a 1,4 ; en dessous, l'identite faiblit)
+  loras: []                  # LoRA supplementaires : [nom] ou [{name: nom, strength: 0.6}] ; voir "pilot lora list"
+  mode: natural              # rendu du clip : natural (qualite) ou fast (4 pas, essais de mouvement)
+  smooth: true               # interpolation a 32 images/s
+  grain: true                # leger grain, moins "image de synthese"
+
+shots:
+  # 1. Image seule.
+  - name: img01
+    still: "cadrage, lieu, tenue, pose, expression, lumiere : une phrase dense en anglais"
+    tattoos: true            # false si la tenue couvre epaules et poitrine (pull, peignoir ferme)
+
+  # 2. Image puis clip de 5 s : un seul geste lent, phrase en anglais commencant par "She".
+  - name: clip01
+    still: "..."
+    motion: "She slowly smiles and tilts her head, looking at the camera."
+
+  # 3. Clip debut/fin : le changement de pose est impose par une image de fin fabriquee a partir de
+  #    la premiere. Cout double. A reserver aux vrais changements de pose (assise puis debout).
+  - name: clip02
+    still: "..."
+    end_edit: "her pose: she is now standing upright, facing the camera."
+    motion: "She stands up in one smooth motion and faces the camera."
+
+  # 4. Enchainement : plusieurs clips a la suite, chacun partant de la fin du precedent.
+  - name: clip03
+    still: "..."
+    steps:
+      - {end: "her pose: ...", motion: "She ..."}
+      - {end: "her pose: ...", motion: "She ..."}
+
+  # 5. Clip a partir d'une image deja produite et validee (pas de nouveau tirage).
+  #    Chemin relatif au dossier de donnees (server/data) ou absolu dans le conteneur (/data/...).
+  - name: clip04
+    image: "inbox/monlot_img01.png"
+    motion: "She ..."
+
+  # Champs reserves au proprietaire : body (description du corps) et dest (abonnes, payant).
+  # Un agent ne les renseigne pas.

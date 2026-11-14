@@ -20,6 +20,10 @@
   bible, un casting, un jeu de reference, un LoRA, un fichier `production.yaml`.
 - Validation humaine avant toute publication ; le tri reste entre les mains du proprietaire.
 
+- Format des plans : toute evolution du pilote qui touche les champs d'un plan met a jour, dans le
+  meme commit, `server/jobs/modele.yaml` (contenu, date, historique), la constante `MODELE` du pilote
+  et, si besoin, `docs/agents.md`.
+
 ## Direction technique
 | Brique | Aujourd'hui | Cible |
 |---|---|---|

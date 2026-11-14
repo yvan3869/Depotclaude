@@ -14,6 +14,7 @@ from .comfy import Comfy
 
 ROOT = Path(__file__).resolve().parents[2]
 PREFIX = "girls-ai-"
+MODELE = "2026-11-14"  # version du format des plans : la meme que dans server/jobs/modele.yaml
 INTERP = "minterpolate=fps=32:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1"
 
 
@@ -92,6 +93,8 @@ def cmd_run(a):
     t0 = time.time()
     pod_id, own = a.pod_id, False
     report = {"job": job["name"], "shots": []}
+    if str(job.get("modele", MODELE)) != MODELE:
+        log(f"ATTENTION : plan ecrit d'apres le modele {job['modele']}, modele en cours {MODELE} (server/jobs/modele.yaml)")
     try:
         if not pod_id:
             # Clips a calculer : carte rapide en premier ; images seules : carte la moins chere.
