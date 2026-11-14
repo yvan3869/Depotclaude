@@ -31,7 +31,7 @@
 <nav><a href="/">Studio</a><a href="/tri">Tri</a><a href="/nouveau">Plan</a><b>Test</b></nav>
 <section>
   <h2>Nouveau test d'images</h2>
-  <p class="hint">Cochez plusieurs éléments par liste : chaque image tire au hasard un élément de chaque liste cochée. Rien de coché dans une liste = liste ignorée. Les éléments ajoutés par vous (en violet) sont conservés. Le français est compris directement.</p>
+  <p class="hint">Cochez plusieurs éléments par liste : chaque image tire au hasard un élément de chaque liste cochée. Rien de coché dans une liste = liste ignorée. Les éléments ajoutés par vous (en violet) sont conservés. Le modèle suit mieux l'anglais : les listes affichent le français et envoient l'anglais. Pour vos ajouts, écrivez « texte français | english text » (seul l'anglais est envoyé) ; sans barre, le texte part tel quel. Les champs Corps et Complément sont envoyés tels quels : préférez l'anglais.</p>
   <div class="cols" id="lists"></div>
   <div class="cols" style="margin-top:12px">
     <div><h2>Corps (description fixe, reprise dans chaque image)</h2><textarea id="corps"></textarea></div>
@@ -71,9 +71,9 @@ function keep() { document.querySelectorAll('#lists input[type=checkbox]').forEa
 async function loadStudio() {
   keep(); studio = await api('/api/studio');
   $('lists').innerHTML = Object.keys(TITLES).map(k => `<div><h2>${TITLES[k]}</h2><div class="list">` +
-    (studio.lists[k].map(x => `<label class="${x.perso ? 'perso' : ''}"><input type="checkbox" data-l="${k}" value="${esc(x.t)}" ${checked[k + '|' + x.t] ? 'checked' : ''}> ${esc(x.t)}` +
+    (studio.lists[k].map(x => `<label class="${x.perso ? 'perso' : ''}"><input type="checkbox" data-l="${k}" value="${esc(x.t)}" ${checked[k + '|' + x.t] ? 'checked' : ''} title="${esc(x.t.split('|').pop().trim())}"> ${esc(x.t.split('|')[0].trim())}` +
       (x.perso ? `<span class="del" data-l="${k}" data-t="${esc(x.t)}">supprimer</span>` : '') + `</label>`).join('') || '<span class="hint">Liste vide : ajoutez vos éléments ci-dessous.</span>') +
-    `</div><div class="add"><input type="text" placeholder="Ajouter à cette liste" data-add="${k}"><button class="small" data-addbtn="${k}">Ajouter</button></div></div>`).join('');
+    `</div><div class="add"><input type="text" placeholder="français | english" data-add="${k}"><button class="small" data-addbtn="${k}">Ajouter</button></div></div>`).join('');
   if (studio.loras.length) $('loras').innerHTML = studio.loras.map(l => `<div class="lora"><label><input type="checkbox" data-lora="${esc(l.name)}"> ${esc(l.label)}</label>` +
     `force <input type="number" step="0.05" min="0" max="2" value="${l.strength}" data-force="${esc(l.name)}">` + (l.trigger ? `<span class="hint">déclencheur : ${esc(l.trigger)}</span>` : '') + `</div>`).join('');
   if (!studio.can_run) $('msg').textContent = "Lancement automatique indisponible ici : une commande à lancer sera affichée.";

@@ -270,10 +270,13 @@ class Studio:
 
     def compose(self, b, rng):
         """Une description : un element tire au hasard dans chaque liste cochee, plus les champs libres."""
+        def sent(x):  # "francais affiche | anglais envoye" : on envoie la partie apres la barre
+            return str(x).split("|")[-1].strip()
+
         def pick(key):
-            vals = [str(x) for x in (b.get(key) or []) if str(x).strip()]
+            vals = [sent(x) for x in (b.get(key) or []) if sent(x)]
             return rng.choice(vals) if vals else ""
-        poses = [str(x) for x in (b.get("pose") or []) + (b.get("pose_perso") or []) if str(x).strip()]
+        poses = [sent(x) for x in (b.get("pose") or []) + (b.get("pose_perso") or []) if sent(x)]
         parts = [pick("cadrage"), rng.choice(poses) if poses else "", pick("expression"), pick("tenue"),
                  pick("decor"), pick("lumiere"), str(b.get("corps", "")).strip(), str(b.get("libre", "")).strip()]
         return ", ".join(x for x in parts if x)
