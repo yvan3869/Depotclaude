@@ -931,6 +931,7 @@ async function vuePerso(slug, depot) {
   const i = (k, lab, v, o = {}) => `<label>${lab}${o.area ? `<textarea data-p="${k}" rows="${o.rows || 2}" placeholder="${esc(o.ph || '')}">${esc(v)}</textarea>`
     : `<input data-p="${k}" type="${o.type || 'text'}" ${o.step ? `step="${o.step}"` : ''} value="${esc(v)}" placeholder="${esc(o.ph || '')}">`}${aide(o.aide)}</label>`;
   const g = p.generation || {}, w = p.ecriture || {};
+  vuePerso.slug = slug; vuePerso.versions = slug ? (await api('/api/a/b?slug=' + encodeURIComponent(slug)).catch(() => ({}))).loras || [] : [];
   vue.innerHTML = `<div class="row tete"><a class="lien" href="#/persos">${ic('retour')}Casting</a></div>
     <h2>${slug ? esc(p.nom) : dep ? 'Fiche de casting livrée : ' + esc(p.nom) : 'Nouveau personnage'}</h2>
     ${dep ? `<div class="panel"><div class="mut">Fiche écrite par votre directeur de casting (${esc(depot)}). Rien n'est enregistré tant que vous n'appuyez pas sur Enregistrer, en bas.${dep.existe ? ' <b>Elle remplacera la fiche du personnage du même nom.</b>' : ''}</div>
@@ -957,8 +958,9 @@ async function vuePerso(slug, depot) {
     <h2>Génération <small>réglages envoyés au modèle d'image</small></h2>
     <div class="panel">${i('generation.zimage_prefix', 'Début de chaque description (anglais)', g.zimage_prefix, {area: 1, ph: 'a woman with long dark hair and brown eyes,',
         aide: 'Placé devant chaque description d\'image : mot déclencheur de la LoRA du visage, cheveux, yeux.'})}
-      <div class="row haut"><div class="g">${i('generation.lora', 'Fichier LoRA du visage', g.lora, {aide: 'Vide : le visage change d\'une image à l\'autre. L\'entraînement coûte environ 2 $ et se fait hors de cette page.'})}</div>
-        <div style="width:90px">${i('generation.lora_strength', 'Force', g.lora_strength, {type: 'number', step: '0.1', aide: '1 en général.'})}</div></div>
+      <div id="plora">${persoLoras(g.lora, g.lora_strength, slug)}</div>
+      <details class="pli" data-sec="plf"${ouv('plf', !slug)}><summary>Fichier et force, à la main</summary><div class="row haut"><div class="g">${i('generation.lora', 'Fichier LoRA du visage', g.lora, {aide: 'Vide : le visage change d\'une image à l\'autre. Une LoRA s\'entraîne dans son atelier, onglet LoRA.'})}</div>
+        <div style="width:90px">${i('generation.lora_strength', 'Force', g.lora_strength, {type: 'number', step: '0.1', aide: '1 en général.'})}</div></div></details>
       ${i('generation.corps', 'Corps (anglais)', g.corps, {area: 1, aide: 'À votre main. Ajouté à chaque image.'})}
       ${i('generation.suffixe', 'Fin de chaque description', g.suffixe, {area: 1, rows: 1, aide: 'Qualité, grain, objectif. Vide : réglage commun à tous les personnages.'})}
       ${i('generation.note', 'Note pour le rédacteur', g.note, {area: 1, rows: 1, aide: 'Ce que la LoRA du visage porte déjà (tatouages, piercing), pour qu\'il ne le redécrive pas.'})}
@@ -967,6 +969,18 @@ async function vuePerso(slug, depot) {
       ${slug ? (p.statut === 'archive' ? '<button data-a="persoreactiver">Réactiver</button>' : '<button class="d" data-a="persoarchiver">Archiver</button>') : ''}</div>
     <p class="mut">Personnages fictifs, adultes, sans ressemblance avec une personne réelle, présentés comme créés par IA.</p>`;
   vuePerso.statut = p.statut || 'actif';
+}
+// LoRA du personnage : les memes tuiles que dans un projet. Les versions entrainees dans son atelier, celle en place cochee ; un toucher l'adopte.
+function persoLoras(fichier, force, slug) {
+  const V = vuePerso.versions || [], enplace = V.find(x => x.en_place), nom = (fichier || '').replace(/\.safetensors$/, '');
+  const fo = `<div class="fo">Force<input type="number" step="0.1" min="0.5" max="2" data-plf value="${esc(force ?? 1)}" title="Force" oninput="document.querySelector('[data-p=&quot;generation.lora_strength&quot;]').value = this.value"></div>`;
+  const tuile = x => `<div class="lt ${x.en_place ? 'on' : ''}"><button data-a="persolora" data-n="${esc(x.nom)}" ${x.en_place || x.etat !== 'prete' ? 'disabled' : ''}>
+      <b>${esc(x.nom)}</b><span class="tg"><span class="badge">entraînée ici</span><span class="badge v">image</span></span>
+      <small>${x.en_place ? 'En place' : x.etat === 'prete' ? 'Toucher pour en faire sa LoRA' : 'Pas disponible : ' + esc(x.etat)}. ${esc(x.date || '')}${x.images ? `, ${x.images} planches` : ''}</small></button>${x.en_place ? fo : ''}</div>`;
+  return `<div class="gt">${ic('lora')} LoRA du visage et du corps <small style="text-transform:none;letter-spacing:0;color:var(--mut)">${fichier ? '1 en place' : 'aucune'}${V.length ? `, ${V.length} entraînée(s)` : ''}</small></div>
+    ${fichier || V.length ? `<div class="tuiles">${fichier && !enplace ? `<div class="lt on"><button disabled><b>${esc(nom)}</b><span class="tg"><span class="badge">d'origine</span><span class="badge v">image</span></span><small>En place</small></button>${fo}</div>` : ''}${V.slice().reverse().map(tuile).join('')}</div>`
+      : '<div class="aide">Aucune LoRA : le visage change d\'une image à l\'autre.</div>'}
+    ${slug ? `<div class="mut" style="margin-top:6px">Entraîner une nouvelle version, voir ses images d'essai ou revenir à la précédente : <a href="#/atelier/${esc(slug)}/lora">son atelier, onglet LoRA</a>.</div>` : ''}`;
 }
 function lirePerso() {
   const o = {};
@@ -1166,6 +1180,11 @@ Object.assign(actions, {
     if (!confirm(`Entraîner sa LoRA sur ${d.images} planches : environ ${d.minutes} min et ${usd(d.usd)}. Lancer ?`)) return;
     await api('/api/a/b/entrainer', {slug: A.slug, passages: +$('#bpass').value}); toast('Entraînement lancé', true); await bMaj();
   },
+  persolora: async el => { const s = vuePerso.slug, ch = $('[data-p="generation.lora_strength"]', vue), f = 1.3;
+    if (!confirm(`Faire de ${el.dataset.n} la LoRA du personnage, à la force ${f} ? L'ancienne reste disponible (son atelier, onglet LoRA : Revenir à la précédente).`)) return;
+    vuePerso.versions = (await api('/api/a/b/adopter', {slug: s, lora: el.dataset.n, force: f})).loras;
+    const g = (await api('/api/a/personnage?slug=' + encodeURIComponent(s))).generation || {};
+    $('[data-p="generation.lora"]', vue).value = g.lora || ''; ch.value = g.lora_strength ?? f; $('#plora').innerHTML = persoLoras(g.lora, g.lora_strength, s); await etat(); },
   badopter: async el => { const f = $(`[data-bf="${el.dataset.n}"]`, vue).value; if (!confirm(`Faire de cette version la LoRA du personnage, à la force ${f} ? L'ancienne reste disponible (Revenir à la précédente).`)) return; bMaj(await api('/api/a/b/adopter', {slug: A.slug, lora: el.dataset.n, force: +f})); await etat(); },
   brevenir: async () => { if (!confirm('Remettre la LoRA précédente ?')) return; bMaj(await api('/api/a/b/revenir', {slug: A.slug})); await etat(); },
 });
