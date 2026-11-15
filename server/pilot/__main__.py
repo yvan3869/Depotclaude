@@ -618,7 +618,8 @@ def cmd_sonimage(a):
 
 def cmd_controle(a):
     """controle --nom pNNNN[,pNNNN] : fait noter les images des projets par le mesureur de visage et le modele de vision
-    (voir controle.py). Essai : les notes sont rangees dans data/work/controle/, rien n'est change dans les projets."""
+    (voir controle.py). Les notes sont rangees dans projets/<id>/notes_images.json, que l'atelier affiche sous chaque
+    image ; rien d'autre n'est change dans les projets. Le journal du pod est garde dans data/work/controle/."""
     import base64
     import re
     import secrets
@@ -632,6 +633,7 @@ def cmd_controle(a):
         d = data / "projets" / pid
         p = json.loads((d / "projet.json").read_text(encoding="utf-8"))
         temps, runs, stills = {s["id"]: s["temps"] for s in p["scenes"]}, {}, {s["id"]: s.get("still") or "" for s in p["scenes"]}
+        lieu = str((p.get("continuite") or {}).get("lieu") or "")
         for f in sorted((d / "media").iterdir()):
             m = re.fullmatch(rf"{pid}(r\d+)_(s\d+)\.png", f.name)
             if not m:
@@ -642,7 +644,9 @@ def cmd_controle(a):
             sh = runs[m.group(1)].get(m.group(2)) or {}  # image creee a partir d'une autre ("edit") : la description est celle de la scene
             desc = str(sh.get("still") or stills.get(m.group(2)) or sh.get("edit") or "")
             if desc:
-                lot.append({"image": f.name, "desc": desc[:1500], "perso": p.get("personnage") or "", "temps": temps.get(m.group(2), 0)})
+                if not sh.get("still") and lieu:  # la description d'une scene ne redit pas le lieu : il est dans la fiche de continuite
+                    desc += f", place: {lieu}"
+                lot.append({"image": f.name, "projet": pid, "desc": desc[:1500], "perso": p.get("personnage") or "", "temps": temps.get(m.group(2), 0)})
                 fichiers[f.name] = f
     if not lot:
         raise RuntimeError("aucune image a controler")
@@ -693,7 +697,7 @@ def cmd_controle(a):
                 raise RuntimeError(f"dossier {d} inaccessible sur le volume")
         for nom, f in fichiers.items():
             api("PUT", f"contents/{D}/in/{nom}", {"type": "file", "format": "base64", "content": base64.b64encode(f.read_bytes()).decode()}, timeout=300)
-        for nom, contenu in (("lot.json", json.dumps(lot)), ("cases.json", json.dumps(ct.CASES)), ("modele.txt", ct.MODELE),
+        for nom, contenu in (("lot.json", json.dumps(lot)), ("cases.json", json.dumps(ct.CASES)), ("ouinon.json", json.dumps(ct.OUINON)), ("ouinon_desc.txt", ct.OUINON_DESC), ("modele.txt", ct.MODELE),
                              ("systeme.txt", ct.SYSTEME), ("question.txt", ct.QUESTION), ("lot.py", ct.LOT), ("run.sh", ct.RUN)):
             api("PUT", f"contents/{D}/{nom}", {"type": "file", "format": "text", "content": contenu})
         for nom in ("fin", "run.log", "out.json"):
@@ -721,7 +725,7 @@ def cmd_controle(a):
             try:
                 journal = texte("run.log")
                 for l in journal[vu:].splitlines():
-                    if l.startswith(("MODELE", "VISAGES", "FAIT", "RATE", "PYTHON")):
+                    if l.startswith(("MODELE", "VISAGES", "RATE", "PYTHON")):
                         log(l[:60])
                 vu = len(journal)
             except Exception:
@@ -734,11 +738,18 @@ def cmd_controle(a):
         if code is None:
             raise RuntimeError("delai depasse")
         try:
+            journal = texte("run.log")
+        except Exception:
+            pass
+        try:
             res = json.loads(texte("out.json"))
         except Exception:
             for l in journal.strip().splitlines()[-25:]:
                 log("  | " + l[:200])
             raise RuntimeError(f"script en echec (code {code})")
+        for l in journal.splitlines():  # ce qui a empeche un des deux outils de tourner
+            if "Error" in l or l.startswith("Traceback"):
+                log("  | " + l[:200])
         for nom in fichiers:  # aucune image ne reste sur le volume
             try:
                 api("DELETE", f"contents/{D}/in/{nom}", essais=1, retries=1)
@@ -747,11 +758,17 @@ def cmd_controle(a):
     finally:
         runpod.delete_pod(pod_id)
         log(f"pod {pod_id} supprime")
-    for x in lot:
-        res.setdefault(x["image"], {})["temps"] = x["temps"]
     sortie = data / "work" / "controle"
     sortie.mkdir(parents=True, exist_ok=True)
-    (sortie / f"essai-{time.strftime('%Y%m%d-%H%M')}.json").write_text(json.dumps(res, indent=1), encoding="utf-8")
+    (sortie / f"run-{time.strftime('%Y%m%d-%H%M')}.log").write_text(journal, encoding="utf-8")
+    jour = time.strftime("%Y-%m-%d %H:%M")
+    for pid in a.nom.split(","):
+        f = data / "projets" / pid / "notes_images.json"
+        notes = json.loads(f.read_text(encoding="utf-8")) if f.exists() else {}
+        for x in lot:
+            if x["projet"] == pid and "score" in res.get(x["image"], {}):
+                notes[x["image"]] = res[x["image"]] | {"temps": x["temps"], "date": jour}
+        f.write_text(json.dumps(notes, indent=1), encoding="utf-8")
     mins = (time.time() - t0) / 60
     print(json.dumps({"controle": len([r for r in res.values() if "score" in r]), "images": len(lot), "minutes": round(mins, 1),
                       "cost_usd": round(mins / 60 * float(cost or 0), 2)}))

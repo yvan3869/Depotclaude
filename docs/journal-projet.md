@@ -403,3 +403,14 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
   1 manquee ; 1 bonne sur 2 rejetee a tort (temps 4, ou 14 images sur 18 recoivent 2 : a verifier a l'oeil).
   Le mesureur de visage (facenet-pytorch) n'a rien rendu : a reprendre. Notes dans `data/work/controle/`.
   Deux pods : 16 minutes (installation ratee, module PIL absent, 0,19 $) puis 7 minutes (0,08 $).
+- 15/11, suite du controleur. Essai 3 (une question par point, reponse en un mot) : regression, tout recoit 6 a 8,
+  y compris les images ratees ; abandonne (8 min, 0,10 $). Essai 4, formule retenue : la question d'ensemble de
+  l'essai 2 (note sur 10 et cases) plus huit questions fermees oui/non dont on lit la probabilite du « oui » au
+  premier mot (`p` : fidele, decor, tenue, geste, objet, cadrage, en_trop, anatomie), et le mesureur de visage
+  repare (`requests` manquait) : `visages`, `taille_visage`, `ressemblance` (mediane avec les autres images du meme
+  personnage ; sous 0,6 = visage different). 53 images en 9,5 min, 0,11 $. Sur les 9 images jugees : 6 ratees sur 7
+  signalees (dont l'objet en trop, par `en_trop`), 1 manquee (tenue, temps 3) ; 1 bonne sur 2 rejetee a tort
+  (temps 4, deux visages). `en_trop` a aussi sonne sur une image jugee bonne. La question sur l'anatomie ne sonne
+  jamais : a ne pas compter. Les notes vont dans `data/projets/<pid>/notes_images.json` et s'affichent dans
+  l'Atelier sous les cases de verdict de chaque image (« Controle automatique (essai) ») ; rien n'est refait d'apres
+  elles. Reste a decider : la relance automatique (3 images par scene), quand les notes seront jugees fiables.
