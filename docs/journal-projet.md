@@ -392,3 +392,14 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
   de la page Personnages, enregistrement par le proprietaire seulement) ; deux skills dans `agents/`
   (`girls-ai-scenariste`, `girls-ai-casting`), courts, qui renvoient aux regles du depot pour suivre les changements
   de format. Rien n'est ecrit dans la configuration d'OpenClaw : le proprietaire demande l'installation a son agent.
+- 15/11 : essai d'un controleur d'images (`pilot controle --nom pNNNN,pNNNN`, `server/pilot/controle.py`), demande
+  par le proprietaire sur tous les temps. Sur le pod, hors ComfyUI, dans `/workspace/girls-ai-controle` (16 Go de
+  poids ajoutes au volume) : Qwen2.5-VL 7B compare chaque image a sa description et repond par des cases fermees
+  (decor, tenue, pose, objet, cadrage, anatomie, note sur 10) ; aucun texte libre ne revient du pod. 53 images de
+  p0002, p0003 et p0004 notees en 1 min 40 ; aucun refus du modele, a aucun temps. Resultat : la note globale separe
+  bien les images (2 = ratee, 7-8 = fidele) ; les cases de detail basculent toutes en « faux » quand la note est
+  basse, donc elles ne disent pas quoi corriger ; un objet en trop n'est pas vu (la question ne le demandait pas).
+  Sur les 9 images jugees par le proprietaire : 5 ratees sur 7 nettement signalees, 1 signalee par la case tenue,
+  1 manquee ; 1 bonne sur 2 rejetee a tort (temps 4, ou 14 images sur 18 recoivent 2 : a verifier a l'oeil).
+  Le mesureur de visage (facenet-pytorch) n'a rien rendu : a reprendre. Notes dans `data/work/controle/`.
+  Deux pods : 16 minutes (installation ratee, module PIL absent, 0,19 $) puis 7 minutes (0,08 $).

@@ -616,6 +616,148 @@ def cmd_sonimage(a):
     return 0
 
 
+def cmd_controle(a):
+    """controle --nom pNNNN[,pNNNN] : fait noter les images des projets par le mesureur de visage et le modele de vision
+    (voir controle.py). Essai : les notes sont rangees dans data/work/controle/, rien n'est change dans les projets."""
+    import base64
+    import re
+    import secrets
+    from . import controle as ct
+    from . import sonimage as si
+    from .http import _ctx, request
+    data, lot, fichiers = Path(a.data), [], {}
+    for pid in a.nom.split(","):
+        if not re.fullmatch(r"p\d{4}", pid):
+            raise RuntimeError("controle : --nom est une liste d'identifiants de projet (pNNNN,pNNNN)")
+        d = data / "projets" / pid
+        p = json.loads((d / "projet.json").read_text(encoding="utf-8"))
+        temps, runs, stills = {s["id"]: s["temps"] for s in p["scenes"]}, {}, {s["id"]: s.get("still") or "" for s in p["scenes"]}
+        for f in sorted((d / "media").iterdir()):
+            m = re.fullmatch(rf"{pid}(r\d+)_(s\d+)\.png", f.name)
+            if not m:
+                continue
+            if m.group(1) not in runs:
+                rf_ = d / "runs" / f"{m.group(1)}.json"
+                runs[m.group(1)] = {s["name"]: s for s in json.loads(rf_.read_text(encoding="utf-8")).get("shots", [])} if rf_.exists() else {}
+            sh = runs[m.group(1)].get(m.group(2)) or {}  # image creee a partir d'une autre ("edit") : la description est celle de la scene
+            desc = str(sh.get("still") or stills.get(m.group(2)) or sh.get("edit") or "")
+            if desc:
+                lot.append({"image": f.name, "desc": desc[:1500], "perso": p.get("personnage") or "", "temps": temps.get(m.group(2), 0)})
+                fichiers[f.name] = f
+    if not lot:
+        raise RuntimeError("aucune image a controler")
+    cfg = load_config(a)
+    t0 = time.time()
+    jtok = secrets.token_urlsafe(24)
+    H, D = {"Authorization": f"token {jtok}"}, ct.DOSSIER
+    pod_id, cost, gpu = runpod.create_pod(cfg["infra"], f"{PREFIX}controle-{int(t0)}", env={"JUPYTER_PASSWORD": jtok})
+    log(f"pod {pod_id} cree ({gpu}, {cost} $/h)")
+    hote = f"{pod_id}-8888.proxy.runpod.net"
+
+    def api(m, p, d=None, essais=None, **k):
+        for n in range(essais or (10 if m != "GET" else 1)):
+            try:
+                return request(m, f"https://{hote}/api/{p}", data=d, headers=H, **k)
+            except Exception as e:
+                err = e
+                if "404" not in str(e):
+                    break
+                time.sleep(10)
+        raise err
+
+    def texte(p):
+        return api("GET", f"contents/{D}/{p}?content=1&format=text", retries=1)["content"]
+
+    res = {}
+    try:
+        for _ in range(60):
+            try:
+                api("GET", "contents?content=0", timeout=15, retries=1)
+                break
+            except Exception:
+                time.sleep(10)
+        else:
+            raise RuntimeError("Jupyter n'a pas demarre")
+        for d in (D, f"{D}/in"):
+            for _ in range(8):
+                try:
+                    api("GET", f"contents/{d}?content=0", retries=1)
+                    break
+                except Exception:
+                    try:
+                        api("PUT", f"contents/{d}", {"type": "directory"}, essais=1, retries=1)
+                        break
+                    except Exception:
+                        time.sleep(10)
+            else:
+                raise RuntimeError(f"dossier {d} inaccessible sur le volume")
+        for nom, f in fichiers.items():
+            api("PUT", f"contents/{D}/in/{nom}", {"type": "file", "format": "base64", "content": base64.b64encode(f.read_bytes()).decode()}, timeout=300)
+        for nom, contenu in (("lot.json", json.dumps(lot)), ("cases.json", json.dumps(ct.CASES)), ("modele.txt", ct.MODELE),
+                             ("systeme.txt", ct.SYSTEME), ("question.txt", ct.QUESTION), ("lot.py", ct.LOT), ("run.sh", ct.RUN)):
+            api("PUT", f"contents/{D}/{nom}", {"type": "file", "format": "text", "content": contenu})
+        for nom in ("fin", "run.log", "out.json"):
+            try:
+                api("DELETE", f"contents/{D}/{nom}", essais=1, retries=1)
+            except Exception:
+                pass
+        log(f"{len(lot)} image(s) deposee(s)")
+        ordre = f"(nohup sh -c 'bash /workspace/{D}/run.sh > /workspace/{D}/run.log 2>&1; echo $? > /workspace/{D}/fin' >/dev/null 2>&1 &)\r"
+        for _ in range(3):
+            term = api("POST", "terminals")["name"]
+            si.ws_envoyer(hote, f"/terminals/websocket/{term}", H, json.dumps(["stdin", ordre]), _ctx)
+            time.sleep(10)
+            try:
+                api("GET", f"contents/{D}/run.log?content=0", essais=3, retries=1)
+                break
+            except Exception:
+                log("le script n'a pas demarre : nouvel essai")
+        else:
+            raise RuntimeError("le script n'a pas demarre sur le pod")
+        log("calcul lance (la premiere fois, le modele de 16 Go est telecharge)")
+        vu, code, journal = 0, None, ""
+        while time.time() - t0 < 45 * 60:
+            time.sleep(20)
+            try:
+                journal = texte("run.log")
+                for l in journal[vu:].splitlines():
+                    if l.startswith(("MODELE", "VISAGES", "FAIT", "RATE", "PYTHON")):
+                        log(l[:60])
+                vu = len(journal)
+            except Exception:
+                pass
+            try:
+                code = texte("fin").strip()
+                break
+            except Exception:
+                pass
+        if code is None:
+            raise RuntimeError("delai depasse")
+        try:
+            res = json.loads(texte("out.json"))
+        except Exception:
+            for l in journal.strip().splitlines()[-25:]:
+                log("  | " + l[:200])
+            raise RuntimeError(f"script en echec (code {code})")
+        for nom in fichiers:  # aucune image ne reste sur le volume
+            try:
+                api("DELETE", f"contents/{D}/in/{nom}", essais=1, retries=1)
+            except Exception:
+                pass
+    finally:
+        runpod.delete_pod(pod_id)
+        log(f"pod {pod_id} supprime")
+    for x in lot:
+        res.setdefault(x["image"], {})["temps"] = x["temps"]
+    sortie = data / "work" / "controle"
+    sortie.mkdir(parents=True, exist_ok=True)
+    (sortie / f"essai-{time.strftime('%Y%m%d-%H%M')}.json").write_text(json.dumps(res, indent=1), encoding="utf-8")
+    mins = (time.time() - t0) / 60
+    print(json.dumps({"controle": len([r for r in res.values() if "score" in r]), "images": len(lot), "minutes": round(mins, 1),
+                      "cost_usd": round(mins / 60 * float(cost or 0), 2)}))
+    return 0
+
+
 def effacer_attente(pod_id, jtok, data):
     """Efface du volume les fichiers de LoRA sortis du catalogue par la page Hub (data/lora_effacer.json), par l'API de
     fichiers de Jupyter. Rend les noms effaces ; ceux qui echouent restent dans la liste pour la fois suivante."""
@@ -866,6 +1008,10 @@ def main():
     sm.add_argument("--nom", required=True, help="identifiant du projet (pNNNN)")
     sm.add_argument("--data", default=os.environ.get("DATA_DIR", str(ROOT / "server" / "data")))
     sm.set_defaults(fn=cmd_sonimage)
+    co = sub.add_parser("controle", help="essai : fait noter les images de projets par un mesureur de visage et un modele de vision")
+    co.add_argument("--nom", required=True, help="identifiants de projet separes par des virgules (pNNNN,pNNNN)")
+    co.add_argument("--data", default=os.environ.get("DATA_DIR", str(ROOT / "server" / "data")))
+    co.set_defaults(fn=cmd_controle)
     a = ap.parse_args()
     try:
         sys.exit(a.fn(a) or 0)
