@@ -1864,6 +1864,7 @@ class Atelier:
             job = {"name": f"{pid}c{n}", "character": self.char_override(perso),
                    "defaults": {"still_size": [720, 1280], "mode": "natural", "grain": True, "same_seed": True, "loras": []}, "shots": shots,
                    "cmp": {"temps": ts, "lieu": b["lieu"], "tenue": v, "variantes": k, "scenes": [s["id"] for s in sc],
+                           "idees": {s["id"]: self._idee(s) for s in sc},
                            "date": time.strftime("%Y-%m-%d %H:%M")}}
             _dump(d / f"c{n}.json", job)
             cmd = [sys.executable, "-m", "pilot", "run", str(d / f"c{n}.json"), "--data", str(self.data), "--out", str(d), "--stills-only",
@@ -1873,8 +1874,16 @@ class Atelier:
             self.job = {"projet": pid, "quoi": "comparaison", "log": str(log), "n": len(shots)}
             return {"lance": len(shots)}
 
+    @staticmethod
+    def _idee(s):
+        """Ce que le scenariste a ecrit pour une scene, rappele sous les images de la comparaison."""
+        return {"titre": s.get("titre") or "", "role": s.get("role") or "",
+                "pose": [s[k] for k in ("cadrage", "angle", "position", "appui", "bassin", "genoux", "mains", "regard", "contact") if s.get(k)],
+                "still": s.get("still") or "", "motion": s.get("motion") or "", "texte": s.get("texte") or ""}
+
     def comparaisons(self, pid):
         p = self._raw(pid)
+        ici_idees = {s["id"]: self._idee(s) for s in p["scenes"]}
         d, v, c = self._pdir(pid) / "cmp", self.biblio.vue(p["personnage"]), p.get("continuite") or {}
         out = []
         for f in sorted(d.glob("c*.json"), key=lambda f: int(f.stem[1:]), reverse=True) if d.is_dir() else []:
@@ -1887,7 +1896,8 @@ class Atelier:
             out.append({"n": int(f.stem[1:]), "temps": m.get("temps"), "lieu": m.get("lieu"), "tenue": m.get("tenue"), "date": m.get("date"),
                         "etat": "en cours" if ici else "termine" if "rapport :" in log else "interrompu", "echecs": log.count("ECHEC"),
                         "attendues": 2 * (m.get("variantes") or 1) * len(m.get("scenes") or []), "faites": len(faits),
-                        "scenes": [{"id": sid, "a": noms(sid, "a"), "b": noms(sid, "b")} for sid in m.get("scenes") or []]})
+                        "scenes": [{"id": sid, "a": noms(sid, "a"), "b": noms(sid, "b"),
+                                    "idee": (m.get("idees") or {}).get(sid) or ici_idees.get(sid) or {}} for sid in m.get("scenes") or []]})
         return {"id": pid, "titre": p["titre"], "personnage": p["personnage"], "occupe": self.studio.running(), "pod": bool(self.studio.pod()),
                 "temps": {t: {"scenes": sum(s["temps"] == t for s in p["scenes"]), "ok": len(self._comparables(p, t))}
                           for t in sorted({s["temps"] for s in p["scenes"]})},

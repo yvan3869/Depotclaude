@@ -347,7 +347,7 @@ en pose imposee seule (lieu et tenue dits par le texte), puis avec le lieu et la
 `decor`). 1 a 3 images par scene et par methode, montrees en deux rangees. Les images vont dans le dossier `cmp/` du
 projet : ses prises, ses choix et ses tirages ne changent pas. Sans image retenue, la premiere image de la ligne sert.
 Ne sont pas comparables (la methode `decor` ne s'y applique pas) : gros plans, scenes libres, scenes ou une autre
-personne est a l'image. Code : `comparer`, `comparaisons` de `tools/triage/atelier.py` (`/api/a/comparer`).
+personne est a l'image. Sous le nom de chaque scene, la page rappelle ce que le scenariste a ecrit (pose, image, mouvement, texte a l'ecran), fige au lancement. Code : `comparer`, `comparaisons` de `tools/triage/atelier.py` (`/api/a/comparer`).
 
 ## Montage
 Le montage vise une duree (15 s conseille pour l'accroche) en raccourcissant les plans, sauf du cote d'un raccord

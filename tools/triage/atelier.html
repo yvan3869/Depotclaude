@@ -19,6 +19,7 @@
   .lch .chip { white-space:normal; text-align:left; height:auto; max-width:100%; }
   .bgal { display:flex; gap:6px; overflow-x:auto; margin:6px 0 4px; } .bgal img { width:108px; aspect-ratio:9/16; object-fit:cover; border-radius:6px; border:3px solid transparent; flex:none; cursor:pointer; background:var(--fond); }
   .bgal.cm img { width:min(42vw,220px); }
+  .cmid { margin:6px 0; padding:8px 10px; border-left:3px solid var(--line, #444); font-size:13px; line-height:1.4; display:grid; gap:4px; }
   .bgal img.on { border-color:var(--acc); } .bgal.pl { flex-wrap:wrap; overflow:visible; } .bgal.pl img { width:92px; opacity:.55; } .bgal.pl img.on { opacity:1; }
   .vd { display:flex; flex-wrap:wrap; gap:5px; margin-top:4px; }
   .vd button { border-radius:16px; } .vd button.on { border-color:var(--warn); color:var(--warn); } .vd button.on[data-c=ok] { border-color:var(--ok); color:var(--ok); }
@@ -127,6 +128,8 @@ function rendreComparer() {
   const sel = (k, l) => `<select data-cm="${k}">${l.map(([v, lab]) => `<option value="${esc(v)}" ${String(v) === String(CM[k]) ? 'selected' : ''}>${esc(lab)}</option>`).join('')}</select>`;
   const nom = (l, en) => (l.find(x => x.en === en) || {}).fr || en;
   const rang = (titre, l) => `<div class="mut" style="margin-top:6px"><b>${titre}</b></div>${l.length ? `<div class="bgal cm">${l.map(f => `<a href="${u(f)}" target="_blank"><img loading="lazy" src="${u(f)}" alt=""></a>`).join('')}</div>` : '<div class="mut">Pas encore d\'image.</div>'}`;
+  const lig = (l, v) => v ? `<div><span class="mut">${l} : </span>${esc(v)}</div>` : '';
+  const idee = d => d.still || d.motion || (d.pose || []).length ? `<div class="cmid"><div class="mut">${ic('idee')}Ce que le scénariste a écrit</div>${lig('Pose', (d.pose || []).join(' · '))}${lig('Image', d.still)}${lig('Mouvement', d.motion)}${lig('Texte à l\'écran', d.texte)}</div>` : '';
   vue.innerHTML = `<div class="row tete"><a class="lien" href="#/p/${C.id}">${ic('retour')}${esc(C.titre)}</a><span class="sp"></span><span class="mut">${C.id}</span></div>
     <h2>Comparer les deux méthodes</h2>
     <p class="mut">Les mêmes scènes sont fabriquées deux fois, avec le même tirage au sort et les mêmes LoRA. En haut, la méthode actuelle : le lieu et la tenue viennent du texte. En bas, la nouvelle : le lieu et la tenue viennent des images de l'atelier du personnage. Rien ne change dans le projet : ces images restent sur cette page.</p>
@@ -143,7 +146,7 @@ function rendreComparer() {
     </div>
     ${C.lancements.map(x => `<h2>Temps ${[].concat(x.temps).join(', ')} · ${esc(nom(C.lieux, x.lieu))}${x.tenue ? ' · ' + esc(nom(C.tenues, x.tenue)) : ''}</h2>
       <div class="mut">${esc(x.date || '')} · ${x.etat === 'en cours' ? `en cours, ${x.faites} image(s) sur ${x.attendues}` : x.etat === 'termine' ? `terminé, ${x.faites} image(s)` : `interrompu, ${x.faites} image(s) sur ${x.attendues}`}${x.echecs ? ` · ${x.echecs} échec(s)` : ''}</div>
-      ${x.scenes.map(s => `<div class="panel"><b>Scène ${esc(s.id.slice(1))}</b>${rang('Méthode actuelle : lieu et tenue venus du texte', s.a)}${rang('Nouvelle méthode : lieu et tenue venus des images', s.b)}</div>`).join('')}`).join('') || '<p class="mut">Aucune comparaison lancée pour ce projet.</p>'}`;
+      ${x.scenes.map(s => `<div class="panel"><b>Scène ${esc(s.id.slice(1))}${s.idee && s.idee.titre ? ' · ' + esc(s.idee.titre) : ''}</b>${idee(s.idee || {})}${rang('Méthode actuelle : lieu et tenue venus du texte', s.a)}${rang('Nouvelle méthode : lieu et tenue venus des images', s.b)}</div>`).join('')}`).join('') || '<p class="mut">Aucune comparaison lancée pour ce projet.</p>'}`;
 }
 // --- Etat general, barre du haut -------------------------------------------------------------------
 async function etat() {
