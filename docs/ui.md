@@ -37,6 +37,8 @@ page de reference. Un nouvel espace part de ce squelette :
 - Atelier, page d'un projet : la colonne de travail suit l'ordre du geste (Preparer, Scenes, Produire, Monter) ; ce
   qui vaut pour tout le projet va dans le panneau de cote (`COTES`, `.cote`, `.cpan`), jamais dans la colonne.
   Un bouton `data-a="cote" data-c="<panneau>"` l'ouvre depuis la colonne.
+- Sur chaque tuile de scene, une ligne `.dc` dit le decoupage en clair (comment on arrive sur la scene, ce que fait
+  la camera) ; en couleur d'accent quand ce n'est pas une coupe franche ou une camera fixe.
 - Le proprietaire lit et decide ; il ne retouche pas les prompts. Une scene est une tuile (`.grille` > `.scene`) :
   image, texte a l'ecran, verdict, note ; le texte et les reglages sont dans un pli ferme, et une remarque du
   controle des plans s'affiche dans la tuile avec le bouton qui ouvre le pli. Le panneau de cote est a gauche sur

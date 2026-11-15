@@ -53,7 +53,8 @@
   }
   /* Scenes en tuiles : l'image d'abord, le texte de la scene replie dessous */
   .tx { font-size:15px; margin-bottom:6px; } .scene .outils { margin:0 0 4px; }
-  .media { flex-direction:column; } .media .pv { width:100%; max-width:330px; margin:0 auto; }
+  .media { flex-wrap:wrap; align-items:flex-start; } .media .pv { width:124px; } .media .bas { flex-basis:100%; min-width:0; }
+  .dc { display:flex; flex-wrap:wrap; gap:2px 10px; font-size:12.5px; color:var(--mut); margin-bottom:6px; } .dc .ic { width:13px; height:13px; margin-right:3px; vertical-align:-2px; } .dc .fort { color:var(--acc); }
   .ver { display:flex; gap:8px; align-items:center; padding:4px 0; font-size:14px; }
 </style></head><body>
 <header>
@@ -235,8 +236,19 @@ function echanger(sid, sens) {  // avec la scene voisine du meme temps
 }
 const CONT = [['lieu', 'Lieu', 'in a small Parisian bathroom with white tiles and a round mirror'], ['tenue', 'Tenue', 'wearing a white ribbed tank top and grey cotton shorts'],
   ['cheveux', 'Coiffure du jour', 'hair in a loose bun'], ['lumiere', 'Lumière', 'soft morning window light'], ['pdv', 'Point de vue', 'shot at eye level on a phone', 'Décrire la vue, pas l\'appareil : un téléphone « posé sur le comptoir » serait dessiné dans l\'image.']];
-const TRANSITIONS = [['', 'Celle du projet'], ['coupe', 'Coupe franche'], ['fondu', 'Fondu : le temps passe'], ['filage', 'Filé : panoramique très rapide'], ['zoom', 'Zoom : avancée rapide dans l\'image']];
-const CAMERAS = [['', 'Fixe'], ['avance', 'Avance lentement'], ['recul', 'Recule lentement'], ['gauche', 'Glisse vers la gauche'], ['droite', 'Glisse vers la droite']];
+const TRANSITIONS = [['', 'Celle du projet'], ['coupe', 'Coupe franche'], ['fondu', 'Fondu : le temps passe'], ['fondu_lent', 'Fondu lent : longue pause'],
+  ['filage', 'Filé vers la droite : la caméra part très vite'], ['filage_gauche', 'Filé vers la gauche'], ['filage_haut', 'Filé vers le haut'], ['filage_bas', 'Filé vers le bas'],
+  ['glisse', 'Glissé lent vers la droite'], ['glisse_gauche', 'Glissé lent vers la gauche'],
+  ['zoom', 'Zoom : avancée rapide, vers un plan plus serré'], ['dezoom', 'Dézoom : recul rapide, vers un plan plus large']];
+// Le découpage en clair sur la tuile : comment on arrive sur la scène, ce que fait la caméra
+const TR_C = {coupe: 'coupe franche', fondu: 'fondu', fondu_lent: 'fondu lent', filage: 'filé rapide vers la droite', filage_gauche: 'filé rapide vers la gauche', filage_haut: 'filé rapide vers le haut',
+  filage_bas: 'filé rapide vers le bas', glisse: 'glissé lent vers la droite', glisse_gauche: 'glissé lent vers la gauche', zoom: 'zoom rapide', dezoom: 'dézoom rapide'};
+const CAM_C = {avance: 'avance lentement', recul: 'recule lentement', gauche: 'glisse à gauche', droite: 'glisse à droite', haut: 'monte lentement', bas: 'descend lentement', avance_vif: 'avance d\'un coup', recul_vif: 'recule d\'un coup'};
+const decoupage = (s, pv) => { const colle = pv && (s.raccord === 'continu' || s.raccord === 'arrivee'), marque = !colle && pv && s.transition && s.transition !== 'coupe';
+  return `<div class="dc">${pv ? `<span class="${marque ? 'fort' : ''}">${ic('chaine')}${colle ? 'suite sans coupe' : TR_C[s.transition || P.montage.transition] || 'coupe franche'}</span>` : ''}
+    <span class="${!colle && s.camera ? 'fort' : ''}">${ic('camera')}${colle ? 'caméra de la scène d\'avant' : CAM_C[s.camera] || 'fixe'}</span></div>`; };
+const CAMERAS = [['', 'Fixe'], ['avance', 'Avance lentement'], ['recul', 'Recule lentement'], ['gauche', 'Glisse vers la gauche'], ['droite', 'Glisse vers la droite'],
+  ['haut', 'Monte lentement'], ['bas', 'Descend lentement'], ['avance_vif', 'Avance d\'un coup, au début de la scène'], ['recul_vif', 'Recule d\'un coup, au début de la scène']];
 const RACCORDS = [['coupe', 'Coupe : la scène a sa propre image'], ['continu', 'Continu : suite du clip précédent, sans coupe visible'], ['arrivee', 'Arrivée : le clip précédent finit sur l\'image de cette scène']];
 const CH = {t1: true, t2: true, t3: true, t4: true, mode: 'pause', refaire: false, hd: false};  // reglages de la chaine de production
 const dfr = d => d ? new Date(d + 'T12:00').toLocaleDateString('fr-FR', {weekday: 'short', day: 'numeric', month: 'long', year: 'numeric'}) : '';
@@ -338,9 +350,9 @@ function rendreProjet() {
           ${s.raccord === 'continu' ? aide('Pas d\'image propre : le clip part de la dernière image du clip précédent et le montage les colle sans coupe. Si le clip précédent est refait, celui-ci est à refaire. Ne pas rogner la fin du clip précédent ni le début de celui-ci.')
             : s.raccord === 'arrivee' ? aide('Le clip précédent se termine sur l\'image de cette scène (clip début/fin, deux fois le prix d\'un clip simple). Créer cette image avant le clip précédent ; si elle change, il est à refaire.') : ''}</label>` : ''}
         <div class="row haut">${i && coupe ? `<label class="g">Transition<select data-s="${s.id}" data-k="transition">${opt(TRANSITIONS, s.transition || '')}</select>
-            ${aide('Avec la scène d\'avant. Fabriquée au montage, sans calcul. Une ou deux transitions marquées par vidéo, là où elle bascule.')}</label>` : ''}
+            ${aide('Comment on arrive sur cette scène. Fabriquée au montage, sans calcul. Filé : rapide, pour changer de lieu ou de moment. Glissé et fondu lent : pour un moment calme. Zoom et dézoom : pour passer à un cadre plus serré ou plus large. Une ou deux transitions marquées par vidéo, là où elle bascule.')}</label>` : ''}
           ${coupe ? `<label class="g">${ic('camera')}Caméra<select data-s="${s.id}" data-k="camera">${opt(CAMERAS, s.camera || '')}</select>
-            ${aide('Mouvement lent fabriqué au montage par recadrage. Il se prolonge sur les scènes en raccord sans coupe qui suivent. Une image fixe avance toujours un peu.')}</label>` : ''}</div>
+            ${aide('Mouvement fabriqué au montage par recadrage : lent sur toute la scène, ou d\'un coup au début (une fois par vidéo au plus). Il se prolonge sur les scènes en raccord sans coupe qui suivent. Une image fixe avance toujours un peu.')}</label>` : ''}</div>
         <div class="gt">Son</div>
         <div class="row haut"><div class="g" style="flex:3">${f('son', `${ic('son')}Bruit du geste <small>en anglais</small>`, s.son || '', {at: `data-s="${s.id}"`, ph: 'a ceramic cup set down on a wooden counter',
             aide: 'Un seul son bref et concret. Vide : pas de bruit. ' + (D.son.prets.includes(s.id) ? 'Fabriqué.' : s.son ? 'Pas encore fabriqué (panneau Son).' : '')})}</div>
@@ -486,6 +498,7 @@ function majDyn() {
       <div class="pv">${c.clip ? `<video src="${u(c.clip)}" poster="${u(c.image)}" muted loop playsinline controls preload="none"></video>`
         : c.image ? `<a href="${u(c.image)}" target="_blank"><img src="${u(c.image)}" loading="lazy"></a>` : 'pas encore d\'image'}</div>
       <div class="side">
+        ${decoupage(s, pv)}
         ${s.temps === T ? `${s.texte ? `<div class="tx">« ${esc(s.texte)} »</div>` : ''}${(l => l.length ? `<div style="margin-bottom:8px">${l.map(x => `<div class="${x.grave ? 'err' : 'avt'}" style="font-size:13px">${esc(x.msg)}</div>`).join('')}
           <button class="s" data-a="ouvrirtexte" style="margin-top:4px">${ic('retoucher')}Voir le texte de la scène</button></div>` : '')(rq.filter(x => x.scene === s.id))}` : ''}
         ${t.images.length > 1 && !cont ? `<div class="mut">Prises</div><div class="takes">${t.images.map(n => `<span class="tk"><img src="${u(n)}" loading="lazy" class="${n === c.image ? 'on' : ''}" data-a="prise" data-n="${n}">${noteCourte(n)}</span>`).join('')}</div>` : ''}
@@ -494,7 +507,8 @@ function majDyn() {
           <button class="s" data-a="clip" ${occ || !(cont ? (D.choix[pv.id] || {}).clip : c.image) || !s.motion ? 'disabled' : ''}>${ic(c.clip ? 'refaire' : 'clip')}${c.clip ? 'Autre clip' : 'Créer le clip'}</button></div>
         <div class="mut" style="margin-top:6px">${c.clip ? 'Clip prêt.' : cont ? ((D.choix[pv.id] || {}).clip ? (t.clips.length ? 'Le clip précédent a changé : ce clip est à refaire.' : 'Suite du clip précédent : prête à lancer.') : 'Suite du clip précédent : créer d\'abord celui-ci.')
           : c.image ? (t.clips.length && !clips.length ? 'L\'image a changé : le clip est à refaire.' : 'Image prête : la vérifier avant de lancer le clip.') : ''}</div>
-        ${c.image && !cont ? `<div class="mut" style="margin-top:8px">Verdict</div><div class="vd">${VERDICTS.map(([k, lab]) => `<button class="s ${((D.verdicts || {})[c.image] || []).includes(k) ? 'on' : ''}" data-a="verdict" data-c="${k}" data-n="${c.image}">${lab}</button>`).join('')}</div>${noteHtml(c.image)}` : ''}
+      </div><div class="bas">
+        ${c.image && !cont ? `<div class="mut">Verdict</div><div class="vd">${VERDICTS.map(([k, lab]) => `<button class="s ${((D.verdicts || {})[c.image] || []).includes(k) ? 'on' : ''}" data-a="verdict" data-c="${k}" data-n="${c.image}">${lab}</button>`).join('')}</div>${noteHtml(c.image)}` : ''}
         ${(rl => rl && rl.image === c.image ? `<div class="${rl.ok ? 'okc' : 'err'}" style="margin-top:6px;font-size:13px">Relecture : ${rl.ok ? 'rien à signaler.' : esc(rl.constat)}${!rl.ok && rl.consigne ? ` <span class="mut">${esc(rl.consigne)}</span>` : ''}</div>` : '')((((D.relecture || {})[s.temps] || {}).scenes || {})[s.id])}
       </div>`, 'm' + s.id);
   }

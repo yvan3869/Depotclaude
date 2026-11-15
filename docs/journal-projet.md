@@ -464,3 +464,12 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
   clip, temps, force) ; projets, Bibliotheque et LoRA par defaut en grille. Espace reseaux : choix des LoRA d'image
   tous publics du catalogue par personnage (`loras` de `reglages.json`), a defaut celles par defaut du temps 1,
   filtrees (image, tous publics, presentes sur le volume). Aucune depense GPU.
+- 15/11, decoupage (passages entre scenes et camera). Constat : quatre passages seulement, un file a sens unique, une
+  camera toujours lente, et des champs facultatifs que l'agent pouvait oublier. Ajoute au montage, sans GPU : file dans
+  les quatre sens (flou dans le sens du mouvement), glisse lent, fondu lent, dezoom (le plan arrive de pres et recule
+  vite) ; camera qui monte ou descend, et mouvement vif en debut de plan (`avance_vif`, `recul_vif`). Un passage est
+  garde des que les deux plans durent plus de deux fois sa duree (avant : trois fois). Modele de plans `2026-11-15d` :
+  tout plan en raccord coupe dit `transition` (sauf le premier) et `camera`, `coupe` et `fixe` compris ; depot refuse
+  sinon. Controle des plans : zoom vers un cadre plus serre, dezoom vers un cadre plus large (cadre lu dans `still`),
+  un seul mouvement vif, temps plat signale. Page : le decoupage est ecrit sur chaque tuile ; tuile plus compacte
+  (image a gauche, verdict dessous). Essais sur p0004 (montages hors projet, planches d'images relues). Aucune depense GPU.

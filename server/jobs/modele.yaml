@@ -36,8 +36,12 @@
 #   2026-11-15c  LoRA par defaut d'un temps : posees sur le projet ("LoRA de ce temps"), plus sur chaque scene. Elles
 #                s'appliquent a toutes les scenes du temps, y compris a un plan qui ecrit "loras: []" ou sa propre liste
 #                (qui s'y ajoute). Le controle des plans signale un temps 4 sans LoRA porno d'image ou de clip.
+#   2026-11-15d  decoupage dit par chaque plan : "transition" (sauf premier plan) et "camera" sont obligatoires sur
+#                tout plan en raccord "coupe", avec "coupe" et "fixe" pour dire qu'il ne se passe rien. Nouvelles
+#                transitions : fondu_lent, filage_gauche, filage_haut, filage_bas, glisse, glisse_gauche, dezoom.
+#                Nouvelles cameras : haut, bas, avance_vif, recul_vif.
 
-modele: "2026-11-15c"
+modele: "2026-11-15d"
 name: monlot                 # prefixe des fichiers produits (lettres, chiffres, _), unique par lancement
 
 # --- Facultatif : plans deposes dans l'atelier (docs/agents.md, "Deposer des plans") --------------
@@ -114,12 +118,16 @@ shots:
     #                        # continu (pas d'image propre : le clip part de la derniere image du clip precedent et le
     #                        # montage les colle sans coupe ; "still" reste obligatoire et decrit l'image attendue),
     #                        # arrivee (le clip precedent se termine sur l'image de ce plan ; cout double pour lui)
-    # transition: ""         # passage du plan precedent a celui-ci, si le raccord est une coupe : "" (reglage du projet),
-    #                        # coupe, fondu (le temps passe), filage (panoramique file tres rapide : autre lieu, autre
-    #                        # angle, autre moment), zoom (avancee rapide : arriver sur un plan plus serre)
-    # camera: ""             # mouvement de camera lent pendant le plan, fabrique au montage : "" (fixe), avance, recul,
-    #                        # gauche, droite. Sans effet sur un plan en raccord continu ou arrivee (celui du premier
-    #                        # plan du groupe se prolonge)
+    # transition: coupe      # OBLIGATOIRE sur tout plan en raccord coupe, sauf le premier : comment on arrive sur ce plan.
+    #                        # coupe (franche, le cas courant) ; fondu (le temps passe) ; fondu_lent (longue pause) ;
+    #                        # filage, filage_gauche, filage_haut, filage_bas (la camera part tres vite vers la droite,
+    #                        # la gauche, le haut, le bas : autre lieu, autre angle, autre moment) ; glisse, glisse_gauche
+    #                        # (le meme passage, lent : moment calme) ; zoom (avancee rapide : arriver sur un plan plus
+    #                        # serre) ; dezoom (recul rapide : arriver sur un plan plus large)
+    # camera: fixe           # OBLIGATOIRE sur tout plan en raccord coupe : ce que fait la camera pendant le plan,
+    #                        # fabrique au montage. fixe ; avance, recul, gauche, droite, haut, bas (lent, sur tout le
+    #                        # plan) ; avance_vif, recul_vif (d'un coup, au debut du plan). A ne pas ecrire sur un plan
+    #                        # en raccord continu ou arrivee (le mouvement du premier plan du groupe se prolonge)
     # libre: false           # true : autre lieu ou autre tenue, sans la fiche de continuite ni l'image de reference
     # cran: 1                # niveau du plan dans la progression du temps, de 1 (anodin) a 5 (le plus ose de ce temps) ;
     #                        # il ne redescend pas d'un plan au suivant (verifie par le controle des plans)

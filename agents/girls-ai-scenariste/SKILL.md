@@ -64,7 +64,8 @@ Les points où un scénario échoue le plus souvent à l'image :
   chaque `still` dit ce qu'elle porte ou ne porte plus à cet instant, avec les mêmes mots de vêtement d'un plan
   au suivant. Un vêtement retiré ne revient pas.
 - **Jamais de caméra dans `motion`.** Les mouvements de caméra et les transitions sont des champs à part
-  (`camera`, `transition`), fabriqués au montage.
+  (`camera`, `transition`), fabriqués au montage. Chaque plan dit les deux, même pour dire « rien » (`coupe`, `fixe`) :
+  décider le découpage fait partie de l'écriture du plan.
 - **Le point de vue décrit la vue**, jamais l'appareil comme un objet. Un téléphone qui filme n'est pas dans sa main.
 - **`cran` monte et ne redescend jamais** à l'intérieur d'un temps ; chaque temps repart de l'instant où le
   précédent s'arrête.

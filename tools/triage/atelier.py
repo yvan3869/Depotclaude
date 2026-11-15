@@ -40,6 +40,7 @@ ETAPES = ("idee", "ecrit", "images", "clips", "monte", "valide")
 FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 TEMPS = {1: "accroche", 2: "montee", 3: "devoile", 4: "final"}
 V = 4            # version des donnees : 4 = quatre temps (l'ancien temps 3, le final, est devenu le temps 4)
+MODELE_DEC = "2026-11-15d"  # premier modele de plans ou chaque plan dit son passage et sa camera
 MODELE_4T = "2026-11-14f"  # premier modele de plans a quatre temps : avant lui, "temps: 3" designait le final
 FORMATS = {"vertical": (1080, 1920), "carre": (1080, 1080), "paysage": (1920, 1080)}
 
@@ -63,8 +64,8 @@ CONTRAINTES TECHNIQUES (modèles d'image et de vidéo)
 - "motion" : en anglais, UN geste simple et lent, en une phrase commençant par "She". Gestes fiables : regarder l'objectif, sourire lentement, pencher la tête, se mordre la lèvre, se pencher vers la caméra, marcher vers la caméra, faire glisser une bretelle, ajuster un décolleté, s'étirer doucement, boire, respirer. Gestes interdits (ils ratent) : tourner le dos, attacher ses cheveux, passer la main devant le visage, renverser la tête, éclater de rire, cheveux au vent, manipuler un objet compliqué, changer de vêtement.
 - "end_edit" : presque toujours "". À remplir seulement si la pose doit changer nettement entre le début et la fin du clip (assise puis debout) : une phrase en anglais qui décrit la pose finale, même cadrage.
 - "raccord" : "coupe" (la scène a sa propre image, le montage coupe : changement de cadrage ou d'angle) ou "continu" (la scène prolonge la précédente sans coupe visible : son clip démarre sur la dernière image du clip précédent, même cadrage, le geste s'enchaîne). Utilise "continu" quand deux gestes se suivent dans le même cadre ; pas plus de deux scènes continues de suite, et jamais sur la première scène. Le "still" d'une scène continue décrit quand même l'image attendue à cet instant.
-- "transition" : comment le montage passe de la scène précédente à celle-ci, quand le raccord est "coupe". "" (coupe franche, le cas général), "fondu" (le temps passe), "filage" (panoramique filé très rapide : changement de lieu, d'angle ou de moment, donne du rythme), "zoom" (avancée rapide dans l'image : pour arriver sur un plan plus serré). Une ou deux transitions marquées par vidéo, au moment où elle bascule ; jamais sur la première scène ni sur une scène "continu".
-- "camera" : mouvement de caméra lent pendant la scène, fabriqué au montage : "" (fixe), "avance" (la caméra s'approche : la tension monte), "recul" (elle s'éloigne : on découvre), "gauche" ou "droite" (glissement latéral). N'écris jamais de mouvement de caméra dans "motion" : il rate. Sur une scène "continu", laisse "" (le mouvement de la scène précédente se prolonge). Pas plus d'une scène sur deux.
+- "transition" : comment le montage passe de la scène précédente à celle-ci, quand le raccord est "coupe". "" (coupe franche, le cas général), "fondu" (le temps passe), "fondu_lent" (ellipse longue, moment calme), "filage" (panoramique filé très rapide vers la droite : changement de lieu, d'angle ou de moment, donne du rythme ; "filage_gauche", "filage_haut", "filage_bas" pour les autres sens), "glisse" ou "glisse_gauche" (la caméra glisse lentement d'une scène à l'autre), "zoom" (avancée rapide dans l'image : pour arriver sur un plan plus serré), "dezoom" (recul rapide : pour arriver sur un plan plus large). Une ou deux transitions marquées par vidéo, au moment où elle bascule ; jamais sur la première scène ni sur une scène "continu".
+- "camera" : mouvement de caméra lent pendant la scène, fabriqué au montage : "" (fixe), "avance" (la caméra s'approche : la tension monte), "recul" (elle s'éloigne : on découvre), "gauche" ou "droite" (glissement latéral), "haut" ou "bas" (la caméra monte ou descend le long du corps), "avance_vif" ou "recul_vif" (coup de zoom en une demi-seconde au début de la scène, une fois par vidéo au plus). N'écris jamais de mouvement de caméra dans "motion" : il rate. Sur une scène "continu", laisse "" (le mouvement de la scène précédente se prolonge). Pas plus d'une scène sur deux.
 - "ambiance" : en anglais, une phrase qui décrit le fond sonore du lieu pour toute la vidéo, sans musique ni voix : la pièce, deux ou trois sons précis, leur distance (par exemple "Quiet kitchen room tone in the morning, soft hum of a fridge, a spoon against a ceramic cup, faint birds through an open window"). Des sons que le lieu rend plausibles, rien qui doive tomber sur un geste précis.
 - "son" : en anglais, le bruit que fait le geste de la scène, UN seul son bref et concret, entendu de près, avec la matière (par exemple "a ceramic cup set down on a wooden counter", "a zipper pulled down slowly", "bare footsteps on a wooden floor", "a sip of hot coffee"). "" si le geste ne fait aucun bruit (regard, sourire, tête penchée) : une scène sur deux environ reste sans bruit. Jamais de voix, de souffle ni de musique.
 - "texte" : texte incrusté pendant la scène, dans la langue du personnage, 7 mots au plus. Aucun emoji, ni là ni dans l'accroche (la police de montage ne les affiche pas). "voix" : phrase de voix off dans sa voix, 12 mots au plus, ou "".
@@ -135,10 +136,16 @@ GROS_PLAN = re.compile(r"\bclose[- ]?up\b", re.I)
 GARDE = 0.3  # avant un raccord sans coupe, le texte du plan s'efface : le suivant apparait a la jointure, jamais les deux
 # Passage au plan suivant quand le raccord est une coupe : (transition xfade de ffmpeg, duree en secondes).
 # Le champ vide d'une scene suit le reglage du projet (coupe ou fondu).
-TRANSITIONS = {"coupe": None, "fondu": ("fade", 0.35), "filage": ("slideleft", 0.2), "zoom": ("fade", 0.12)}
-POUSSE = (0.3, 0.35)  # transition "zoom" : le plan qui sort avance vite dans l'image (duree, ampleur) avant un fondu tres court
+# filage : la camera part tres vite vers la droite (ou gauche, haut, bas), noyee dans un flou ; glisse : le meme passage, lent et net.
+TRANSITIONS = {"coupe": None, "fondu": ("fade", 0.35), "fondu_lent": ("fade", 0.9),
+               "filage": ("slideleft", 0.2), "filage_gauche": ("slideright", 0.2), "filage_haut": ("slidedown", 0.2), "filage_bas": ("slideup", 0.2),
+               "glisse": ("slideleft", 0.6), "glisse_gauche": ("slideright", 0.6), "zoom": ("fade", 0.12), "dezoom": ("fade", 0.12)}
+# transition "zoom" : le plan qui sort avance vite dans l'image (duree, ampleur) avant un fondu tres court ;
+# "dezoom" : le plan qui entre part de pres et recule aussi vite
+POUSSE = (0.3, 0.35)
 # Mouvement de camera lent d'un plan, fabrique au montage par recadrage (le modele video les rend mal)
-CAMERAS = ("", "avance", "recul", "gauche", "droite")
+CAMERAS = ("", "avance", "recul", "gauche", "droite", "haut", "bas", "avance_vif", "recul_vif")
+VIF = (0.6, 0.18)  # mouvement vif : fait au debut du plan (duree, ampleur), puis le cadre ne bouge plus
 AMPLE = 0.08  # ampleur d'un mouvement de camera sur un clip (une image fixe prend 0,10)
 # Rendu au montage : tel quel ; rendu d'un telephone (nettete, contraste, grain qui bouge) ; le meme, tenu a la main
 RENDUS = ("net", "telephone", "main")
@@ -1281,9 +1288,17 @@ class Atelier:
             if sh.get("raccord", "coupe") not in RACCORDS:
                 raise ValueError(f"plan {nom} : \"raccord\" vaut coupe, continu ou arrivee")
             if (sh.get("transition") or "") not in ("", *TRANSITIONS):
-                raise ValueError(f"plan {nom} : \"transition\" vaut coupe, fondu, filage ou zoom")
-            if (sh.get("camera") or "") not in CAMERAS:
-                raise ValueError(f"plan {nom} : \"camera\" vaut avance, recul, gauche ou droite")
+                raise ValueError(f"plan {nom} : \"transition\" vaut {', '.join(TRANSITIONS)}")
+            if sh.get("camera") == "fixe":
+                sh["camera"] = ""
+            elif (sh.get("camera") or "") not in CAMERAS:
+                raise ValueError(f"plan {nom} : \"camera\" vaut fixe, {', '.join(CAMERAS[1:])}")
+            # depuis le modele MODELE_DEC, le decoupage se dit : chaque plan qui arrive par une coupe nomme son passage et sa camera
+            if str(j.get("modele") or "") >= MODELE_DEC and sh.get("raccord", "coupe") == "coupe":
+                if i and not sh.get("transition"):
+                    raise ValueError(f"plan {nom} : dire comment on arrive sur ce plan, \"transition: coupe\" ou une autre valeur ({', '.join(TRANSITIONS)})")
+                if "camera" not in sh:
+                    raise ValueError(f"plan {nom} : dire si la caméra bouge, \"camera: fixe\" ou un mouvement ({', '.join(CAMERAS[1:])})")
             pose = sh.get("pose") or {}
             if not isinstance(pose, dict) or [k for k in pose if k not in POSE]:
                 raise ValueError(f"plan {nom} : \"pose\" est un bloc de champs ({', '.join(POSE)})")
@@ -2148,17 +2163,23 @@ def _tremble(w, h, graine, t0=0.0):
             f"crop={w}:{h}:x='(iw-ow)/2+{x}':y='(ih-oh)/2+{y}'"]
 
 
-def _camera(cam, ample, w, h, fps, t0, total, d=1, pousse=None):
+def _camera(cam, ample, w, h, fps, t0, total, d=1, pousse=None, tire=False):
     """Filtre d'un mouvement de camera lent, sur une image agrandie deux fois : il recadre un peu plus serre et fait
     glisser le cadre. `t0` et `total` : instant du plan dans son groupe et duree du groupe (le mouvement ne repart pas
     a un raccord sans coupe). `d` : images sorties par image recue (1 pour un clip, toutes pour une image fixe).
-    `pousse` : instant du plan ou commence l'avancee rapide qui precede une transition "zoom"."""
+    `pousse` : instant du plan ou commence l'avancee rapide qui precede une transition "zoom".
+    `tire` : le plan part de pres et recule vite (il arrive par une transition "dezoom")."""
     a = f"min(1,(on/{fps}+{t0:.3f})/{max(0.1, total):.3f})"
-    z = {"avance": f"1+{ample}*{a}", "recul": f"1+{ample}*(1-{a})"}.get(cam, f"{1 + ample}" if cam else "1")
+    vif = f"(1-pow(1-min(1,(on/{fps}+{t0:.3f})/{VIF[0]}),2))"  # part vite et se pose
+    z = {"avance": f"1+{ample}*{a}", "recul": f"1+{ample}*(1-{a})", "avance_vif": f"1+{VIF[1]}*{vif}",
+         "recul_vif": f"1+{VIF[1]}*(1-{vif})"}.get(cam, f"{1 + ample}" if cam else "1")
     if pousse is not None:
         z = f"({z})*(1+{POUSSE[1]}*pow(max(0,(on/{fps}-{pousse:.3f})/{POUSSE[0]}),2))"
+    if tire:
+        z = f"({z})*(1+{POUSSE[1]}*pow(max(0,1-on/{fps}/{POUSSE[0]}),2))"
     x = {"droite": f"(iw-iw/zoom)*{a}", "gauche": f"(iw-iw/zoom)*(1-{a})"}.get(cam, "iw/2-(iw/zoom/2)")
-    return f"zoompan=z='{z}':x='{x}':y='ih*0.42-(ih/zoom*0.42)':d={d}:s={w}x{h}:fps={fps}"
+    y = {"bas": f"(ih-ih/zoom)*{a}", "haut": f"(ih-ih/zoom)*(1-{a})"}.get(cam, "ih*0.42-(ih/zoom*0.42)")
+    return f"zoompan=z='{z}':x='{x}':y='{y}':d={d}:s={w}x{h}:fps={fps}"
 
 
 def _plans(p, media):
@@ -2236,6 +2257,7 @@ def monter(p, media, tmp, out, audio_dir, plateforme=""):
         t0c, t0 = t0, t0 + dur - FONDU_JOINT / fps
         suivant = plans[i + 1] if i + 1 < len(plans) else None
         pousse = dur - POUSSE[0] if suivant and not suivant["colle"] and suivant["s"].get("transition") == "zoom" and dur > 1 else None
+        tire = bool(i and not pl["colle"] and s.get("transition") == "dezoom" and dur > 1)
         if m["textes"]:
             tete = i == 0 and p.get("accroche") and p["accroche"] != s["texte"]
             # un seul texte a la fois, aussi a un raccord sans coupe (les deux plans s'y fondent sur quelques images) :
@@ -2259,12 +2281,12 @@ def monter(p, media, tmp, out, audio_dir, plateforme=""):
                     couleur = ["colorchannelmixer=rr={:.4f}:gg={:.4f}:bb={:.4f}".format(*gains)]
             else:
                 gains = [1.0, 1.0, 1.0]
-            avant = [base2] + couleur + [f"fps={fps}", _camera(cam, AMPLE, w2, h2, fps, t0c, gdur[gr], 1, pousse)] if cam or pousse is not None else [base] + couleur
+            avant = [base2] + couleur + [f"fps={fps}", _camera(cam, AMPLE, w2, h2, fps, t0c, gdur[gr], 1, pousse, tire)] if cam or pousse is not None or tire else [base] + couleur
             ins, graphe = _poser(",".join(avant + main + [fin]), txt + label, queue)
             _ff("-ss", f"{deb:.3f}", "-t", f"{dur:.3f}", "-i", media / s["clip"], *ins, *graphe, *enc, seg)
         else:  # pas de clip : image en zoom lent, pour qu'elle ne paraisse pas figee
             nb = round(dur * fps)
-            zoom = base2 + "," + _camera(cam or "avance", 0.1, w2, h2, fps, 0, dur, nb, pousse)
+            zoom = base2 + "," + _camera(cam or "avance", 0.1, w2, h2, fps, 0, dur, nb, pousse, tire)
             gains = [1.0, 1.0, 1.0]
             ins, graphe = _poser(",".join([zoom] + main + tel + ["setsar=1,format=yuv420p"]), txt + label, queue)
             _ff("-i", media / s["image"], *ins, *graphe, "-frames:v", nb, *enc, seg)
@@ -2304,8 +2326,9 @@ def monter(p, media, tmp, out, audio_dir, plateforme=""):
             acc += ds[i - 1] - d
             fc.append(f"[{prev}][{i}:v]xfade=transition={nom}:duration={d:.5f}:offset={acc:.3f}[v{i}]")
             prev = f"v{i}"
-            if nom == "slideleft":  # panoramique file : le glissement est noye dans un flou horizontal
-                flous.append(f"gblur=sigma=42:sigmaV=0:steps=2:enable='between(t,{acc - 0.04:.3f},{acc + d + 0.04:.3f})'")
+            if nom.startswith("slide") and d < 0.3:  # panoramique file : le glissement est noye dans un flou, dans le sens du mouvement
+                sig = "sigma=0:sigmaV=42" if nom in ("slideup", "slidedown") else "sigma=42:sigmaV=0"
+                flous.append(f"gblur={sig}:steps=2:enable='between(t,{acc - 0.04:.3f},{acc + d + 0.04:.3f})'")
         if flous:
             fc.append(f"[{prev}]{','.join(flous)}[vf]")
             prev = "vf"
@@ -2326,7 +2349,7 @@ def monter(p, media, tmp, out, audio_dir, plateforme=""):
     for j in range(1, len(segs)):
         nom = (tetes[j] or {}).get("transition") or m["transition"]
         tr = TRANSITIONS.get(nom)
-        passages.append(tr if tr and min(durs[j - 1], durs[j]) > 3 * tr[1] else None)
+        passages.append(tr if tr and min(durs[j - 1], durs[j]) > 2 * tr[1] else None)
         noms.append(nom if passages[-1] else "coupe")
     suites = []  # suites de segments relies par une transition ; entre deux suites, coupe franche
     j = 0

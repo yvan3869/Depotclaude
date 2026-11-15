@@ -171,22 +171,39 @@ Trois outils evitent qu'une video change de piece, de tenue ou de personne d'une
   - `arrivee` : le clip precedent se termine exactement sur l'image de ce plan (cout double pour ce clip).
     Pour amener un mouvement de camera ou de pose vers un cadre precis.
   Le premier plan d'un temps est toujours une coupe.
-- **Transition** (`transition`, par plan, quand son raccord est `coupe`) : comment le montage passe du plan precedent
-  a celui-ci. Fabriquee au montage, sans calcul ni cout.
-  - vide : le reglage du projet (coupe franche en general) ; `coupe` : coupe franche meme si le projet est en fondu ;
-  - `fondu` (0,35 s) : le temps passe, on retrouve le personnage plus tard ;
-  - `filage` (0,2 s) : panoramique file tres rapide, comme une main qui tourne le telephone. Pour changer de lieu,
-    d'angle ou de moment en gardant du rythme ;
-  - `zoom` : la fin du plan precedent avance vite dans l'image (0,3 s), puis fondu tres court. Pour arriver sur un plan plus serre (plan large puis gros plan).
-- **Camera** (`camera`, par plan) : mouvement lent pendant le plan, fabrique au montage par recadrage (8 % de l'image).
-  `avance` (la tension monte, on s'approche d'elle), `recul` (on decouvre le decor ou la tenue), `gauche`, `droite`
-  (glissement lateral, pour un plan d'ambiance). Vide : camera fixe. Dans un groupe de plans en raccord sans coupe,
-  le mouvement est celui du premier plan et dure tout le groupe : ne rien mettre sur les suivants.
+- **Le decoupage se dit, plan par plan.** Tout plan en raccord `coupe` porte `camera`, et `transition` sauf le
+  premier plan du temps. Il n'y a pas de valeur par defaut : un plan sans effet ecrit `transition: coupe` et
+  `camera: fixe`. Un depot qui ne le dit pas est refuse. Un plan en raccord `continu` ou `arrivee` n'ecrit ni l'un ni l'autre.
+- **Transition** (`transition`) : comment on arrive sur ce plan depuis le precedent. Fabriquee au montage, sans calcul ni cout.
+  - `coupe` : coupe franche, le cas courant ;
+  - `fondu` (0,35 s) : le temps passe, on retrouve le personnage plus tard ; `fondu_lent` (0,9 s) : longue pause,
+    moment calme. Les deux plans doivent durer plus de 2 s ;
+  - `filage` (0,2 s) : la camera part tres vite vers la droite, comme une main qui tourne le telephone, dans un flou
+    de mouvement. `filage_gauche`, `filage_haut`, `filage_bas` : les autres sens. Pour changer de lieu, d'angle ou de
+    moment en gardant du rythme. Choisir le sens d'apres l'image : vers le bas si le plan suivant montre plus bas
+    (visage puis jambes), vers le cote ou elle regarde ou se deplace ;
+  - `glisse`, `glisse_gauche` (0,6 s) : le meme passage, lent et net, d'une image a l'autre. Pour un moment calme ;
+  - `zoom` : la fin du plan precedent avance vite dans l'image (0,3 s), puis fondu tres court. Pour arriver sur un
+    plan plus serre (plan large puis gros plan) ;
+  - `dezoom` : le plan arrive de tres pres et recule vite (0,3 s). Pour arriver sur un plan plus large (gros plan
+    puis plan large : on decouvre).
+- **Camera** (`camera`) : ce que fait la camera pendant le plan, fabrique au montage par recadrage.
+  - `fixe` ;
+  - lent, sur toute la duree du plan (8 % de l'image) : `avance` (la tension monte, on s'approche d'elle), `recul`
+    (on decouvre le decor ou la tenue), `gauche`, `droite` (glissement lateral, plan d'ambiance), `haut`, `bas` (la
+    camera monte ou descend le long du corps) ;
+  - vif, en une demi-seconde au debut du plan (18 %) : `avance_vif` (coup de zoom : souligne une reaction, une
+    chute), `recul_vif`. Un seul par video.
+  Dans un groupe de plans en raccord sans coupe, le mouvement est celui du premier plan et dure tout le groupe.
+- **Un vrai mouvement de camera d'un plan a l'autre** (la camera tourne autour d'elle, s'approche jusqu'au cadre
+  suivant) ne se fabrique pas au montage : c'est le raccord `arrivee`, ou le modele video relie les deux images (cout
+  double pour ce clip). A reserver a un passage par video.
 - **Penser le decoupage en ecrivant les plans** : decider pour chaque plan comment on y arrive et si la camera bouge.
   Reperes : la plupart des passages restent des coupes franches ; une ou deux transitions marquees (`filage`, `zoom`)
   par temps, la ou la video bascule (changement de lieu, passage au gros plan, chute) ; une camera qui bouge sur un
   plan sur deux au plus, de preference `avance` sur le plan le plus fort ; alterner les cadrages d'un plan au suivant
-  (large, moyen, serre) pour que la transition ait quelque chose a relier. Ne jamais ecrire un mouvement de camera
+  (large, moyen, serre) pour que la transition ait quelque chose a relier, et dire ce cadrage dans `still` avec les
+  mots que le controle lit ("wide shot" ou "full-body shot", "medium shot", "close-up"). Ne jamais ecrire un mouvement de camera
   dans `motion` (zoom, pan, travelling) : le modele video le rate, alors que `camera` le rend a coup sur.
 
 ## Controle des plans
@@ -204,7 +221,8 @@ Rien n'est bloque, mais un depot sans remarque est l'objectif. Ce qui est verifi
 - duree : le temps 1 vise 20 s au plus (un clip dure 5 s) ;
 - raccords possibles (un plan continu suit un plan qui a un `motion` ; pas trois continus de suite) ;
 - `transition` et `camera` places la ou ils ont un effet (pas sur le premier plan pour la transition, pas sur un plan
-  en raccord sans coupe), et pas trop de transitions marquees.
+  en raccord sans coupe), pas trop de transitions marquees, un seul mouvement vif ; `zoom` vers un cadre plus serre et
+  `dezoom` vers un cadre plus large ; un temps de plus de trois plans sans aucun mouvement est signale comme plat.
 
 Lire la fiche et l'image de reference du projet dans `projet.json` (`continuite`, `reference`) avant
 d'ecrire les temps 2, 3 et 4 : elles s'appliquent a eux aussi.
@@ -320,8 +338,10 @@ y placer un geste ni un texte important. Elle est remplacee par une coupe si l'u
            motion: "She ..."  # facultatif : sans lui, la scene reste une image fixe
            texte: ""          # texte incruste au montage (facultatif)
            raccord: coupe     # coupe, continu ou arrivee (facultatif)
-           transition: ""     # "", coupe, fondu, filage ou zoom (facultatif, voir "Continuite et raccords")
-           camera: ""         # "", avance, recul, gauche ou droite (facultatif)
+           transition: coupe  # obligatoire sauf premier plan et raccord sans coupe : coupe, fondu, fondu_lent, filage,
+                              # filage_gauche, filage_haut, filage_bas, glisse, glisse_gauche, zoom, dezoom
+           camera: fixe       # obligatoire sauf raccord sans coupe : fixe, avance, recul, gauche, droite, haut, bas,
+                              # avance_vif, recul_vif (voir "Continuite et raccords")
            cran: 1            # 1 a 5, ne redescend pas (voir "Controle des plans")
            pose:              # facultatif : la pose decomposee (position, appui, bassin, genoux, mains, regard)
              mains: "right hand in her hair"

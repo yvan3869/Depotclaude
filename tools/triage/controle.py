@@ -21,6 +21,18 @@ _TEL_EN_MAIN = re.compile(r"\b(hold(s|ing)?|with|grabs?|lifts?|raises?) (her|a|t
 _PDV_OBJET = re.compile(r"\b(phone|camera)\b[^,.;]*\b(propped|leaning|placed|resting|standing|sitting|mounted|set (up|down)|filming|recording|"
                         r"on (a|the|her) (counter|table|desk|shelf|nightstand|dresser|floor|bed|stand|sink|windowsill))\b"
                         r"|\b(propped|leaning|mounted)\b[^,.;]*\b(phone|camera)\b|\btripod\b", re.I)
+# Taille du cadre lue dans la description : 1 large, 2 moyen, 3 serre (0 : non dit)
+_CADRES = [(3, re.compile(r"\bclose[- ]?up\b|\bface shot\b|\bportrait\b", re.I)),
+           (1, re.compile(r"\b(wide|full[- ]body|full[- ]length|long) (shot|view|frame)\b|\bfull[- ]body\b|\bhead to toe\b", re.I)),
+           (2, re.compile(r"\b(medium|mid|waist[- ]up|half[- ]body|cowboy|three[- ]quarter) (shot|view|frame)\b|\bfrom the (waist|hips|thighs) up\b", re.I))]
+_MARQUEES = ("filage", "filage_gauche", "filage_haut", "filage_bas", "glisse", "glisse_gauche", "zoom", "dezoom")
+
+
+def cadre(still):
+    """Taille du cadre d'une description d'image : 1 large, 2 moyen, 3 serre, 0 si elle ne le dit pas."""
+    return next((n for n, rx in _CADRES if rx.search(still or "")), 0)
+
+
 _NUIT = re.compile(r"\b(night|evening|dusk|candle\w*|lamp\w*|moonlight|dark outside)\b", re.I)
 _JOUR = re.compile(r"\b(daylight|sunlight|sunny|morning|noon|midday|afternoon sun|sunbeam\w*)\b", re.I)
 # Mots qui disent ce qu'elle porte ou ne porte plus (temps 2 a 4 : chaque image le dit, la fiche ne l'ajoute pas)
@@ -89,9 +101,13 @@ def controle(p, temps, lib=None):
         r(f"Progression : cran non renseigné sur {crans.count(0)} scène(s).")
     elif len(sc) > 1 and max(crans) == min(crans):
         r("Progression plate : toutes les scènes ont le même cran.")
-    marquees = sum(1 for s in sc if s.get("transition") in ("filage", "zoom"))
+    marquees = sum(1 for s in sc if s.get("transition") in _MARQUEES)
     if marquees > max(2, len(sc) // 3):
-        r(f"{marquees} transitions marquées (filage, zoom) pour {len(sc)} scènes : l'effet s'use. Une ou deux, là où la vidéo bascule.")
+        r(f"{marquees} transitions marquées (filé, glissé, zoom) pour {len(sc)} scènes : l'effet s'use. Une ou deux, là où la vidéo bascule.")
+    if sum(1 for s in sc if (s.get("camera") or "").endswith("_vif")) > 1:
+        r("Plusieurs coups de zoom (caméra vive) : un seul par vidéo, sur la scène la plus forte.")
+    if len(sc) > 3 and not marquees and not any(s.get("camera") for s in sc):
+        r("Découpage plat : aucune transition marquée ni caméra qui bouge. Un mouvement sur la scène la plus forte suffit à donner du rythme.")
     tel = bool(re.search(r"phone", c.get("pdv") or "", re.I)) and not re.search(r"mirror", c.get("pdv") or "", re.I)
     nuit_f, jour_f = (bool(rx.search(f"{c.get('lumiere', '')} {c.get('lieu', '')}")) for rx in (_NUIT, _JOUR))
     suite, haut = 0, 0
@@ -106,6 +122,11 @@ def controle(p, temps, lib=None):
             r("Raccord d'arrivée sans effet : la scène précédente n'a pas de mouvement.", s)
         if s.get("transition") and (i == 0 or s.get("raccord") in ("continu", "arrivee")):
             r("Transition sans effet : " + ("c'est la première scène." if i == 0 else "le raccord de cette scène est sans coupe."), s)
+        ca, cb = (cadre(sc[i - 1].get("still")), cadre(still)) if i else (0, 0)
+        if ca and cb and s.get("transition") == "zoom" and cb <= ca:
+            r("Transition « zoom » vers un cadre qui n'est pas plus serré : elle sert à arriver sur un plan plus proche. Sinon, « dezoom » ou une coupe.", s)
+        if ca and cb and s.get("transition") == "dezoom" and cb >= ca:
+            r("Transition « dezoom » vers un cadre qui n'est pas plus large : elle sert à arriver sur un plan plus éloigné. Sinon, « zoom » ou une coupe.", s)
         if s.get("camera") and i > 0 and s.get("raccord") in ("continu", "arrivee"):
             r("Caméra sans effet : dans un raccord sans coupe, le mouvement de caméra est celui de la première scène du groupe.", s)
         suite = suite + 1 if continu else 0
