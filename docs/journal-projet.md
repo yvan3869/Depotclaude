@@ -515,3 +515,15 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
   proprietaire), images relancees (series r11 a r15). A l'oeil les prises sont bonnes ; le controleur note 8 une prise de la
   scene 2 et refuse toutes celles du gros plan (il y cherche le decor et la tenue entiere) : a corriger. Depense GPU du
   jour : 3,38 $ sur 7,50 $.
+
+## 2026-11-15 (suite) : modele `2026-11-15g` deploye, video figee corrigee
+
+- Deploye apres la fin de la chaine de p0005 : pose obligatoire (cadrage, angle, position, regard), point de vue de la
+  fiche omis quand la scene dit son angle, gros plan sans la tenue entiere ni le decor au controle, note calculee du
+  controleur (une scene qui atteint 7 n'est plus refaite), points de pose manques redits en tete a la relance.
+  Reste a prouver sur GPU : la note d'un gros plan avec la nouvelle description, le renfort a la relance.
+- Video finale de p0005 figee vers 5 s sur telephone, meme telechargee : des segments du montage sortaient en 4:4:4
+  (profil High 4:4:4, illisible par les telephones) et etaient colles tels quels apres le premier. Corrige : tous les
+  segments en `yuv420p`. Temps 1 remonte (`final_v2.mp4`, verifie : un seul profil, High).
+- A faire : essai comparatif hors projet, memes scenes par texte, par retouche d'une image maitresse et avec ControlNet.
+
