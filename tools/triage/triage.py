@@ -74,64 +74,8 @@ class Triage:
             csv.writer(f).writerow([time.strftime("%Y-%m-%dT%H:%M:%S"), name, decision])
 
 
-def write_job(jobs: Path, b: dict) -> dict:
-    """Ecrit un fichier de plans en trois temps a partir du formulaire (/nouveau).
-
-    Le fichier est du JSON, que le pilote lit comme du YAML. Chaque temps est un plan ; un temps
-    dont la description d'image est vide est omis.
-    """
-    name = re.sub(r"[^a-z0-9_]+", "_", str(b.get("name", "")).lower()).strip("_")
-    if not name:
-        raise ValueError("nom du lot obligatoire")
-    common = ", ".join(x.strip() for x in (str(b.get("decor", "")), str(b.get("tenue", ""))) if x.strip())
-    # LoRA supplementaires : noms du catalogue (lora_catalog), separes par des virgules. Champ vide :
-    # le plan garde le reglage general (extra_loras_still).
-    loras = []
-    for x in str(b.get("loras", "")).split(","):
-        nm, _, st = x.strip().partition(":")
-        if nm.strip():
-            loras.append({"name": nm.strip(), "strength": float(st)} if st.strip() else nm.strip())
-    loras = loras or None
-    corps = str(b.get("corps", "")).strip()
-    shots = []
-    for key, dest in (("accroche", "soft"), ("montee", "abonnes"), ("final", "payant")):
-        still = str(b.get(f"{key}_still", "")).strip()
-        if not still:
-            continue
-        shot = {"name": f"{len(shots) + 1}_{key}", "dest": dest,
-                "still": ", ".join(x for x in (still, common) if x)}
-        if corps and dest != "soft":  # description du corps reprise d'un test valide (temps 2 et 3)
-            shot["still"] += ", " + corps
-        motion = str(b.get(f"{key}_motion", "")).strip()
-        parts = [x for x in SPLIT.split(motion) if x.strip()]
-        if len(parts) > 1:  # plusieurs actions ("..., puis ...") : sous-scenes enchainees debut/fin
-            shot["steps"] = parts
-        elif motion:
-            shot["motion"] = motion
-        end = str(b.get(f"{key}_end", "")).strip()
-        if end and motion and "steps" not in shot:  # clip debut/fin : le pilote fabrique l'image de fin a partir de la premiere
-            shot["end_edit"] = end
-        if not b.get(f"{key}_tattoos", True):
-            shot["tattoos"] = False
-        if loras is not None:
-            shot["loras"] = loras
-        shots.append(shot)
-    if not shots:
-        raise ValueError("au moins un temps doit avoir une description d'image")
-    size = [720, 1280] if b.get("hd") else [480, 832]
-    job = {"name": name, "defaults": {"still_size": [720, 1280], "clip_size": size, "mode": "natural",
-                                      "smooth": True, "grain": True, "seed": int(b.get("seed") or 1)},
-           "shots": shots}
-    jobs.mkdir(parents=True, exist_ok=True)
-    path = jobs / f"{name}.yaml"
-    path.write_text(json.dumps(job, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    return {"file": path.name, "shots": len(shots),
-            "command": f"docker compose run --rm pilot run /data/jobs/{path.name}"}
-
-
 LISTS = ("decor", "cadrage", "pose", "pose_perso", "tenue", "expression", "lumiere")
 FORMATS = {"portrait": [864, 1152], "vertical": [720, 1280], "carre": [1024, 1024], "paysage": [1152, 864]}
-SPLIT = re.compile(r"\s*(?:;|,?\s+puis\s+|,?\s+ensuite\s+)\s*", re.I)
 
 
 class Studio:
@@ -429,8 +373,6 @@ def make_handler(t: Triage, token: str):
                     return self.serve_file(t.safe(studio._dir(tid), name))
                 except (FileNotFoundError, ValueError):
                     return self.send(404, b"not found", "text/plain")
-            if u.path == "/nouveau":
-                return self.send(200, (HERE / "form.html").read_bytes(), "text/html; charset=utf-8")
             if u.path == "/api/list":
                 return self.js({"files": t.inbox(), "counts": t.counts(), "undo": len(t.history)})
             if u.path.startswith("/file/"):
@@ -508,8 +450,6 @@ def make_handler(t: Triage, token: str):
                 if u.path == "/api/test/delete":
                     studio.delete(body["id"])
                     return self.js({"ok": True})
-                if u.path == "/api/job":
-                    return self.js({"ok": True, **write_job(t.root.parent / "jobs", body)})
                 if u.path == "/api/undo":
                     return self.js({"ok": True, "name": t.undo()})
             except (FileNotFoundError, ValueError, KeyError, TypeError, RuntimeError) as e:

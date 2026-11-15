@@ -18,8 +18,7 @@ const ESPACES = [
     ['/hub', 'lora', 'Matériel', 'Modèles et LoRA : catalogue par modèle de base et par catégorie, LoRA retenues, chargement sur le volume, veille.']]],
   ['Outils', [
     ['/test', 'image', 'Essais', "Essayer des réglages d'image (décor, cadrage, poses, corps, LoRA), voir les résultats, valider ou supprimer."],
-    ['/tri', 'archiver', 'Rushes', 'Trier les clips et images tournés : soft, payant, à refaire, rejeté.'],
-    ['/nouveau', 'ecrire', 'Ancien formulaire', "Un lot en trois temps, écrit à la main. Pour un nouveau projet, passer par la Production."]]],
+    ['/tri', 'archiver', 'Rushes', 'Trier les clips et images tournés : soft, payant, à refaire, rejeté.']]],
 ];
 $('#vue').innerHTML = ESPACES.map(([titre, l]) => `<h2>${titre}</h2>` + l.map(([u, i, n, d]) =>
   `<a class="card" href="${u}">${ic(i)}<span><b>${n}</b><span class="mut">${esc(d)}</span></span></a>`).join('')).join('');

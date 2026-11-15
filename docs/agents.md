@@ -404,12 +404,17 @@ verifier ; ils ne forcent pas le modele d'image.
 elle est seule, et le controle signale toute autre personne. Ne pas le remplir pour quelqu'un qui reste hors champ.
 Toute personne decrite est adulte et fictive (`docs/compliance.md`).
 
-Lire ce qui a rate, apres un calcul :
+Le retour de tournage, a lire avant d'ecrire la video suivante :
 
-    python3 tools/triage/verifier.py --notes pNNNN
+    python3 tools/triage/verifier.py --retour            # chaque script importe, en une ligne
+    python3 tools/triage/verifier.py --retour mavideo    # le detail du script mavideo.yaml, scene par scene
+    python3 tools/triage/verifier.py --notes pNNNN       # le meme detail pour un projet entier
 
-Par scene : la note de l'image retenue, les points douteux ou absents (decor, tenue, geste, objet, cadrage, chaque
+La ligne d'un script : nombre de scenes, images retenues, clips faits, scenes refaites, note moyenne. Par scene : le
+nombre d'images faites (plus d'une : la scene a ete refaite), si une image est retenue et un clip fait, la note de
+l'image retenue (sinon la mieux notee), les points douteux ou absents (decor, tenue, geste, objet, cadrage, chaque
 champ de pose) et les cases cochees par le proprietaire. Aucun texte libre : des valeurs fermees et des nombres.
+Toujours a jour : la commande lit les donnees du moment, il n'y a pas de fichier a attendre.
 
 ## Verifier un script
 Avant d'annoncer un fichier au proprietaire, le passer au verificateur (sur le serveur, compte `debian`, sans

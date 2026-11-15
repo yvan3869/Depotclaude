@@ -5,7 +5,8 @@ remarques du controle des plans, modele perime. Lecture seule, sans GPU ni IA, s
 
     python3 tools/triage/verifier.py server/jobs/atelier/mavideo.yaml [autre.yaml ...]
     python3 tools/triage/verifier.py --etat      # modeles en cours, personnages, projets
-    python3 tools/triage/verifier.py --notes pNNNN   # ce que le controle automatique et le proprietaire ont trouve, par scene
+    python3 tools/triage/verifier.py --retour        # retour de tournage : chaque script importe, en une ligne
+    python3 tools/triage/verifier.py --retour mavideo   # le detail d'un script, scene par scene (ou --notes pNNNN : un projet entier)
 
 Code de sortie : 0 rien a corriger ; 1 des remarques restent ; 2 un fichier est refuse ou ecrit d'apres un modele perime."""
 import sys
@@ -48,9 +49,42 @@ def etat(a):
 POINTS = ("decor", "tenue", "geste", "objet", "cadrage")
 
 
-def notes(a, pid):
+def _script(s):
+    """Nom du script d'ou vient une scene ("" : scene ecrite dans la Production)."""
+    return (s.get("origine") or "").rpartition(":")[0].removesuffix(".yaml")
+
+
+def _bilan(d, pid, sc):
+    """Compte d'un lot de scenes : images et clips retenus, scenes refaites, moyenne des notes des images retenues."""
+    import re
+    n = atelier._load(d / "notes_images.json", {})
+    prises = lambda s: len(list((d / "media").glob(f"{pid}r*_{s['id']}.png")))
+    sc_n = [n[s["image"]]["score"] for s in sc if isinstance((n.get(s.get("image") or "") or {}).get("score"), int) and n[s["image"]]["score"] >= 0]
+    return (f"{len(sc)} scene(s), {sum(bool(s.get('image')) for s in sc)} image(s) retenue(s), {sum(bool(s.get('clip')) for s in sc)} clip(s), "
+            f"{sum(prises(s) > 1 for s in sc)} scene(s) refaite(s), "
+            + (f"note moyenne {sum(sc_n) / len(sc_n):.1f}/10 sur {len(sc_n)} image(s)" if sc_n else "aucune note"))
+
+
+def retour(a, nom=""):
+    """Retour de tournage pour le scenariste. Sans nom : une ligne par script importe. Avec : le detail de ce script."""
+    nom, vu = Path(nom).name.removesuffix(".yaml"), 0
+    for f in sorted(a.dj.glob("p*/projet.json")):
+        p, pid = atelier._load(f, {}), f.parent.name
+        for sn in sorted({_script(s) for s in p.get("scenes") or []} - {""}):
+            if nom and sn != nom:
+                continue
+            vu += 1
+            print(f"{sn} (projet {pid}) : " + _bilan(f.parent, pid, [s for s in p["scenes"] if _script(s) == sn]))
+            if nom:
+                notes(a, pid, sn)
+    if not vu:
+        print(f"aucun script importe du nom de {nom}" if nom else "aucun script importe pour l'instant")
+    return 0 if vu else 2
+
+
+def notes(a, pid, script=""):
     """Retour d'un calcul, scene par scene : note de l'image retenue (sinon la mieux notee), points douteux ou absents,
-    champs de pose, cases du proprietaire. Rien que des valeurs fermees et des nombres."""
+    champs de pose, cases du proprietaire. Rien que des valeurs fermees et des nombres. "script" : ses scenes seulement."""
     import re
     d = a.dj / pid
     if not re.fullmatch(r"p\d{4}", pid) or not (d / "projet.json").is_file():
@@ -59,10 +93,15 @@ def notes(a, pid):
     p, n, v = atelier._load(d / "projet.json", {}), atelier._load(d / "notes_images.json", {}), atelier._load(d / "verdicts.json", {})
     avis = lambda x: "respecte" if x >= 0.6 else "douteux" if x >= 0.35 else "absent"
     for s in p.get("scenes") or []:
+        if script and _script(s) != script:
+            continue
         ims = [k for k in n if re.fullmatch(rf"{pid}r\d+_{s['id']}\.png", k) and isinstance(n[k].get("score"), int) and n[k]["score"] >= 0]
         im = s.get("image") if s.get("image") in ims else max(ims, key=lambda k: n[k]["score"], default="")
         print(f"{s['id']} [{s.get('origine') or s.get('titre') or ''}] temps {s.get('temps', 1)} : "
               + (f"{im}{' (retenue)' if im == s.get('image') else ''}, note {n[im]['score']}/10, {len(ims)} image(s) notee(s)" if im else "aucune image notee"))
+        np = len(list((d / "media").glob(f"{pid}r*_{s['id']}.png")))
+        print(f"   tournage : {np} image(s) faite(s){' (scene refaite)' if np > 1 else ''}, "
+              f"image {'retenue' if s.get('image') else 'non retenue'}, clip {'fait' if s.get('clip') else 'pas fait'}")
         if not im:
             continue
         x = n[im]
@@ -118,6 +157,8 @@ if __name__ == "__main__":
     if args[0] == "--etat":
         etat(a)
         sys.exit(0)
+    if args[0] == "--retour":
+        sys.exit(retour(a, *args[1:2]))
     if args[0] == "--notes":
         sys.exit(max([notes(a, x) for x in args[1:]] or [2]))
     sys.exit(max(verifier(a, Path(x).resolve()) for x in args))

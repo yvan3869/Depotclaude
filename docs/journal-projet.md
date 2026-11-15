@@ -488,3 +488,7 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
   Tri devient Rushes, Reseaux devient Diffusion ; un fichier du scenariste est un script, une fiche de personnage
   livree est une fiche de casting. Seuls les intitules changent : adresses, dossiers et champs des fichiers restent.
   Table dans `docs/agents.md` (Vocabulaire) ; consignes du scenariste et du directeur de casting mises a jour.
+- 15/11, retour de tournage pour le scenariste : `verifier.py --retour` (une ligne par script importe) et
+  `--retour <script>` (par scene : images faites, scene refaite ou non, image retenue, clip, note, points douteux,
+  cases du proprietaire ; valeurs fermees et nombres seulement). Ancien formulaire en trois temps retire (`/nouveau`,
+  `form.html`, `/api/job`) : tout script passe par la Production. Aucune depense GPU.

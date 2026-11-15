@@ -32,22 +32,8 @@ Autres commandes : `pilot pods` (liste les pods du compte), `pilot reap` (suppri
 du projet restes allumes trop longtemps). Le pilote supprime son pod en fin de session ; `reap`
 est le filet de securite si le pilote est interrompu brutalement.
 
-## Formulaire "Nouveau lot" (trois temps)
-Dans l'interface de tri, le lien "Nouveau lot" (adresse `/nouveau`) ouvre un formulaire : decor et
-tenue communs, puis trois temps (accroche tous publics, montee pour les abonnes, final prive en champ
-libre). Il ecrit un fichier de plans dans `DATA_DIR/jobs/` et affiche la commande a lancer :
-
-    docker compose run --rm pilot run /data/jobs/<nom>.yaml
-
-Le formulaire ne lance pas le pod lui-meme : la cle RunPod reste dans le conteneur du pilote.
-Apres un `git pull`, redemarrer l'interface : `docker compose restart triage`.
-
-Le formulaire accepte le francais. Champs facultatifs : "Image de fin" (clip debut/fin, voir
-`jobs/exemple_debut_fin.yaml`) et "LoRA supplementaires" (noms de `lora_catalog`, voir
-`docs/lora-supplementaires.md`).
-
 ## Studio : menu, page Test, scenes en sous-scenes (14/11/2026)
-L'adresse de l'interface ouvre maintenant un menu : Tri (`/tri`), Plan (`/nouveau`), Test (`/test`).
+L'adresse de l'interface ouvre maintenant un menu : Tri (`/tri`), Test (`/test`) (le formulaire `/nouveau` a ete retire le 15/11/2026 : les scripts passent par la Production).
 Mise a jour : `git pull` puis `docker compose up -d --build triage` (l'interface utilise desormais
 la meme image que le pilote, car la page Test lance le pilote elle-meme).
 

@@ -38,6 +38,8 @@ page de reference. Un nouvel espace part de ce squelette :
   (`/atelier`, etapes Preparation, Decoupage, Tournage, Montage), Casting (`/atelier#/persos`), Materiel (`/hub`),
   Essais (`/test`), Rushes (`/tri`), Diffusion (`/social`). Un fichier du scenariste s'appelle un script. Table
   complete : `docs/agents.md`, "Vocabulaire".
+- Ancien formulaire en trois temps (`/nouveau`) retire le 15/11/2026 : l'accueil n'a plus cette carte, tout script passe
+  par la Production.
 - Production, scripts du scenariste : pas de bouton « Importer ». Un fichier accepte devient un projet (ou le met a jour)
   tout seul ; un fichier refuse reste affiche a l'accueil avec sa raison. Seul un fichier d'un ancien modele garde un bouton.
 - Atelier, page d'un projet : la colonne de travail suit l'ordre du geste (Preparer, Scenes, Produire, Monter) ; ce
