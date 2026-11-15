@@ -209,6 +209,10 @@ shots:
     edit: "medium shot, she leans on the sink and looks at the camera over her shoulder, amused"
     # tenue_libre: true   # la tenue n'est pas gardee : elle est celle que decrit "edit" (elle se defait d'un plan a l'autre)
 
+  # Pose imposee (champ de pilote "squelette: true", pose par la Production, jamais par un script) : pour un plan qui
+  # a son "still", le pilote tire d'abord un brouillon de la scene, en dessine le squelette et cree l'image dessus.
+  # La position du corps et le cadrage ecrits sont tenus ; rien ne change dans l'ecriture d'un plan.
+
   # 7. Clip continu : il part de la derniere image du clip d'un plan place avant lui dans le meme fichier.
   #    Les deux clips se montent bout a bout sans coupe visible. La derive s'accumule : deux de suite au plus.
   - name: clip05

@@ -312,7 +312,7 @@ function rendreProjet() {
     ${garderHtml((E.personnages.find(x => x.slug === P.personnage) || p).nom)}
     <div class="th"><b>${T}. ${TEMPS[T][0]}</b> <span class="mut">${TEMPS[T][1]}</span><span class="aide">${QUOI[T]}${T > 2 && P.suite ? ` Suite annoncée : ${esc(P.suite)}` : ''}</span></div>
 
-    ${sec('prep', 'Préparation', `${L0 + LN(T)} LoRA${P.reference ? (TIR(T) === 'ref' ? ', images tirées de la référence' : ', images créées à part') : ''}`)}
+    ${sec('prep', 'Préparation', `${L0 + LN(T)} LoRA${TIR(T) === 'direct' ? ', images créées à part' : P.reference && TIR(T) === 'ref' ? ', images tirées de la référence' : ', images créées à part, pose imposée'}`)}
     <div class="panel">
       ${T === 1 ? `${f('brief', `${ic('idee')}Idée`, P.brief, {area: 1, rows: 2, ph: 'Elle rentre du sport, trop chaud, elle hésite à enlever son pull devant la caméra',
           aide: 'En français, quelques mots suffisent. Le rédacteur en tire le scénario, les textes et le découpage. La suite payante, la date et le contexte se règlent dans le panneau Projet.'})}
@@ -327,8 +327,8 @@ function rendreProjet() {
       ${T > 2 ? '<div class="mut">Les scènes de ce temps viennent du script livré par votre scénariste ; elles arrivent toutes seules.</div><div class="aide">Le scénariste livre un seul script par vidéo (un fichier dans server/jobs/atelier/) ; un script corrigé met le projet à jour. Le rédacteur IA n\'écrit pas ce temps, ne le relit pas et ne l\'analyse pas.</div>' : ''}
       ${dep.length ? `<div class="gt">Scripts livrés</div>${dep.map(depotHtml).join('')}` : ''}
       ${lorasBloc(String(T), `${ic('lora')} LoRA de ce temps`, LT)}
-      ${P.reference ? `<label>${ic('image')}Images de ce temps<select data-tir="${T}">${opt([['ref', 'Tirées de la référence'], ['direct', 'Créées à part']], TIR(T))}</select>
-        ${aide('Tirée de la référence, une image garde la pièce, la tenue et à peu près la pose : bon pour un temps où elle reste habillée et bouge peu. Créée à part (visage du personnage et fiche de continuité), la tenue et la pose suivent la description de la scène, au prix d\'un décor moins constant. Par défaut : référence aux temps 1 et 2, à part aux temps 3 et 4.')}</label>` : ''}
+      ${`<label>${ic('image')}Images de ce temps<select data-tir="${T}">${opt([...(P.reference ? [['ref', 'Tirées de la référence']] : []), ['pose', 'Créées à part, pose imposée'], ['direct', 'Créées à part, texte seul']], !P.reference && TIR(T) === 'ref' ? 'pose' : TIR(T))}</select>
+        ${aide('Tirée de la référence, une image garde la pièce, la tenue et à peu près la pose : bon pour un temps où elle reste habillée et bouge peu. Créée à part (visage du personnage et fiche de continuité), la tenue et la pose suivent la description de la scène, au prix d\'un décor moins constant. Pose imposée : un brouillon de la scène est d\'abord tiré, son squelette (un dessin en bâtons du corps) est relevé, et l\'image est créée dessus ; la position du corps et le cadrage écrits sont tenus (sauf gros plan et scène à plusieurs, faits d\'après le texte). Par défaut : référence aux temps 1 et 2 (pose imposée s\'il n\'y a pas de référence), texte seul aux temps 3 et 4.')}</label>`}
       <div class="row"><span class="mut">Tout le projet :</span><button class="s" data-a="cote" data-c="lora">${ic('lora')}LoRA (${LN(0)})</button>
         <button class="s" data-a="cote" data-c="cont">${ic('epingle')}Continuité${P.reference ? '' : ', sans référence'}</button></div>
     </div></details>

@@ -104,6 +104,80 @@ def inventaire(c, data):
     return fichiers
 
 
+NEUTRE = ("vertical full-body shot, eye-level, front view, she stands facing the camera, arms relaxed along her body, "
+          "plain white room, wearing a grey t-shirt and jeans")
+
+
+def traits(png):
+    """Nombre d'octets non noirs d'une image PNG : un squelette vide (personne non trouvee) en compte zero."""
+    import struct
+    import zlib
+    i, idat, larg = 8, b"", 0
+    while i + 8 <= len(png):
+        n, typ = struct.unpack(">I", png[i:i + 4])[0], png[i + 4:i + 8]
+        if typ == b"IHDR":
+            larg, _, prof, coul = struct.unpack(">IIBB", png[i + 8:i + 18])
+            larg = 1 + larg * {0: 1, 2: 3, 4: 2, 6: 4}.get(coul, 3) * prof // 8
+        elif typ == b"IDAT":
+            idat += png[i + 8:i + 8 + n]
+        i += 12 + n
+    brut = zlib.decompress(idat)
+    return len(brut) - brut.count(0) - sum(1 for k in range(0, len(brut), larg) if brut[k]) if larg else 0
+
+
+def poses_imposees(c, models, char, shots, data, work, over):
+    """Pose imposee des plans qui portent "squelette" : un brouillon de la scene est tire d'une image neutre du personnage
+    par retouche (elle rend la pose et le cadrage ecrits, pas le visage), son squelette est dessine, et l'image finale
+    sera creee sur ce squelette. Un brouillon par scene, commun a ses variantes. Rend {(scene, texte): fichier depose} ;
+    une scene dont le squelette manque est creee d'apres le texte seul."""
+    faits, dus = {}, []
+    for s, name, seed, entry in shots:
+        if s.get("squelette") and s.get("still") and not s.get("image") and not s.get("suite_de") and (s["name"], s["still"]) not in [x[0] for x in dus]:
+            dus.append(((s["name"], s["still"]), s, name, seed))
+    if not dus:
+        return faits
+    try:
+        if not (models.get("zimage_controlnet") and models.get("sdpose") and c.has_model("model_patches", models["zimage_controlnet"])
+                and c.has_model("checkpoints", models["sdpose"])):
+            log("pose imposee : fichiers absents du volume, images creees d'apres le texte seul")
+            return faits
+        w, h = dus[0][1]["still_size"]
+        neutre = data / "work" / f"girls-ai-neutre-{Path(str(char.get('lora_still_zimage') or 'sans')).stem}-{w}x{h}.png"
+        if not neutre.is_file():  # image neutre du personnage, debout de face : gardee d'un lancement a l'autre
+            t = time.time()
+            g = workflows.still_zimage(models, char, f"{char.get('zimage_prefix', char['prefix'])}{NEUTRE}{char.get('zimage_suffix', '')}", w, h, 11, "ga_neutre")
+            neutre.write_bytes(c.fetch(c.run(g)[0]))
+            log(f"pose imposee : image neutre du personnage ({round(time.time() - t)} s)")
+        up = c.upload("ga_neutre.png", neutre.read_bytes())
+        brouillons = {}
+        for cle, s, name, seed in dus:  # tous les brouillons, puis tous les squelettes : un seul changement de modele
+            if over():
+                break
+            try:
+                t = time.time()
+                b = c.fetch(c.run(workflows.edit_image(models, up, "Same woman. New photo of her: " + s["still"], *s["still_size"], seed, f"ga_{name}_b"))[0])
+                (work / f"{name}_brouillon.png").write_bytes(b)
+                brouillons[cle] = (c.upload(f"ga_{name}_b.png", b), name)
+                log(f"{name} : brouillon de la pose ({round(time.time() - t)} s)")
+            except Exception as e:
+                log(f"{name} : brouillon de la pose rate, image d'apres le texte seul ({str(e)[:200]})")
+        for cle, (bu, name) in brouillons.items():
+            try:
+                t = time.time()
+                p = c.fetch(c.run(workflows.squelette(models, bu, f"ga_{name}_p"))[0])
+                (work / f"{name}_squelette.png").write_bytes(p)
+                if traits(p) < 300:
+                    log(f"{name} : aucun squelette trouve, image d'apres le texte seul")
+                    continue
+                faits[cle] = c.upload(f"ga_{name}_p.png", p)
+                log(f"{name} : squelette ({round(time.time() - t)} s)")
+            except Exception as e:
+                log(f"{name} : squelette rate, image d'apres le texte seul ({str(e)[:200]})")
+    except Exception as e:  # la pose imposee est un plus : sans elle les images sont creees comme avant
+        log(f"pose imposee impossible : {str(e)[:300]}")
+    return faits
+
+
 def cmd_run(a):
     cfg = load_config(a)
     job = yaml.safe_load(open(a.job, encoding="utf-8"))
@@ -167,6 +241,7 @@ def cmd_run(a):
                 return True
             return False
 
+        poses = poses_imposees(c, models, char, shots, data, work, over) if cfg.get("image_model", "wan") == "zimage" else {}
         # Images creees d'abord, images tirees d'une autre par retouche ensuite : un seul changement de modele
         # (creation <-> retouche) au lieu d'un par plan, qui coutait une minute a chaque fois.
         for s, name, seed, entry in sorted(shots, key=lambda x: bool(x[0].get("image") and x[0].get("edit"))):
@@ -205,6 +280,9 @@ def cmd_run(a):
                         prompt = f"{prompt} {trig}"
                     graph = workflows.still_zimage(models, char, prompt, *s["still_size"], seed, f"ga_{name}", loras=extra,
                                                    char_strength=s.get("char_strength"))
+                    if (s["name"], s["still"]) in poses:  # pose imposee : le squelette du brouillon guide le corps et le cadrage
+                        workflows.imposer_pose(graph, models, poses[(s["name"], s["still"])])
+                        entry["squelette"] = True
                 else:
                     prompt = f"{char['prefix']}{s['still']}{char.get('still_suffix', '')}"
                     graph = workflows.still(models, char, prompt, *s["still_size"], seed, f"ga_{name}")

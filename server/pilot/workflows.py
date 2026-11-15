@@ -60,6 +60,30 @@ def still_zimage(m, char, prompt, w, h, seed, prefix, steps=9, loras=None, char_
     return g
 
 
+def imposer_pose(g, m, pose_name, force=0.9):
+    """Ajoute a un graphe de still_zimage une pose imposee : le dessin d'un squelette (image deja deposee) guide la
+    position du corps et le cadrage ; le visage, la tenue et le lieu restent ceux du texte et de la LoRA."""
+    g["cnp"] = {"class_type": "ModelPatchLoader", "inputs": {"name": m["zimage_controlnet"]}}
+    g["cni"] = {"class_type": "LoadImage", "inputs": {"image": pose_name}}
+    g["cn"] = {"class_type": "ZImageFunControlnet", "inputs": {"model": g["ks"]["inputs"]["model"], "model_patch": ["cnp", 0],
+                                                               "vae": ["vae", 0], "strength": force, "image": ["cni", 0]}}
+    g["ks"]["inputs"]["model"] = ["cn", 0]
+    return g
+
+
+def squelette(m, image_name, prefix):
+    """Dessin du squelette (corps seul, sur fond noir) de la personne d'une image."""
+    return {
+        "ck": {"class_type": "CheckpointLoaderSimple", "inputs": {"ckpt_name": m["sdpose"]}},
+        "img": {"class_type": "LoadImage", "inputs": {"image": image_name}},
+        "kp": {"class_type": "SDPoseKeypointExtractor", "inputs": {"model": ["ck", 0], "vae": ["ck", 2], "image": ["img", 0], "batch_size": 1}},
+        "dr": {"class_type": "SDPoseDrawKeypoints", "inputs": {
+            "keypoints": ["kp", 0], "draw_body": True, "draw_hands": False, "draw_face": False, "draw_feet": False,
+            "stick_width": 4, "face_point_size": 3, "score_threshold": 0.3, "draw_head": True}},
+        "save": {"class_type": "SaveImage", "inputs": {"images": ["dr", 0], "filename_prefix": prefix}},
+    }
+
+
 def edit_image(m, image_name, prompt, w, h, seed, prefix, steps=8):
     """Variante d'une image par edition (Qwen-Image-Edit + LoRA rapide) : meme personnage, meme decor,
     pose ou etat different. Sert a fabriquer l'image de fin d'un clip debut/fin."""

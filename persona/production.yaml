@@ -42,6 +42,9 @@ models:
   edit_fast_lora: "Qwen-Image-Edit-2509-Lightning-8steps-V1.0-bf16.safetensors"
   edit_text_encoder: "qwen_2.5_vl_7b_fp8_scaled.safetensors"
   edit_vae: "qwen_image_vae.safetensors"
+  # Pose imposee : le squelette d'un brouillon guide le corps et le cadrage de l'image (plans "squelette").
+  zimage_controlnet: "Z-Image-Turbo-Fun-Controlnet-Union-2.1-2602-8steps.safetensors"   # dossier model_patches
+  sdpose: "sdpose_wholebody_fp16.safetensors"   # dossier checkpoints : dessine le squelette d'une image
 
 character:
   name: "Lea Morel"

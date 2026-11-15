@@ -184,6 +184,13 @@ Trois outils evitent qu'une video change de piece, de tenue ou de personne d'une
   Les images creees a part d'un meme temps partent du meme tirage (`graines`, au projet, un nombre par temps, fixe
   a la premiere image du temps) : le decor bouge moins d'une scene a l'autre. « Autre image » tire un nouveau nombre
   pour la scene concernee seulement.
+  Troisieme valeur, `pose` (pose imposee) : image creee a part elle aussi, mais sur le squelette d'un brouillon. Le
+  pilote tire d'abord un brouillon de la scene par retouche d'une image neutre du personnage, en releve le squelette,
+  puis cree l'image dessus (champ de pilote `squelette`, pose par la Production) : la position du corps et le cadrage
+  ecrits sont tenus, le visage, la tenue et le lieu viennent du texte et de la LoRA. Un seul brouillon par scene,
+  commun a ses trois images. Pas sur un gros plan ni sur une scene a plusieurs (texte seul). Aux temps 1 et 2, toute
+  image creee a part l'utilise (image de reference comprise, ou projet sans reference) sauf tirage `direct` ; aux
+  temps 3 et 4 elle ne sert que si le proprietaire choisit `pose`. Rien ne change dans l'ecriture d'un script.
 - **Raccord** (`raccord`, par plan, par rapport au plan precedent du meme temps) :
   - `coupe` (defaut) : le plan a sa propre image, le montage coupe. Pour un changement de cadrage ou d'angle.
   - `continu` : le plan n'a pas d'image propre. Son clip demarre sur la derniere image du clip precedent et

@@ -154,13 +154,18 @@ AMPLE = 0.08  # ampleur d'un mouvement de camera sur un clip (une image fixe pre
 RENDUS = ("net", "telephone", "main")
 # Tirage des images d'un temps quand le projet a une image de reference : "ref" = par retouche de la reference (meme
 # piece, meme tenue, pose proche), "direct" = chaque image creee a part (LoRA du visage et fiche de continuite)
-TIRAGES = ("ref", "direct")
+# "pose" = creee a part elle aussi, mais sur le squelette d'un brouillon (pose imposee, voir plus bas)
+TIRAGES = ("ref", "direct", "pose")
 # Verdict du proprietaire sur une image : des cases, pas de texte (l'assistant corrige les reglages sans voir l'image)
 IMAGES_PAR_SCENE = 3  # images creees par scene a chaque lancement ; le controleur les note (pilot serie), la mieux notee est proposee
 # Pose decomposee d'une scene : chaque champ rempli est mis en tete de la description, dans cet ordre (le modele d'image
 # donne le plus de poids au debut), et verifie a part par le controleur. Sans cadrage, angle, position et regard ecrits,
 # le modele d'image rend une femme de face qui regarde l'objectif (essais du 15/11/2026) : ces quatre champs sont
 # obligatoires dans un script depuis MODELE_CADRE. "autres" : les autres personnes visibles a l'image ; vide, elle est seule.
+# Pose imposee (essais du 15/11/2026) : pour une scene de corps creee a part, le pilote tire d'abord un brouillon de la pose,
+# en dessine le squelette et cree l'image dessus : la position et le cadrage ecrits sont tenus. Pas sur un gros plan (le
+# texte suffit), ni a plusieurs (un seul squelette). Elle sert a toute image creee a part, sauf en tirage "direct" (texte
+# seul) : d'office aux temps 1 et 2, au choix du proprietaire (tirage "pose") aux temps 3 et 4, qu'il est seul a pouvoir juger.
 POSE = ("cadrage", "angle", "position", "appui", "bassin", "genoux", "mains", "regard")
 POSE_DUE = ("cadrage", "angle", "position", "regard")
 CHAMPS = POSE + ("contact", "autres")
@@ -1631,7 +1636,11 @@ class Atelier:
         ch = {s["id"]: s for s in p["scenes"]}
         img = self._a_imager(p, ch, (temps,))
         clp = [ch[i] for i in self._a_cliper(p, ch, temps)]
-        return {"images": {"n": len(img), "usd": round((0.003 * IMAGES_PAR_SCENE * len(img) + 0.12 + (0 if self.studio.pod() else 0.05)) if img else 0, 2)},
+        # pose imposee : un brouillon et un squelette par scene, deux changements de modele en plus (essai du 15/11/2026)
+        sq = [i for i in img if _tirage(p, ch[i]["temps"]) != "direct" and not _gros_plan(ch[i]) and not ch[i].get("autres")
+              and (_tirage(p, ch[i]["temps"]) == "pose" or not p.get("reference") or i == p.get("reference"))]
+        return {"images": {"n": len(img), "usd": round((0.003 * IMAGES_PAR_SCENE * len(img) + 0.12 + (0 if self.studio.pod() else 0.05)
+                                                        + (0.05 + 0.006 * len(sq) if sq else 0)) if img else 0, 2)},
                 "clips": {"n": len(clp), "usd": round(sum(0.07 if s["end_edit"] else 0.035 for s in clp) + 0.12, 2),
                           "usd_hd": round(sum(0.26 if s["end_edit"] else 0.13 for s in clp) + 0.12, 2)}}
 
@@ -1690,7 +1699,8 @@ class Atelier:
                     else:
                         shots.append({"name": s["id"], "still": self._still(p, s), "seed": s["seed"], "tattoos": s["tattoos"],
                                       "body": bool((perso.get("generation") or {}).get("corps"))}
-                                     | ({"loras": _loras_plan(lo)} if lo else {}) | champs)
+                                     | ({"loras": _loras_plan(lo)} if lo else {}) | champs
+                                     | ({"squelette": True} if _tirage(p, s["temps"]) != "direct" and not _gros_plan(s) and not s.get("autres") else {}))
             else:
                 ids = self._a_cliper(p, ch, int(b.get("temps") or 1), want)
                 suiv = {prec[s["id"]]["id"]: s for s in p["scenes"] if prec[s["id"]]}

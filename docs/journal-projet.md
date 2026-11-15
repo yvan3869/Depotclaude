@@ -543,3 +543,24 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
   `Z-Image-Turbo-Fun-Controlnet-Union.safetensors` (3,1 Go, repli non essaye, supprimable).
 - Depense : reconnaissance 1,8 min + essai 12,6 min a 0,72 $/h, environ 0,17 $. Jour : 3,83 $ sur 7,50.
 
+### 2026-11-15 (suite) : pose imposee branchee, import d'un script reecrit, fumee
+
+- **Import d'un script reecrit** (`9072f39`) : une scene deja faite garde sa prise retenue, son tirage et sa coupe meme
+  si son texte change ; rien n'est refait sans demande, le nouveau texte sert a la prochaine prise.
+- **Fumee dans un clip** (`9755cd8`) : fumee apparue derriere une vitre sombre (temps 1 de p0005, scene 2). Fumee,
+  brume et vapeur ajoutees aux choses interdites des clips (`negative_clip`). Non prouve sur GPU ; le clip existant
+  n'est pas refait sans demande.
+- **Pose imposee dans la chaine**. Le pilote, pour un plan qui porte `squelette` : image neutre du personnage (gardee
+  dans `data/work/girls-ai-neutre-*.png`), brouillon de la scene par retouche, squelette par les noeuds integres de
+  ComfyUI (`SDPoseKeypointExtractor`, `SDPoseDrawKeypoints`, aucun outil installe), puis image creee sur le squelette
+  (`ZImageFunControlnet`, force 0,9). Un brouillon par scene, commun a ses variantes ; squelette vide ou fichier
+  absent : image d'apres le texte seul. La Production pose le champ ; le scenariste n'a rien a changer.
+  Tirage d'un temps : troisieme valeur `pose`. Temps 1 et 2 : toute image creee a part l'utilise (sauf `direct`) ;
+  temps 3 et 4 : seulement si le proprietaire choisit `pose` (non verifiable par l'assistant).
+  Jamais sur un gros plan ni une scene a plusieurs.
+- Fichier ajoute au volume : `models/checkpoints/sdpose_wholebody_fp16.safetensors` (1,9 Go).
+- Essais (tous publics, hors projet) : chaine complete sur 4 poses de yoga (pod de 19 min, environ 0,23 $), puis le
+  pilote modifie sur 2 scenes en 2 variantes et 1 gros plan (6 min 30, environ 0,10 $). Poses tenues dans les deux.
+  Limites vues : la coiffure ecrite est parfois ignoree ; quand le brouillon montre la personne petite dans un coin,
+  l'image finale la recadre plus grande. Surcout constate : environ 0,05 $ par lancement plus 0,006 $ par scene.
+  Planche : `data/inbox/p0004essai_pose_imposee.png`.
