@@ -266,7 +266,7 @@ async function route() {
     await etat();
     if (h[0] === 'p' && h[1]) await ouvrirProjet(h[1]);
     else if (h[0] === 'persos') vuePersos();
-    else if (h[0] === 'loras') vueLoras();
+    else if (h[0] === 'loras') { DEFS = null; vueLoras(); }
     else if (h[0] === 'schemas') vueSchemas(h[1] || 'image');
     else if (h[0] === 'perso') await vuePerso(h[1] || '');
     else if (h[0] === 'atelier' && h[1]) await vueAtelier(h[1], h[2]);
@@ -800,6 +800,7 @@ const actions = {
   copier: () => copier([P.legende, P.hashtags].filter(Boolean).join('\n\n')),
   ajouter: () => structure(() => P.scenes.push({titre: '', role: 'montee', temps: T, still: '', motion: '', texte: '', tattoos: true, loras: ''})),
   poserdefauts: () => { const d = (E.bibliotheque.defauts || {})[T] || ''; if (d && confirm(`Poser « ${d} » sur toutes les scènes du temps ${T} ? Les LoRA déjà notées sur ces scènes sont remplacées.`)) return structure(() => P.scenes.filter(s => s.temps === T).forEach(s => s.loras = d)); },
+  deftog: el => { const l = DEFS[el.dataset.t], n = el.dataset.n; DEFS[el.dataset.t] = l.some(x => x.n === n) ? l.filter(x => x.n !== n) : [...l, {n}]; $('#ldefb').innerHTML = defautsBloc(); $('[data-a="defautssauver"]').classList.add('p'); },
   loratog: el => { const l = LP(el.dataset.k), n = el.dataset.n; return lpSet(el.dataset.k, l.some(x => x.n === n) ? l.filter(x => x.n !== n) : [...l, {n}]); },
   loraoff: (el, sid) => structure(() => { const x = sc(sid), n = el.dataset.n, l = (x.loras || '').split(',').map(v => v.trim()).filter(Boolean), i = l.findIndex(v => v.split(':')[0] === n); if (i >= 0 && l[i] === n + ':0') l.splice(i, 1); else if (i >= 0) l[i] = n + ':0'; else l.push(n + ':0'); x.loras = l.join(', '); }),
   loraplus: (el, sid) => structure(() => { const x = sc(sid), l = (x.loras || '').split(',').map(v => v.trim()).filter(Boolean); if (!l.some(v => v.split(':')[0] === el.dataset.n)) l.push(el.dataset.n); x.loras = l.join(', '); }),
@@ -844,6 +845,7 @@ vue.addEventListener('input', e => {
   const t = e.target, k = t.dataset.k;
   if (t.id === 'hd') return sig.hd = t.checked;
   if (t.dataset.ch) { CH[t.dataset.ch] = t.type === 'checkbox' ? t.checked : t.value; delete sig.prod; return majDyn(); }
+  if (t.dataset.df && DEFS) { const y = DEFS[t.dataset.df].find(x => x.n === t.dataset.n); if (y) y.f = t.value; return; }
   if (t.dataset.lf && P) { P.loras = {...(P.loras || {}), [t.dataset.lf]: LP(t.dataset.lf).map(x => x.n === t.dataset.n ? `${x.n}:${t.value}` : x.f ? `${x.n}:${x.f}` : x.n).join(', ')}; return planifier(); }
   if (t.dataset.tir && P) { P.tirage = {...(P.tirage || {}), [t.dataset.tir]: t.value}; return essai(structure)(() => {}); }
   if (t.dataset.dec && P) { P.decors = {...(P.decors || {}), [t.dataset.dec]: t.value}; return essai(structure)(() => {}); }
@@ -868,10 +870,8 @@ function vueLoras() {
       <div class="aide">Relevé au démarrage de chaque calcul d'images et après chaque « pilot lora add ». Sans inventaire, la présence d'un fichier ne peut pas être vérifiée avant de lancer.</div></div>
     <h2 id="ldef">LoRA par défaut de chaque temps</h2>
     <div class="panel"><div class="mut">Posées d'office dans « LoRA de ce temps » de tout nouveau projet, et d'un projet existant au premier script livré pour ce temps. Elles se retirent ensuite dans le projet, comme les autres.</div>
-      <div class="aide">Cocher toutes celles qui doivent servir à ce temps : plusieurs peuvent s'ajouter (un style, plus une LoRA de nu, par exemple). Une LoRA d'image agit sur les images, une LoRA de clip sur le mouvement de la vidéo. Le contrôle des plans signale un temps 4 sans LoRA porno d'image ou de clip, et un temps 3 sans LoRA de nu d'image.</div>
-      <div class="grille" style="margin-top:10px">${NT.map(t => `<div class="lt" style="padding:10px"><div class="gt">${t}. ${TEMPS[t][0]} <small>${TEMPS[t][1]}</small></div><div class="row haut">${[['zimage', 'Image'], ['wan22', 'Clip']].map(([fam, lab]) => {
-        const adm = B.loras.filter(x => x.famille === fam && x.temps_min <= t), d = Object.fromEntries(((B.defauts || {})[t] || '').split(', ').filter(Boolean).map(x => [x.split(':')[0], x]));
-        return `<div style="flex:1;min-width:140px"><div class="mut">${lab}</div>${adm.length ? adm.map(x => `<label class="c" style="margin-top:4px"><input type="checkbox" data-d="${t}" value="${esc(d[x.name] || x.name)}"${d[x.name] ? ' checked' : ''}>${esc(x.label)} <small class="mut">(${esc(B.categories[x.cat].label)})</small></label>`).join('') : '<div class="mut">Aucune admise à ce temps.</div>'}</div>`; }).join('')}</div></div>`).join('')}</div>
+      <div class="aide">Toucher toutes celles qui doivent servir à ce temps : plusieurs peuvent s'ajouter (un style, plus une LoRA de nu, par exemple). Une LoRA d'image agit sur les images, une LoRA de clip sur le mouvement de la vidéo. Le contrôle des plans signale un temps 4 sans LoRA porno d'image ou de clip, et un temps 3 sans LoRA de nu d'image.</div>
+      <div id="ldefb">${defautsBloc()}</div>
       <div class="row"><button class="p" data-a="defautssauver">${ic('valider')}Enregistrer les LoRA par défaut</button></div></div>
     <h2>LoRA inscrites</h2>
     <div class="grille">${B.loras.map(x => `<div class="panel"><b>${esc(x.label)}</b> <span class="badge ${x.volume === null ? 'i' : x.volume ? 'v' : 'a'}">${x.volume === null ? 'présence inconnue' : x.volume ? 'sur le volume' : 'absente du volume'}</span>
@@ -909,8 +909,21 @@ async function loraRetirer(el) {
   if (!confirm(`Retirer « ${el.dataset.n} » du catalogue ? Le fichier reste sur le volume ; les scènes qui la nomment seront signalées au contrôle des plans.`)) return;
   E.bibliotheque = (await api('/api/a/lora', {name: el.dataset.n, supprimer: true})).bibliotheque; vueLoras();
 }
+let DEFS = null;  // LoRA par defaut de chaque temps, telles que touchees et pas encore enregistrees : {temps: [{n, f}]}
+const defLire = () => Object.fromEntries(NT.map(t => [t, ((E.bibliotheque.defauts || {})[t] || '').split(', ').filter(Boolean).map(x => { const [n, f] = x.split(':'); return {n, f}; })]));
+function defautsBloc() {  // les memes tuiles que dans un projet : image d'abord, clip ensuite ; un toucher choisit ou retire
+  const B = E.bibliotheque; DEFS ||= defLire();
+  return NT.map(t => { const sel = DEFS[t], adm = B.loras.filter(x => x.temps_min <= t).sort((x, y) => (x.famille === 'wan22') - (y.famille === 'wan22'));
+    return `<div class="gt">${t}. ${TEMPS[t][0]} <small style="text-transform:none;letter-spacing:0;color:var(--mut)">${sel.length} choisie(s) sur ${adm.length}</small></div>
+      ${adm.length ? `<div class="tuiles">${adm.map(x => { const y = sel.find(y => y.n === x.name);
+        return `<div class="lt ${y ? 'on' : ''}"><button data-a="deftog" data-t="${t}" data-n="${esc(x.name)}" title="${esc(x.note || x.label)}"><b>${esc(x.label)}</b>
+          <span class="tg"><span class="badge">${esc(B.categories[x.cat].label)}</span><span class="badge ${x.famille === 'wan22' ? 'i' : 'v'}">${x.famille === 'wan22' ? 'clip' : 'image'}</span></span>
+          <small>${y ? (x.trigger ? `Mots ajoutés d'office : « ${esc(x.trigger)} »` : 'Choisie, sans mot à ajouter') : 'Toucher pour choisir'}${x.volume === false ? ' <span class="err">Fichier absent du volume.</span>' : ''}</small></button>
+          ${y ? `<div class="fo">Force<input type="number" step="0.05" min="0" max="2" data-df="${t}" data-n="${esc(x.name)}" value="${y.f || x.strength}" title="Force"></div>` : ''}</div>`; }).join('')}</div>`
+        : '<div class="aide">Aucune LoRA admise à ce temps dans le catalogue.</div>'}`; }).join('');
+}
 async function defautsSauver() {
-  E.bibliotheque = (await api('/api/a/lora/defauts', {defauts: Object.fromEntries(NT.map(t => [t, $$(`[data-d="${t}"]:checked`, vue).map(el => el.value).join(', ')]))})).bibliotheque; toast('Défauts enregistrés', true); vueLoras();
+  E.bibliotheque = (await api('/api/a/lora/defauts', {defauts: Object.fromEntries(NT.map(t => [t, (DEFS || defLire())[t].map(x => x.f ? `${x.n}:${x.f}` : x.n).join(', ')]))})).bibliotheque; DEFS = null; toast('Défauts enregistrés', true); vueLoras();
 }
 
 // --- Personnages -----------------------------------------------------------------------------------
