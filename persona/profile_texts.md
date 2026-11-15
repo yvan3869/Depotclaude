@@ -87,4 +87,4 @@ Côté musique, de la soul sur vinyle : Aretha Franklin, Al Green, Marvin Gaye, 
 Les croissants, en cachette, alors que je passe mes journées à parler d'alimentation équilibrée. Le brunch du samedi. Tout ce que je trouve au marché le dimanche. Et le banana bread, en théorie : je n'en ai encore jamais réussi un seul. Je cuisine healthy avec beaucoup de conviction et très peu de résultats.
 
 ### Ce que je ne suis pas prête à faire
-rencontre en personne, appel vidéo en direct, appel audio en direct, échange de numéro de téléphone ou de comptes personnels, contenu avec d'autres personnes
+rencontre en personne, appel vidéo en direct, appel audio en direct, échange de numéro de téléphone ou de comptes personnels

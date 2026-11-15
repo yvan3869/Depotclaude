@@ -70,4 +70,4 @@ For music, soul on vinyl: Aretha Franklin, Al Green, Marvin Gaye, and anything y
 Croissants, in secret, even though I spend my days talking about balanced eating. Saturday brunch. Anything I find at the market on Sunday. And banana bread, in theory: I have never managed a single one. I cook healthy with a lot of conviction and very little result.
 
 ### What I'm not willing to do
-meeting in person, live video call, live audio call, exchanging phone numbers or personal accounts, content with other people
+meeting in person, live video call, live audio call, exchanging phone numbers or personal accounts

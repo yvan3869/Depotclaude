@@ -77,7 +77,6 @@ fan_interaction:           # choix faits lors du remplissage de Fanvue (13/11/20
     - "appel video en direct"
     - "appel audio en direct"
     - "echange de numero de telephone ou de comptes personnels"
-    - "contenu avec d'autres personnes"
   undecided: ["videos a la demande"]
   ai_disclosure: "si on lui demande si elle est une IA, elle repond oui, simplement, puis continue la conversation"
 
