@@ -567,3 +567,40 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
 - Meme jour, a la demande du proprietaire : la pose imposee devient le tirage par defaut des temps 3 et 4 ; p0004 et
   p0005 (qui portaient l'ancien defaut `direct` enregistre) passes a `pose` sur ces deux temps. Les images deja
   retenues ne sont pas refaites. Non verifiable par l'assistant sur ces temps : le proprietaire juge.
+
+### 2026-11-15 (suite) : plan B, lieux et tenues tenus par des images (recherche et essai, hors projet)
+
+But du proprietaire : le contenu des temps 3 et 4. Decision : Z-Image, ses LoRA et la pose imposee y restent ; les
+modeles de retouche ne servent qu'a preparer (brouillon, tenue, lieu). Rien n'est branche dans la Production.
+
+- **Recherche** (recherche web puis Perplexity ; la recherche profonde a expire, remplacee par trois questions).
+  Qwen-Image-Edit 2511 (licence libre, trois images de reference, visage mieux tenu) : meilleur choix libre, a la
+  place du 2509 (environ 20 Go de plus sur le volume, non fait). Ecartes : Qwen-Image 2.1 et FLUX.2 klein 9B (usage
+  commercial interdit), Z-Image-Edit (non publie), FLUX.2 klein 4B (inegal a plusieurs images). Un lieu n'est jamais
+  garanti identique par la retouche seule : toujours repartir de la photo d'origine. LoRA du corps : 20 a 40 images,
+  10 a 20 % en pied, fonds et tenues varies et nommes dans les legendes.
+- **Pistes retenues**. Lieu : une photo de reference ; le brouillon de la pose est fabrique dans ce lieu, puis
+  l'image finale part de ce brouillon. Tenue : image a plat sur fond blanc, posee dans le brouillon ; l'etat (ouverte,
+  glissee) dit par le texte ; un vetement retire est d'abord place comme objet dans la photo du lieu. LoRA d'une
+  tenue : deux ou trois tenues fetiches au plus. Plus tard : maquette 3D du lieu.
+- **Essai** (tous publics, script `cn/planb.py` du dossier de travail, images dans
+  `data/work/girls-ai-essai-planb`, planches `data/inbox/p0004essai_planb_*.png`). Une chambre et une tenue (gilet
+  jaune, jupe verte) creees une fois, puis quatre scenes (assise, debout, a genoux, au sol avec le gilet retire pose
+  sur la chaise). Brouillon par retouche a trois images (personnage, tenue, lieu), squelette, puis image finale
+  Z-Image + LoRA du personnage + pose imposee, de six facons :
+  1. texte seul (chaine actuelle) : la piece est reinventee a chaque scene (lit, miroir, angle differents) ;
+  2. image de depart, force 0,6 (`VAEEncode` du brouillon, `denoise` 0,6) : piece, tenue et pose du brouillon gardees
+     sur les 4 scenes, visage du personnage ;
+  3. image de depart 0,8 : la piece derive deja (miroir deplace, moulure, tapis apparu) ;
+  4. decor gele 1,0 (`SetLatentNoiseMask` sur la zone du personnage, recollage `ImageCompositeMasked`) : piece
+     identique au pixel, mais 2 echecs sur 4 (personnage geant hors d'echelle, telephone invente dans la main) ;
+  5. decor gele 0,8 : piece identique au pixel, 4 reussites sur 4, visage du personnage ;
+  6. decor gele par le module de pose (`inpaint_image`, `mask`) : 3 sur 4 (telephone invente une fois).
+  Tenue : couleurs, maille et boutons tenus partout ; « ouverte » et « retiree, posee sur la chaise » reussis ;
+  « glissee de l'epaule » non obtenu (le brouillon la montre simplement ouverte). Le brouillon ne suit pas toujours
+  la pose ecrite (scene 4 : assise de cote au lieu de genoux releves), et l'image finale suit le brouillon.
+  La zone refaite (squelette de 10 px, maximum du noeud, elargi de 56 px) a suffi.
+- **Conclusion**. Decor gele a 0,8 pour une piece strictement fixe, image de depart a 0,6 comme variante plus simple.
+  Limite a faire juger par le proprietaire aux temps 3 et 4 : a 0,6 ou 0,8 l'image finale garde beaucoup du
+  brouillon, donc aussi ses vetements ; un etat de tenue absent du brouillon risque de ne pas apparaitre.
+- Depense : pod de 13,6 min, environ 0,20 $ ; total du jour 4,32 $ sur 7,50. Disque : 32 Go sur 197.
