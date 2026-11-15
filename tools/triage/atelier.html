@@ -868,8 +868,9 @@ async function persoIA() {
 
 // --- Atelier du personnage : images de ses lieux et de ses tenues, planches du corps, LoRA ----------
 let A = null, AO = 'lieux', aT = null;
+const AC = {t: '', l: '', p: 0};  // cabine d'essayage : tenue, lieu et pose choisis
 const GR = {};  // garde-robe d'un personnage (tenues qui ont une image retenue), lue une fois pour la Production
-const ATABS = [['lieux', 'image', 'Lieux'], ['tenues', 'personnage', 'Garde-robe'], ['corps', 'planche', 'Corps'], ['lora', 'lora', 'LoRA']];
+const ATABS = [['lieux', 'image', 'Lieux'], ['tenues', 'personnage', 'Garde-robe'], ['cabine', 'camera', 'Cabine'], ['corps', 'planche', 'Corps'], ['lora', 'lora', 'LoRA']];
 const af = n => `/afile/perso-${A.slug}/${n}`;
 const acout = n => usd((A.pod ? 0 : 0.05) + n * 0.01);
 async function vueAtelier(slug, onglet) {
@@ -883,7 +884,7 @@ async function vueAtelier(slug, onglet) {
   }, 6000);
 }
 function aLigne(x, q) {
-  return `<div class="panel" data-cle="${x.cle}"><div class="row"><b class="g">${esc(x.fr || x.en)}</b>${bi('refaire', 'Deux autres images', `data-a="bautres" data-q="${q}" data-cle="${x.cle}"`)}${bi('supprimer', 'Retirer de la fiche', `data-a="bretirer" data-q="${q}" data-cle="${x.cle}"`)}</div>
+  return `<div class="panel" data-cle="${x.cle}"><div class="row"><b class="g">${esc(x.fr || x.en)}</b>${bi('importer', q === 'lieux' ? 'Mettre une photo du lieu' : 'Partir d\'une photo du vêtement', `data-a="bphoto" data-q="${q}" data-cle="${x.cle}"`)}${bi('refaire', 'Deux autres images', `data-a="bautres" data-q="${q}" data-cle="${x.cle}"`)}${bi('supprimer', 'Retirer de la fiche', `data-a="bretirer" data-q="${q}" data-cle="${x.cle}"`)}</div>
     <div class="mut">${esc(x.en)}</div>
     ${x.images.length ? `<div class="bgal">${x.images.map(n => `<img loading="lazy" class="${n === x.choix ? 'on' : ''}" src="${af(n)}" data-a="bchoix" data-n="${n}" alt="">`).join('')}</div>
       <div class="mut">${x.choix ? 'Image retenue : encadrée. Elle sert au tirage « lieu et tenue de la bibliothèque » de la Production.' : 'Toucher une image pour la retenir.'}</div>` : '<div class="mut">Pas encore d\'image.</div>'}</div>`;
@@ -895,6 +896,7 @@ function aAjout(q) {
     ${lieu ? '' : `<label>Rangée dans<select id="bgenre"><option value="tenue">Tenues</option><option value="dessous">Sous-vêtements</option></select></label>`}
     <div class="row"><button class="p" data-a="bdecrire" data-q="${q}" ${E.redacteur ? '' : 'disabled'}>${ic('ecrire')}Préparer la ligne</button><span class="mut">${E.redacteur ? 'Le rédacteur IA la traduit pour le modèle d\'image ; vous relisez avant d\'ajouter.' : 'Rédacteur IA arrêté : remplir les deux champs ci-dessous.'}</span></div>
     <div class="row haut"><div class="g"><label>Nom (français)<input id="bfr"></label></div><div class="g" style="flex:2"><label>Description (anglais)<input id="ben" placeholder="${lieu ? 'in a ...' : 'a ...'}"></label></div></div>
+    <label>Photo (facultatif)<input type="file" id="bfichier" accept="image/*">${aide(lieu ? 'La photo devient l\'image du lieu. Une pièce vide, sans personne.' : 'L\'outil en tire le vêtement seul, à plat sur fond blanc (deux images, quelques centimes). Un vêtement seul ou porté ; la photo elle-même n\'est pas gardée dans la galerie.')}</label>
     <div class="row"><button class="p" data-a="bajouter" data-q="${q}">${ic('ajouter')}Ajouter à la fiche</button></div></div>`;
 }
 function rendreAtelier() {
@@ -907,6 +909,19 @@ function rendreAtelier() {
     corps = `<div class="panel"><div class="mut">${lieu ? 'Une image par lieu : la pièce vide, telle qu\'elle doit rester d\'une vidéo à l\'autre.' : 'Une image par tenue : les vêtements seuls, à plat sur fond blanc, pour qu\'ils restent les mêmes d\'une vidéo à l\'autre.'} Les lignes sont celles de la fiche du personnage.</div>
       ${m ? `<div class="row" style="margin-top:6px"><button class="p" data-a="bcreer" data-q="${AO}" ${pris ? 'disabled' : ''}>${ic('image')}Créer les images qui manquent</button><span class="mut">${m} ligne(s), 2 images chacune, environ ${acout(m * 2)}</span></div>` : ''}</div>`
       + grp.map(([t, l]) => (t && l.length ? `<h2>${t}</h2>` : '') + `<div class="grille">${l.map(x => aLigne(x, AO)).join('')}</div>`).join('') + aAjout(AO);
+  } else if (AO === 'cabine') {
+    const tt = A.tenues.filter(x => x.choix), ll = A.lieux.filter(x => x.choix), port = A.tenues.filter(x => x.portees.length);
+    if (!tt.some(x => x.cle === AC.t)) AC.t = tt[0]?.cle || '';
+    if (!ll.some(x => x.cle === AC.l)) AC.l = '';
+    const o = (l, v) => l.map(x => `<option value="${x.cle}" ${x.cle === v ? 'selected' : ''}>${esc(x.fr || x.en)}${x.genre === 'dessous' ? ' (sous-vêtements)' : ''}</option>`).join('');
+    corps = `<div class="panel"><div class="mut">La cabine d'essayage : deux images d'elle portant une tenue de sa garde-robe, pour voir ce que la tenue donne avant de l'utiliser. Seules les tenues et les lieux qui ont une image retenue sont proposés.</div>
+      ${tt.length ? `<div class="row haut" style="margin-top:6px">${(x => x ? `<img src="${af(x.choix)}" alt="" style="width:72px;aspect-ratio:9/16;object-fit:cover;border-radius:6px">` : '')(tt.find(x => x.cle === AC.t))}
+        <div class="g"><label>Tenue<select data-ac="t">${o(tt, AC.t)}</select></label>
+        <label>Lieu<select data-ac="l"><option value="">Fond neutre</option>${o(ll, AC.l)}</select></label>
+        <label>Pose<select data-ac="p">${A.poses.map((x, i) => `<option value="${i}" ${i === +AC.p ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></label></div></div>
+      <div class="row"><button class="p" data-a="bessayer" ${pris ? 'disabled' : ''}>${ic('camera')}Essayer</button><span class="mut">2 images, environ ${acout(2)}, une minute environ</span></div>`
+      : '<div class="mut" style="margin-top:6px">Aucune tenue n\'a encore d\'image retenue : onglet Garde-robe, toucher une image par tenue.</div>'}</div>`
+      + (port.length ? '<h2>Essayages</h2>' + port.map(x => `<div class="panel"><b>${esc(x.fr || x.en)}</b><div class="bgal">${x.portees.slice().reverse().map(n => `<div style="position:relative;flex:none"><a href="${af(n)}" target="_blank"><img loading="lazy" src="${af(n)}" alt=""></a>${bi('supprimer', 'Retirer cette image', `data-a="bjeter" data-n="${n}" style="position:absolute;top:4px;right:4px"`)}</div>`).join('')}</div><div class="mut">Toucher une image pour l'agrandir.</div></div>`).join('') : '');
   } else if (AO === 'corps') {
     const g = A.planches.filter(x => x.garde).length, B = E.bibliotheque, series = [...new Set(A.planches.map(x => x.nom.split('_')[1]))];
     corps = (A.lora ? '' : `<h2>Portrait de départ <small>ce personnage n'a pas encore de LoRA</small></h2><div class="panel"><div class="mut">Quatre portraits créés d'après sa description. Celui que vous retenez fixe son visage : les planches en sont tirées.</div>
@@ -942,6 +957,14 @@ function rendreAtelier() {
     ${corps}`;
   if (AO === 'lora') bDevis();
 }
+async function bEnvoi(f, q, cle) {  // photo du telephone : reduite a 1280 px dans la page, envoyee en PNG
+  const im = await createImageBitmap(f), k = Math.min(1, 1280 / Math.max(im.width, im.height)), c = document.createElement('canvas');
+  c.width = Math.round(im.width * k); c.height = Math.round(im.height * k);
+  c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+  const r = await api('/api/a/b/importer', {slug: A.slug, quoi: q, cle, png: c.toDataURL('image/png')});
+  toast(q === 'lieux' ? 'Photo du lieu en place' : 'Photo reçue : le vêtement à plat arrive', true);
+  return bMaj(r.lieux ? r : null);
+}
 async function bDevis() {
   const el = $('#bdevis'); if (!el) return;
   const d = await api(`/api/a/b/devis?slug=${A.slug}&passages=${$('#bpass').value}`);
@@ -955,7 +978,17 @@ Object.assign(actions, {
   bautres: async el => { if (A.occupe) return toast('Un calcul est en cours : attendre sa fin'); if (!confirm(`Créer deux autres images de cette ligne, environ ${acout(2)} ?`)) return; await api('/api/a/b/creer', {slug: A.slug, quoi: el.dataset.q, cles: [el.dataset.cle]}); toast('Images lancées', true); await bMaj(); },
   bretirer: async el => { if (!confirm('Retirer cette ligne de la fiche du personnage ? Ses images sont mises de côté.')) return; bMaj(await api('/api/a/b/retirer', {slug: A.slug, quoi: el.dataset.q, cle: el.dataset.cle})); },
   bdecrire: el => { const c = $('#bphrase').value.trim(); if (!c) return toast('Décrire en une phrase'); ecrire({kind: 'biblio', personnage: A.slug, quoi: el.dataset.q, consigne: c}, r => { $('#bfr').value = r.resultat.fr || ''; $('#ben').value = r.resultat.en || ''; toast('Ligne prête : relire puis ajouter', true); }, 'Rédaction de la ligne'); },
-  bajouter: async el => { const r = await api('/api/a/b/ajouter', {slug: A.slug, quoi: el.dataset.q, fr: $('#bfr').value, en: $('#ben').value, genre: $('#bgenre')?.value}); toast('Ajouté à la fiche', true); bMaj(r); },
+  bajouter: async el => {
+    const q = el.dataset.q, f = $('#bfichier')?.files[0], en = $('#ben').value.trim().replace(/[ .]+$/, '').toLowerCase();
+    const r = await api('/api/a/b/ajouter', {slug: A.slug, quoi: q, fr: $('#bfr').value, en: $('#ben').value, genre: $('#bgenre')?.value});
+    toast('Ajouté à la fiche', true);
+    const x = f && r[q].find(y => y.en.trim().replace(/[ .]+$/, '').toLowerCase() === en);
+    if (x) return bEnvoi(f, q, x.cle);
+    bMaj(r);
+  },
+  bphoto: el => { if (el.dataset.q === 'tenues' && A.occupe) return toast('Un calcul est en cours : attendre sa fin'); const i = document.createElement('input'); i.type = 'file'; i.accept = 'image/*'; i.onchange = () => i.files[0] && bEnvoi(i.files[0], el.dataset.q, el.dataset.cle).catch(e => toast(e.message)); i.click(); },
+  bessayer: async () => { await api('/api/a/b/essayer', {slug: A.slug, tenue: AC.t, lieu: AC.l, pose: +AC.p}); toast('Essayage lancé', true); await bMaj(); },
+  bjeter: async el => { if (!confirm('Retirer cette image ?')) return; bMaj(await api('/api/a/b/retirer', {slug: A.slug, image: el.dataset.n})); },
   bvisage: async () => { await api('/api/a/b/visage', {slug: A.slug}); toast('Portraits lancés', true); await bMaj(); },
   bplanches: async () => {
     const n = +$('#bn').value, tenue = $('#btenue').value.trim();
@@ -973,7 +1006,7 @@ Object.assign(actions, {
   badopter: async el => { const f = $(`[data-bf="${el.dataset.n}"]`, vue).value; if (!confirm(`Faire de cette version la LoRA du personnage, à la force ${f} ? L'ancienne reste disponible (Revenir à la précédente).`)) return; bMaj(await api('/api/a/b/adopter', {slug: A.slug, lora: el.dataset.n, force: +f})); await etat(); },
   brevenir: async () => { if (!confirm('Remettre la LoRA précédente ?')) return; bMaj(await api('/api/a/b/revenir', {slug: A.slug})); await etat(); },
 });
-vue.addEventListener('change', e => { if (e.target.id === 'bpass') essai(bDevis)(); if (e.target.id === 'bn') { const c = $('#bcout'); if (c && (A.lora || A.visage.choix)) c.textContent = 'environ ' + acout(+e.target.value); } });
+vue.addEventListener('change', e => { if (e.target.dataset.ac) { AC[e.target.dataset.ac] = e.target.value; rendreAtelier(); } if (e.target.id === 'bpass') essai(bDevis)(); if (e.target.id === 'bn') { const c = $('#bcout'); if (c && (A.lora || A.visage.choix)) c.textContent = 'environ ' + acout(+e.target.value); } });
 
 setInterval(() => { if (!document.hidden) etat().catch(() => {}); }, 60000);
 route();

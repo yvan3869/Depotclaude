@@ -2,8 +2,10 @@
 blanc), creees d'apres les lignes de sa fiche ; ses planches (photos d'elle, pour entrainer sa LoRA) ; ses LoRA
 entrainees et leurs essais. Les lignes restent dans la fiche ("lieux", "tenues") : ici il n'y a que les images et les
 choix. Tout est range dans data/personnages/<slug>/ ; le nom d'un fichier dit ce qu'il est :
-l_<cle>_<tirage>.png lieu, t_<cle>_<tirage>.png tenue, v_<tirage>.png portrait, c_<serie>_<rang>.png planche,
+l_<cle>_<tirage>.png lieu, t_<cle>_<tirage>.png tenue, p_<cle>_<tirage>.png tenue portee (cabine d'essayage),
+n_1.png elle en tenue neutre (depart de la cabine), v_<tirage>.png portrait, c_<serie>_<rang>.png planche,
 e_<version>_<force>_<rang>.png essai d'une LoRA. Les calculs passent par le pilote (server/pilot/perso.py)."""
+import base64
 import hashlib
 import json
 import os
@@ -56,6 +58,14 @@ FONDS = (
 ESSAIS = ("medium shot, eye-level, front view, she stands, soft smile, looking at the camera, in a bright living room, wearing a white t-shirt and jeans",
           "full-body shot, eye-level, three-quarter view, she stands, one hand on her hip, on a city street, wearing a black dress")
 FORCES = (1.0, 1.3, 1.6)
+# Cabine d'essayage : poses proposees (nom affiche, texte pour le modele).
+POSES = (("Debout, de face", "full-body shot, eye-level, front view, she stands facing the camera, arms relaxed along her body"),
+         ("Debout, de trois quarts", "full-body shot, eye-level, three-quarter view, she stands, one hand on her hip"),
+         ("De dos, regard par-dessus l'épaule", "full-body shot, eye-level, back view, she stands, looking over her shoulder at the camera"),
+         ("Assise", "full-body shot, eye-level, she sits on a stool, legs crossed, looking at the camera"),
+         ("Buste", "medium shot, eye-level, front view, she stands, looking at the camera, soft smile"))
+NEUTRE = ("vertical full-body shot, eye-level, front view, she stands facing the camera, arms relaxed along her body, "
+          "in front of a plain light grey wall, wearing a white t-shirt and jeans, soft studio light")
 
 
 def _s(x, n=300):
@@ -159,7 +169,8 @@ class Biblio:
                 imgs = [n for n in noms if n.startswith(f"{q}_{h}_")]
                 ch = b["choix"].get(f"{q}_{h}")
                 out.append({"cle": h, "fr": _s(x.partition("|")[0]) if "|" in x else "", "en": _s(x.rpartition("|")[2]), "images": imgs,
-                            "choix": ch if ch in imgs else "", "genre": b["genres"].get(h, "tenue")} if q == "t" else
+                            "choix": ch if ch in imgs else "", "genre": b["genres"].get(h, "tenue"),
+                            "portees": [n for n in noms if n.startswith(f"p_{h}_")]} if q == "t" else
                            {"cle": h, "fr": _s(x.partition("|")[0]) if "|" in x else "", "en": _s(x.rpartition("|")[2]), "images": imgs, "choix": ch if ch in imgs else ""})
             return out
         g = p.get("generation") or {}
@@ -173,7 +184,7 @@ class Biblio:
                 "loras": [{k: lo.get(k) for k in ("nom", "etat", "date", "passages", "images", "cout")} | {"en_place": bool(lo.get("fichier")) and lo.get("fichier") == g.get("lora"),
                            "essais": [n for n in noms if n.startswith(f"e_{lo['v']}_")]} for lo in b["loras"]],
                 "job": ({"quoi": j["quoi"], "n": j["n"]} | self._etat(j["log"], self._ici(j["log"]))) if j else None,
-                "occupe": self.at.studio.running(), "pod": bool(self.at.studio.pod()), "forces": FORCES}
+                "occupe": self.at.studio.running(), "pod": bool(self.at.studio.pod()), "forces": FORCES, "poses": [x[0] for x in POSES]}
 
     # --- Lignes de la fiche -----------------------------------------------------------------------
     def ajouter(self, b):
@@ -213,8 +224,9 @@ class Biblio:
         p = dict(self.at.perso(slug))
         p[k] = [x for x in p.get(k) or [] if h8(x) != b.get("cle")]
         self.at.save_perso(p)
-        for f in d.glob(f"{q}_{re.sub(r'[^0-9a-f]', '', str(b.get('cle')))}_*.png"):
-            shutil.move(str(f), str(d / "retire" / f.name))
+        for qq in (q, "p") if q == "t" else (q,):
+            for f in d.glob(f"{qq}_{re.sub(r'[^0-9a-f]', '', str(b.get('cle')))}_*.png"):
+                shutil.move(str(f), str(d / "retire" / f.name))
         return self.vue(slug)
 
     def choix(self, b):
@@ -289,6 +301,74 @@ class Biblio:
                     pr = f"product photo, flat lay on a plain white background, {re.sub(r'^wearing ', '', x['en'])} laid flat, nothing else, no person, no mannequin"
                 taches.append({"sortie": f"{q}_{x['cle']}_{s}", "prompt": pr, "seed": 7 * s + int(x["cle"][:4], 16), "taille": [720, 1280], "lora": False})
         self._lancer(slug, k, {"taches": taches}, len(taches))
+        return {"lance": len(taches)}
+
+    def importer(self, b):
+        """Photo envoyee par le proprietaire ("png" : image PNG en base64, reduite par la page) pour une ligne de la fiche.
+        Lieu : la photo devient l'image du lieu, retenue d'office. Tenue : deux images du vetement a plat sur fond blanc
+        en sont tirees par retouche (la photo reste dans lots/, elle n'est pas montree)."""
+        slug = b["slug"]
+        v = self.vue(slug)
+        k, q = ("lieux", "l") if b.get("quoi") == "lieux" else ("tenues", "t")
+        x = next((x for x in v[k] if x["cle"] == b.get("cle")), None)
+        if not x:
+            raise ValueError("ligne inconnue")
+        try:
+            data = base64.b64decode(str(b.get("png") or "").rpartition(",")[2], validate=True)
+        except ValueError:
+            data = b""
+        if data[:8] != b"\x89PNG\r\n\x1a\n" or len(data) > 12_000_000:
+            raise ValueError("photo illisible ou trop lourde")
+        d = self.dir(slug)
+        (d / "lots").mkdir(parents=True, exist_ok=True)
+        deja = {int(i.rsplit("_", 1)[1][:-4]) for i in x["images"]}
+        libres = [s for s in range(1, 60) if s not in deja]
+        if q == "l":
+            nom = f"l_{x['cle']}_{libres[0]}.png"
+            (d / nom).write_bytes(data)
+            bb = self._b(slug)
+            bb["choix"][f"l_{x['cle']}"] = nom
+            self._ecrire(slug, bb)
+            return self.vue(slug)
+        self._libre()
+        src = d / "lots" / f"src_{x['cle']}.png"
+        src.write_bytes(data)
+        taches = [{"sortie": f"t_{x['cle']}_{s}", "ref": str(src), "seed": 300 + 13 * s, "taille": [720, 1280],
+                   "prompt": "Product photo of the clothes from this picture only: the same garments, same colors, same fabric, same details, "
+                             "laid flat on a plain white background. No person, no mannequin, no body, nothing else."} for s in libres[:2]]
+        self._lancer(slug, "import", {"taches": taches}, len(taches))
+        return {"lance": len(taches)}
+
+    def essayer(self, b):
+        """Cabine d'essayage : deux images d'elle portant une tenue de la garde-robe (son image retenue), sur fond neutre
+        ou dans un lieu de la bibliotheque, dans une pose de la liste. Retouche a plusieurs images : elle (image neutre,
+        faite une fois avec sa LoRA, ou son portrait retenu), la tenue a plat, le lieu vide."""
+        slug = b["slug"]
+        self._libre()
+        p, v, d = self.at.perso(slug), self.vue(slug), self.dir(slug)
+        x = next((x for x in v["tenues"] if x["cle"] == b.get("tenue") and x["choix"]), None)
+        if not x:
+            raise ValueError("choisir une tenue qui a une image retenue")
+        lieu = next((y for y in v["lieux"] if y["cle"] == b.get("lieu") and y["choix"]), None) if b.get("lieu") else None
+        pose = POSES[max(0, min(int(b.get("pose") or 0), len(POSES) - 1))][1]
+        taches = []
+        if v["lora"]:
+            elle = d / "n_1.png"
+            if not elle.is_file():
+                taches.append({"sortie": "n_1", "lora": True, "seed": 4242, "taille": [720, 1280], "prompt": f"{self._prefixe(p)}{NEUTRE}{FIN}"})
+        elif v["visage"]["choix"]:
+            elle = self.fichier(slug, v["visage"]["choix"])
+        else:
+            raise ValueError("ce personnage n'a ni LoRA ni portrait retenu : passer d'abord par l'onglet Corps")
+        refs = [str(self.fichier(slug, x["choix"]))] + ([str(self.fichier(slug, lieu["choix"]))] if lieu else [])
+        ou = ("in the place shown in image 3. The place is exactly the one of image 3: same walls, same furniture, same floor, same light"
+              if lieu else "in front of a plain light grey wall, soft studio light")
+        deja = {int(i.rsplit("_", 1)[1][:-4]) for i in x["portees"]}
+        for s in [s for s in range(1, 200) if s not in deja][:2]:
+            taches.append({"sortie": f"p_{x['cle']}_{s}", "ref": str(elle), "refs": refs, "seed": 600 + 17 * s, "taille": [720, 1280],
+                           "prompt": f"The woman from image 1, same face, same hair, same body, dressed only with the clothes shown in image 2, {ou}. "
+                                     f"New photo of her: {pose}. Only one woman in the picture. Natural smartphone photo."})
+        self._lancer(slug, "essayage", {"taches": taches}, len(taches))
         return {"lance": len(taches)}
 
     def visage(self, b):
@@ -416,7 +496,7 @@ class Biblio:
     def post(self, path, b):
         f = {"/api/a/b/creer": self.creer, "/api/a/b/ajouter": self.ajouter, "/api/a/b/retirer": self.retirer, "/api/a/b/choix": self.choix,
              "/api/a/b/visage": self.visage, "/api/a/b/planches": self.planches, "/api/a/b/garde": self.garde, "/api/a/b/entrainer": self.entrainer,
-             "/api/a/b/adopter": self.adopter, "/api/a/b/revenir": self.revenir}.get(path)
+             "/api/a/b/adopter": self.adopter, "/api/a/b/revenir": self.revenir, "/api/a/b/importer": self.importer, "/api/a/b/essayer": self.essayer}.get(path)
         if not f:
             return None
         with self.at.lock:

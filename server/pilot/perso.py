@@ -48,7 +48,8 @@ def _fin(report, t0, pod_id, own):
 
 def images(a, cfg, resolve_loras):
     """Lot d'images d'un personnage : {"nom", "out", "character", "taches": [{"sortie", "prompt", "seed", "taille",
-    "lora" (LoRA du personnage ou non), "loras" (en plus), "force", "ref" (image dont celle-ci est tiree par retouche)}]}."""
+    "lora" (LoRA du personnage ou non), "loras" (en plus), "force", "ref" (image dont celle-ci est tiree par retouche),
+    "refs" (images en plus pour la retouche : « image 2 », « image 3 » du texte)}]}."""
     lot = json.load(open(a.lot, encoding="utf-8"))
     models, char = cfg["models"], {**cfg["character"], **(lot.get("character") or {})}
     sans = {**char, "lora_still_zimage": None, "extra_loras_still": []}
@@ -78,7 +79,13 @@ def images(a, cfg, resolve_loras):
                 if t.get("ref"):
                     if t["ref"] not in refs:
                         refs[t["ref"]] = c.upload(f"ga_perso_ref{len(refs)}.png", Path(t["ref"]).read_bytes())
+                    for r in t.get("refs") or []:
+                        if r not in refs:
+                            refs[r] = c.upload(f"ga_perso_ref{len(refs)}.png", Path(r).read_bytes())
                     g = workflows.edit_image(models, refs[t["ref"]], t["prompt"], w, h, int(t["seed"]), f"ga_{t['sortie']}")
+                    for i, r in enumerate(t.get("refs") or [], 2):
+                        g[f"img{i}"] = {"class_type": "LoadImage", "inputs": {"image": refs[r]}}
+                        g["pos"]["inputs"][f"image{i}"] = g["neg"]["inputs"][f"image{i}"] = [f"img{i}", 0]
                 else:
                     ch = char if t.get("lora") else sans
                     extra = [x for x in resolve_loras(cfg, t.get("loras") or []) if not x["video"]]
