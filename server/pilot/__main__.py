@@ -643,10 +643,19 @@ def controle_lot(data, pid, runs=None):
         if desc:
             if not sh.get("still") and not sh.get("attendu") and lieu:  # la description d'une scene ne redit pas le lieu : il est dans la fiche de continuite
                 desc += f", place: {lieu}"
-            lot.append({"image": f.name, "projet": pid, "desc": desc[:1500], "perso": p.get("personnage") or "", "temps": temps.get(m.group(2), 0),
+            lot.append({"image": f.name, "projet": pid, "desc": desc[:1500], "gros_plan": bool(re.search(r"\bclose[- ]?up\b", desc, re.I)), "perso": p.get("personnage") or "", "temps": temps.get(m.group(2), 0),
                         "champs": sh["champs"] if isinstance(sh.get("champs"), dict) else poses.get(m.group(2), {})})
             fichiers[f.name] = f
     return lot, fichiers
+
+
+def note_calculee(r, gros_plan=False):
+    """Note sur 10 tiree des probabilites du controleur (moyenne des six questions sur la description), plus reguliere que
+    sa note libre : deux images presque pareilles recoivent la meme, la ou la note libre passe de 3 a 8 (p0005, 15/11/2026).
+    Sur un gros plan le decor ne compte pas : on ne le voit pas. -1 sans probabilites."""
+    p = r.get("p") or {}
+    v = [p[k] for k in ("fidele", "decor", "tenue", "geste", "objet", "cadrage") if k in p and not (gros_plan and k == "decor")]
+    return round(10 * sum(v) / len(v), 1) if v else -1
 
 
 def controle_ranger(data, lot, res):
@@ -657,7 +666,7 @@ def controle_ranger(data, lot, res):
         notes = json.loads(f.read_text(encoding="utf-8")) if f.exists() else {}
         for x in lot:
             if x["projet"] == pid and "score" in res.get(x["image"], {}):
-                notes[x["image"]] = res[x["image"]] | {"temps": x["temps"], "date": jour}
+                notes[x["image"]] = res[x["image"]] | {"temps": x["temps"], "date": jour, "calc": note_calculee(res[x["image"]], x.get("gros_plan"))}
         f.write_text(json.dumps(notes, indent=1), encoding="utf-8")
 
 
@@ -830,7 +839,9 @@ def cmd_controle(a):
     return 0
 
 
-SEUIL_RELANCE = 4   # une scene dont aucune image ne depasse cette note sur 10 est refaite
+SEUIL_RELANCE = 4   # une scene dont aucune image ne depasse cette note sur 10 est refaite...
+SEUIL_CALC = 7      # ... sauf si la note calculee d'une de ses images atteint celle-ci : la note libre s'est trompee
+SEUIL_CHAMP = 0.3   # un champ de pose sous cette probabilite est manque : il est redit en tete a la relance
 RELANCES = 2        # nouvelles tentatives au plus
 
 
@@ -900,12 +911,19 @@ def cmd_serie(a):
                 if neuf:
                     controle_ranger(data, neuf, c.noter(neuf, {x["image"]: fichiers[x["image"]] for x in neuf}))
                 notes = json.loads(nf.read_text(encoding="utf-8")) if nf.exists() else {}
-                par = {}
+                par, sauve, mieux = {}, {}, {}
                 for x in lot:
-                    s = (notes.get(x["image"]) or {}).get("score", -1)
+                    nt = notes.get(x["image"]) or {}
+                    s, sc = nt.get("score", -1), re.search(r"_(s\d+)\.png$", x["image"]).group(1)
                     if isinstance(s, int) and s >= 0:
-                        par.setdefault(re.search(r"_(s\d+)\.png$", x["image"]).group(1), []).append(s)
-                rates = [s for s, l in par.items() if max(l) <= SEUIL_RELANCE]
+                        par.setdefault(sc, []).append(s)
+                        if nt.get("calc", -1) >= max(SEUIL_CALC, sauve.get(sc, (0,))[0]):
+                            sauve[sc] = (nt["calc"], x["image"])
+                        if s >= mieux.get(sc, (-1,))[0]:  # la mieux notee : ses champs manques sont redits a la relance
+                            mieux[sc] = (s, [k for k, v in (nt.get("champs") or {}).items() if v < SEUIL_CHAMP and k != "autres"])
+                rates = [s for s, l in par.items() if max(l) <= SEUIL_RELANCE and s not in sauve]
+                if [s for s in sauve if max(par[s]) <= SEUIL_RELANCE]:
+                    log(f"controle : note libre basse mais note calculee bonne, pas refaite : {', '.join(s for s in sauve if max(par[s]) <= SEUIL_RELANCE)}")
                 log(f"controle : {len(par)} scene(s) notee(s), a refaire : {', '.join(rates) or 'aucune'}")
                 if not rates or tour == RELANCES:
                     break
@@ -914,6 +932,10 @@ def cmd_serie(a):
                 job["shots"] = [sh for sh in job["shots"] if sh["name"] in rates]
                 for sh in job["shots"]:
                     sh["seed"] = random.randint(1, 999999)
+                    dire = [str(sh["champs"][k]).strip(" .,") for k in mieux.get(sh["name"], (0, []))[1] if isinstance(sh.get("champs"), dict) and sh["champs"].get(k)]
+                    if dire and sh.get("still") and not str(sh["still"]).startswith(", ".join(dire)):  # le debut du texte pese le plus
+                        sh["still"] = ", ".join(dire) + ", " + sh["still"]
+                        log(f"relance de {sh['name']} : {len(dire)} point(s) de pose manque(s) redit(s) en tete")
                     m = re.fullmatch(rf"{base['name']}_(s\d+)\.png", Path(str(sh.get("image") or "")).name)
                     if m and m.group(1) in rates:  # tiree d'une image elle-meme refaite : partir de la nouvelle
                         sh["image"] = str(Path(sh["image"]).with_name(f"{pid}r{n}_{m.group(1)}.png"))
