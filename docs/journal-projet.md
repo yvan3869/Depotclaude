@@ -498,3 +498,5 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
 - 15/11, garde-robe, suite : le scenariste n'a plus rien a declarer. La page repere d'office la tenue et le lieu de la
   continuite absents de la fiche ; le proprietaire donne le nom francais dans une case et ajoute, ou ecarte.
   `atelier.garder` reste lu (nom francais souffle, tenue hors continuite). Aucune depense GPU.
+- 15/11, fiche de Lea : « pas d'autre personne a l'image » retire de la case Limites (contredisait le champ `autres` des
+  plans) ; decision du proprietaire. Les limites du profil public (`persona/bible.yaml`) sont inchangees.
