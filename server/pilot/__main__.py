@@ -151,7 +151,8 @@ def cmd_run(a):
             s = {**d, **shot}
             # same_seed : meme tirage pour tous les plans (comparaison de LoRA ou de forces).
             seed = int(s["seed"]) + (0 if s.get("same_seed") else i)
-            shots.append((s, f"{job['name']}_{s['name']}", seed, {"name": s["name"]}))
+            # "sortie" : nom du fichier produit, quand le plan vient d'une serie (plusieurs variantes regroupees)
+            shots.append((s, s.get("sortie") or f"{job['name']}_{s['name']}", seed, {"name": s["name"]}))
         report["shots"] = [e for _, _, _, e in shots]
         stills, fins = {}, {}
         keep_ref = ("Keep exactly the same person, same face, same hair, same body, same tattoos, same clothes, same room, same furniture, "
@@ -166,7 +167,9 @@ def cmd_run(a):
                 return True
             return False
 
-        for s, name, seed, entry in shots:
+        # Images creees d'abord, images tirees d'une autre par retouche ensuite : un seul changement de modele
+        # (creation <-> retouche) au lieu d'un par plan, qui coutait une minute a chaque fois.
+        for s, name, seed, entry in sorted(shots, key=lambda x: bool(x[0].get("image") and x[0].get("edit"))):
             if over():
                 entry.setdefault("error", "non traite : duree maximale atteinte")
                 continue
@@ -847,6 +850,8 @@ def cmd_serie(a):
     ouverture = {}
 
     def ouvrir():
+        if "abandon" in ouverture:  # les images n'ont pas abouti : pas de pod pour rien
+            return
         try:
             c.ouvrir()
         except Exception as e:
@@ -855,12 +860,30 @@ def cmd_serie(a):
     def lancer(j):
         return cmd_run(argparse.Namespace(job=str(j), data=a.data, out=a.out, pod_id=a.pod_id, keep_pod=False, stills_only=True, config=a.config))
 
-    fil = threading.Thread(target=ouvrir, daemon=True)
+    # Les variantes sont regroupees en un seul lancement : le pilote y calcule toutes les images creees puis toutes
+    # les retouches, sans recharger les modeles entre deux variantes. Chaque plan garde le nom de fichier de sa variante.
+    tout, groupe = [], None
+    for j in jobs:
+        job = json.loads(j.read_text(encoding="utf-8"))
+        groupe = groupe or {k: v for k, v in job.items() if k != "shots"}
+        for i, sh in enumerate(job["shots"]):
+            s = {**job.get("defaults", {}), **sh}
+            tout.append({**s, "seed": int(s.get("seed", 1)) + (0 if s.get("same_seed") else i), "same_seed": True,
+                         "sortie": f"{job['name']}_{sh['name']}"})
+    (data / "work").mkdir(parents=True, exist_ok=True)
+    regroupe = data / "work" / f"girls-ai-serie-{pid}.json"
+    regroupe.write_text(json.dumps({**groupe, "shots": tout}, ensure_ascii=False), encoding="utf-8")
+    # le pod du controleur demarre vers la fin des images (environ 25 s par image, 2 min 30 de demarrage)
+    depart = threading.Event()
+    fil = threading.Thread(target=lambda: (depart.wait(max(0, 25 * len(tout) - 150)), ouvrir()), daemon=True)
     try:
-        for i, j in enumerate(jobs):
-            if i == len(jobs) - 1:  # le pod du controleur demarre pendant la derniere variante
-                fil.start()
-            echecs += bool(lancer(j))
+        fil.start()
+        try:
+            echecs = len(jobs) if lancer(regroupe) else 0
+        except BaseException:
+            ouverture["abandon"] = True
+            raise
+        depart.set()
         try:
             fil.join()
             if "erreur" in ouverture:
@@ -898,6 +921,7 @@ def cmd_serie(a):
         except Exception as e:  # le controle est un plus : sans lui les images restent, sans note
             log(f"controle impossible : {str(e)[:300]}")
     finally:
+        depart.set()
         if fil.is_alive():
             fil.join(timeout=900)
         c.fermer()
