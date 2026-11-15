@@ -948,7 +948,7 @@ class Atelier:
         if str(pid).startswith("perso-"):  # image de la bibliotheque d'un personnage
             return self.biblio.fichier(str(pid)[6:], name)
         d = self._pdir(pid)
-        for base in (d / "media", d):
+        for base in (d / "media", d, d / "cmp"):
             f = (base / name).resolve()
             if f.parent == base.resolve() and f.is_file():
                 return f
@@ -1809,6 +1809,90 @@ class Atelier:
         return {"etat": etat, "quoi": self.job["quoi"] if ici else "", "log": "\n".join(log.strip().splitlines()[-4:])[-600:],
                 "echecs": log.count("ECHEC"), "cout": float(m.group(1)) if m else None}
 
+    # --- Comparaison des methodes : les memes scenes et les memes tirages, fabriques deux fois ---
+    def _comparables(self, p, t):
+        """Scenes d'un temps ou le lieu et la tenue de la bibliotheque s'appliquent : ni gros plan, ni scene libre, ni autre
+        personne a l'image (le brouillon de la pose ne sait poser qu'elle), ni scene continue (pas d'image a elle)."""
+        prec = _prec(p)
+        return [s for s in p["scenes"] if s["temps"] == t and s["still"] and not s["libre"] and not s.get("autres") and not _gros_plan(s)
+                and not (prec[s["id"]] and s["raccord"] == "continu")]
+
+    def comparer(self, b):
+        """Lance la comparaison d'un temps : chaque scene est creee en pose imposee seule ("a" : lieu et tenue dits par le
+        texte) puis avec le lieu et la tenue de la bibliotheque ("b"), memes tirages, memes LoRA. Les images vont dans le
+        dossier cmp du projet : ni ses prises, ni ses choix, ni ses tirages ne changent."""
+        pid, t = b["id"], int(b.get("temps") or 1)
+        if self.chaine_active():
+            raise ValueError(f"une chaîne de production est en cours (projet {self.ch['projet']}) : attendre sa fin ou l'arrêter")
+        if self.studio.running():
+            raise ValueError("un calcul est déjà en cours : attendre sa fin")
+        if not self.studio.can_run():
+            raise ValueError("clé RunPod absente : lancement impossible depuis l'interface")
+        with self.lock:
+            p = self._raw(pid)
+            perso = self.perso(p["personnage"])
+            lieu = self.biblio.image(p["personnage"], "l", b.get("lieu") or "", True)
+            if not lieu:
+                raise ValueError("choisir un lieu du personnage qui a une image")
+            sc = self._comparables(p, t)
+            if b.get("scenes"):
+                sc = [s for s in sc if s["id"] in b["scenes"]]
+            if not sc:
+                raise ValueError("aucune scène de ce temps ne peut être comparée : la nouvelle méthode ne s'applique ni aux gros plans, ni aux scènes libres, ni aux scènes où une autre personne est à l'image")
+            v = str(b.get("tenue") or "")
+            ligne = "" if v == "aucune" else v or ((p.get("continuite") or {}).get("tenue") if t == 1 else "")
+            tenue = self.biblio.image(p["personnage"], "t", ligne, True) if ligne else None
+            k = min(max(int(b.get("variantes") or 2), 1), 3)
+            d = self._pdir(pid) / "cmp"
+            d.mkdir(exist_ok=True)
+            n = max([int(f.stem[1:]) for f in d.glob("c*.json") if f.stem[1:].isdigit()] or [0]) + 1
+            tmin, tir = self._lib()["tmin"], p.get("tirage") or {}
+            pa = {**p, "tirage": {**tir, str(t): "pose"}}
+            pb = {**p, "tirage": {**tir, str(t): "decor"}, "decors": {**(p.get("decors") or {}), str(t): b["lieu"]}}
+            plus = {"decor": str(lieu)} | ({"tenue_image": str(tenue)} if tenue else {})
+            shots = []
+            for s in sc:
+                lo = self._loras_scene(p, s, tmin)  # LoRA du projet, du temps et de la scene, comme a la production
+                seed = (p.get("graines") or {}).get(str(t), s["seed"])
+                for m, q, x in (("a", pa, {}), ("b", pb, plus)):
+                    for i in range(k):
+                        shots.append({"name": f"{s['id']}{m}{i + 1}", "still": self._still(q, s), "seed": seed + i, "tattoos": s["tattoos"],
+                                      "body": bool((perso.get("generation") or {}).get("corps")), "squelette": True}
+                                     | ({"loras": _loras_plan(lo)} if lo else {}) | x)
+            job = {"name": f"{pid}c{n}", "character": self.char_override(perso),
+                   "defaults": {"still_size": [720, 1280], "mode": "natural", "grain": True, "same_seed": True, "loras": []}, "shots": shots,
+                   "cmp": {"temps": t, "lieu": b["lieu"], "tenue": ligne or "", "variantes": k, "scenes": [s["id"] for s in sc],
+                           "date": time.strftime("%Y-%m-%d %H:%M")}}
+            _dump(d / f"c{n}.json", job)
+            cmd = [sys.executable, "-m", "pilot", "run", str(d / f"c{n}.json"), "--data", str(self.data), "--out", str(d), "--stills-only",
+                   "--pod-id", os.environ.get("STUDIO_POD_ID") or self.studio.ensure_pod()]
+            log = d / f"c{n}.log"
+            self.studio.proc = subprocess.Popen(cmd, cwd=str(self.repo / "server"), stdout=open(log, "w"), stderr=subprocess.STDOUT)
+            self.job = {"projet": pid, "quoi": "comparaison", "log": str(log), "n": len(shots)}
+            return {"lance": len(shots)}
+
+    def comparaisons(self, pid):
+        p = self._raw(pid)
+        d, v, c = self._pdir(pid) / "cmp", self.biblio.vue(p["personnage"]), p.get("continuite") or {}
+        out = []
+        for f in sorted(d.glob("c*.json"), key=lambda f: int(f.stem[1:]), reverse=True) if d.is_dir() else []:
+            m = (_load(f) or {}).get("cmp") or {}
+            lg = f.with_suffix(".log")
+            log = lg.read_text(encoding="utf-8", errors="replace") if lg.is_file() else ""
+            ici = bool(self.job and self.job["log"] == str(lg) and self.studio.running())
+            faits = {x.name for x in d.glob(f"{pid}{f.stem}_*.png")}
+            noms = lambda sid, x: [n for n in (f"{pid}{f.stem}_{sid}{x}{i + 1}.png" for i in range(m.get("variantes") or 1)) if n in faits]
+            out.append({"n": int(f.stem[1:]), "temps": m.get("temps"), "lieu": m.get("lieu"), "tenue": m.get("tenue"), "date": m.get("date"),
+                        "etat": "en cours" if ici else "termine" if "rapport :" in log else "interrompu", "echecs": log.count("ECHEC"),
+                        "attendues": 2 * (m.get("variantes") or 1) * len(m.get("scenes") or []), "faites": len(faits),
+                        "scenes": [{"id": sid, "a": noms(sid, "a"), "b": noms(sid, "b")} for sid in m.get("scenes") or []]})
+        return {"id": pid, "titre": p["titre"], "personnage": p["personnage"], "occupe": self.studio.running(), "pod": bool(self.studio.pod()),
+                "temps": {t: {"scenes": sum(s["temps"] == t for s in p["scenes"]), "ok": len(self._comparables(p, t))}
+                          for t in sorted({s["temps"] for s in p["scenes"]})},
+                "lieux": [{"en": x["en"], "fr": x["fr"]} for x in v["lieux"] if x["images"]],
+                "tenues": [{"en": x["en"], "fr": x["fr"]} for x in v["tenues"] if x["images"]],
+                "lieu_fiche": c.get("lieu") or "", "lancements": out}
+
     # --- Son : ambiance du lieu et bruit des gestes, fabriques d'apres des phrases (un pod de quelques minutes) ---
     def _sons_faits(self, pid):
         """Phrase dont chaque son du projet a ete tire : {"ambiance": phrase, "s3": phrase}."""
@@ -2121,6 +2205,8 @@ class Atelier:
             return self.projet(g("id"))
         if path == "/api/a/ecrire":
             return self.resultat(g("rid"))
+        if path == "/api/a/comparer":
+            return self.comparaisons(g("id"))
         if path.startswith("/api/a/b"):
             return self.biblio.get(path, q)
         return None
@@ -2137,6 +2223,8 @@ class Atelier:
             return self.ecrire(b)
         if path == "/api/a/produire":
             return self.produire(b)
+        if path == "/api/a/comparer":
+            return self.comparer(b)
         if path == "/api/a/relire":
             return self.relire(b)
         if path == "/api/a/analyser":

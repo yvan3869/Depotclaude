@@ -105,6 +105,43 @@ const depotHtml = x => `<div class="var"><b>${esc(x.titre || x.fichier)}</b> <sp
 const CONSIGNES = ['Plus aguicheur, plus de tension', 'Accroche plus forte dès la première seconde', 'Coupe plus frustrante à la fin', 'Plus drôle, plus d\'autodérision', 'Autre lieu, autre tenue', 'Plus court'];
 const CONSIGNES_SCENE = ['Plus sensuelle, toujours suggestive', 'Plus près de la caméra', 'Geste plus simple et plus lent', 'Texte à l\'écran plus percutant', 'Autre tenue'];
 
+// --- Comparaison des methodes : memes scenes, memes tirages, en deux rangees ---
+let C = null, cT = null;
+const CM = {t: '', l: '', ten: '', n: 2};
+async function vueComparer(pid) {
+  C = await api('/api/a/comparer?id=' + encodeURIComponent(pid));
+  rendreComparer();
+  clearInterval(cT); cT = setInterval(async () => {
+    if (!location.hash.startsWith('#/cmp/')) return clearInterval(cT);
+    if (document.hidden || !C.lancements.some(x => x.etat === 'en cours')) return;
+    try { C = await api('/api/a/comparer?id=' + encodeURIComponent(C.id)); rendreComparer(); } catch (e) {}
+  }, 8000);
+}
+function rendreComparer() {
+  const ts = Object.keys(C.temps), u = n => `/afile/${C.id}/${n}`;
+  if (!ts.includes(String(CM.t))) CM.t = ts.find(t => C.temps[t].ok) || ts[0] || '';
+  if (!C.lieux.some(x => x.en === CM.l)) CM.l = (C.lieux.find(x => x.en === C.lieu_fiche) || C.lieux[0] || {}).en || '';
+  const ok = (C.temps[CM.t] || {}).ok || 0, n = 2 * CM.n * ok, T1 = +CM.t === 1;
+  const sel = (k, l) => `<select data-cm="${k}">${l.map(([v, lab]) => `<option value="${esc(v)}" ${String(v) === String(CM[k]) ? 'selected' : ''}>${esc(lab)}</option>`).join('')}</select>`;
+  const nom = (l, en) => (l.find(x => x.en === en) || {}).fr || en;
+  const rang = (titre, l) => `<div class="mut" style="margin-top:6px"><b>${titre}</b></div>${l.length ? `<div class="bgal">${l.map(f => `<a href="${u(f)}" target="_blank"><img loading="lazy" src="${u(f)}" alt=""></a>`).join('')}</div>` : '<div class="mut">Pas encore d\'image.</div>'}`;
+  vue.innerHTML = `<div class="row tete"><a class="lien" href="#/p/${C.id}">${ic('retour')}${esc(C.titre)}</a><span class="sp"></span><span class="mut">${C.id}</span></div>
+    <h2>Comparer les deux méthodes</h2>
+    <p class="mut">Les mêmes scènes sont fabriquées deux fois, avec le même tirage au sort et les mêmes LoRA. En haut, la méthode actuelle : le lieu et la tenue viennent du texte. En bas, la nouvelle : le lieu et la tenue viennent des images de l'atelier du personnage. Rien ne change dans le projet : ces images restent sur cette page.</p>
+    <div class="panel">
+      <label>Temps${sel('t', ts.map(t => [t, `${t}. ${TEMPS[t][0]} : ${C.temps[t].ok} scène(s) sur ${C.temps[t].scenes}`]))}</label>
+      ${ok ? '' : '<div class="mut" style="color:var(--warn)">Aucune scène de ce temps ne peut être comparée. La nouvelle méthode ne s\'applique ni aux gros plans, ni aux scènes libres, ni aux scènes où une autre personne est à l\'image.</div>'}
+      <label>Lieu${C.lieux.length ? sel('l', C.lieux.map(x => [x.en, x.fr || x.en])) : '<div class="mut">Aucun lieu du personnage n\'a d\'image : en créer dans son atelier.</div>'}</label>
+      <label>Tenue${sel('ten', [['', T1 ? 'Celle de la fiche de continuité' : 'Aucune : dite par le texte'], ...(T1 ? [['aucune', 'Aucune : dite par le texte']] : []), ...C.tenues.map(x => [x.en, x.fr || x.en])])}</label>
+      <label>Images par scène et par méthode${sel('n', [[1, '1'], [2, '2'], [3, '3']])}</label>
+      <div class="row"><button class="p" data-a="cmplancer" ${ok && CM.l && !C.occupe && E.can_run ? '' : 'disabled'}>${ic('lancer')}Lancer la comparaison</button>
+        <span class="mut">${C.occupe ? 'Un calcul est en cours : attendre sa fin.' : ok ? `${n} images, environ ${usd((C.pod ? 0.05 : 0.12) + n * 0.02)}, ${Math.round(2 + n * 1.6)} min.` : ''}</span></div>
+      <div class="mut"><a class="lien" href="#/atelier/${esc(C.personnage)}">${ic('personnage')}Atelier du personnage</a> : lieux et tenues disponibles. Sans image retenue, la première image de la ligne sert.</div>
+    </div>
+    ${C.lancements.map(x => `<h2>Temps ${x.temps} · ${esc(nom(C.lieux, x.lieu))}${x.tenue ? ' · ' + esc(nom(C.tenues, x.tenue)) : ''}</h2>
+      <div class="mut">${esc(x.date || '')} · ${x.etat === 'en cours' ? `en cours, ${x.faites} image(s) sur ${x.attendues}` : x.etat === 'termine' ? `terminé, ${x.faites} image(s)` : `interrompu, ${x.faites} image(s) sur ${x.attendues}`}${x.echecs ? ` · ${x.echecs} échec(s)` : ''}</div>
+      ${x.scenes.map(s => `<div class="panel"><b>Scène ${esc(s.id.slice(1))}</b>${rang('Méthode actuelle : lieu et tenue venus du texte', s.a)}${rang('Nouvelle méthode : lieu et tenue venus des images', s.b)}</div>`).join('')}`).join('') || '<p class="mut">Aucune comparaison lancée pour ce projet.</p>'}`;
+}
 // --- Etat general, barre du haut -------------------------------------------------------------------
 async function etat() {
   E = await api('/api/a/etat');
@@ -144,6 +181,7 @@ async function route() {
     else if (h[0] === 'loras') vueLoras();
     else if (h[0] === 'perso') await vuePerso(h[1] || '');
     else if (h[0] === 'atelier' && h[1]) await vueAtelier(h[1], h[2]);
+    else if (h[0] === 'cmp' && h[1]) await vueComparer(h[1]);
     else if (h[0] === 'fiche') await vuePerso('', h[1] || '');
     else vueProjets();
   } catch (e) { vue.innerHTML = `<p class="err">${esc(e.message)}</p><p><a href="#/">Retour</a></p>`; }
@@ -318,7 +356,7 @@ function rendreProjet() {
   $('#persos').style.display = 'none'; $('#onglets').style.display = '';
   $('#onglets').innerHTML = NT.map(t => `<button class="chip ${t === T ? 'on' : ''}" data-t="${t}">${t}. ${TEMPS[t][0]} <small>${P.scenes.filter(s => s.temps === t).length}</small></button>`).join('');
   vue.innerHTML = `<div class="pg"><div class="pp">
-    <div class="row tete"><a class="lien" href="#/">${ic('retour')}${esc((E.personnages.find(x => x.slug === P.personnage) || p).nom)}</a><span class="sp"></span><span class="mut">${P.id}</span></div>
+    <div class="row tete"><a class="lien" href="#/">${ic('retour')}${esc((E.personnages.find(x => x.slug === P.personnage) || p).nom)}</a><span class="sp"></span><a class="lien" href="#/cmp/${P.id}">${ic('planche')}Comparer les méthodes</a><span class="mut">${P.id}</span></div>
     <input data-k="titre" value="${esc(P.titre)}" style="font-size:18px;font-weight:600;margin-top:8px">
     <div class="steps" id="etapes"></div>
     ${garderHtml((E.personnages.find(x => x.slug === P.personnage) || p).nom)}
@@ -987,6 +1025,7 @@ Object.assign(actions, {
     bMaj(r);
   },
   bphoto: el => { if (el.dataset.q === 'tenues' && A.occupe) return toast('Un calcul est en cours : attendre sa fin'); const i = document.createElement('input'); i.type = 'file'; i.accept = 'image/*'; i.onchange = () => i.files[0] && bEnvoi(i.files[0], el.dataset.q, el.dataset.cle).catch(e => toast(e.message)); i.click(); },
+  cmplancer: async () => { const r = await api('/api/a/comparer', {id: C.id, temps: +CM.t, lieu: CM.l, tenue: CM.ten, variantes: +CM.n}); toast(`Comparaison lancée : ${r.lance} images`, true); await vueComparer(C.id); },
   bessayer: async () => { await api('/api/a/b/essayer', {slug: A.slug, tenue: AC.t, lieu: AC.l, pose: +AC.p}); toast('Essayage lancé', true); await bMaj(); },
   bjeter: async el => { if (!confirm('Retirer cette image ?')) return; bMaj(await api('/api/a/b/retirer', {slug: A.slug, image: el.dataset.n})); },
   bvisage: async () => { await api('/api/a/b/visage', {slug: A.slug}); toast('Portraits lancés', true); await bMaj(); },
@@ -1006,7 +1045,7 @@ Object.assign(actions, {
   badopter: async el => { const f = $(`[data-bf="${el.dataset.n}"]`, vue).value; if (!confirm(`Faire de cette version la LoRA du personnage, à la force ${f} ? L'ancienne reste disponible (Revenir à la précédente).`)) return; bMaj(await api('/api/a/b/adopter', {slug: A.slug, lora: el.dataset.n, force: +f})); await etat(); },
   brevenir: async () => { if (!confirm('Remettre la LoRA précédente ?')) return; bMaj(await api('/api/a/b/revenir', {slug: A.slug})); await etat(); },
 });
-vue.addEventListener('change', e => { if (e.target.dataset.ac) { AC[e.target.dataset.ac] = e.target.value; rendreAtelier(); } if (e.target.id === 'bpass') essai(bDevis)(); if (e.target.id === 'bn') { const c = $('#bcout'); if (c && (A.lora || A.visage.choix)) c.textContent = 'environ ' + acout(+e.target.value); } });
+vue.addEventListener('change', e => { if (e.target.dataset.cm) { CM[e.target.dataset.cm] = e.target.value; rendreComparer(); } if (e.target.dataset.ac) { AC[e.target.dataset.ac] = e.target.value; rendreAtelier(); } if (e.target.id === 'bpass') essai(bDevis)(); if (e.target.id === 'bn') { const c = $('#bcout'); if (c && (A.lora || A.visage.choix)) c.textContent = 'environ ' + acout(+e.target.value); } });
 
 setInterval(() => { if (!document.hidden) etat().catch(() => {}); }, 60000);
 route();

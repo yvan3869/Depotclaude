@@ -127,10 +127,13 @@ class Biblio:
             return f
         raise FileNotFoundError(name)
 
-    def image(self, slug, quoi, ligne):
-        """Image choisie d'un lieu ("l") ou d'une tenue ("t") de la fiche, ou None : c'est ce que lit la Production."""
+    def image(self, slug, quoi, ligne, defaut=False):
+        """Image choisie d'un lieu ("l") ou d'une tenue ("t") de la fiche, ou None : c'est ce que lit la Production.
+        `defaut` : sans image choisie, la premiere de la ligne (comparaison des methodes)."""
         try:
             nom = self._b(slug)["choix"].get(f"{quoi}_{h8(ligne)}")
+            if not nom and defaut:
+                nom = next(iter(sorted(f.name for f in self.dir(slug).glob(f"{quoi}_{h8(ligne)}_*.png"))), None)
             return self.fichier(slug, nom) if nom else None
         except (FileNotFoundError, ValueError):
             return None
