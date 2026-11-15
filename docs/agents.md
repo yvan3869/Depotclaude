@@ -191,6 +191,13 @@ Trois outils evitent qu'une video change de piece, de tenue ou de personne d'une
   commun a ses trois images. Pas sur un gros plan ni sur une scene a plusieurs (texte seul). Aux temps 1 et 2, toute
   image creee a part l'utilise (image de reference comprise, ou projet sans reference) sauf tirage `direct` ; aux
   temps 3 et 4 c'est le tirage par defaut (`direct` = texte seul, au choix du proprietaire). Rien ne change dans l'ecriture d'un script.
+  Quatrieme valeur, `decor` (lieu et tenue de la bibliotheque) : pose imposee, et en plus le brouillon est fabrique
+  dans l'image retenue du lieu (atelier du personnage, voir plus bas), avec au temps 1 l'image de la tenue ; dans
+  l'image finale seule la zone du personnage est refaite (champs de pilote `decor` et `tenue_image`, poses par la
+  Production) : la piece reste identique au pixel d'une scene a l'autre. Il faut que le lieu de la fiche de continuite
+  soit un lieu de la fiche du personnage qui a son image ; sinon la scene est faite en `pose`. Aux temps 2 a 4 la
+  tenue reste dite par le texte (elle se defait). Limite connue : l'image finale garde les vetements du brouillon.
+  Jamais par defaut : le proprietaire le choisit par temps.
 - **Raccord** (`raccord`, par plan, par rapport au plan precedent du meme temps) :
   - `coupe` (defaut) : le plan a sa propre image, le montage coupe. Pour un changement de cadrage ou d'angle.
   - `continu` : le plan n'a pas d'image propre. Son clip demarre sur la derniere image du clip precedent et
@@ -300,6 +307,28 @@ Les LoRA supplementaires (hors LoRA du personnage) se gerent dans la page `/atel
   fichier n'est pas sur le volume : le calcul s'arreterait au demarrage du pod. N'employer que des noms du catalogue.
 - Le choix des LoRA et leur inscription restent au proprietaire. L'agent ne modifie ni le catalogue ni les defauts ;
   s'il lui manque une LoRA, il le dit dans `note`.
+
+## Atelier du personnage
+
+Page `#/atelier/<slug>` de l'atelier (lien dans le Casting et dans la fiche). Elle fabrique ce qui fait tenir un
+personnage d'une video a l'autre, par description, sans depot de photo. Quatre onglets :
+
+- **Lieux** et **Garde-robe** : les lignes sont celles de la fiche (`lieux`, `tenues`, « francais | anglais ») ; rien
+  n'est recopie. Chaque ligne recoit des images (lieu : la piece vide ; tenue : les vetements a plat sur fond blanc,
+  sans personne), le proprietaire en retient une. Une ligne s'ajoute par une phrase en francais (le redacteur IA ecrit
+  la ligne, relue avant ajout) ; une tenue peut etre rangee dans les sous-vetements. L'image retenue sert au tirage
+  `decor` de la Production.
+- **Corps** : planches (photos d'elle) par series de 12 a 36, cadrages, poses et fonds varies, legende ecrite avec
+  chaque planche. Avec la LoRA du personnage si elle existe ; sinon par retouche d'un portrait de depart (quatre
+  portraits crees d'apres sa description, le proprietaire en retient un). Tenue de la serie, case « pour adultes » et
+  LoRA en plus : a la main du proprietaire ; l'assistant ne lance et ne regarde que des series habillees.
+- **LoRA** : entrainement sur les planches gardees (10 au moins, 20 a 40 conseillees), sur un pod a lui supprime a la
+  fin (70 min au plus, devis affiche, plafond du jour verifie), puis images d'essai a trois forces. Une version ne
+  devient la LoRA du personnage que si le proprietaire l'adopte ; la precedente se remet d'un bouton.
+
+Fichiers : `server/data/personnages/<slug>/` (`biblio.json` : choix, planches gardees, versions ; images `l_`, `t_`,
+`v_`, `c_`, `e_` ; `lots/` : lots et journaux des calculs). Code : `tools/triage/biblio.py`, `server/pilot/perso.py`
+(`python -m pilot perso <lot>` pour des images, `python -m pilot entrainer <lot>` pour une LoRA).
 
 ## Montage
 Le montage vise une duree (15 s conseille pour l'accroche) en raccourcissant les plans, sauf du cote d'un raccord

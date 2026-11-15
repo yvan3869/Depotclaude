@@ -17,6 +17,8 @@
   .takes .tk { display:flex; flex-direction:column; align-items:center; flex:none; font-size:11px; }
   .takes button.on { border-color:var(--acc); color:var(--acc); }
   .lch .chip { white-space:normal; text-align:left; height:auto; max-width:100%; }
+  .bgal { display:flex; gap:6px; overflow-x:auto; margin:6px 0 4px; } .bgal img { width:108px; aspect-ratio:9/16; object-fit:cover; border-radius:6px; border:3px solid transparent; flex:none; cursor:pointer; background:var(--fond); }
+  .bgal img.on { border-color:var(--acc); } .bgal.pl { flex-wrap:wrap; overflow:visible; } .bgal.pl img { width:92px; opacity:.55; } .bgal.pl img.on { opacity:1; }
   .vd { display:flex; flex-wrap:wrap; gap:5px; margin-top:4px; }
   .vd button { border-radius:16px; } .vd button.on { border-color:var(--warn); color:var(--warn); } .vd button.on[data-c=ok] { border-color:var(--ok); color:var(--ok); }
   video.fin { width:100%; max-width:300px; border-radius:8px; display:block; margin:8px auto; background:#000; }
@@ -141,6 +143,7 @@ async function route() {
     else if (h[0] === 'persos') vuePersos();
     else if (h[0] === 'loras') vueLoras();
     else if (h[0] === 'perso') await vuePerso(h[1] || '');
+    else if (h[0] === 'atelier' && h[1]) await vueAtelier(h[1], h[2]);
     else if (h[0] === 'fiche') await vuePerso('', h[1] || '');
     else vueProjets();
   } catch (e) { vue.innerHTML = `<p class="err">${esc(e.message)}</p><p><a href="#/">Retour</a></p>`; }
@@ -327,8 +330,8 @@ function rendreProjet() {
       ${T > 2 ? '<div class="mut">Les scènes de ce temps viennent du script livré par votre scénariste ; elles arrivent toutes seules.</div><div class="aide">Le scénariste livre un seul script par vidéo (un fichier dans server/jobs/atelier/) ; un script corrigé met le projet à jour. Le rédacteur IA n\'écrit pas ce temps, ne le relit pas et ne l\'analyse pas.</div>' : ''}
       ${dep.length ? `<div class="gt">Scripts livrés</div>${dep.map(depotHtml).join('')}` : ''}
       ${lorasBloc(String(T), `${ic('lora')} LoRA de ce temps`, LT)}
-      ${`<label>${ic('image')}Images de ce temps<select data-tir="${T}">${opt([...(P.reference ? [['ref', 'Tirées de la référence']] : []), ['pose', 'Créées à part, pose imposée'], ['direct', 'Créées à part, texte seul']], !P.reference && TIR(T) === 'ref' ? 'pose' : TIR(T))}</select>
-        ${aide('Tirée de la référence, une image garde la pièce, la tenue et à peu près la pose : bon pour un temps où elle reste habillée et bouge peu. Créée à part (visage du personnage et fiche de continuité), la tenue et la pose suivent la description de la scène, au prix d\'un décor moins constant. Pose imposée : un brouillon de la scène est d\'abord tiré, son squelette (un dessin en bâtons du corps) est relevé, et l\'image est créée dessus ; la position du corps et le cadrage écrits sont tenus (sauf gros plan et scène à plusieurs, faits d\'après le texte). Par défaut : référence aux temps 1 et 2 (pose imposée s\'il n\'y a pas de référence), pose imposée aux temps 3 et 4.')}</label>`}
+      ${`<label>${ic('image')}Images de ce temps<select data-tir="${T}">${opt([...(P.reference ? [['ref', 'Tirées de la référence']] : []), ['pose', 'Créées à part, pose imposée'], ['decor', 'Pose imposée, lieu et tenue de la bibliothèque'], ['direct', 'Créées à part, texte seul']], !P.reference && TIR(T) === 'ref' ? 'pose' : TIR(T))}</select>
+        ${aide('Tirée de la référence, une image garde la pièce, la tenue et à peu près la pose : bon pour un temps où elle reste habillée et bouge peu. Créée à part (visage du personnage et fiche de continuité), la tenue et la pose suivent la description de la scène, au prix d\'un décor moins constant. Lieu et tenue de la bibliothèque : pose imposée, et en plus le brouillon est fabriqué dans l\'image retenue du lieu (atelier du personnage), avec au temps 1 l\'image de la tenue ; seule la zone du personnage est ensuite refaite, la pièce reste identique. Il faut que le lieu de la fiche de continuité soit un lieu du personnage qui a son image ; sinon la scène est faite en pose imposée. Pose imposée : un brouillon de la scène est d\'abord tiré, son squelette (un dessin en bâtons du corps) est relevé, et l\'image est créée dessus ; la position du corps et le cadrage écrits sont tenus (sauf gros plan et scène à plusieurs, faits d\'après le texte). Par défaut : référence aux temps 1 et 2 (pose imposée s\'il n\'y a pas de référence), pose imposée aux temps 3 et 4.')}</label>`}
       <div class="row"><span class="mut">Tout le projet :</span><button class="s" data-a="cote" data-c="lora">${ic('lora')}LoRA (${LN(0)})</button>
         <button class="s" data-a="cote" data-c="cont">${ic('epingle')}Continuité${P.reference ? '' : ', sans référence'}</button></div>
     </div></details>
@@ -775,7 +778,8 @@ async function defautsSauver() {
 function vuePersos() {
   vue.innerHTML = `<div class="row tete"><a class="lien" href="#/">${ic('retour')}Retour aux projets</a><span class="sp"></span><button class="p" onclick="location.hash='#/perso'">${ic('ajouter')}Nouveau personnage</button></div>
     <h2>Casting</h2>` + E.personnages.map(p => `<a class="card" href="#/perso/${esc(p.slug)}"><div><b>${esc(p.nom)}${p.statut === 'archive' ? ' (archivé)' : ''}</b>
-      <span class="mut">${esc(p.accroche)}</span><span class="mut">${p.age} ans, publie en ${esc(p.langue)}, ${p.lora ? 'LoRA en place' : 'sans LoRA'}, ${E.projets.filter(x => x.personnage === p.slug).length} vidéo(s)</span></div></a>`).join('')
+      <span class="mut">${esc(p.accroche)}</span><span class="mut">${p.age} ans, publie en ${esc(p.langue)}, ${p.lora ? 'LoRA en place' : 'sans LoRA'}, ${E.projets.filter(x => x.personnage === p.slug).length} vidéo(s)</span></div></a>
+      <div class="row" style="margin:-4px 0 12px"><a class="lien" href="#/atelier/${esc(p.slug)}">${ic('image')}Atelier : lieux, garde-robe, corps, LoRA</a></div>`).join('')
     + ((E.fiches || []).some(x => !x.fait) ? `<h2>Fiches livrées par votre directeur de casting <small>à relire puis enregistrer</small></h2><div class="panel">${E.fiches.filter(x => !x.fait).map(x => `<div class="var"><b>${esc(x.nom || x.fichier)}</b> <span class="mut">${esc(x.fichier)}, ${esc(x.date)}</span>
       ${x.erreur ? `<div class="err">Refusée : ${esc(x.erreur)}</div>` : `<div class="mut">${x.age} ans${x.accroche ? ' ; ' + esc(x.accroche) : ''}${x.perime ? ' ; écrite d\'après un modèle périmé' : ''}${x.remarques.length ? ` ; ${x.remarques.length} remarque(s)` : ''}${x.existe ? ' ; remplacera la fiche du même nom' : ''}</div>
       <div class="row" style="margin-top:6px"><button class="p s" onclick="location.hash='#/fiche/${esc(x.fichier)}'">${ic('importer')}Ouvrir la fiche</button></div>`}</div>`).join('')}</div>` : '');
@@ -792,6 +796,7 @@ async function vuePerso(slug, depot) {
     <h2>${slug ? esc(p.nom) : dep ? 'Fiche de casting livrée : ' + esc(p.nom) : 'Nouveau personnage'}</h2>
     ${dep ? `<div class="panel"><div class="mut">Fiche écrite par votre directeur de casting (${esc(depot)}). Rien n'est enregistré tant que vous n'appuyez pas sur Enregistrer, en bas.${dep.existe ? ' <b>Elle remplacera la fiche du personnage du même nom.</b>' : ''}</div>
       ${dep.remarques.length ? `<div class="err" style="margin-top:6px">${dep.remarques.map(esc).join('<br>')}</div>` : ''}</div>` : ''}
+    ${slug ? `<div class="row"><a class="lien" href="#/atelier/${esc(slug)}">${ic('image')}Son atelier : lieux, garde-robe, planches du corps, LoRA</a></div>` : ''}
     ${slug || dep ? '' : `<div class="panel"><label>Concept, en une ou deux phrases<textarea id="concept" rows="2" placeholder="Une barmaid de nuit à Marseille, brune, tatouée, grande gueule et tendre"></textarea></label>
       <div class="row"><button class="p" data-a="persoia" ${E.redacteur ? '' : 'disabled'}>${ic('ecrire')}Rédiger la fiche avec l'IA</button><span class="mut">${E.redacteur ? 'La fiche reste modifiable avant enregistrement.' : 'Rédacteur IA arrêté : remplir la fiche à la main.'}</span></div></div>`}
     <div class="panel"><input type="hidden" data-p="slug" value="${esc(dep ? p.slug : slug)}">
@@ -837,7 +842,7 @@ async function persoSauver(statut) {
   const r = await api('/api/a/personnage', o);
   if (o.statut !== 'archive') { cur = r.personnage.slug; localStorage.setItem('perso', cur); }
   toast('Personnage enregistré', true);
-  location.hash = o.statut === 'archive' ? '#/persos' : '#/';
+  location.hash = o.statut === 'archive' ? '#/persos' : o.nouveau ? '#/atelier/' + r.personnage.slug : '#/';
 }
 async function persoIA() {
   const c = $('#concept').value.trim(); if (!c) return toast('Décrire le personnage en une ou deux phrases');
@@ -848,6 +853,114 @@ async function persoIA() {
     toast('Fiche rédigée : relire puis enregistrer', true);
   }, 'Rédaction de la fiche');
 }
+
+// --- Atelier du personnage : images de ses lieux et de ses tenues, planches du corps, LoRA ----------
+let A = null, AO = 'lieux', aT = null;
+const ATABS = [['lieux', 'image', 'Lieux'], ['tenues', 'personnage', 'Garde-robe'], ['corps', 'planche', 'Corps'], ['lora', 'lora', 'LoRA']];
+const af = n => `/afile/perso-${A.slug}/${n}`;
+const acout = n => usd((A.pod ? 0 : 0.05) + n * 0.01);
+async function vueAtelier(slug, onglet) {
+  if (ATABS.some(x => x[0] === onglet)) AO = onglet;
+  A = await api('/api/a/b?slug=' + encodeURIComponent(slug));
+  rendreAtelier();
+  clearInterval(aT); aT = setInterval(async () => {  // un calcul en cours : la page se met a jour seule
+    if (!location.hash.startsWith('#/atelier/')) return clearInterval(aT);
+    if (document.hidden || !(A.job && A.job.etat === 'en cours') || vue.querySelector('input:focus, textarea:focus')) return;
+    try { A = await api('/api/a/b?slug=' + encodeURIComponent(A.slug)); rendreAtelier(); } catch (e) {}
+  }, 6000);
+}
+function aLigne(x, q) {
+  return `<div class="panel" data-cle="${x.cle}"><div class="row"><b class="g">${esc(x.fr || x.en)}</b>${bi('refaire', 'Deux autres images', `data-a="bautres" data-q="${q}" data-cle="${x.cle}"`)}${bi('supprimer', 'Retirer de la fiche', `data-a="bretirer" data-q="${q}" data-cle="${x.cle}"`)}</div>
+    <div class="mut">${esc(x.en)}</div>
+    ${x.images.length ? `<div class="bgal">${x.images.map(n => `<img loading="lazy" class="${n === x.choix ? 'on' : ''}" src="${af(n)}" data-a="bchoix" data-n="${n}" alt="">`).join('')}</div>
+      <div class="mut">${x.choix ? 'Image retenue : encadrée. Elle sert au tirage « lieu et tenue de la bibliothèque » de la Production.' : 'Toucher une image pour la retenir.'}</div>` : '<div class="mut">Pas encore d\'image.</div>'}</div>`;
+}
+function aAjout(q) {
+  const lieu = q === 'lieux';
+  return `<h2>Ajouter ${lieu ? 'un lieu' : 'une tenue'}</h2><div class="panel">
+    <label>${lieu ? 'Le lieu, en une phrase' : 'La tenue, en une phrase'}<textarea id="bphrase" rows="2" placeholder="${lieu ? 'La salle de sport où elle va le matin, grands miroirs, machines noires, lumière blanche' : 'Un ensemble de lingerie en dentelle noire, soutien-gorge et culotte taille haute'}"></textarea></label>
+    ${lieu ? '' : `<label>Rangée dans<select id="bgenre"><option value="tenue">Tenues</option><option value="dessous">Sous-vêtements</option></select></label>`}
+    <div class="row"><button class="p" data-a="bdecrire" data-q="${q}" ${E.redacteur ? '' : 'disabled'}>${ic('ecrire')}Préparer la ligne</button><span class="mut">${E.redacteur ? 'Le rédacteur IA la traduit pour le modèle d\'image ; vous relisez avant d\'ajouter.' : 'Rédacteur IA arrêté : remplir les deux champs ci-dessous.'}</span></div>
+    <div class="row haut"><div class="g"><label>Nom (français)<input id="bfr"></label></div><div class="g" style="flex:2"><label>Description (anglais)<input id="ben" placeholder="${lieu ? 'in a ...' : 'a ...'}"></label></div></div>
+    <div class="row"><button class="p" data-a="bajouter" data-q="${q}">${ic('ajouter')}Ajouter à la fiche</button></div></div>`;
+}
+function rendreAtelier() {
+  const j = A.job, enc = j && j.etat === 'en cours', pris = A.occupe, manq = k => A[k].filter(x => !x.images.length).length;
+  const etapes = [['Fiche', true], ['Lieux', A.lieux.some(x => x.choix)], ['Garde-robe', A.tenues.some(x => x.choix)], ['Planches', A.planches.filter(x => x.garde).length >= 10], ['LoRA', A.lora]];
+  const proch = etapes.findIndex(x => !x[1]);
+  let corps = '';
+  if (AO === 'lieux' || AO === 'tenues') {
+    const lieu = AO === 'lieux', m = manq(AO), grp = lieu ? [['', A.lieux]] : [['Tenues', A.tenues.filter(x => x.genre !== 'dessous')], ['Sous-vêtements', A.tenues.filter(x => x.genre === 'dessous')]];
+    corps = `<div class="panel"><div class="mut">${lieu ? 'Une image par lieu : la pièce vide, telle qu\'elle doit rester d\'une vidéo à l\'autre.' : 'Une image par tenue : les vêtements seuls, à plat sur fond blanc, pour qu\'ils restent les mêmes d\'une vidéo à l\'autre.'} Les lignes sont celles de la fiche du personnage.</div>
+      ${m ? `<div class="row" style="margin-top:6px"><button class="p" data-a="bcreer" data-q="${AO}" ${pris ? 'disabled' : ''}>${ic('image')}Créer les images qui manquent</button><span class="mut">${m} ligne(s), 2 images chacune, environ ${acout(m * 2)}</span></div>` : ''}</div>`
+      + grp.map(([t, l]) => (t && l.length ? `<h2>${t}</h2>` : '') + `<div class="grille">${l.map(x => aLigne(x, AO)).join('')}</div>`).join('') + aAjout(AO);
+  } else if (AO === 'corps') {
+    const g = A.planches.filter(x => x.garde).length, B = E.bibliotheque, series = [...new Set(A.planches.map(x => x.nom.split('_')[1]))];
+    corps = (A.lora ? '' : `<h2>Portrait de départ <small>ce personnage n'a pas encore de LoRA</small></h2><div class="panel"><div class="mut">Quatre portraits créés d'après sa description. Celui que vous retenez fixe son visage : les planches en sont tirées.</div>
+        ${A.visage.images.length ? `<div class="bgal">${A.visage.images.map(n => `<img loading="lazy" class="${n === A.visage.choix ? 'on' : ''}" src="${af(n)}" data-a="bchoix" data-n="${n}" alt="">`).join('')}</div>` : ''}
+        <div class="row" style="margin-top:6px"><button class="${A.visage.choix ? '' : 'p'}" data-a="bvisage" ${pris ? 'disabled' : ''}>${ic('image')}${A.visage.images.length ? 'Quatre autres portraits' : 'Créer quatre portraits'}</button><span class="mut">environ ${acout(4)}</span></div></div>`)
+      + `<h2>Nouvelle série de planches</h2><div class="panel"><div class="mut">Une planche est une photo d'elle. Une série varie les cadrages (visage, buste, en pied), les poses et les fonds : c'est ce qu'il faut pour entraîner sa LoRA (le petit modèle qui tient son visage et son corps). Il en faut 20 à 40 gardées.</div>
+        <div class="row haut"><div style="width:110px"><label>Nombre<select id="bn"><option>12</option><option selected>24</option><option>36</option></select></label></div>
+          <div class="g"><label>Tenue de la série (anglais, facultatif)<input id="btenue" placeholder="wearing ...">${aide('Vide : les tenues de sa garde-robe à tour de rôle. Rempli : ce texte est repris tel quel dans chaque planche de la série, à votre main.')}</label></div></div>
+        <label class="c"><input type="checkbox" id="bnsfw"><span>Série pour adultes</span>${aide('Ajoute le mot nsfw à chaque planche. Le texte de la tenue et les LoRA ci-dessous restent à votre main.')}</label>
+        ${A.lora && B.loras.some(x => x.famille !== 'wan22') ? `<details class="pli"><summary>LoRA en plus pour cette série</summary><div class="tuiles">${B.loras.filter(x => x.famille !== 'wan22').map(x => `<label class="c"><input type="checkbox" data-bl="${esc(x.name)}"><span>${esc(x.label)}</span></label>`).join('')}</div></details>` : ''}
+        <div class="row" style="margin-top:6px"><button class="p" data-a="bplanches" ${pris || (!A.lora && !A.visage.choix) ? 'disabled' : ''}>${ic('planche')}Créer la série</button><span class="mut" id="bcout">${A.lora || A.visage.choix ? 'environ ' + acout(24) : 'Retenir d\'abord un portrait.'}</span></div></div>`
+      + (A.planches.length ? `<h2>Planches <small>${g} gardée(s) sur ${A.planches.length}</small></h2><div class="panel"><div class="mut">Toucher une planche pour la garder (encadrée) ou l'écarter. Seules les planches gardées servent à l'entraînement. Écarter : visage différent, mains ratées, corps déformé.</div>
+        ${series.map(s => `<div class="row" style="margin-top:8px"><b>Série ${s}</b><span class="sp"></span><button class="s" data-a="bserie" data-s="${s}" data-o="1">Tout garder</button><button class="s" data-a="bserie" data-s="${s}">Tout écarter</button></div>
+          <div class="bgal pl">${A.planches.filter(x => x.nom.split('_')[1] === s).map(x => `<img loading="lazy" class="${x.garde ? 'on' : ''}" src="${af(x.nom)}" data-a="bgarde" data-n="${x.nom}" alt="">`).join('')}</div>`).join('')}</div>` : '');
+  } else {
+    const g = A.planches.filter(x => x.garde).length;
+    corps = `<h2>Entraîner sa LoRA</h2><div class="panel"><div class="mut">La LoRA est le petit modèle qui tient son visage et son corps d'une image à l'autre. Elle s'entraîne sur les planches gardées, sur une machine louée pour l'occasion puis rendue. ${A.lora ? 'Ce personnage en a déjà une : une nouvelle version ne la remplace que si vous l\'adoptez.' : ''}</div>
+        <div class="row haut"><div style="width:150px"><label>Passages<select id="bpass"><option value="20">20 (rapide)</option><option value="30" selected>30 (conseillé)</option><option value="40">40 (appuyé)</option></select>${aide('Nombre de fois où chaque planche est revue. Plus de passages : visage mieux tenu, mais images plus figées.')}</label></div>
+          <div class="g mut" id="bdevis" style="align-self:center">${g} planche(s) gardée(s)</div></div>
+        <div class="row"><button class="p" data-a="bentrainer" ${pris || g < 10 ? 'disabled' : ''}>${ic('lancer')}Entraîner</button><span class="mut">${g < 10 ? 'Il faut au moins 10 planches gardées (onglet Corps).' : ''}</span></div></div>`
+      + (A.loras.length ? '<h2>Versions entraînées</h2>' + A.loras.slice().reverse().map(x => `<div class="panel"><div class="row"><b class="g">${esc(x.nom)}</b><span class="badge">${x.en_place ? 'en place' : esc(x.etat)}</span></div>
+          <div class="mut">${esc(x.date)}, ${x.images} planches, ${x.passages} passages${x.cout != null ? ', ' + usd(x.cout) : ''}</div>
+          ${x.essais.length ? `<div class="mut" style="margin-top:6px">Images d'essai, de la force la plus faible à la plus forte (${A.forces.join(', ')}) :</div><div class="bgal">${x.essais.map(n => `<a href="${af(n)}" target="_blank"><img loading="lazy" src="${af(n)}" alt=""></a>`).join('')}</div>` : ''}
+          ${x.etat === 'prete' && !x.en_place ? `<div class="row" style="margin-top:6px"><label style="width:110px;margin:0">Force<select data-bf="${esc(x.nom)}">${A.forces.map(f => `<option ${f === 1.3 ? 'selected' : ''}>${f}</option>`).join('')}</select></label><button class="p" data-a="badopter" data-n="${esc(x.nom)}">${ic('valider')}En faire sa LoRA</button></div>` : ''}
+          ${x.en_place ? `<div class="row" style="margin-top:6px"><button data-a="brevenir">${ic('retour')}Revenir à la précédente</button></div>` : ''}</div>`).join('') : '');
+  }
+  vue.innerHTML = `<div class="row tete"><a class="lien" href="#/persos">${ic('retour')}Casting</a><span class="sp"></span><a class="lien" href="#/perso/${esc(A.slug)}">${ic('texte')}Sa fiche</a></div>
+    <h2>Atelier de ${esc(A.nom)}</h2>
+    <div class="steps">${etapes.map(([l, ok], i) => `<span class="${ok ? 'done' : i === proch ? 'cur' : ''}">${i + 1}. ${l}</span>`).join('')}</div>
+    <div class="chips" style="margin-bottom:8px">${ATABS.map(([k, i, l]) => `<button class="chip ${k === AO ? 'on' : ''}" data-a="bonglet" data-o="${k}">${l}</button>`).join('')}</div>
+    ${j ? `<div class="panel"><b>${enc ? 'Calcul en cours' : j.etat === 'termine' ? 'Dernier calcul terminé' : 'Dernier calcul ' + esc(j.etat)}</b> : ${esc(j.quoi)}, ${j.faites} image(s) sur ${j.n}${j.echecs ? `, ${j.echecs} échec(s)` : ''}${j.cout != null ? ', ' + usd(j.cout) : ''}
+      ${enc ? '<div class="mut">La page se met à jour seule. Vous pouvez la quitter : le calcul continue.</div>' : ''}${j.log && (enc || j.etat !== 'termine') ? `<div class="mut">${esc(j.log)}</div>` : ''}</div>` : pris ? '<div class="panel mut">Un autre calcul est en cours (Production ou Essais) : les lancements d\'ici attendent sa fin.</div>' : ''}
+    ${corps}`;
+  if (AO === 'lora') bDevis();
+}
+async function bDevis() {
+  const el = $('#bdevis'); if (!el) return;
+  const d = await api(`/api/a/b/devis?slug=${A.slug}&passages=${$('#bpass').value}`);
+  el.textContent = `${d.images} planche(s) gardée(s) : environ ${d.minutes} min et ${usd(d.usd)}` + (d.minutes > 70 ? ' ; trop long, 70 min au plus : baisser les passages ou garder moins de planches' : '');
+}
+const bMaj = r => { if (r && r.lieux) A = r; return vueAtelier(A.slug); };
+Object.assign(actions, {
+  bonglet: el => { AO = el.dataset.o; history.replaceState(null, '', `#/atelier/${A.slug}/${AO}`); rendreAtelier(); },
+  bchoix: async el => bMaj(await api('/api/a/b/choix', {slug: A.slug, image: el.dataset.n})),
+  bcreer: async el => { await api('/api/a/b/creer', {slug: A.slug, quoi: el.dataset.q}); toast('Images lancées', true); await bMaj(); },
+  bautres: async el => { if (A.occupe) return toast('Un calcul est en cours : attendre sa fin'); if (!confirm(`Créer deux autres images de cette ligne, environ ${acout(2)} ?`)) return; await api('/api/a/b/creer', {slug: A.slug, quoi: el.dataset.q, cles: [el.dataset.cle]}); toast('Images lancées', true); await bMaj(); },
+  bretirer: async el => { if (!confirm('Retirer cette ligne de la fiche du personnage ? Ses images sont mises de côté.')) return; bMaj(await api('/api/a/b/retirer', {slug: A.slug, quoi: el.dataset.q, cle: el.dataset.cle})); },
+  bdecrire: el => { const c = $('#bphrase').value.trim(); if (!c) return toast('Décrire en une phrase'); ecrire({kind: 'biblio', personnage: A.slug, quoi: el.dataset.q, consigne: c}, r => { $('#bfr').value = r.resultat.fr || ''; $('#ben').value = r.resultat.en || ''; toast('Ligne prête : relire puis ajouter', true); }, 'Rédaction de la ligne'); },
+  bajouter: async el => { const r = await api('/api/a/b/ajouter', {slug: A.slug, quoi: el.dataset.q, fr: $('#bfr').value, en: $('#ben').value, genre: $('#bgenre')?.value}); toast('Ajouté à la fiche', true); bMaj(r); },
+  bvisage: async () => { await api('/api/a/b/visage', {slug: A.slug}); toast('Portraits lancés', true); await bMaj(); },
+  bplanches: async () => {
+    const n = +$('#bn').value, tenue = $('#btenue').value.trim();
+    if (!confirm(`Créer ${n} planches, environ ${acout(n)} ?`)) return;
+    await api('/api/a/b/planches', {slug: A.slug, n, tenue: tenue && !/^wearing /i.test(tenue) ? 'wearing ' + tenue : tenue, nsfw: $('#bnsfw').checked, loras: $$('[data-bl]:checked', vue).map(x => x.dataset.bl)});
+    toast('Série lancée', true); await bMaj();
+  },
+  bgarde: async el => { const x = A.planches.find(y => y.nom === el.dataset.n); x.garde = !x.garde; el.classList.toggle('on', x.garde); await api('/api/a/b/garde', {slug: A.slug, image: x.nom, garde: x.garde}); },
+  bserie: async el => { const o = !!el.dataset.o; for (const x of A.planches.filter(y => y.nom.split('_')[1] === el.dataset.s && y.garde !== o)) { x.garde = o; await api('/api/a/b/garde', {slug: A.slug, image: x.nom, garde: o}); } rendreAtelier(); },
+  bentrainer: async () => {
+    const d = await api(`/api/a/b/devis?slug=${A.slug}&passages=${$('#bpass').value}`);
+    if (!confirm(`Entraîner sa LoRA sur ${d.images} planches : environ ${d.minutes} min et ${usd(d.usd)}. Lancer ?`)) return;
+    await api('/api/a/b/entrainer', {slug: A.slug, passages: +$('#bpass').value}); toast('Entraînement lancé', true); await bMaj();
+  },
+  badopter: async el => { const f = $(`[data-bf="${el.dataset.n}"]`, vue).value; if (!confirm(`Faire de cette version la LoRA du personnage, à la force ${f} ? L'ancienne reste disponible (Revenir à la précédente).`)) return; bMaj(await api('/api/a/b/adopter', {slug: A.slug, lora: el.dataset.n, force: +f})); await etat(); },
+  brevenir: async () => { if (!confirm('Remettre la LoRA précédente ?')) return; bMaj(await api('/api/a/b/revenir', {slug: A.slug})); await etat(); },
+});
+vue.addEventListener('change', e => { if (e.target.id === 'bpass') essai(bDevis)(); if (e.target.id === 'bn') { const c = $('#bcout'); if (c && (A.lora || A.visage.choix)) c.textContent = 'environ ' + acout(+e.target.value); } });
 
 setInterval(() => { if (!document.hidden) etat().catch(() => {}); }, 60000);
 route();

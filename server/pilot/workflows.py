@@ -60,6 +60,30 @@ def still_zimage(m, char, prompt, w, h, seed, prefix, steps=9, loras=None, char_
     return g
 
 
+def decor_gele(g, brouillon, epais, denoise=0.8):
+    """Decor fixe : l'image part du brouillon (deja depose) et seule la zone du personnage est refaite ; le reste de
+    l'image est celui du brouillon, au pixel. La zone vient du squelette epais (deja depose), elargie, au bord adouci
+    pour le collage. A 0,8 la tenue et la piece du brouillon tiennent (essai du 15/11/2026, 4 sur 4)."""
+    g["bi"] = {"class_type": "LoadImage", "inputs": {"image": brouillon}}
+    g["mi"] = {"class_type": "LoadImage", "inputs": {"image": epais}}
+    for ch in ("red", "green", "blue"):
+        g["m" + ch[0]] = {"class_type": "ImageToMask", "inputs": {"image": ["mi", 0], "channel": ch}}
+    g["m1"] = {"class_type": "MaskComposite", "inputs": {"destination": ["mr", 0], "source": ["mg", 0], "x": 0, "y": 0, "operation": "add"}}
+    g["m2"] = {"class_type": "MaskComposite", "inputs": {"destination": ["m1", 0], "source": ["mb", 0], "x": 0, "y": 0, "operation": "add"}}
+    g["mt"] = {"class_type": "ThresholdMask", "inputs": {"mask": ["m2", 0], "value": 0.04}}
+    g["mw"] = {"class_type": "GrowMask", "inputs": {"mask": ["mt", 0], "expand": 56, "tapered_corners": True}}
+    g["mim"] = {"class_type": "MaskToImage", "inputs": {"mask": ["mw", 0]}}
+    g["mbl"] = {"class_type": "ImageBlur", "inputs": {"image": ["mim", 0], "blur_radius": 12, "sigma": 6.0}}
+    g["mz"] = {"class_type": "ImageToMask", "inputs": {"image": ["mbl", 0], "channel": "red"}}
+    g["enc"] = {"class_type": "VAEEncode", "inputs": {"pixels": ["bi", 0], "vae": ["vae", 0]}}
+    g["lat"] = {"class_type": "SetLatentNoiseMask", "inputs": {"samples": ["enc", 0], "mask": ["mw", 0]}}
+    g["ks"]["inputs"]["denoise"] = denoise
+    g["comp"] = {"class_type": "ImageCompositeMasked", "inputs": {"destination": ["bi", 0], "source": ["dec", 0], "x": 0, "y": 0,
+                                                                  "resize_source": False, "mask": ["mz", 0]}}
+    g["save"]["inputs"]["images"] = ["comp", 0]
+    return g
+
+
 def imposer_pose(g, m, pose_name, force=0.9):
     """Ajoute a un graphe de still_zimage une pose imposee : le dessin d'un squelette (image deja deposee) guide la
     position du corps et le cadrage ; le visage, la tenue et le lieu restent ceux du texte et de la LoRA."""

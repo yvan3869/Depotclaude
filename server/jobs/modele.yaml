@@ -212,6 +212,9 @@ shots:
   # Pose imposee (champ de pilote "squelette: true", pose par la Production, jamais par un script) : pour un plan qui
   # a son "still", le pilote tire d'abord un brouillon de la scene, en dessine le squelette et cree l'image dessus.
   # La position du corps et le cadrage ecrits sont tenus ; rien ne change dans l'ecriture d'un plan.
+  # Lieu et tenue de la bibliotheque (champs de pilote "decor" et "tenue_image", chemins d'images, poses eux aussi par la
+  # Production) : le brouillon est fabrique dans l'image du lieu, avec les vetements de l'image de la tenue, et seule la
+  # zone du personnage est refaite dans l'image finale : la piece reste identique d'un plan a l'autre.
 
   # 7. Clip continu : il part de la derniere image du clip d'un plan place avant lui dans le meme fichier.
   #    Les deux clips se montent bout a bout sans coupe visible. La derive s'accumule : deux de suite au plus.

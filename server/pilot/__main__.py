@@ -9,7 +9,7 @@ from pathlib import Path
 
 import yaml
 
-from . import runpod, workflows
+from . import perso, runpod, workflows
 from .comfy import Comfy
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -125,12 +125,33 @@ def traits(png):
     return len(brut) - brut.count(0) - sum(1 for k in range(0, len(brut), larg) if brut[k]) if larg else 0
 
 
-def poses_imposees(c, models, char, shots, data, work, over):
+def poses_imposees(c, models, char, shots, data, work, over, decors=None):
     """Pose imposee des plans qui portent "squelette" : un brouillon de la scene est tire d'une image neutre du personnage
     par retouche (elle rend la pose et le cadrage ecrits, pas le visage), son squelette est dessine, et l'image finale
     sera creee sur ce squelette. Un brouillon par scene, commun a ses variantes. Rend {(scene, texte): fichier depose} ;
-    une scene dont le squelette manque est creee d'apres le texte seul."""
-    faits, dus = {}, []
+    une scene dont le squelette manque est creee d'apres le texte seul.
+    Decor fixe (plan qui porte "decor", l'image du lieu vide, et au besoin "tenue_image", la tenue a plat) : le brouillon
+    est tire de l'image neutre, de la tenue et du lieu ensemble ; `decors` recoit {(scene, texte): (brouillon, squelette
+    epais)} deposes, pour refaire la seule zone du personnage (workflows.decor_gele)."""
+    faits, dus, vus = {}, [], {}
+
+    def epais():  # trait le plus large que le noeud de dessin accepte, 100 au plus
+        if "larg" not in vus:
+            vus["larg"] = 100
+            try:
+                from .http import request
+                oi = request("GET", c.base + "/object_info/SDPoseDrawKeypoints", timeout=60)
+                vus["larg"] = min(100, int(oi["SDPoseDrawKeypoints"]["input"]["required"]["stick_width"][1].get("max", 100)))
+            except Exception:
+                pass
+        return vus["larg"]
+
+    def depose(chemin):  # image de la bibliotheque du personnage, deposee une fois
+        if chemin not in vus:
+            f = Path(chemin)
+            vus[chemin] = c.upload(f"ga_bib{len(vus)}.png", (f if f.is_absolute() else data / f).read_bytes())
+        return vus[chemin]
+
     for s, name, seed, entry in shots:
         if s.get("squelette") and s.get("still") and not s.get("image") and not s.get("suite_de") and (s["name"], s["still"]) not in [x[0] for x in dus]:
             dus.append(((s["name"], s["still"]), s, name, seed))
@@ -155,13 +176,25 @@ def poses_imposees(c, models, char, shots, data, work, over):
                 break
             try:
                 t = time.time()
-                b = c.fetch(c.run(workflows.edit_image(models, up, "Same woman. New photo of her: " + s["still"], *s["still_size"], seed, f"ga_{name}_b"))[0])
+                if s.get("decor"):
+                    autres = ([depose(s["tenue_image"])] if s.get("tenue_image") else []) + [depose(s["decor"])]
+                    n = len(autres) + 1
+                    g = workflows.edit_image(models, up, "The woman from image 1, " + ("dressed with the clothes shown in image 2, " if n == 3 else "")
+                                             + f"in the place shown in image {n}. The place is exactly the one of image {n}: same walls, same furniture, same objects, "
+                                             "same floor, same light. New photo of her: " + s["still"] + " Only one woman in the picture. Natural smartphone photo.",
+                                             *s["still_size"], seed, f"ga_{name}_b")
+                    for i, u in enumerate(autres, 2):
+                        g[f"img{i}"] = {"class_type": "LoadImage", "inputs": {"image": u}}
+                        g["pos"]["inputs"][f"image{i}"] = g["neg"]["inputs"][f"image{i}"] = [f"img{i}", 0]
+                else:
+                    g = workflows.edit_image(models, up, "Same woman. New photo of her: " + s["still"], *s["still_size"], seed, f"ga_{name}_b")
+                b = c.fetch(c.run(g)[0])
                 (work / f"{name}_brouillon.png").write_bytes(b)
-                brouillons[cle] = (c.upload(f"ga_{name}_b.png", b), name)
+                brouillons[cle] = (c.upload(f"ga_{name}_b.png", b), name, bool(s.get("decor")))
                 log(f"{name} : brouillon de la pose ({round(time.time() - t)} s)")
             except Exception as e:
                 log(f"{name} : brouillon de la pose rate, image d'apres le texte seul ({str(e)[:200]})")
-        for cle, (bu, name) in brouillons.items():
+        for cle, (bu, name, decor) in brouillons.items():
             try:
                 t = time.time()
                 p = c.fetch(c.run(workflows.squelette(models, bu, f"ga_{name}_p"))[0])
@@ -171,6 +204,10 @@ def poses_imposees(c, models, char, shots, data, work, over):
                     continue
                 faits[cle] = c.upload(f"ga_{name}_p.png", p)
                 log(f"{name} : squelette ({round(time.time() - t)} s)")
+                if decor and decors is not None:  # zone du personnage : le meme squelette, trace epais, mains et pieds compris
+                    g = workflows.squelette(models, bu, f"ga_{name}_e")
+                    g["dr"]["inputs"].update(stick_width=epais(), draw_hands=True, draw_feet=True)
+                    decors[cle] = (bu, c.upload(f"ga_{name}_e.png", c.fetch(c.run(g)[0])))
             except Exception as e:
                 log(f"{name} : squelette rate, image d'apres le texte seul ({str(e)[:200]})")
     except Exception as e:  # la pose imposee est un plus : sans elle les images sont creees comme avant
@@ -241,7 +278,8 @@ def cmd_run(a):
                 return True
             return False
 
-        poses = poses_imposees(c, models, char, shots, data, work, over) if cfg.get("image_model", "wan") == "zimage" else {}
+        decors = {}
+        poses = poses_imposees(c, models, char, shots, data, work, over, decors) if cfg.get("image_model", "wan") == "zimage" else {}
         # Images creees d'abord, images tirees d'une autre par retouche ensuite : un seul changement de modele
         # (creation <-> retouche) au lieu d'un par plan, qui coutait une minute a chaque fois.
         for s, name, seed, entry in sorted(shots, key=lambda x: bool(x[0].get("image") and x[0].get("edit"))):
@@ -283,6 +321,9 @@ def cmd_run(a):
                     if (s["name"], s["still"]) in poses:  # pose imposee : le squelette du brouillon guide le corps et le cadrage
                         workflows.imposer_pose(graph, models, poses[(s["name"], s["still"])])
                         entry["squelette"] = True
+                        if (s["name"], s["still"]) in decors:  # decor fixe : seule la zone du personnage est refaite
+                            workflows.decor_gele(graph, *decors[(s["name"], s["still"])])
+                            entry["decor"] = True
                 else:
                     prompt = f"{char['prefix']}{s['still']}{char.get('still_suffix', '')}"
                     graph = workflows.still(models, char, prompt, *s["still_size"], seed, f"ga_{name}")
@@ -1293,6 +1334,13 @@ def main():
     se.add_argument("--pod-id", help="pod des images (ni cree ni supprime)")
     se.add_argument("--out", help="dossier de sortie")
     se.set_defaults(fn=cmd_serie)
+    pe = sub.add_parser("perso", help="images de la bibliotheque d'un personnage (lieux, tenues, portraits, planches) d'apres un lot de l'atelier")
+    pe.add_argument("lot")
+    pe.add_argument("--pod-id", help="reutilise un pod existant (ni cree ni supprime)")
+    pe.set_defaults(fn=lambda a: perso.images(a, load_config(a), resolve_loras))
+    en = sub.add_parser("entrainer", help="entraine la LoRA d'un personnage d'apres un lot de l'atelier, sur un pod a lui, puis tire des images d'essai")
+    en.add_argument("lot")
+    en.set_defaults(fn=lambda a: perso.entrainer(a, load_config(a)))
     a = ap.parse_args()
     try:
         sys.exit(a.fn(a) or 0)

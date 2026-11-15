@@ -31,6 +31,7 @@ import threading
 import time
 from pathlib import Path
 
+import biblio
 import moteur_local
 from categories import CATS, FAMILLES, reservee, temps_min
 from controle import CIBLE, controle, tenue_dite
@@ -155,7 +156,9 @@ RENDUS = ("net", "telephone", "main")
 # Tirage des images d'un temps quand le projet a une image de reference : "ref" = par retouche de la reference (meme
 # piece, meme tenue, pose proche), "direct" = chaque image creee a part (LoRA du visage et fiche de continuite)
 # "pose" = creee a part elle aussi, mais sur le squelette d'un brouillon (pose imposee, voir plus bas)
-TIRAGES = ("ref", "direct", "pose")
+# "decor" = pose imposee, et en plus le lieu (et au temps 1 la tenue) sont ceux des images de la bibliotheque du personnage :
+# le brouillon est fabrique dans la photo du lieu, puis seule la zone du personnage est refaite (la piece reste identique)
+TIRAGES = ("ref", "direct", "pose", "decor")
 # Verdict du proprietaire sur une image : des cases, pas de texte (l'assistant corrige les reglages sans voir l'image)
 IMAGES_PAR_SCENE = 3  # images creees par scene a chaque lancement ; le controleur les note (pilot serie), la mieux notee est proposee
 # Pose decomposee d'une scene : chaque champ rempli est mis en tete de la description, dans cet ordre (le modele d'image
@@ -307,6 +310,7 @@ class Atelier:
             d.mkdir(parents=True, exist_ok=True)
         os.chmod(self.de, 0o777)  # le redacteur tourne sur le serveur sous un autre compte que le conteneur
         self.lock = threading.Lock()
+        self.biblio = biblio.Biblio(self)  # atelier du personnage : images de ses lieux et de ses tenues, planches, LoRA
         self.montages = {}  # id du projet -> fil de montage en cours
         self.job = None     # {"projet", "quoi", "log"} : dernier lancement du pilote par l'atelier
         self.sons = {}      # projet -> {"etat", "fichier", "erreur", "cout"} : ambiance sonore fabriquee depuis l'atelier
@@ -935,6 +939,8 @@ class Atelier:
         return sorted(out, key=lambda x: (x["date_perso"] or "0", x["id"]), reverse=True)  # chronologie du personnage, la plus recente d'abord
 
     def fichier(self, pid, name):
+        if str(pid).startswith("perso-"):  # image de la bibliotheque d'un personnage
+            return self.biblio.fichier(str(pid)[6:], name)
         d = self._pdir(pid)
         for base in (d / "media", d):
             f = (base / name).resolve()
@@ -1060,6 +1066,17 @@ class Atelier:
                       '{"nom": "...", "age": 27, "langue": "en", "accroche": "phrase qui la résume", "fiche": {"identite": "...", "apparence": "...", "voix": "...", '
                       '"personnalite": "...", "seduction": "...", "univers": "...", "limites": "..."}, "lieux": ["..."], "tenues": ["..."], '
                       '"ecriture": {"ton": "...", "cta": "...", "plateforme": "Fanvue", "hashtags": "...", "interdits": "..."}, "generation": {"zimage_prefix": "..."}}')
+        elif kind == "biblio":  # atelier du personnage : une phrase du proprietaire devient une ligne "français | anglais"
+            if not consigne:
+                raise ValueError("décrire le lieu ou la tenue en une phrase")
+            lieu = b.get("quoi") == "lieux"
+            prompt = (f"PERSONNAGE\n{self._fiche(perso)}\n\nCOMMANDE\nLe propriétaire décrit {'un lieu où va ce personnage' if lieu else 'une tenue de ce personnage'} : "
+                      f"{consigne}\nÉcris-en la ligne de bibliothèque. \"fr\" : son nom court en français (2 à 6 mots). \"en\" : sa description en anglais pour un "
+                      "modèle d'image, une seule ligne de 15 à 35 mots, concrète et visuelle "
+                      + ("(pièce ou endroit, murs, meubles, objets, sol, lumière), qui commence par \"in\" ou \"on\", sans personne."
+                         if lieu else "(chaque vêtement avec sa couleur, sa matière, sa coupe), qui commence par \"a\" ou \"an\", sans décrire la personne ni le lieu.")
+                      + " Reste fidèle à ce qui est décrit, complète seulement les détails manquants dans l'esprit du personnage.\n\nFORMAT\n"
+                      '{"fr": "...", "en": "..."}')
         else:
             raise ValueError("commande inconnue")
         if not self.redacteur_actif():
@@ -1631,6 +1648,16 @@ class Atelier:
                 out.append(s["id"])
         return out
 
+    def _decor(self, p, s):
+        """Tirage "decor" : images de la bibliotheque du personnage pour le lieu du projet et, au temps 1, pour sa tenue (aux
+        temps suivants la tenue se defait : elle reste dite par le texte). Sans image du lieu, la scene reste en pose imposee."""
+        c = p.get("continuite") or {}
+        lieu = self.biblio.image(p["personnage"], "l", c.get("lieu")) if c.get("lieu") else None
+        if not lieu:
+            return {}
+        tenue = self.biblio.image(p["personnage"], "t", c.get("tenue")) if s["temps"] == 1 and c.get("tenue") else None
+        return {"decor": str(lieu)} | ({"tenue_image": str(tenue)} if tenue else {})
+
     def devis(self, p, temps=1):
         """Cout estime des deux lancements d'un temps, d'apres les couts constates (docs/journal-projet.md)."""
         ch = {s["id"]: s for s in p["scenes"]}
@@ -1700,7 +1727,8 @@ class Atelier:
                         shots.append({"name": s["id"], "still": self._still(p, s), "seed": s["seed"], "tattoos": s["tattoos"],
                                       "body": bool((perso.get("generation") or {}).get("corps"))}
                                      | ({"loras": _loras_plan(lo)} if lo else {}) | champs
-                                     | ({"squelette": True} if _tirage(p, s["temps"]) != "direct" and not _gros_plan(s) and not s.get("autres") else {}))
+                                     | ({"squelette": True} if _tirage(p, s["temps"]) != "direct" and not _gros_plan(s) and not s.get("autres") else {})
+                                     | (self._decor(p, s) if _tirage(p, s["temps"]) == "decor" and not _gros_plan(s) and not s.get("autres") and not s["libre"] else {}))
             else:
                 ids = self._a_cliper(p, ch, int(b.get("temps") or 1), want)
                 suiv = {prec[s["id"]]["id"]: s for s in p["scenes"] if prec[s["id"]]}
@@ -2080,9 +2108,13 @@ class Atelier:
             return self.projet(g("id"))
         if path == "/api/a/ecrire":
             return self.resultat(g("rid"))
+        if path.startswith("/api/a/b"):
+            return self.biblio.get(path, q)
         return None
 
     def post(self, path, b):
+        if path.startswith("/api/a/b/"):
+            return self.biblio.post(path, b)
         if path == "/api/a/personnage":
             return {"personnage": self.save_perso(b)}
         if path == "/api/a/projet":
