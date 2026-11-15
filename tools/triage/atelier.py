@@ -42,6 +42,7 @@ TEMPS = {1: "accroche", 2: "montee", 3: "devoile", 4: "final"}
 V = 4            # version des donnees : 4 = quatre temps (l'ancien temps 3, le final, est devenu le temps 4)
 GARDER = ("tenues", "lieux")  # listes de la fiche du personnage qu'un script peut allonger, sur accord du proprietaire
 MODELE_UN = "2026-11-15e"  # premier modele de plans ou une video entiere tient dans un fichier, importe sans bouton
+MODELE_CADRE = "2026-11-15g"  # premier modele de plans ou chaque plan qui a son image dit cadrage, angle, position et regard
 MODELE_DEC = "2026-11-15d"  # premier modele de plans ou chaque plan dit son passage et sa camera
 MODELE_4T = "2026-11-14f"  # premier modele de plans a quatre temps : avant lui, "temps: 3" designait le final
 FORMATS = {"vertical": (1080, 1920), "carre": (1080, 1080), "paysage": (1920, 1080)}
@@ -62,7 +63,7 @@ CE QUI FAIT CLIQUER
 CONTRAINTES TECHNIQUES (modèles d'image et de vidéo)
 - Chaque scène = une image de départ, puis un clip de 5 secondes animé à partir de cette image.
 - "continuite" : la fiche de continuité du projet, en anglais, écrite une seule fois et ajoutée automatiquement à la fin de chaque "still". "lieu" (commence par "in"/"on" : pièce, mobilier, couleurs), "tenue" (commence par "wearing"), "cheveux" (coiffure du jour, ou ""), "lumiere", "pdv" (point de vue de la caméra, par exemple "shot at eye level on a phone" ; décris la vue, jamais l'appareil comme un objet posé quelque part : il serait dessiné dans l'image). Un champ ne contient que ce qui reste identique pendant toute la vidéo ; si un élément change en cours de route (elle change de pièce, elle retire une veste), laisse ce champ vide et écris l'élément dans chaque "still".
-- "still" : en anglais, une seule phrase dense : cadrage, pose, expression, et rien de ce qui est déjà dans la fiche de continuité. Format vertical. Une seule personne à l'image. Ne décris ni le visage, ni les cheveux, ni les tatouages, ni les bijoux : ils sont ajoutés automatiquement. Aucun texte dans l'image.
+- "still" : en anglais, une seule phrase dense qui commence, dans cet ordre, par le cadrage, l'angle de la caméra, la position du corps et des jambes, la tête et le regard (sans eux le modèle d'image la montre de face, les yeux dans l'objectif ; un gros plan s'écrit "extreme close-up portrait, her face fills the frame"), puis l'expression, et rien de ce qui est déjà dans la fiche de continuité. Format vertical. Une seule personne à l'image. Ne décris ni le visage, ni les cheveux, ni les tatouages, ni les bijoux : ils sont ajoutés automatiquement. Aucun texte dans l'image.
 - "motion" : en anglais, UN geste simple et lent, en une phrase commençant par "She". Gestes fiables : regarder l'objectif, sourire lentement, pencher la tête, se mordre la lèvre, se pencher vers la caméra, marcher vers la caméra, faire glisser une bretelle, ajuster un décolleté, s'étirer doucement, boire, respirer. Gestes interdits (ils ratent) : tourner le dos, attacher ses cheveux, passer la main devant le visage, renverser la tête, éclater de rire, cheveux au vent, manipuler un objet compliqué, changer de vêtement.
 - "end_edit" : presque toujours "". À remplir seulement si la pose doit changer nettement entre le début et la fin du clip (assise puis debout) : une phrase en anglais qui décrit la pose finale, même cadrage.
 - "raccord" : "coupe" (la scène a sa propre image, le montage coupe : changement de cadrage ou d'angle) ou "continu" (la scène prolonge la précédente sans coupe visible : son clip démarre sur la dernière image du clip précédent, même cadrage, le geste s'enchaîne). Utilise "continu" quand deux gestes se suivent dans le même cadre ; pas plus de deux scènes continues de suite, et jamais sur la première scène. Le "still" d'une scène continue décrit quand même l'image attendue à cet instant.
@@ -156,11 +157,19 @@ RENDUS = ("net", "telephone", "main")
 TIRAGES = ("ref", "direct")
 # Verdict du proprietaire sur une image : des cases, pas de texte (l'assistant corrige les reglages sans voir l'image)
 IMAGES_PAR_SCENE = 3  # images creees par scene a chaque lancement ; le controleur les note (pilot serie), la mieux notee est proposee
-# Pose decomposee d'une scene (facultative) : chaque champ rempli est mis en tete de la description et verifie a part par
-# le controleur. "autres" : les autres personnes visibles a l'image ; vide, elle est seule.
-POSE = ("position", "appui", "bassin", "genoux", "mains", "regard")
+# Pose decomposee d'une scene : chaque champ rempli est mis en tete de la description, dans cet ordre (le modele d'image
+# donne le plus de poids au debut), et verifie a part par le controleur. Sans cadrage, angle, position et regard ecrits,
+# le modele d'image rend une femme de face qui regarde l'objectif (essais du 15/11/2026) : ces quatre champs sont
+# obligatoires dans un script depuis MODELE_CADRE. "autres" : les autres personnes visibles a l'image ; vide, elle est seule.
+POSE = ("cadrage", "angle", "position", "appui", "bassin", "genoux", "mains", "regard")
+POSE_DUE = ("cadrage", "angle", "position", "regard")
 CHAMPS = POSE + ("contact", "autres")
 VERDICTS = ("ok", "tenue", "geste", "objet", "visage", "corps", "decor", "cadrage", "passable", "pose", "ton")
+
+
+def _gros_plan(s):
+    """Plan serre : le decor et la tenue entiere n'y sont pas visibles, et une retouche de la reference ne le cadre pas."""
+    return bool(GROS_PLAN.search(f"{s.get('cadrage') or ''} {s.get('still') or ''}"))
 
 
 def _tirage(p, t):
@@ -1365,6 +1374,15 @@ class Atelier:
                 raise ValueError(f"plan {nom} : \"pose\" est un bloc de champs ({', '.join(POSE)})")
             if [k for k in (*pose.values(), sh.get("contact"), sh.get("autres")) if k is not None and not isinstance(k, str)]:
                 raise ValueError(f"plan {nom} : les champs de \"pose\", \"contact\" et \"autres\" sont des textes")
+            # depuis le modele MODELE_CADRE, un plan qui a sa propre image dit son cadrage, son angle, sa position et son regard
+            if str(j.get("modele") or "") >= MODELE_CADRE and (prem or sh.get("raccord") != "continu"):
+                manque = [k for k in POSE_DUE if not _s(pose.get(k))]
+                if manque:
+                    raise ValueError(f"plan {nom} : \"pose\" doit dire {', '.join(manque)} (cadrage, angle de la caméra, position du corps et "
+                                     "des jambes, tête et regard : sans eux le modèle d'image la montre de face, les yeux dans l'objectif)")
+                if tp == 1 and not sh.get("libre") and _gros_plan({"cadrage": pose.get("cadrage"), "still": sh["still"]}) and not tenue_dite(sh["still"]):
+                    raise ValueError(f"plan {nom} : sur un gros plan, \"still\" dit ce qu'on voit de la tenue (\"thin black tank top straps on her "
+                                     "shoulders\") ; la tenue entière de la fiche de continuité n'y est pas ajoutée, elle élargirait le cadre")
             if sh.get("cran") not in (None, 1, 2, 3, 4, 5):
                 raise ValueError(f"plan {nom} : \"cran\" est un entier de 1 à 5")
             seed = sh.get("seed") or (int(d["seed"]) + (0 if d.get("same_seed") else i) if d.get("seed") else 0)
@@ -1571,9 +1589,12 @@ class Atelier:
     def _still(self, p, s):
         """Description envoyee au modele d'image : les champs de pose remplis, celle de la scene, la fiche de continuite, puis les autres personnes.
         A partir du temps 2, la tenue de la fiche n'est pas ajoutee (elle se defait d'une scene a l'autre : chaque scene
-        dit ce qu'elle porte) et "nsfw" est toujours ajoute."""
-        t2 = s["temps"] >= 2
-        c = [] if s["libre"] else [v.strip(" .,") for k, v in (p.get("continuite") or {}).items() if v and not (t2 and k == "tenue")]
+        dit ce qu'elle porte) et "nsfw" est toujours ajoute. Deux lignes de la fiche cedent devant la scene (essais du
+        15/11/2026) : le point de vue quand la scene dit son angle (les deux se contredisent), la tenue sur un gros plan
+        (decrite en entier, elle elargit le cadre) des que la scene dit elle-meme ce qu'on en voit."""
+        t2, sans = s["temps"] >= 2, {"pdv"} if s.get("angle") else set()
+        sans |= {"tenue"} if t2 or (_gros_plan(s) and tenue_dite(s["still"])) else set()
+        c = [] if s["libre"] else [v.strip(" .,") for k, v in (p.get("continuite") or {}).items() if v and k not in sans]
         if s.get("autres"):  # apres elle et sa fiche : la premiere personne decrite reste le sujet
             c.append("also in the frame: " + s["autres"].strip(" .,"))
         if t2 and not re.search(r"\bnsfw\b", s["still"], re.I):
@@ -1651,7 +1672,7 @@ class Atelier:
                 for s in sorted((s for s in p["scenes"] if s["id"] in ids), key=lambda s: s["id"] != ref):
                     lo = self._loras_scene(p, s, tmin)  # LoRA du projet, du temps et de la scene
                     retouche = (base and s["id"] != ref and not s["libre"] and _tirage(p, s["temps"]) == "ref"
-                                and not self._lora_image({"loras": lo}) and not GROS_PLAN.search(s["still"]))
+                                and not self._lora_image({"loras": lo}) and not _gros_plan(s))
                     if ch[s["id"]]["image"]:  # nouvelle prise demandee : autre tirage
                         s["seed"] = random.randint(1, 999999)
                     elif not retouche:  # premiere image creee a part : tirage commun aux scenes du temps, le decor bouge moins
@@ -1659,6 +1680,8 @@ class Atelier:
                     s["image"], s["clip"] = "", ""  # la prise retenue sera la nouvelle
                     champs = {k: s[k] for k in CHAMPS if s.get(k)}  # relus par le controleur, ignores par le pilote
                     champs = {"champs": champs} if champs else {}
+                    if _gros_plan(s) and not s["libre"]:  # le controleur ne cherche pas dans un gros plan le decor que la fiche decrit
+                        champs["attendu"] = self._still({**p, "continuite": {k: v for k, v in (p.get("continuite") or {}).items() if k != "lieu"}}, s)
                     if retouche:
                         shots.append({"name": s["id"], "image": str(media / base), "edit": self._still(p, s), "seed": s["seed"]}
                                      | ({"tenue_libre": True} if s["temps"] >= 2 else {}) | champs)

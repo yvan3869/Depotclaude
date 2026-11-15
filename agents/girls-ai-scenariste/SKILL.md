@@ -57,14 +57,23 @@ fiche de continuité sont en anglais ; les textes de publication sont dans la la
 Le détail est dans `docs/agents.md` (sections « Continuité et raccords », « Contrôle des plans », « Montage »).
 Les points où un scénario échoue le plus souvent à l'image :
 
-- **Une image, un instant.** Un `still` décrit ce qu'on voit à la première image du plan : cadrage, pose,
-  expression, mains, regard. Pas une action, pas une suite, pas une intention.
+- **Une image, un instant.** Un plan décrit ce qu'on voit à sa première image. Pas une action, pas une suite, pas
+  une intention.
 - **Sans précision, elle pose de face.** Le modèle d'image revient toujours à la même photo : une femme de face,
-  debout ou à genoux, qui regarde l'objectif, cadrée à la taille. Tout ce qui s'en écarte s'écrit en tête du `still`,
-  en toutes lettres : l'angle (`from a three-quarter side angle`), la position des jambes (`sits cross-legged`, pas
-  seulement `sits`), la tête et le regard (`head turned to the left, eyes looking away toward the window, not looking
-  at the camera`). Un gros plan s'écrit `extreme close-up portrait, her face fills the frame, cropped just below the
-  collarbones` : `close-up` seul donne un cadrage à la taille. Constaté le 15/11/2026 sur trois essais.
+  debout ou à genoux, qui regarde l'objectif, cadrée à la taille (constaté le 15/11/2026 sur trois essais : seule la
+  rédaction y change quelque chose). Depuis le modèle `2026-11-15g`, chaque plan qui a sa propre image remplit donc
+  quatre champs du bloc `pose`, sinon le fichier est refusé. La Production les place en tête de la description :
+  - `cadrage` : `wide shot`, `medium shot`... Un gros plan dit ce qui remplit l'image et où elle est coupée
+    (`extreme close-up portrait, her face fills the frame, cropped just below the collarbones`) ; `close-up` seul
+    donne un cadrage à la taille.
+  - `angle` : d'où la caméra la voit (`from a three-quarter side angle`, `shot straight on at chest height`).
+  - `position` : le corps entier, jambes comprises (`sitting cross-legged on the mat`, pas seulement `sitting`).
+  - `regard` : la tête et les yeux ; si elle ne regarde pas l'objectif, écris-le (`head turned to the left, eyes
+    looking away toward the window, not looking at the camera`).
+
+  `still` garde le reste (expression, objets, détail) et ne redit rien de `pose`. Sur un gros plan du temps 1, `still`
+  dit ce qu'on voit de la tenue (`thin black tank top straps on her shoulders`) : la tenue entière de la fiche de
+  continuité n'y est pas ajoutée, elle élargirait le cadre.
 - **Un geste par plan.** Un clip dure 5 secondes. `motion` contient un seul geste, simple et lent, qui part de
   la pose du `still`. Le geste suivant est un autre plan (raccord `continu` s'il reste dans le même cadre).
 - **Le décor tient par la répétition mot pour mot.** Le lieu est écrit une fois, dans la fiche de continuité,

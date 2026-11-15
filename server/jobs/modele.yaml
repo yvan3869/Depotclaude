@@ -47,8 +47,13 @@
 #   2026-11-15f  bloc "atelier" : garder (facultatif). La tenue et le lieu de la continuite absents de la fiche du personnage
 #                sont proposes d'office au proprietaire, une fois les images faites : rien a declarer. "garder" ne sert qu'a
 #                souffler leur nom francais, ou a proposer une tenue qui n'est pas celle de la continuite.
+#   2026-11-15g  POSE OBLIGATOIRE : tout plan qui a sa propre image (tous sauf un raccord "continu") remplit dans "pose"
+#                les champs cadrage, angle, position et regard (deux champs nouveaux : cadrage et angle). La Production
+#                les met en tete de la description, dans cet ordre. "still" ne les redit plus : il garde l'expression,
+#                les objets et le detail. Quand "angle" est rempli, le "pdv" de la fiche de continuite n'est pas ajoute.
+#                Gros plan au temps 1 : "still" dit ce qu'on voit de la tenue, la tenue entiere de la fiche n'est pas ajoutee.
 
-modele: "2026-11-15f"
+modele: "2026-11-15g"
 name: monlot                 # prefixe des fichiers produits (lettres, chiffres, _), unique par lancement
 
 # --- Facultatif : script livre a la Production (docs/agents.md, "Livrer un script a la Production") --------------
@@ -117,7 +122,7 @@ defaults:
 shots:
   # 1. Image seule.
   - name: img01
-    still: "cadrage, lieu, tenue, pose, expression, lumiere : une phrase dense en anglais"
+    still: "expression, objets, detail : une phrase en anglais (dans l'atelier, le cadrage et la pose vont dans pose)"
     tattoos: true            # false si la tenue couvre epaules et poitrine (pull, peignoir ferme)
     # Lus par l'atelier seulement (ignores par le pilote) :
     # temps: 1               # OBLIGATOIRE dans un fichier depose : 1 accroche tous publics, 2 montee suggestive,
@@ -146,15 +151,27 @@ shots:
     # libre: false           # true : autre lieu ou autre tenue, sans la fiche de continuite ni l'image de reference
     # cran: 1                # niveau du plan dans la progression du temps, de 1 (anodin) a 5 (le plus ose de ce temps) ;
     #                        # il ne redescend pas d'un plan au suivant (verifie par le controle des plans)
-    # pose:                  # facultatif (atelier) : la pose decomposee, en anglais, une courte phrase par champ. Ne remplir
-    #                        # que les champs qui comptent pour ce plan, et ne pas les redire dans "still". Chaque champ
-    #                        # rempli est verifie a part sur l'image ; le resultat se lit avec verifier.py --notes.
-    #   position: "kneeling on the bed"          # la position d'ensemble
+    # pose:                  # OBLIGATOIRE dans un fichier depose (sauf raccord continu) : la pose decomposee, en anglais,
+    #                        # une courte phrase par champ, jamais redite dans "still". cadrage, angle, position et
+    #                        # regard sont obligatoires ; les autres champs seulement s'ils comptent pour ce plan.
+    #                        # La Production les place en tete de la description, dans cet ordre, et chaque champ est
+    #                        # verifie a part sur l'image (verifier.py --notes). Sans eux, le modele d'image rend
+    #                        # toujours la meme photo : de face, a la taille, les yeux dans l'objectif.
+    #   cadrage: "medium shot"                   # OBLIGATOIRE. wide shot, full body shot, medium shot... Gros plan :
+    #                                            # dire ce qui remplit l'image et ou elle est coupee ("extreme close-up
+    #                                            # portrait, her face fills the frame, cropped just below the
+    #                                            # collarbones") ; "close-up" seul rend un plan a la taille.
+    #   angle: "from a three-quarter side angle" # OBLIGATOIRE. D'ou la camera la voit : "shot straight on at chest
+    #                                            # height", "from behind", "from above", "from a low angle"...
+    #   position: "sitting cross-legged on the mat"   # OBLIGATOIRE. La position d'ensemble, jambes comprises
+    #                                            # ("sits" seul ne suffit pas)
     #   appui: "weight on her left forearm"      # sur quoi le corps repose
     #   bassin: "hips turned to the camera"
     #   genoux: "knees together"
     #   mains: "right hand in her hair"
-    #   regard: "looking over her shoulder at the camera"
+    #   regard: "head turned to the left, eyes looking away toward the window, not looking at the camera"
+    #                                            # OBLIGATOIRE. La tete ET les yeux ; si elle ne regarde pas l'objectif,
+    #                                            # l'ecrire ("not looking at the camera"). Visage hors cadre : le dire.
     # contact: ""            # ce que son corps touche et ou ("her cheek against the pillow")
     # autres: ""             # les autres personnes VISIBLES a l'image : qui, ou, quelle partie du corps. Laisser vide
     #                        # quand elle est seule a l'image (le cas courant, meme si quelqu'un est suppose hors champ) :

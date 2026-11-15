@@ -14,7 +14,7 @@ from .comfy import Comfy
 
 ROOT = Path(__file__).resolve().parents[2]
 PREFIX = "girls-ai-"
-MODELE = "2026-11-15f"  # version du format des plans : la meme que dans server/jobs/modele.yaml
+MODELE = "2026-11-15g"  # version du format des plans : la meme que dans server/jobs/modele.yaml
 INTERP = "minterpolate=fps=32:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1"
 
 
@@ -628,7 +628,7 @@ def controle_lot(data, pid, runs=None):
     d, lot, fichiers = data / "projets" / pid, [], {}
     p = json.loads((d / "projet.json").read_text(encoding="utf-8"))
     temps, vus, stills = {s["id"]: s["temps"] for s in p["scenes"]}, {}, {s["id"]: s.get("still") or "" for s in p["scenes"]}
-    noms = ("position", "appui", "bassin", "genoux", "mains", "regard", "contact", "autres")  # pose decomposee : verifiee champ par champ
+    noms = ("cadrage", "angle", "position", "appui", "bassin", "genoux", "mains", "regard", "contact", "autres")  # pose decomposee : verifiee champ par champ
     poses = {s["id"]: {k: s[k] for k in noms if s.get(k)} for s in p["scenes"]}
     lieu = str((p.get("continuite") or {}).get("lieu") or "")
     for f in sorted((d / "media").iterdir()):
@@ -639,9 +639,9 @@ def controle_lot(data, pid, runs=None):
             rf_ = d / "runs" / f"{m.group(1)}.json"
             vus[m.group(1)] = {s["name"]: s for s in json.loads(rf_.read_text(encoding="utf-8")).get("shots", [])} if rf_.exists() else {}
         sh = vus[m.group(1)].get(m.group(2)) or {}  # image creee a partir d'une autre ("edit") : la description est celle de la scene
-        desc = str(sh.get("still") or stills.get(m.group(2)) or sh.get("edit") or "")
+        desc = str(sh.get("attendu") or sh.get("still") or stills.get(m.group(2)) or sh.get("edit") or "")  # "attendu" : gros plan, sans le decor
         if desc:
-            if not sh.get("still") and lieu:  # la description d'une scene ne redit pas le lieu : il est dans la fiche de continuite
+            if not sh.get("still") and not sh.get("attendu") and lieu:  # la description d'une scene ne redit pas le lieu : il est dans la fiche de continuite
                 desc += f", place: {lieu}"
             lot.append({"image": f.name, "projet": pid, "desc": desc[:1500], "perso": p.get("personnage") or "", "temps": temps.get(m.group(2), 0),
                         "champs": sh["champs"] if isinstance(sh.get("champs"), dict) else poses.get(m.group(2), {})})

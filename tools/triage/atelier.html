@@ -73,7 +73,7 @@ const TIR = t => (P.tirage || {})[t] || (t <= 2 ? 'ref' : 'direct');
 // Note du controleur d'images (essai) : ce qu'un modele de vision a trouve en comparant l'image a sa description.
 const NOTE_FAUX = {setting: 'décor', outfit: 'tenue', pose: 'geste', object: 'objet', framing: 'cadrage'};
 // Pose decomposee (facultative) : chaque champ rempli est verifie a part par le controleur.
-const POSE = [['position', 'Position', 'kneeling on the bed'], ['appui', 'Appui', 'weight on her left forearm'], ['bassin', 'Bassin', 'hips turned to the camera'],
+const POSE = [['cadrage', 'Cadrage', 'medium shot'], ['angle', 'Angle', 'from a three-quarter side angle'], ['position', 'Position', 'kneeling on the bed'], ['appui', 'Appui', 'weight on her left forearm'], ['bassin', 'Bassin', 'hips turned to the camera'],
   ['genoux', 'Genoux', 'knees together'], ['mains', 'Mains', 'right hand in her hair'], ['regard', 'Regard', 'looking over her shoulder'], ['contact', 'Contact', 'her cheek against the pillow']];
 function noteHtml(n) {
   const x = (D.notes || {})[n];

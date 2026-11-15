@@ -159,8 +159,9 @@ Trois outils evitent qu'une video change de piece, de tenue ou de personne d'une
 
 - **Fiche de continuite** (`continuite`, au projet) : cinq champs en anglais, `lieu` ("in ..."), `tenue`
   ("wearing ..."), `cheveux`, `lumiere`, `pdv` (point de vue de la camera). La Production les ajoute a la fin
-  de chaque `still` au moment du calcul. Consequence pour l'ecriture : **un `still` ne contient plus que le
-  cadrage, la pose et l'expression** ; ne pas y repeter le lieu ni la tenue. Un champ ne contient que ce
+  de chaque `still` au moment du calcul. Consequence pour l'ecriture : **un `still` ne contient plus que
+  l'expression, les objets et le detail** (le cadrage et la pose vont dans `pose`, voir « Pose decomposee ») ; ne pas y
+  repeter le lieu ni la tenue. Un champ ne contient que ce
   qui vaut pour toute la video ; ce qui change en route (elle retire une veste) reste dans les `still` et
   le champ correspondant reste vide. Un plan qui se passe ailleurs porte `libre: true`.
   **Temps 2 a 4 (modele `2026-11-14g`)** : la `tenue` de la fiche n'est pas ajoutee, parce qu'elle se defait
@@ -171,7 +172,7 @@ Trois outils evitent qu'une video change de piece, de tenue ou de personne d'une
 - **Image de reference** (`reference`, au projet) : une fois choisie, les autres images sont fabriquees a
   partir d'elle par retouche (meme personne, meme piece, meme tenue, nouvelle pose). Prendre le plan le
   plus large, celui qui montre le mieux le lieu et la tenue. Une retouche garde le cadrage de la reference,
-  quoi que dise le `still`. Un plan dont le `still` contient "close-up" est donc tire a part (description et
+  quoi que dise le `still`. Un plan dont le `cadrage` ou le `still` contient "close-up" est donc tire a part (description et
   fiche de continuite, sans la reference) : ecrire ce mot tel quel pour obtenir un gros plan. Les plans `libre` et ceux qui portent des
   LoRA supplementaires gardent leur propre tirage. Dans les temps 2 a 4, la retouche ne garde pas la tenue de la
   reference : elle prend celle que decrit le `still` (champ de pilote `tenue_libre`, pose par la Production).
@@ -367,8 +368,12 @@ y placer un geste ni un texte important. Elle est remplacee par une coupe si l'u
            camera: fixe       # obligatoire sauf raccord sans coupe : fixe, avance, recul, gauche, droite, haut, bas,
                               # avance_vif, recul_vif (voir "Continuite et raccords")
            cran: 1            # 1 a 5, ne redescend pas (voir "Controle des plans")
-           pose:              # facultatif : la pose decomposee (position, appui, bassin, genoux, mains, regard)
-             mains: "right hand in her hair"
+           pose:              # obligatoire sauf raccord continu (modele 2026-11-15g) : cadrage, angle, position, regard ;
+                              # facultatifs : appui, bassin, genoux, mains
+             cadrage: "medium shot"
+             angle: "from a three-quarter side angle"
+             position: "sitting cross-legged on the mat"
+             regard: "head turned to the left, eyes looking away toward the window, not looking at the camera"
            contact: ""        # facultatif : ce que son corps touche et ou
            autres: ""         # facultatif : les autres personnes visibles a l'image ; vide quand elle est seule
 
@@ -388,7 +393,7 @@ y placer un geste ni un texte important. Elle est remplacee par une coupe si l'u
 3. **Ne pas lancer le pilote sur ce fichier.** Un fichier accepte est importe par la page toute seule, sans bouton,
    des que le proprietaire l'ouvre et qu'aucun calcul ne tourne : les plans deviennent les scenes de leur temps. Un
    fichier refuse n'ouvre rien : il reste affiche a l'accueil de la Production avec sa raison (bloc `atelier` absent,
-   `temps` invalide, nom en double, `still` manquant, decoupage non dit, date mal formee). Le verificateur dit la meme
+   `temps` invalide, nom en double, `still` manquant, decoupage non dit, pose incomplete, date mal formee). Le verificateur dit la meme
    chose avant : ne jamais annoncer un fichier qu'il refuse.
 4. **Corriger** : modifier le meme fichier, sans changer les `name`. La page reprend le fichier toute seule ; les
    scenes sont remplacees une a une, et l'image deja calculee est gardee tant que `still` n'a pas change. Un plan
@@ -397,11 +402,28 @@ y placer un geste ni un texte important. Elle est remplacee par une coupe si l'u
    Les textes de publication remplis dans le fichier remplacent ceux du projet a chaque import.
 
 ## Pose decomposee et retour du controle
-Modele `2026-11-15b`. Un plan peut porter, en plus de `still`, les champs facultatifs `pose` (`position`, `appui`,
-`bassin`, `genoux`, `mains`, `regard`), `contact` et `autres`, en anglais, une courte phrase chacun. Un champ rempli est
-ajoute a la description envoyee au modele d'image (la pose en tete, `autres` a la fin), puis verifie a part par le controle automatique (une question
-oui/non par champ). Ne remplir que ce qui compte pour le plan et ne pas le redire dans `still`. Les champs aident a
-verifier ; ils ne forcent pas le modele d'image.
+Un plan porte, en plus de `still`, le bloc `pose` (`cadrage`, `angle`, `position`, `appui`, `bassin`, `genoux`,
+`mains`, `regard`) et les champs facultatifs `contact` et `autres`, en anglais, une courte phrase chacun. Un champ
+rempli est ajoute a la description envoyee au modele d'image (la pose en tete, dans cet ordre ; `autres` a la fin),
+puis verifie a part par le controle automatique (une question oui/non par champ). Ne pas le redire dans `still`.
+
+**Pose obligatoire (modele `2026-11-15g`).** Le modele d'image donne le plus de poids au debut de la description et,
+sans precision, rend toujours la meme photo : une femme de face, debout ou a genoux, cadree a la taille, les yeux dans
+l'objectif (essais du 15/11/2026 : ni les LoRA ni la fiche de continuite n'y changent rien, seule la redaction compte).
+Tout plan qui a sa propre image (tous sauf un raccord `continu`) remplit donc quatre champs, sinon le depot est refuse :
+
+- `cadrage` : la taille du plan. Un gros plan dit ce qui remplit l'image et ou elle est coupee (`extreme close-up
+  portrait, her face fills the frame, cropped just below the collarbones`) ; `close-up` seul rend un plan a la taille.
+- `angle` : d'ou la camera la voit (`from a three-quarter side angle`, `shot straight on at chest height`,
+  `from behind`). Quand il est rempli, le `pdv` de la fiche de continuite n'est pas ajoute : les deux se contrediraient.
+- `position` : le corps entier, jambes comprises (`sitting cross-legged on the mat`, pas seulement `sitting`).
+- `regard` : la tete et les yeux. Si elle ne regarde pas l'objectif, l'ecrire en toutes lettres (`head turned to the
+  left, eyes looking away toward the window, not looking at the camera`).
+
+`still` garde le reste : l'expression, les objets, le detail. **Gros plan au temps 1** : la tenue entiere de la fiche
+de continuite n'est pas ajoutee (elle elargit le cadre) ; `still` dit ce qu'on en voit (`thin black tank top straps on
+her shoulders`), sinon le depot est refuse. Le controle automatique ne cherche pas le decor dans un gros plan.
+Les scenes ecrites dans la page et les scripts d'un modele anterieur gardent ces champs facultatifs.
 
 `autres` decrit les autres personnes visibles a l'image (qui, ou, quelle partie du corps). Vide dans le cas courant :
 elle est seule, et le controle signale toute autre personne. Ne pas le remplir pour quelqu'un qui reste hors champ.
