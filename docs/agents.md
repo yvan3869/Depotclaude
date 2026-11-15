@@ -17,7 +17,7 @@ Les memes mots servent dans la page Atelier, dans les fichiers et dans les echan
 | Scene | Une unite d'un temps : une image, un mouvement eventuel, un texte a l'ecran. |
 | Plan | La scene vue du cote de l'agent : une entree de `shots` dans son fichier. Un plan importe devient une scene. |
 | Depot | Un fichier de plans place dans `server/jobs/atelier/`, pour un projet et un temps. |
-| Prise | Un resultat calcule pour une scene (image ou clip). Il peut y en avoir plusieurs ; le proprietaire choisit. |
+| Prise | Un resultat calcule pour une scene (image ou clip). Il peut y en avoir plusieurs ; le proprietaire choisit. Pour les images, chaque lancement en calcule trois par scene ; un controle automatique note chacune sur 10 en la comparant a la description de la scene (`pilot serie`, `server/pilot/controle.py`). Une scene dont aucune image ne depasse 4 est refaite toute seule, deux fois au plus. La mieux notee est proposee, le proprietaire garde le choix. |
 | Montage | La video finale d'un temps, en versions numerotees. |
 | Fiche de continuite | Ce qui ne change pas d'une image a l'autre dans un projet : lieu, tenue, coiffure, lumiere, point de vue. Bloc `continuite`. |
 | Image de reference | L'image d'une scene dont les autres images du projet sont tirees par retouche. Champ `reference`. |

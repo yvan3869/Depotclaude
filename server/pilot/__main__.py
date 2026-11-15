@@ -616,52 +616,60 @@ def cmd_sonimage(a):
     return 0
 
 
-def cmd_controle(a):
-    """controle --nom pNNNN[,pNNNN] : fait noter les images des projets par le mesureur de visage et le modele de vision
-    (voir controle.py). Les notes sont rangees dans projets/<id>/notes_images.json, que l'atelier affiche sous chaque
-    image ; rien d'autre n'est change dans les projets. Le journal du pod est garde dans data/work/controle/."""
-    import base64
+def controle_lot(data, pid, runs=None):
+    """Images d'un projet a faire noter (toutes, ou celles des lancements `runs`, par exemple {"r12", "r13"}) avec la
+    description attendue de chacune. Rend (lot, fichiers)."""
     import re
-    import secrets
-    from . import controle as ct
-    from . import sonimage as si
-    from .http import _ctx, request
-    data, lot, fichiers = Path(a.data), [], {}
-    for pid in a.nom.split(","):
-        if not re.fullmatch(r"p\d{4}", pid):
-            raise RuntimeError("controle : --nom est une liste d'identifiants de projet (pNNNN,pNNNN)")
-        d = data / "projets" / pid
-        p = json.loads((d / "projet.json").read_text(encoding="utf-8"))
-        temps, runs, stills = {s["id"]: s["temps"] for s in p["scenes"]}, {}, {s["id"]: s.get("still") or "" for s in p["scenes"]}
-        lieu = str((p.get("continuite") or {}).get("lieu") or "")
-        for f in sorted((d / "media").iterdir()):
-            m = re.fullmatch(rf"{pid}(r\d+)_(s\d+)\.png", f.name)
-            if not m:
-                continue
-            if m.group(1) not in runs:
-                rf_ = d / "runs" / f"{m.group(1)}.json"
-                runs[m.group(1)] = {s["name"]: s for s in json.loads(rf_.read_text(encoding="utf-8")).get("shots", [])} if rf_.exists() else {}
-            sh = runs[m.group(1)].get(m.group(2)) or {}  # image creee a partir d'une autre ("edit") : la description est celle de la scene
-            desc = str(sh.get("still") or stills.get(m.group(2)) or sh.get("edit") or "")
-            if desc:
-                if not sh.get("still") and lieu:  # la description d'une scene ne redit pas le lieu : il est dans la fiche de continuite
-                    desc += f", place: {lieu}"
-                lot.append({"image": f.name, "projet": pid, "desc": desc[:1500], "perso": p.get("personnage") or "", "temps": temps.get(m.group(2), 0)})
-                fichiers[f.name] = f
-    if not lot:
-        raise RuntimeError("aucune image a controler")
-    cfg = load_config(a)
-    t0 = time.time()
-    jtok = secrets.token_urlsafe(24)
-    H, D = {"Authorization": f"token {jtok}"}, ct.DOSSIER
-    pod_id, cost, gpu = runpod.create_pod(cfg["infra"], f"{PREFIX}controle-{int(t0)}", env={"JUPYTER_PASSWORD": jtok})
-    log(f"pod {pod_id} cree ({gpu}, {cost} $/h)")
-    hote = f"{pod_id}-8888.proxy.runpod.net"
+    if not re.fullmatch(r"p\d{4}", pid):
+        raise RuntimeError("controle : identifiant de projet attendu (pNNNN)")
+    d, lot, fichiers = data / "projets" / pid, [], {}
+    p = json.loads((d / "projet.json").read_text(encoding="utf-8"))
+    temps, vus, stills = {s["id"]: s["temps"] for s in p["scenes"]}, {}, {s["id"]: s.get("still") or "" for s in p["scenes"]}
+    lieu = str((p.get("continuite") or {}).get("lieu") or "")
+    for f in sorted((d / "media").iterdir()):
+        m = re.fullmatch(rf"{pid}(r\d+)_(s\d+)\.png", f.name)
+        if not m or (runs is not None and m.group(1) not in runs):
+            continue
+        if m.group(1) not in vus:
+            rf_ = d / "runs" / f"{m.group(1)}.json"
+            vus[m.group(1)] = {s["name"]: s for s in json.loads(rf_.read_text(encoding="utf-8")).get("shots", [])} if rf_.exists() else {}
+        sh = vus[m.group(1)].get(m.group(2)) or {}  # image creee a partir d'une autre ("edit") : la description est celle de la scene
+        desc = str(sh.get("still") or stills.get(m.group(2)) or sh.get("edit") or "")
+        if desc:
+            if not sh.get("still") and lieu:  # la description d'une scene ne redit pas le lieu : il est dans la fiche de continuite
+                desc += f", place: {lieu}"
+            lot.append({"image": f.name, "projet": pid, "desc": desc[:1500], "perso": p.get("personnage") or "", "temps": temps.get(m.group(2), 0)})
+            fichiers[f.name] = f
+    return lot, fichiers
 
-    def api(m, p, d=None, essais=None, **k):
+
+def controle_ranger(data, lot, res):
+    """Range les notes dans projets/<id>/notes_images.json (que l'atelier affiche sous chaque image)."""
+    jour = time.strftime("%Y-%m-%d %H:%M")
+    for pid in sorted({x["projet"] for x in lot}):
+        f = data / "projets" / pid / "notes_images.json"
+        notes = json.loads(f.read_text(encoding="utf-8")) if f.exists() else {}
+        for x in lot:
+            if x["projet"] == pid and "score" in res.get(x["image"], {}):
+                notes[x["image"]] = res[x["image"]] | {"temps": x["temps"], "date": jour}
+        f.write_text(json.dumps(notes, indent=1), encoding="utf-8")
+
+
+class Controleur:
+    """Pod du controleur d'images (voir controle.py) : ouvrir() une fois, noter() autant de lots qu'on veut, fermer()
+    toujours (dans un finally) : le pod est supprime."""
+
+    def __init__(self, cfg, data):
+        import secrets
+        self.cfg, self.data, self.pod_id, self.cost, self.t0, self.journal, self.pret = cfg, Path(data), None, 0.0, time.time(), "", False
+        self.jtok = secrets.token_urlsafe(24)
+        self.H = {"Authorization": f"token {self.jtok}"}
+
+    def api(self, m, p, d=None, essais=None, **k):
+        from .http import request
         for n in range(essais or (10 if m != "GET" else 1)):
             try:
-                return request(m, f"https://{hote}/api/{p}", data=d, headers=H, **k)
+                return request(m, f"https://{self.pod_id}-8888.proxy.runpod.net/api/{p}", data=d, headers=self.H, **k)
             except Exception as e:
                 err = e
                 if "404" not in str(e):
@@ -669,14 +677,20 @@ def cmd_controle(a):
                 time.sleep(10)
         raise err
 
-    def texte(p):
-        return api("GET", f"contents/{D}/{p}?content=1&format=text", retries=1)["content"]
+    def texte(self, p):
+        from . import controle as ct
+        return self.api("GET", f"contents/{ct.DOSSIER}/{p}?content=1&format=text", retries=1)["content"]
 
-    res = {}
-    try:
+    def ouvrir(self):
+        from . import controle as ct
+        D = ct.DOSSIER
+        self.pod_id, cost, gpu = runpod.create_pod(self.cfg["infra"], f"{PREFIX}controle-{int(self.t0)}", env={"JUPYTER_PASSWORD": self.jtok})
+        self.t0 = time.time()  # le cout se compte a partir de la creation du pod
+        self.cost = float(cost or 0)
+        log(f"controle : pod {self.pod_id} cree ({gpu}, {cost} $/h)")
         for _ in range(60):
             try:
-                api("GET", "contents?content=0", timeout=15, retries=1)
+                self.api("GET", "contents?content=0", timeout=15, retries=1)
                 break
             except Exception:
                 time.sleep(10)
@@ -685,94 +699,210 @@ def cmd_controle(a):
         for d in (D, f"{D}/in"):
             for _ in range(8):
                 try:
-                    api("GET", f"contents/{d}?content=0", retries=1)
+                    self.api("GET", f"contents/{d}?content=0", retries=1)
                     break
                 except Exception:
                     try:
-                        api("PUT", f"contents/{d}", {"type": "directory"}, essais=1, retries=1)
+                        self.api("PUT", f"contents/{d}", {"type": "directory"}, essais=1, retries=1)
                         break
                     except Exception:
                         time.sleep(10)
             else:
                 raise RuntimeError(f"dossier {d} inaccessible sur le volume")
-        for nom, f in fichiers.items():
-            api("PUT", f"contents/{D}/in/{nom}", {"type": "file", "format": "base64", "content": base64.b64encode(f.read_bytes()).decode()}, timeout=300)
-        for nom, contenu in (("lot.json", json.dumps(lot)), ("cases.json", json.dumps(ct.CASES)), ("ouinon.json", json.dumps(ct.OUINON)), ("ouinon_desc.txt", ct.OUINON_DESC), ("modele.txt", ct.MODELE),
-                             ("systeme.txt", ct.SYSTEME), ("question.txt", ct.QUESTION), ("lot.py", ct.LOT), ("run.sh", ct.RUN)):
-            api("PUT", f"contents/{D}/{nom}", {"type": "file", "format": "text", "content": contenu})
-        for nom in ("fin", "run.log", "out.json"):
-            try:
-                api("DELETE", f"contents/{D}/{nom}", essais=1, retries=1)
-            except Exception:
-                pass
-        log(f"{len(lot)} image(s) deposee(s)")
-        ordre = f"(nohup sh -c 'bash /workspace/{D}/run.sh > /workspace/{D}/run.log 2>&1; echo $? > /workspace/{D}/fin' >/dev/null 2>&1 &)\r"
-        for _ in range(3):
-            term = api("POST", "terminals")["name"]
-            si.ws_envoyer(hote, f"/terminals/websocket/{term}", H, json.dumps(["stdin", ordre]), _ctx)
-            time.sleep(10)
-            try:
-                api("GET", f"contents/{D}/run.log?content=0", essais=3, retries=1)
-                break
-            except Exception:
-                log("le script n'a pas demarre : nouvel essai")
-        else:
-            raise RuntimeError("le script n'a pas demarre sur le pod")
-        log("calcul lance (la premiere fois, le modele de 16 Go est telecharge)")
-        vu, code, journal = 0, None, ""
-        while time.time() - t0 < 45 * 60:
-            time.sleep(20)
-            try:
-                journal = texte("run.log")
-                for l in journal[vu:].splitlines():
-                    if l.startswith(("MODELE", "VISAGES", "RATE", "PYTHON")):
-                        log(l[:60])
-                vu = len(journal)
-            except Exception:
-                pass
-            try:
-                code = texte("fin").strip()
-                break
-            except Exception:
-                pass
-        if code is None:
-            raise RuntimeError("delai depasse")
+        for nom, contenu in (("cases.json", json.dumps(ct.CASES)), ("ouinon.json", json.dumps(ct.OUINON)), ("ouinon_desc.txt", ct.OUINON_DESC),
+                             ("modele.txt", ct.MODELE), ("systeme.txt", ct.SYSTEME), ("question.txt", ct.QUESTION), ("lot.py", ct.LOT), ("run.sh", ct.RUN)):
+            self.api("PUT", f"contents/{D}/{nom}", {"type": "file", "format": "text", "content": contenu})
+        self.pret = True
+
+    def noter(self, lot, fichiers, delai_min=45):
+        """Fait noter un lot ; rend {image: notes}. Aucune image ne reste sur le volume."""
+        import base64
+        from . import controle as ct
+        from . import sonimage as si
+        from .http import _ctx
+        if not self.pret:
+            raise RuntimeError("controleur pas pret")
+        D, t0 = ct.DOSSIER, time.time()
         try:
-            journal = texte("run.log")
-        except Exception:
-            pass
-        try:
-            res = json.loads(texte("out.json"))
-        except Exception:
-            for l in journal.strip().splitlines()[-25:]:
-                log("  | " + l[:200])
-            raise RuntimeError(f"script en echec (code {code})")
-        for l in journal.splitlines():  # ce qui a empeche un des deux outils de tourner
-            if "Error" in l or l.startswith("Traceback"):
-                log("  | " + l[:200])
-        for nom in fichiers:  # aucune image ne reste sur le volume
+            for nom, f in fichiers.items():
+                self.api("PUT", f"contents/{D}/in/{nom}", {"type": "file", "format": "base64", "content": base64.b64encode(f.read_bytes()).decode()}, timeout=300)
+            self.api("PUT", f"contents/{D}/lot.json", {"type": "file", "format": "text", "content": json.dumps(lot)})
+            for nom in ("fin", "run.log", "out.json"):
+                try:
+                    self.api("DELETE", f"contents/{D}/{nom}", essais=1, retries=1)
+                except Exception:
+                    pass
+            log(f"controle : {len(lot)} image(s) deposee(s)")
+            ordre = f"(nohup sh -c 'bash /workspace/{D}/run.sh > /workspace/{D}/run.log 2>&1; echo $? > /workspace/{D}/fin' >/dev/null 2>&1 &)\r"
+            for _ in range(3):
+                term = self.api("POST", "terminals")["name"]
+                si.ws_envoyer(f"{self.pod_id}-8888.proxy.runpod.net", f"/terminals/websocket/{term}", self.H, json.dumps(["stdin", ordre]), _ctx)
+                time.sleep(10)
+                try:
+                    self.api("GET", f"contents/{D}/run.log?content=0", essais=3, retries=1)
+                    break
+                except Exception:
+                    log("controle : le script n'a pas demarre, nouvel essai")
+            else:
+                raise RuntimeError("le script n'a pas demarre sur le pod")
+            vu, code, journal = 0, None, ""
+            while time.time() - t0 < delai_min * 60:
+                time.sleep(20)
+                try:
+                    journal = self.texte("run.log")
+                    for l in journal[vu:].splitlines():
+                        if l.startswith(("MODELE", "VISAGES", "RATE", "PYTHON")):
+                            log("controle : " + l[:60])
+                    vu = len(journal)
+                except Exception:
+                    pass
+                try:
+                    code = self.texte("fin").strip()
+                    break
+                except Exception:
+                    pass
+            if code is None:
+                raise RuntimeError("delai depasse")
             try:
-                api("DELETE", f"contents/{D}/in/{nom}", essais=1, retries=1)
+                journal = self.texte("run.log")
             except Exception:
                 pass
-    finally:
-        runpod.delete_pod(pod_id)
-        log(f"pod {pod_id} supprime")
-    sortie = data / "work" / "controle"
-    sortie.mkdir(parents=True, exist_ok=True)
-    (sortie / f"run-{time.strftime('%Y%m%d-%H%M')}.log").write_text(journal, encoding="utf-8")
-    jour = time.strftime("%Y-%m-%d %H:%M")
+            self.journal += journal + "\n"
+            try:
+                res = json.loads(self.texte("out.json"))
+            except Exception:
+                for l in journal.strip().splitlines()[-25:]:
+                    log("  | " + l[:200])
+                raise RuntimeError(f"script en echec (code {code})")
+            for l in journal.splitlines():  # ce qui a empeche un des deux outils de tourner
+                if "Error" in l or l.startswith("Traceback"):
+                    log("  | " + l[:200])
+            return res
+        finally:
+            for nom in fichiers:
+                try:
+                    self.api("DELETE", f"contents/{D}/in/{nom}", essais=1, retries=1)
+                except Exception:
+                    pass
+
+    def fermer(self):
+        if self.pod_id:
+            try:
+                runpod.delete_pod(self.pod_id)
+                log(f"controle : pod {self.pod_id} supprime")
+            except Exception as e:
+                log(f"ATTENTION : suppression du pod {self.pod_id} echouee : {e}")
+        if self.journal:
+            sortie = self.data / "work" / "controle"
+            sortie.mkdir(parents=True, exist_ok=True)
+            (sortie / f"run-{time.strftime('%Y%m%d-%H%M')}.log").write_text(self.journal, encoding="utf-8")
+
+    def cout(self):
+        return round((time.time() - self.t0) / 3600 * self.cost, 2) if self.pod_id else 0.0
+
+
+def cmd_controle(a):
+    """controle --nom pNNNN[,pNNNN] : fait noter toutes les images des projets par le mesureur de visage et le modele
+    de vision (voir controle.py). Les notes sont rangees dans projets/<id>/notes_images.json ; rien d'autre n'est change
+    dans les projets. Le journal du pod est garde dans data/work/controle/."""
+    data, lot, fichiers = Path(a.data), [], {}
     for pid in a.nom.split(","):
-        f = data / "projets" / pid / "notes_images.json"
-        notes = json.loads(f.read_text(encoding="utf-8")) if f.exists() else {}
-        for x in lot:
-            if x["projet"] == pid and "score" in res.get(x["image"], {}):
-                notes[x["image"]] = res[x["image"]] | {"temps": x["temps"], "date": jour}
-        f.write_text(json.dumps(notes, indent=1), encoding="utf-8")
-    mins = (time.time() - t0) / 60
-    print(json.dumps({"controle": len([r for r in res.values() if "score" in r]), "images": len(lot), "minutes": round(mins, 1),
-                      "cost_usd": round(mins / 60 * float(cost or 0), 2)}))
+        l, f = controle_lot(data, pid)
+        lot += l
+        fichiers |= f
+    if not lot:
+        raise RuntimeError("aucune image a controler")
+    c, res = Controleur(load_config(a), data), {}
+    try:
+        c.ouvrir()
+        res = c.noter(lot, fichiers)
+    finally:
+        c.fermer()
+    controle_ranger(data, lot, res)
+    print(json.dumps({"controle": len([r for r in res.values() if "score" in r]), "images": len(lot),
+                      "minutes": round((time.time() - c.t0) / 60, 1), "cost_usd": c.cout()}))
     return 0
+
+
+SEUIL_RELANCE = 4   # une scene dont aucune image ne depasse cette note sur 10 est refaite
+RELANCES = 2        # nouvelles tentatives au plus
+
+
+def cmd_serie(a):
+    """serie pNNNN r12.json r13.json r14.json : plusieurs images par scene, controlees. Chaque fichier de plans est une
+    variante des memes scenes (ecrits par l'atelier) ; ils sont executes l'un apres l'autre, puis le controleur note les
+    images. Une scene dont aucune image ne depasse SEUIL_RELANCE est refaite seule (autre tirage), RELANCES fois au plus.
+    L'atelier propose ensuite la mieux notee ; le proprietaire garde le choix. Un controleur en panne n'arrete rien :
+    les images restent, sans note."""
+    import copy
+    import random
+    import re
+    import signal
+    import threading
+    signal.signal(signal.SIGTERM, lambda *_: sys.exit(143))  # arret demande : le finally supprime le pod du controleur
+    data, pid = Path(a.data), a.projet
+    jobs = [Path(j) for j in a.jobs]
+    d, runs, echecs = jobs[0].parent, {j.stem for j in jobs}, 0
+    c = Controleur(load_config(a), data)
+    ouverture = {}
+
+    def ouvrir():
+        try:
+            c.ouvrir()
+        except Exception as e:
+            ouverture["erreur"] = str(e)[:300]
+
+    def lancer(j):
+        return cmd_run(argparse.Namespace(job=str(j), data=a.data, out=a.out, pod_id=a.pod_id, keep_pod=False, stills_only=True, config=a.config))
+
+    fil = threading.Thread(target=ouvrir, daemon=True)
+    try:
+        for i, j in enumerate(jobs):
+            if i == len(jobs) - 1:  # le pod du controleur demarre pendant la derniere variante
+                fil.start()
+            echecs += bool(lancer(j))
+        try:
+            fil.join()
+            if "erreur" in ouverture:
+                raise RuntimeError(ouverture["erreur"])
+            base = json.loads(jobs[0].read_text(encoding="utf-8"))
+            for tour in range(RELANCES + 1):
+                lot, fichiers = controle_lot(data, pid, runs)
+                nf = data / "projets" / pid / "notes_images.json"
+                deja = json.loads(nf.read_text(encoding="utf-8")) if nf.exists() else {}
+                neuf = [x for x in lot if x["image"] not in deja]
+                if neuf:
+                    controle_ranger(data, neuf, c.noter(neuf, {x["image"]: fichiers[x["image"]] for x in neuf}))
+                notes = json.loads(nf.read_text(encoding="utf-8")) if nf.exists() else {}
+                par = {}
+                for x in lot:
+                    s = (notes.get(x["image"]) or {}).get("score", -1)
+                    if isinstance(s, int) and s >= 0:
+                        par.setdefault(re.search(r"_(s\d+)\.png$", x["image"]).group(1), []).append(s)
+                rates = [s for s, l in par.items() if max(l) <= SEUIL_RELANCE]
+                log(f"controle : {len(par)} scene(s) notee(s), a refaire : {', '.join(rates) or 'aucune'}")
+                if not rates or tour == RELANCES:
+                    break
+                n = max(int(f.stem[1:]) for f in d.glob("r*.json")) + 1
+                job = copy.deepcopy(base) | {"name": f"{pid}r{n}"}
+                job["shots"] = [sh for sh in job["shots"] if sh["name"] in rates]
+                for sh in job["shots"]:
+                    sh["seed"] = random.randint(1, 999999)
+                    m = re.fullmatch(rf"{base['name']}_(s\d+)\.png", Path(str(sh.get("image") or "")).name)
+                    if m and m.group(1) in rates:  # tiree d'une image elle-meme refaite : partir de la nouvelle
+                        sh["image"] = str(Path(sh["image"]).with_name(f"{pid}r{n}_{m.group(1)}.png"))
+                (d / f"r{n}.json").write_text(json.dumps(job, ensure_ascii=False, indent=1), encoding="utf-8")
+                runs.add(f"r{n}")
+                log(f"relance {tour + 1} sur {RELANCES} : {len(job['shots'])} image(s)")
+                lancer(d / f"r{n}.json")
+        except Exception as e:  # le controle est un plus : sans lui les images restent, sans note
+            log(f"controle impossible : {str(e)[:300]}")
+    finally:
+        if fil.is_alive():
+            fil.join(timeout=900)
+        c.fermer()
+        log(f"rapport : {json.dumps({'serie': sorted(runs), 'controle_usd': c.cout()})}")
+    return 1 if echecs == len(jobs) else 0
 
 
 def effacer_attente(pod_id, jtok, data):
@@ -1029,6 +1159,13 @@ def main():
     co.add_argument("--nom", required=True, help="identifiants de projet separes par des virgules (pNNNN,pNNNN)")
     co.add_argument("--data", default=os.environ.get("DATA_DIR", str(ROOT / "server" / "data")))
     co.set_defaults(fn=cmd_controle)
+    se = sub.add_parser("serie", help="plusieurs images par scene (un fichier de plans par variante), notees par le controleur ; les scenes ratees sont refaites")
+    se.add_argument("projet", help="identifiant du projet (pNNNN)")
+    se.add_argument("jobs", nargs="+")
+    se.add_argument("--data", default=os.environ.get("DATA_DIR", str(ROOT / "server" / "data")))
+    se.add_argument("--pod-id", help="pod des images (ni cree ni supprime)")
+    se.add_argument("--out", help="dossier de sortie")
+    se.set_defaults(fn=cmd_serie)
     a = ap.parse_args()
     try:
         sys.exit(a.fn(a) or 0)

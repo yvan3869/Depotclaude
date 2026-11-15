@@ -414,3 +414,14 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
   jamais : a ne pas compter. Les notes vont dans `data/projets/<pid>/notes_images.json` et s'affichent dans
   l'Atelier sous les cases de verdict de chaque image (« Controle automatique (essai) ») ; rien n'est refait d'apres
   elles. Reste a decider : la relance automatique (3 images par scene), quand les notes seront jugees fiables.
+- 15/11 : relance automatique branchee, apres accord du proprietaire. Un lancement d'images depuis l'Atelier calcule
+  trois images par scene (`pilot serie` : trois fichiers de plans, tirage decale), le controleur les note pendant
+  que le pod de calcul reste en veille, et une scene dont aucune image ne depasse 4 est refaite seule, deux fois au
+  plus (`SEUIL_RELANCE`, `RELANCES`). L'Atelier propose la mieux notee de la serie et affiche la note sous chaque
+  vignette ; le proprietaire garde le choix. Les alertes « tenue » et « en trop » s'affichent sans rien declencher.
+  Un controleur en panne n'arrete rien : les images restent, sans note. Essai reel sur p0004 (2 scenes, 6 images) :
+  notes 5 a 8, aucune relance, image proposee = la mieux notee ; 13,5 min en tout (8,5 min d'images, 5 min de
+  controle dont 3 d'installation), 0,27 $. Defaut connu : une minute a une minute et demie par image, parce que les
+  trois variantes alternent le modele d'image et le modele de retouche ; a regrouper par modele. La relance
+  elle-meme n'a pas encore tourne en reel (aucune scene sous le seuil). Plus tard, vers 50 verdicts du
+  proprietaire : recalculer le seuil d'apres `verdicts.json` compare a `notes_images.json`.
