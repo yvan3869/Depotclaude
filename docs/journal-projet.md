@@ -684,3 +684,9 @@ modeles de retouche ne servent qu'a preparer (brouillon, tenue, lieu). Rien n'es
   ajoutee aux clips et le reglage du montage suivent ce choix. Ordre des chantiers : videos et leur qualite, son,
   voix, synchro des levres.
 - Depense du jour : 7,50 $ sur 20.
+
+## 2026-11-15 (fin de soiree) : rendu par video, planches
+
+- Rendu de la video (modele `2026-11-15h`) mis en ligne apres la fin des planches du proprietaire : `rendu: main` ou `pose` propose par le script, clips en camera posee quand le rendu n'est pas « main ». Non essaye a l'image.
+- Planches : « wearing » retire cote serveur devant un etat sans vetement ; bouton « Supprimer la serie » ; « Tout garder / Tout ecarter » visibles aussitot ; file d'attente sur une ligne qui defile ; portrait de depart annonce « sans objet » quand le personnage a une LoRA.
+- Verification des 8 dernieres series du proprietaire (fiches et journaux seulement) : LoRA du personnage et LoRA en plus appliquees partout, force 0,6, aucune erreur. Aucune depense de ma part.
