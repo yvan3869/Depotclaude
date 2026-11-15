@@ -473,3 +473,6 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
   sinon. Controle des plans : zoom vers un cadre plus serre, dezoom vers un cadre plus large (cadre lu dans `still`),
   un seul mouvement vif, temps plat signale. Page : le decoupage est ecrit sur chaque tuile ; tuile plus compacte
   (image a gauche, verdict dessous). Essais sur p0004 (montages hors projet, planches d'images relues). Aucune depense GPU.
+- 15/11, menage demande par le proprietaire : projets p0001, p0002 et p0003 supprimes (dossiers, dossiers de calcul
+  `work/p000Xr*`, depots de plans qui les visaient), chaine en pause arretee. Reste p0004, projet d'essai tous publics.
+  Gardes : le releve des depenses, la page Test, la Bibliotheque et les fiches de personnage.
