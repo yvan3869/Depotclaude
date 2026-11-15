@@ -1042,6 +1042,7 @@ function rendreAtelier() {
     if (!ll.some(x => x.cle === AC.l)) AC.l = '';
     const o = (l, v) => l.map(x => `<option value="${x.cle}" ${x.cle === v ? 'selected' : ''}>${esc(x.fr || x.en)}${x.genre === 'dessous' ? ' (sous-vêtements)' : ''}</option>`).join('');
     corps = `<div class="panel"><div class="mut">La cabine d'essayage : deux images d'elle portant une tenue de sa garde-robe, pour voir ce que la tenue donne avant de l'utiliser. Seules les tenues et les lieux qui ont une image retenue sont proposés.</div>
+      ${(m => m.length ? `<div class="err" style="margin-top:6px">Pas encore proposé ici, faute d'image retenue : ${m.map(x => esc(x.fr || x.en) + (x.genre === 'dessous' ? ' (sous-vêtements)' : '')).join(' ; ')}. <a class="lien" href="#/atelier/${esc(A.slug)}/tenues">Ouvrir la Garde-robe</a> et toucher l'image à retenir${m.some(x => !x.images.length) ? ' (ou d\'abord « créer ses images » si elle n\'en a pas)' : ''}.</div>` : '')(A.tenues.filter(x => !x.choix))}
       ${tt.length ? `<div class="row haut" style="margin-top:6px">${(x => x ? `<img src="${af(x.choix)}" alt="" style="width:72px;aspect-ratio:9/16;object-fit:cover;border-radius:6px">` : '')(tt.find(x => x.cle === AC.t))}
         <div class="g"><label>Tenue<select data-ac="t">${o(tt, AC.t)}</select></label>
         <label>Lieu<select data-ac="l"><option value="">Fond neutre</option>${o(ll, AC.l)}</select></label>
