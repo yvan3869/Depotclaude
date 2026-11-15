@@ -314,13 +314,19 @@ Les LoRA supplementaires (hors LoRA du personnage) se gerent dans la page `/atel
 ## Atelier du personnage
 
 Page `#/atelier/<slug>` de l'atelier (lien dans le Casting et dans la fiche). Elle fabrique ce qui fait tenir un
-personnage d'une video a l'autre, par description, sans depot de photo. Quatre onglets :
+personnage d'une video a l'autre, par description ou d'apres une photo. Cinq onglets :
 
 - **Lieux** et **Garde-robe** : les lignes sont celles de la fiche (`lieux`, `tenues`, « francais | anglais ») ; rien
   n'est recopie. Chaque ligne recoit des images (lieu : la piece vide ; tenue : les vetements a plat sur fond blanc,
   sans personne), le proprietaire en retient une. Une ligne s'ajoute par une phrase en francais (le redacteur IA ecrit
   la ligne, relue avant ajout) ; une tenue peut etre rangee dans les sous-vetements. L'image retenue sert au tirage
   `decor` de la Production.
+  Une photo peut remplacer la description (bouton sur chaque ligne, champ Photo a l'ajout) : la photo d'un lieu
+  devient son image ; d'une photo de vetement, seul ou porte, l'outil tire le vetement a plat sur fond blanc (deux
+  images), la photo elle-meme n'est pas montree dans la fiche. Aucune personne reelle reconnaissable.
+- **Cabine** : une tenue de la garde-robe portee par elle, sur fond neutre ou dans un de ses lieux, dans une pose
+  d'une courte liste (deux images par essayage, par retouche a plusieurs images : elle en tenue neutre, la tenue a
+  plat, le lieu). Les essayages se rangent sous la tenue. Sous-vetements portes : lances et juges par le proprietaire.
 - **Corps** : planches (photos d'elle) par series de 12 a 36, cadrages, poses et fonds varies, legende ecrite avec
   chaque planche. Avec la LoRA du personnage si elle existe ; sinon par retouche d'un portrait de depart (quatre
   portraits crees d'apres sa description, le proprietaire en retient un). Tenue de la serie, case « pour adultes » et
@@ -330,8 +336,18 @@ personnage d'une video a l'autre, par description, sans depot de photo. Quatre o
   devient la LoRA du personnage que si le proprietaire l'adopte ; la precedente se remet d'un bouton.
 
 Fichiers : `server/data/personnages/<slug>/` (`biblio.json` : choix, planches gardees, versions ; images `l_`, `t_`,
-`v_`, `c_`, `e_` ; `lots/` : lots et journaux des calculs). Code : `tools/triage/biblio.py`, `server/pilot/perso.py`
+`v_`, `c_`, `e_`, `p_` (essayages), `n_1.png` (elle en tenue neutre) ; `lots/` : lots et journaux des calculs). Code : `tools/triage/biblio.py`, `server/pilot/perso.py`
 (`python -m pilot perso <lot>` pour des images, `python -m pilot entrainer <lot>` pour une LoRA).
+
+## Comparer les deux methodes
+
+Page `#/cmp/<projet>` (lien « Comparer les methodes » en tete d'un projet). Pour un ou plusieurs temps, un lieu et une tenue du
+personnage, chaque scene est creee deux fois avec le meme tirage et les LoRA du projet, du temps et de la scene :
+en pose imposee seule (lieu et tenue dits par le texte), puis avec le lieu et la tenue de la bibliotheque (tirage
+`decor`). 1 a 3 images par scene et par methode, montrees en deux rangees. Les images vont dans le dossier `cmp/` du
+projet : ses prises, ses choix et ses tirages ne changent pas. Sans image retenue, la premiere image de la ligne sert.
+Ne sont pas comparables (la methode `decor` ne s'y applique pas) : gros plans, scenes libres, scenes ou une autre
+personne est a l'image. Code : `comparer`, `comparaisons` de `tools/triage/atelier.py` (`/api/a/comparer`).
 
 ## Montage
 Le montage vise une duree (15 s conseille pour l'accroche) en raccourcissant les plans, sauf du cote d'un raccord

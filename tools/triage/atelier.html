@@ -107,7 +107,7 @@ const CONSIGNES_SCENE = ['Plus sensuelle, toujours suggestive', 'Plus près de l
 
 // --- Comparaison des methodes : memes scenes, memes tirages, en deux rangees ---
 let C = null, cT = null;
-const CM = {t: '', l: '', ten: '', n: 2};
+const CM = {t: null, l: '', ten: '', n: 2};
 async function vueComparer(pid) {
   C = await api('/api/a/comparer?id=' + encodeURIComponent(pid));
   rendreComparer();
@@ -119,9 +119,10 @@ async function vueComparer(pid) {
 }
 function rendreComparer() {
   const ts = Object.keys(C.temps), u = n => `/afile/${C.id}/${n}`;
-  if (!ts.includes(String(CM.t))) CM.t = ts.find(t => C.temps[t].ok) || ts[0] || '';
+  if (!CM.t) CM.t = ts.filter(t => C.temps[t].ok).slice(0, 1);
+  CM.t = CM.t.filter(t => ts.includes(t));
   if (!C.lieux.some(x => x.en === CM.l)) CM.l = (C.lieux.find(x => x.en === C.lieu_fiche) || C.lieux[0] || {}).en || '';
-  const ok = (C.temps[CM.t] || {}).ok || 0, n = 2 * CM.n * ok, T1 = +CM.t === 1;
+  const ok = CM.t.reduce((a, t) => a + C.temps[t].ok, 0), n = 2 * CM.n * ok, T1 = CM.t.length === 1 && +CM.t[0] === 1;
   const sel = (k, l) => `<select data-cm="${k}">${l.map(([v, lab]) => `<option value="${esc(v)}" ${String(v) === String(CM[k]) ? 'selected' : ''}>${esc(lab)}</option>`).join('')}</select>`;
   const nom = (l, en) => (l.find(x => x.en === en) || {}).fr || en;
   const rang = (titre, l) => `<div class="mut" style="margin-top:6px"><b>${titre}</b></div>${l.length ? `<div class="bgal">${l.map(f => `<a href="${u(f)}" target="_blank"><img loading="lazy" src="${u(f)}" alt=""></a>`).join('')}</div>` : '<div class="mut">Pas encore d\'image.</div>'}`;
@@ -129,16 +130,17 @@ function rendreComparer() {
     <h2>Comparer les deux méthodes</h2>
     <p class="mut">Les mêmes scènes sont fabriquées deux fois, avec le même tirage au sort et les mêmes LoRA. En haut, la méthode actuelle : le lieu et la tenue viennent du texte. En bas, la nouvelle : le lieu et la tenue viennent des images de l'atelier du personnage. Rien ne change dans le projet : ces images restent sur cette page.</p>
     <div class="panel">
-      <label>Temps${sel('t', ts.map(t => [t, `${t}. ${TEMPS[t][0]} : ${C.temps[t].ok} scène(s) sur ${C.temps[t].scenes}`]))}</label>
-      ${ok ? '' : '<div class="mut" style="color:var(--warn)">Aucune scène de ce temps ne peut être comparée. La nouvelle méthode ne s\'applique ni aux gros plans, ni aux scènes libres, ni aux scènes où une autre personne est à l\'image.</div>'}
+      <div class="mut">Temps à comparer</div>
+      ${ts.map(t => `<label class="row" style="gap:8px"><input type="checkbox" data-cmt="${t}" style="width:auto" ${CM.t.includes(t) ? 'checked' : ''} ${C.temps[t].ok ? '' : 'disabled'}><span>${t}. ${TEMPS[t][0]} : ${C.temps[t].ok} scène(s) comparable(s) sur ${C.temps[t].scenes}</span></label>`).join('')}
+      ${ts.every(t => C.temps[t].ok) ? '' : '<div class="mut" style="color:var(--warn)">Un temps à 0 ne peut pas être comparé. La nouvelle méthode ne s\'applique ni aux gros plans, ni aux scènes libres, ni aux scènes où une autre personne est à l\'image.</div>'}
       <label>Lieu${C.lieux.length ? sel('l', C.lieux.map(x => [x.en, x.fr || x.en])) : '<div class="mut">Aucun lieu du personnage n\'a d\'image : en créer dans son atelier.</div>'}</label>
-      <label>Tenue${sel('ten', [['', T1 ? 'Celle de la fiche de continuité' : 'Aucune : dite par le texte'], ...(T1 ? [['aucune', 'Aucune : dite par le texte']] : []), ...C.tenues.map(x => [x.en, x.fr || x.en])])}</label>
+      <label>Tenue${sel('ten', [['', T1 ? 'Celle de la fiche de continuité' : CM.t.includes('1') ? 'Fiche de continuité au temps 1, aucune ensuite' : 'Aucune : dite par le texte'], ...(CM.t.includes('1') ? [['aucune', 'Aucune : dite par le texte']] : []), ...C.tenues.map(x => [x.en, x.fr || x.en])])}</label>
       <label>Images par scène et par méthode${sel('n', [[1, '1'], [2, '2'], [3, '3']])}</label>
       <div class="row"><button class="p" data-a="cmplancer" ${ok && CM.l && !C.occupe && E.can_run ? '' : 'disabled'}>${ic('lancer')}Lancer la comparaison</button>
         <span class="mut">${C.occupe ? 'Un calcul est en cours : attendre sa fin.' : ok ? `${n} images, environ ${usd((C.pod ? 0.05 : 0.12) + n * 0.02)}, ${Math.round(2 + n * 1.6)} min.` : ''}</span></div>
       <div class="mut"><a class="lien" href="#/atelier/${esc(C.personnage)}">${ic('personnage')}Atelier du personnage</a> : lieux et tenues disponibles. Sans image retenue, la première image de la ligne sert.</div>
     </div>
-    ${C.lancements.map(x => `<h2>Temps ${x.temps} · ${esc(nom(C.lieux, x.lieu))}${x.tenue ? ' · ' + esc(nom(C.tenues, x.tenue)) : ''}</h2>
+    ${C.lancements.map(x => `<h2>Temps ${[].concat(x.temps).join(', ')} · ${esc(nom(C.lieux, x.lieu))}${x.tenue ? ' · ' + esc(nom(C.tenues, x.tenue)) : ''}</h2>
       <div class="mut">${esc(x.date || '')} · ${x.etat === 'en cours' ? `en cours, ${x.faites} image(s) sur ${x.attendues}` : x.etat === 'termine' ? `terminé, ${x.faites} image(s)` : `interrompu, ${x.faites} image(s) sur ${x.attendues}`}${x.echecs ? ` · ${x.echecs} échec(s)` : ''}</div>
       ${x.scenes.map(s => `<div class="panel"><b>Scène ${esc(s.id.slice(1))}</b>${rang('Méthode actuelle : lieu et tenue venus du texte', s.a)}${rang('Nouvelle méthode : lieu et tenue venus des images', s.b)}</div>`).join('')}`).join('') || '<p class="mut">Aucune comparaison lancée pour ce projet.</p>'}`;
 }
@@ -1025,7 +1027,7 @@ Object.assign(actions, {
     bMaj(r);
   },
   bphoto: el => { if (el.dataset.q === 'tenues' && A.occupe) return toast('Un calcul est en cours : attendre sa fin'); const i = document.createElement('input'); i.type = 'file'; i.accept = 'image/*'; i.onchange = () => i.files[0] && bEnvoi(i.files[0], el.dataset.q, el.dataset.cle).catch(e => toast(e.message)); i.click(); },
-  cmplancer: async () => { const r = await api('/api/a/comparer', {id: C.id, temps: +CM.t, lieu: CM.l, tenue: CM.ten, variantes: +CM.n}); toast(`Comparaison lancée : ${r.lance} images`, true); await vueComparer(C.id); },
+  cmplancer: async () => { const r = await api('/api/a/comparer', {id: C.id, temps: CM.t.map(Number), lieu: CM.l, tenue: CM.ten, variantes: +CM.n}); toast(`Comparaison lancée : ${r.lance} images`, true); await vueComparer(C.id); },
   bessayer: async () => { await api('/api/a/b/essayer', {slug: A.slug, tenue: AC.t, lieu: AC.l, pose: +AC.p}); toast('Essayage lancé', true); await bMaj(); },
   bjeter: async el => { if (!confirm('Retirer cette image ?')) return; bMaj(await api('/api/a/b/retirer', {slug: A.slug, image: el.dataset.n})); },
   bvisage: async () => { await api('/api/a/b/visage', {slug: A.slug}); toast('Portraits lancés', true); await bMaj(); },
@@ -1045,7 +1047,7 @@ Object.assign(actions, {
   badopter: async el => { const f = $(`[data-bf="${el.dataset.n}"]`, vue).value; if (!confirm(`Faire de cette version la LoRA du personnage, à la force ${f} ? L'ancienne reste disponible (Revenir à la précédente).`)) return; bMaj(await api('/api/a/b/adopter', {slug: A.slug, lora: el.dataset.n, force: +f})); await etat(); },
   brevenir: async () => { if (!confirm('Remettre la LoRA précédente ?')) return; bMaj(await api('/api/a/b/revenir', {slug: A.slug})); await etat(); },
 });
-vue.addEventListener('change', e => { if (e.target.dataset.cm) { CM[e.target.dataset.cm] = e.target.value; rendreComparer(); } if (e.target.dataset.ac) { AC[e.target.dataset.ac] = e.target.value; rendreAtelier(); } if (e.target.id === 'bpass') essai(bDevis)(); if (e.target.id === 'bn') { const c = $('#bcout'); if (c && (A.lora || A.visage.choix)) c.textContent = 'environ ' + acout(+e.target.value); } });
+vue.addEventListener('change', e => { if (e.target.dataset.cmt) { CM.t = e.target.checked ? [...CM.t, e.target.dataset.cmt].sort() : CM.t.filter(t => t !== e.target.dataset.cmt); rendreComparer(); } if (e.target.dataset.cm) { CM[e.target.dataset.cm] = e.target.value; rendreComparer(); } if (e.target.dataset.ac) { AC[e.target.dataset.ac] = e.target.value; rendreAtelier(); } if (e.target.id === 'bpass') essai(bDevis)(); if (e.target.id === 'bn') { const c = $('#bcout'); if (c && (A.lora || A.visage.choix)) c.textContent = 'environ ' + acout(+e.target.value); } });
 
 setInterval(() => { if (!document.hidden) etat().catch(() => {}); }, 60000);
 route();

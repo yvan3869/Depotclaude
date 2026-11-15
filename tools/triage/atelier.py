@@ -1821,7 +1821,8 @@ class Atelier:
         """Lance la comparaison d'un temps : chaque scene est creee en pose imposee seule ("a" : lieu et tenue dits par le
         texte) puis avec le lieu et la tenue de la bibliotheque ("b"), memes tirages, memes LoRA. Les images vont dans le
         dossier cmp du projet : ni ses prises, ni ses choix, ni ses tirages ne changent."""
-        pid, t = b["id"], int(b.get("temps") or 1)
+        pid, ts = b["id"], b.get("temps") or 1
+        ts = sorted({int(x) for x in (ts if isinstance(ts, list) else [ts])})  # un ou plusieurs temps dans le meme lancement
         if self.chaine_active():
             raise ValueError(f"une chaîne de production est en cours (projet {self.ch['projet']}) : attendre sa fin ou l'arrêter")
         if self.studio.running():
@@ -1834,26 +1835,27 @@ class Atelier:
             lieu = self.biblio.image(p["personnage"], "l", b.get("lieu") or "", True)
             if not lieu:
                 raise ValueError("choisir un lieu du personnage qui a une image")
-            sc = self._comparables(p, t)
+            sc = [s for t in ts for s in self._comparables(p, t)]
             if b.get("scenes"):
                 sc = [s for s in sc if s["id"] in b["scenes"]]
             if not sc:
                 raise ValueError("aucune scène de ce temps ne peut être comparée : la nouvelle méthode ne s'applique ni aux gros plans, ni aux scènes libres, ni aux scènes où une autre personne est à l'image")
-            v = str(b.get("tenue") or "")
-            ligne = "" if v == "aucune" else v or ((p.get("continuite") or {}).get("tenue") if t == 1 else "")
-            tenue = self.biblio.image(p["personnage"], "t", ligne, True) if ligne else None
+            v, tenues = str(b.get("tenue") or ""), {}
+            for t in ts:  # sans choix : la tenue de la fiche de continuite au temps 1, aucune ensuite (elle se defait)
+                ligne = "" if v == "aucune" else v or ((p.get("continuite") or {}).get("tenue") if t == 1 else "")
+                tenues[t] = self.biblio.image(p["personnage"], "t", ligne, True) if ligne else None
             k = min(max(int(b.get("variantes") or 2), 1), 3)
             d = self._pdir(pid) / "cmp"
             d.mkdir(exist_ok=True)
             n = max([int(f.stem[1:]) for f in d.glob("c*.json") if f.stem[1:].isdigit()] or [0]) + 1
             tmin, tir = self._lib()["tmin"], p.get("tirage") or {}
-            pa = {**p, "tirage": {**tir, str(t): "pose"}}
-            pb = {**p, "tirage": {**tir, str(t): "decor"}, "decors": {**(p.get("decors") or {}), str(t): b["lieu"]}}
-            plus = {"decor": str(lieu)} | ({"tenue_image": str(tenue)} if tenue else {})
+            pa = {**p, "tirage": {**tir, **{str(t): "pose" for t in ts}}}
+            pb = {**p, "tirage": {**tir, **{str(t): "decor" for t in ts}}, "decors": {**(p.get("decors") or {}), **{str(t): b["lieu"] for t in ts}}}
             shots = []
             for s in sc:
                 lo = self._loras_scene(p, s, tmin)  # LoRA du projet, du temps et de la scene, comme a la production
-                seed = (p.get("graines") or {}).get(str(t), s["seed"])
+                seed = (p.get("graines") or {}).get(str(s["temps"]), s["seed"])
+                plus = {"decor": str(lieu)} | ({"tenue_image": str(tenues[s["temps"]])} if tenues[s["temps"]] else {})
                 for m, q, x in (("a", pa, {}), ("b", pb, plus)):
                     for i in range(k):
                         shots.append({"name": f"{s['id']}{m}{i + 1}", "still": self._still(q, s), "seed": seed + i, "tattoos": s["tattoos"],
@@ -1861,7 +1863,7 @@ class Atelier:
                                      | ({"loras": _loras_plan(lo)} if lo else {}) | x)
             job = {"name": f"{pid}c{n}", "character": self.char_override(perso),
                    "defaults": {"still_size": [720, 1280], "mode": "natural", "grain": True, "same_seed": True, "loras": []}, "shots": shots,
-                   "cmp": {"temps": t, "lieu": b["lieu"], "tenue": ligne or "", "variantes": k, "scenes": [s["id"] for s in sc],
+                   "cmp": {"temps": ts, "lieu": b["lieu"], "tenue": v, "variantes": k, "scenes": [s["id"] for s in sc],
                            "date": time.strftime("%Y-%m-%d %H:%M")}}
             _dump(d / f"c{n}.json", job)
             cmd = [sys.executable, "-m", "pilot", "run", str(d / f"c{n}.json"), "--data", str(self.data), "--out", str(d), "--stills-only",
