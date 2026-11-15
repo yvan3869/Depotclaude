@@ -363,3 +363,13 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
   mouvement, texte) ; le reste est sous « Plus ». Les aides sont repliees derriere un « i » (toucher pour lire ;
   bouton de l'en-tete pour toutes les afficher). Rien n'est supprime. Verifie par captures en 390 et 1280 px sur
   p0004, sans erreur. Aucune depense. Disque : 31 Go sur 197.
+- 15/11 : essai, partir de l'image precedente (question du proprietaire). 13 images tous publics sur p0004, meme
+  tirage, cible : autre pose (coudes sur le plan de travail) puis autre tenue. Creee a partir de la precedente
+  (Z-Image, debruitage 0,6 et 0,75) : la pose de depart reste, le geste demande n'est pas fait ; a 0,9 le geste est
+  fait mais il ne reste rien de l'image de depart (resultat egal a une image creee a part). En chaine sur trois
+  images : aucun des gestes demandes n'est fait. Depuis la fin d'un clip : le flou de l'image vidéo est pris pour un
+  autre objet. Creee a part avec le meme tirage : pose et tenue justes, cuisine presque identique d'une image a
+  l'autre. Retouche de la reference (Qwen) : pose et tenue justes, vraie piece gardee, visage un peu moins fidele,
+  pas de LoRA. Conclusion : ne pas partir de l'image precedente ; garder « creee a part » aux temps 3 et 4, avec un
+  tirage commun aux scenes d'un temps. Images dans data/work/girls-ai-essai-i2i. Pod de 5 minutes, environ 0,06 $.
+
