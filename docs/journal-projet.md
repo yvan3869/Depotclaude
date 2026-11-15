@@ -564,3 +564,6 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
   Limites vues : la coiffure ecrite est parfois ignoree ; quand le brouillon montre la personne petite dans un coin,
   l'image finale la recadre plus grande. Surcout constate : environ 0,05 $ par lancement plus 0,006 $ par scene.
   Planche : `data/inbox/p0004essai_pose_imposee.png`.
+- Meme jour, a la demande du proprietaire : la pose imposee devient le tirage par defaut des temps 3 et 4 ; p0004 et
+  p0005 (qui portaient l'ancien defaut `direct` enregistre) passes a `pose` sur ces deux temps. Les images deja
+  retenues ne sont pas refaites. Non verifiable par l'assistant sur ces temps : le proprietaire juge.

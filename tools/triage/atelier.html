@@ -69,7 +69,7 @@ const vue = $('#vue');
 let E = null, D = null, P = null, cur = localStorage.getItem('perso') || '', autoEcrire = '', timer = null, tSave = null, sig = {}, T = 1;
 const ETAPES = [['idee', 'Idée'], ['ecrit', 'Scénario'], ['images', 'Images'], ['clips', 'Clips'], ['monte', 'Montage'], ['valide', 'Validée']];
 const TEMPS = {1: ['Accroche', 'tous publics'], 2: ['Montée', 'suggestif'], 3: ['Dévoilé', 'nu, sans acte'], 4: ['Final', 'explicite']}, NT = [1, 2, 3, 4];
-const TIR = t => (P.tirage || {})[t] || (t <= 2 ? 'ref' : 'direct');
+const TIR = t => (P.tirage || {})[t] || (t <= 2 ? 'ref' : 'pose');
 // Note du controleur d'images (essai) : ce qu'un modele de vision a trouve en comparant l'image a sa description.
 const NOTE_FAUX = {setting: 'décor', outfit: 'tenue', pose: 'geste', object: 'objet', framing: 'cadrage'};
 // Pose decomposee (facultative) : chaque champ rempli est verifie a part par le controleur.
@@ -328,7 +328,7 @@ function rendreProjet() {
       ${dep.length ? `<div class="gt">Scripts livrés</div>${dep.map(depotHtml).join('')}` : ''}
       ${lorasBloc(String(T), `${ic('lora')} LoRA de ce temps`, LT)}
       ${`<label>${ic('image')}Images de ce temps<select data-tir="${T}">${opt([...(P.reference ? [['ref', 'Tirées de la référence']] : []), ['pose', 'Créées à part, pose imposée'], ['direct', 'Créées à part, texte seul']], !P.reference && TIR(T) === 'ref' ? 'pose' : TIR(T))}</select>
-        ${aide('Tirée de la référence, une image garde la pièce, la tenue et à peu près la pose : bon pour un temps où elle reste habillée et bouge peu. Créée à part (visage du personnage et fiche de continuité), la tenue et la pose suivent la description de la scène, au prix d\'un décor moins constant. Pose imposée : un brouillon de la scène est d\'abord tiré, son squelette (un dessin en bâtons du corps) est relevé, et l\'image est créée dessus ; la position du corps et le cadrage écrits sont tenus (sauf gros plan et scène à plusieurs, faits d\'après le texte). Par défaut : référence aux temps 1 et 2 (pose imposée s\'il n\'y a pas de référence), texte seul aux temps 3 et 4.')}</label>`}
+        ${aide('Tirée de la référence, une image garde la pièce, la tenue et à peu près la pose : bon pour un temps où elle reste habillée et bouge peu. Créée à part (visage du personnage et fiche de continuité), la tenue et la pose suivent la description de la scène, au prix d\'un décor moins constant. Pose imposée : un brouillon de la scène est d\'abord tiré, son squelette (un dessin en bâtons du corps) est relevé, et l\'image est créée dessus ; la position du corps et le cadrage écrits sont tenus (sauf gros plan et scène à plusieurs, faits d\'après le texte). Par défaut : référence aux temps 1 et 2 (pose imposée s\'il n\'y a pas de référence), pose imposée aux temps 3 et 4.')}</label>`}
       <div class="row"><span class="mut">Tout le projet :</span><button class="s" data-a="cote" data-c="lora">${ic('lora')}LoRA (${LN(0)})</button>
         <button class="s" data-a="cote" data-c="cont">${ic('epingle')}Continuité${P.reference ? '' : ', sans référence'}</button></div>
     </div></details>

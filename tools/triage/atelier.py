@@ -165,7 +165,7 @@ IMAGES_PAR_SCENE = 3  # images creees par scene a chaque lancement ; le controle
 # Pose imposee (essais du 15/11/2026) : pour une scene de corps creee a part, le pilote tire d'abord un brouillon de la pose,
 # en dessine le squelette et cree l'image dessus : la position et le cadrage ecrits sont tenus. Pas sur un gros plan (le
 # texte suffit), ni a plusieurs (un seul squelette). Elle sert a toute image creee a part, sauf en tirage "direct" (texte
-# seul) : d'office aux temps 1 et 2, au choix du proprietaire (tirage "pose") aux temps 3 et 4, qu'il est seul a pouvoir juger.
+# seul) : c'est le tirage par defaut des temps 3 et 4 (demande du proprietaire, 15/11/2026 : c'est la qu'elle sert le plus).
 POSE = ("cadrage", "angle", "position", "appui", "bassin", "genoux", "mains", "regard")
 POSE_DUE = ("cadrage", "angle", "position", "regard")
 CHAMPS = POSE + ("contact", "autres")
@@ -179,7 +179,7 @@ def _gros_plan(s):
 
 def _tirage(p, t):
     v = (p.get("tirage") or {}).get(str(t))
-    return v if v in TIRAGES else "ref" if t <= 2 else "direct"
+    return v if v in TIRAGES else "ref" if t <= 2 else "pose"
 MARGE = 0.03  # le tremble de main recadre dans une image agrandie d'autant
 JOINT = 1 / 32  # a un raccord continu, la premiere image du clip suivant repete la derniere du precedent : elle est retiree
 

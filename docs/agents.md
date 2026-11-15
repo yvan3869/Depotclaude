@@ -178,9 +178,9 @@ Trois outils evitent qu'une video change de piece, de tenue ou de personne d'une
   reference : elle prend celle que decrit le `still` (champ de pilote `tenue_libre`, pose par la Production).
 - **Tirage des images d'un temps** (`tirage`, au projet, regle par le proprietaire dans la fiche de continuite ;
   ce n'est pas un champ de plan) : `ref` = images tirees de la reference par retouche, `direct` = chaque image creee
-  a part (LoRA du visage, description et fiche de continuite). Par defaut `ref` aux temps 1 et 2, `direct` aux temps
-  3 et 4 : une retouche garde trop la tenue et la pose de la reference pour un temps ou elle se deshabille. En tirage
-  `direct`, le `still` doit donc dire le lieu en plus de la tenue si la fiche ne suffit pas.
+  a part (LoRA du visage, description et fiche de continuite). Par defaut `ref` aux temps 1 et 2, `pose` (creee a part,
+  pose imposee, voir plus bas) aux temps 3 et 4 : une retouche garde trop la tenue et la pose de la reference pour un
+  temps ou elle se deshabille. En tirage `direct` ou `pose`, le `still` doit donc dire le lieu en plus de la tenue si la fiche ne suffit pas.
   Les images creees a part d'un meme temps partent du meme tirage (`graines`, au projet, un nombre par temps, fixe
   a la premiere image du temps) : le decor bouge moins d'une scene a l'autre. « Autre image » tire un nouveau nombre
   pour la scene concernee seulement.
@@ -190,7 +190,7 @@ Trois outils evitent qu'une video change de piece, de tenue ou de personne d'une
   ecrits sont tenus, le visage, la tenue et le lieu viennent du texte et de la LoRA. Un seul brouillon par scene,
   commun a ses trois images. Pas sur un gros plan ni sur une scene a plusieurs (texte seul). Aux temps 1 et 2, toute
   image creee a part l'utilise (image de reference comprise, ou projet sans reference) sauf tirage `direct` ; aux
-  temps 3 et 4 elle ne sert que si le proprietaire choisit `pose`. Rien ne change dans l'ecriture d'un script.
+  temps 3 et 4 c'est le tirage par defaut (`direct` = texte seul, au choix du proprietaire). Rien ne change dans l'ecriture d'un script.
 - **Raccord** (`raccord`, par plan, par rapport au plan precedent du meme temps) :
   - `coupe` (defaut) : le plan a sa propre image, le montage coupe. Pour un changement de cadrage ou d'angle.
   - `continu` : le plan n'a pas d'image propre. Son clip demarre sur la derniere image du clip precedent et
