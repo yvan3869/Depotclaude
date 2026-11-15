@@ -2362,7 +2362,8 @@ def monter(p, media, tmp, out, audio_dir, plateforme=""):
     fin = ",".join([f"fps={fps}"] + tel + ["setsar=1,format=yuv420p"])
     base2 = f"scale={2 * w2}:{2 * h2}:force_original_aspect_ratio=increase:flags=lanczos,crop={2 * w2}:{2 * h2}"
     t0 = 0.0  # instant du plan dans son groupe de plans colles (tremble de main, mouvement de camera)
-    enc = ["-an", "-c:v", "libx264", "-crf", "18", "-preset", "veryfast", "-video_track_timescale", "16384"]
+    # yuv420p impose : un segment sorti en 4:4:4 (texte pose, zoom) ne se lit pas sur un telephone, la video s'y fige
+    enc = ["-an", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "18", "-preset", "veryfast", "-video_track_timescale", "16384"]
     style = m.get("style") or "doux"
     label = _texte(tmp, "label", "AI character", 0.015, 0.04, w, h, alpha=0.92, contour=True) if m["label"] else []
     gains = [1.0, 1.0, 1.0]  # correction de couleur du plan en cours (raccord sans coupe)
