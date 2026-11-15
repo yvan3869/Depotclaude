@@ -98,7 +98,8 @@ Après un calcul, le propriétaire coche un verdict sous chaque image (tenue fau
 visage, corps, décor, cadrage). Ces codes sont dans `server/data/projets/pNNNN/verdicts.json` (une entrée par image ; chaque scène de
 `projet.json` porte le nom de son image, champ `image`). Avant d'écrire la
 suite d'un projet ou une nouvelle vidéo du même personnage, lis-les : un plan marqué « geste absent » ou « décor »
-dit quelle tournure la machine n'a pas suivie. Garde dans ta mémoire les tournures qui marchent et celles qui ratent.
+dit quelle tournure la machine n'a pas suivie. `python3 tools/triage/verifier.py --notes pNNNN` donne en plus, scène par scène,
+ce que le contrôle automatique a trouvé (décor, tenue, geste, objet, cadrage, et chaque champ de `pose` rempli). Garde dans ta mémoire les tournures qui marchent et celles qui ratent.
 
 ## 6. Limites
 

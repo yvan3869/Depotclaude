@@ -321,9 +321,13 @@ y placer un geste ni un texte important. Elle est remplacee par une coupe si l'u
            transition: ""     # "", coupe, fondu, filage ou zoom (facultatif, voir "Continuite et raccords")
            camera: ""         # "", avance, recul, gauche ou droite (facultatif)
            cran: 1            # 1 a 5, ne redescend pas (voir "Controle des plans")
+           pose:              # facultatif : la pose decomposee (position, appui, bassin, genoux, mains, regard)
+             mains: "right hand in her hair"
+           contact: ""        # facultatif : ce que son corps touche et ou
+           autres: ""         # facultatif : les autres personnes visibles a l'image ; vide quand elle est seule
 
    Champs repris par plan : `name`, `still`, `motion`, `end_edit`, `tattoos`, `loras`, `seed`,
-   `titre`, `texte`, `voix`, `son`, `role`, `raccord`, `transition`, `camera`, `libre`, `cran`. De 1 a 10 plans par fichier. `steps`, `image`,
+   `titre`, `texte`, `voix`, `son`, `role`, `raccord`, `transition`, `camera`, `libre`, `cran`, `pose`, `contact`, `autres`. De 1 a 10 plans par fichier. `steps`, `image`,
    `edit`, `suite_de`, `end_image` et `character` ne sont pas repris (un depot qui en porte est refuse) ; `body` et `dest` sont inutiles (le temps et la fiche du personnage en
    tiennent lieu). Un fichier par projet et par temps.
    Video entiere : quatre fichiers, deposes ensemble (modele `2026-11-15a`). Celui du temps 1 ne nomme pas de
@@ -342,6 +346,24 @@ y placer un geste ni un texte important. Elle est remplacee par une coupe si l'u
    et le proprietaire reimporte ; les scenes sont remplacees une a une, et l'image deja calculee est
    gardee tant que `still` n'a pas change. Un plan retire du fichier reste dans le projet.
    Les textes de publication remplis dans le fichier remplacent ceux du projet a chaque import.
+
+## Pose decomposee et retour du controle
+Modele `2026-11-15b`. Un plan peut porter, en plus de `still`, les champs facultatifs `pose` (`position`, `appui`,
+`bassin`, `genoux`, `mains`, `regard`), `contact` et `autres`, en anglais, une courte phrase chacun. Un champ rempli est
+ajoute a la description envoyee au modele d'image (la pose en tete, `autres` a la fin), puis verifie a part par le controle automatique (une question
+oui/non par champ). Ne remplir que ce qui compte pour le plan et ne pas le redire dans `still`. Les champs aident a
+verifier ; ils ne forcent pas le modele d'image.
+
+`autres` decrit les autres personnes visibles a l'image (qui, ou, quelle partie du corps). Vide dans le cas courant :
+elle est seule, et le controle signale toute autre personne. Ne pas le remplir pour quelqu'un qui reste hors champ.
+Toute personne decrite est adulte et fictive (`docs/compliance.md`).
+
+Lire ce qui a rate, apres un calcul :
+
+    python3 tools/triage/verifier.py --notes pNNNN
+
+Par scene : la note de l'image retenue, les points douteux ou absents (decor, tenue, geste, objet, cadrage, chaque
+champ de pose) et les cases cochees par le proprietaire. Aucun texte libre : des valeurs fermees et des nombres.
 
 ## Verifier un depot
 Avant d'annoncer un fichier au proprietaire, le passer au verificateur (sur le serveur, compte `debian`, sans

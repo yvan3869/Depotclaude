@@ -147,6 +147,10 @@ RENDUS = ("net", "telephone", "main")
 TIRAGES = ("ref", "direct")
 # Verdict du proprietaire sur une image : des cases, pas de texte (l'assistant corrige les reglages sans voir l'image)
 IMAGES_PAR_SCENE = 3  # images creees par scene a chaque lancement ; le controleur les note (pilot serie), la mieux notee est proposee
+# Pose decomposee d'une scene (facultative) : chaque champ rempli est mis en tete de la description et verifie a part par
+# le controleur. "autres" : les autres personnes visibles a l'image ; vide, elle est seule.
+POSE = ("position", "appui", "bassin", "genoux", "mains", "regard")
+CHAMPS = POSE + ("contact", "autres")
 VERDICTS = ("ok", "tenue", "geste", "objet", "visage", "corps", "decor", "cadrage", "passable", "pose", "ton")
 
 
@@ -616,6 +620,8 @@ class Atelier:
             s.setdefault("temps", 1), s.setdefault("loras", ""), s.setdefault("origine", "")
             s.setdefault("raccord", "coupe"), s.setdefault("libre", False), s.setdefault("cran", 0)
             s.setdefault("transition", ""), s.setdefault("camera", "")
+            for k in CHAMPS:
+                s.setdefault(k, "")
         p["continuite"] = _cont(p.get("continuite"))
         p.setdefault("reference", "")
         p.setdefault("brief2", ""), p.setdefault("nb2", 3), p.setdefault("depots", {})
@@ -634,6 +640,7 @@ class Atelier:
                 "transition": d.get("transition") if d.get("transition") in TRANSITIONS else "",
                 "camera": d.get("camera") if d.get("camera") in CAMERAS else "",
                 "cran": min(5, max(0, int(d.get("cran") or 0))) if str(d.get("cran") or 0).isdigit() else 0,
+                **{k: _s(d.get(k), 300 if k == "autres" else 160) for k in CHAMPS},
                 "still": _s(d.get("still"), 1200), "motion": _s(d.get("motion"), 600), "end_edit": _s(d.get("end_edit"), 600),
                 "texte": _s(d.get("texte"), 120), "voix": _s(d.get("voix"), 240), "son": _s(d.get("son"), 200), "son_t": _son_t(d.get("son_t")), "tattoos": bool(d.get("tattoos", True)),
                 "seed": int(d.get("seed") or random.randint(1, 999999)), "image": _s(d.get("image"), 80), "clip": _s(d.get("clip"), 80),
@@ -1268,6 +1275,11 @@ class Atelier:
                 raise ValueError(f"plan {nom} : \"transition\" vaut coupe, fondu, filage ou zoom")
             if (sh.get("camera") or "") not in CAMERAS:
                 raise ValueError(f"plan {nom} : \"camera\" vaut avance, recul, gauche ou droite")
+            pose = sh.get("pose") or {}
+            if not isinstance(pose, dict) or [k for k in pose if k not in POSE]:
+                raise ValueError(f"plan {nom} : \"pose\" est un bloc de champs ({', '.join(POSE)})")
+            if [k for k in (*pose.values(), sh.get("contact"), sh.get("autres")) if k is not None and not isinstance(k, str)]:
+                raise ValueError(f"plan {nom} : les champs de \"pose\", \"contact\" et \"autres\" sont des textes")
             if sh.get("cran") not in (None, 1, 2, 3, 4, 5):
                 raise ValueError(f"plan {nom} : \"cran\" est un entier de 1 à 5")
             seed = sh.get("seed") or (int(d["seed"]) + (0 if d.get("same_seed") else i) if d.get("seed") else 0)
@@ -1275,7 +1287,8 @@ class Atelier:
                            "end_edit": sh.get("end_edit"), "texte": sh.get("texte"), "voix": sh.get("voix"), "son": sh.get("son"), "tattoos": sh.get("tattoos", True),
                            "loras": sh.get("loras", d.get("loras")), "seed": seed, "origine": f"{f.name}:{nom}",
                            "raccord": sh.get("raccord"), "libre": bool(sh.get("libre")), "cran": sh.get("cran"),
-                           "transition": sh.get("transition"), "camera": sh.get("camera")})
+                           "transition": sh.get("transition"), "camera": sh.get("camera"),
+                           **{k: pose.get(k) for k in POSE}, "contact": sh.get("contact"), "autres": sh.get("autres")})
         # textes de publication : seulement avec le temps 1, et seulement ceux qui sont remplis
         lim = {"pitch": 400, "ambiance": 300, "accroche": 120, "legende": 600, "cta": 120, "hashtags": 200}
         textes = {k: _s(a.get(k), n) for k, n in lim.items() if a["temps"] == 1 and _s(a.get(k), n)}
@@ -1418,14 +1431,17 @@ class Atelier:
 
     # --- Production (pilote) ----------------------------------------------------------------------
     def _still(self, p, s):
-        """Description envoyee au modele d'image : celle de la scene, suivie de la fiche de continuite du projet.
+        """Description envoyee au modele d'image : les champs de pose remplis, celle de la scene, la fiche de continuite, puis les autres personnes.
         A partir du temps 2, la tenue de la fiche n'est pas ajoutee (elle se defait d'une scene a l'autre : chaque scene
         dit ce qu'elle porte) et "nsfw" est toujours ajoute."""
         t2 = s["temps"] >= 2
         c = [] if s["libre"] else [v.strip(" .,") for k, v in (p.get("continuite") or {}).items() if v and not (t2 and k == "tenue")]
+        if s.get("autres"):  # apres elle et sa fiche : la premiere personne decrite reste le sujet
+            c.append("also in the frame: " + s["autres"].strip(" .,"))
         if t2 and not re.search(r"\bnsfw\b", s["still"], re.I):
             c.append("nsfw")
-        return s["still"].rstrip(" .,") + ", " + ", ".join(c) if c else s["still"]
+        tete = [s[k].strip(" .,") for k in CHAMPS[:-1] if s.get(k)]
+        return ", ".join([*tete, s["still"].rstrip(" .,") if c or tete else s["still"], *c])
 
     def _a_imager(self, p, ch, temps, refaire=False):
         """Scenes d'un ou plusieurs temps dont l'image est a calculer (une scene continue n'a pas d'image a elle)."""
@@ -1503,13 +1519,15 @@ class Atelier:
                     elif not retouche:  # premiere image creee a part : tirage commun aux scenes du temps, le decor bouge moins
                         s["seed"] = p.setdefault("graines", {}).setdefault(str(s["temps"]), s["seed"])
                     s["image"], s["clip"] = "", ""  # la prise retenue sera la nouvelle
+                    champs = {k: s[k] for k in CHAMPS if s.get(k)}  # relus par le controleur, ignores par le pilote
+                    champs = {"champs": champs} if champs else {}
                     if retouche:
                         shots.append({"name": s["id"], "image": str(media / base), "edit": self._still(p, s), "seed": s["seed"]}
-                                     | ({"tenue_libre": True} if s["temps"] >= 2 else {}))
+                                     | ({"tenue_libre": True} if s["temps"] >= 2 else {}) | champs)
                     else:
                         shots.append({"name": s["id"], "still": self._still(p, s), "seed": s["seed"], "tattoos": s["tattoos"],
                                       "body": bool((perso.get("generation") or {}).get("corps"))}
-                                     | ({"loras": _loras_plan(lo)} if lo else {}))
+                                     | ({"loras": _loras_plan(lo)} if lo else {}) | champs)
             else:
                 ids = self._a_cliper(p, ch, int(b.get("temps") or 1), want)
                 suiv = {prec[s["id"]]["id"]: s for s in p["scenes"] if prec[s["id"]]}

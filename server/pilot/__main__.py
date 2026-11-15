@@ -14,7 +14,7 @@ from .comfy import Comfy
 
 ROOT = Path(__file__).resolve().parents[2]
 PREFIX = "girls-ai-"
-MODELE = "2026-11-15a"  # version du format des plans : la meme que dans server/jobs/modele.yaml
+MODELE = "2026-11-15b"  # version du format des plans : la meme que dans server/jobs/modele.yaml
 INTERP = "minterpolate=fps=32:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1"
 
 
@@ -628,6 +628,8 @@ def controle_lot(data, pid, runs=None):
     d, lot, fichiers = data / "projets" / pid, [], {}
     p = json.loads((d / "projet.json").read_text(encoding="utf-8"))
     temps, vus, stills = {s["id"]: s["temps"] for s in p["scenes"]}, {}, {s["id"]: s.get("still") or "" for s in p["scenes"]}
+    noms = ("position", "appui", "bassin", "genoux", "mains", "regard", "contact", "autres")  # pose decomposee : verifiee champ par champ
+    poses = {s["id"]: {k: s[k] for k in noms if s.get(k)} for s in p["scenes"]}
     lieu = str((p.get("continuite") or {}).get("lieu") or "")
     for f in sorted((d / "media").iterdir()):
         m = re.fullmatch(rf"{pid}(r\d+)_(s\d+)\.png", f.name)
@@ -641,7 +643,8 @@ def controle_lot(data, pid, runs=None):
         if desc:
             if not sh.get("still") and lieu:  # la description d'une scene ne redit pas le lieu : il est dans la fiche de continuite
                 desc += f", place: {lieu}"
-            lot.append({"image": f.name, "projet": pid, "desc": desc[:1500], "perso": p.get("personnage") or "", "temps": temps.get(m.group(2), 0)})
+            lot.append({"image": f.name, "projet": pid, "desc": desc[:1500], "perso": p.get("personnage") or "", "temps": temps.get(m.group(2), 0),
+                        "champs": sh["champs"] if isinstance(sh.get("champs"), dict) else poses.get(m.group(2), {})})
             fichiers[f.name] = f
     return lot, fichiers
 

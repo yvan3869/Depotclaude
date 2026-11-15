@@ -69,6 +69,9 @@ const TEMPS = {1: ['Accroche', 'tous publics'], 2: ['Montée', 'suggestif'], 3: 
 const TIR = t => (P.tirage || {})[t] || (t <= 2 ? 'ref' : 'direct');
 // Note du controleur d'images (essai) : ce qu'un modele de vision a trouve en comparant l'image a sa description.
 const NOTE_FAUX = {setting: 'décor', outfit: 'tenue', pose: 'geste', object: 'objet', framing: 'cadrage'};
+// Pose decomposee (facultative) : chaque champ rempli est verifie a part par le controleur.
+const POSE = [['position', 'Position', 'kneeling on the bed'], ['appui', 'Appui', 'weight on her left forearm'], ['bassin', 'Bassin', 'hips turned to the camera'],
+  ['genoux', 'Genoux', 'knees together'], ['mains', 'Mains', 'right hand in her hair'], ['regard', 'Regard', 'looking over her shoulder'], ['contact', 'Contact', 'her cheek against the pillow']];
 function noteHtml(n) {
   const x = (D.notes || {})[n];
   if (!x || x.score === undefined || x.score === '?') return '';
@@ -76,7 +79,10 @@ function noteHtml(n) {
   if (faux.length) plus.push(faux.join(', ') + ' à revoir');
   if ((x.p || {}).en_trop >= 0.6) plus.push('téléphone, personne ou texte en trop');
   if (x.anatomy === 'major' || x.anatomy === 'minor') plus.push(x.anatomy === 'major' ? 'défaut d\'anatomie net' : 'petit défaut d\'anatomie');
-  if (typeof x.people === 'number' && x.people !== 1) plus.push(x.people + ' personnes');
+  const ch = x.champs || {}, rate = POSE.filter(c => ch[c[0]] < 0.35).map(c => c[1].toLowerCase());
+  if (rate.length) plus.push('pose non respectée : ' + rate.join(', '));
+  if (ch.autres < 0.35) plus.push('autre personne absente');
+  if (typeof x.people === 'number' && x.people !== 1 && ch.autres === undefined) plus.push(x.people + ' personnes');
   if (x.visages === 0) plus.push('aucun visage trouvé');
   if (typeof x.ressemblance === 'number' && x.ressemblance < 0.6) plus.push(x.visages > 1 ? 'visage peu ressemblant (plusieurs visages)' : 'visage peu ressemblant');
   return `<div class="${x.score <= 4 ? 'err' : x.score <= 6 ? 'avt' : 'okc'}" style="margin-top:6px;font-size:13px" title="Note donnée par un modèle de vision qui compare l'image à sa description. Une scène dont aucune image ne dépasse 4 est refaite toute seule, deux fois au plus ; la mieux notée est proposée, vous gardez le choix.">Contrôle automatique : ${x.score}/10${plus.length ? ' · ' + plus.join(' · ') : ''}</div>`;
@@ -314,7 +320,12 @@ function rendreProjet() {
       ${f('motion', `${ic('clip')}Mouvement <small>en anglais, un seul geste</small>`, s.motion, {area: 1, at: `data-s="${s.id}"`,
         aide: 'Un seul geste lent, sans mouvement de caméra : un clip dure 5 s. Vide : la scène reste une image fixe de 2 s avec un zoom lent, sans coût de clip.'})}
       ${f('texte', `${ic('texte')}Texte à l'écran`, s.texte, {at: `data-s="${s.id}"`, aide: '7 mots au plus, sans emoji. Vide : aucun texte sur cette scène.'})}
-      <details class="pli" data-sec="plus:${P.id}:${s.id}"${ouv(`plus:${P.id}:${s.id}`, false)}><summary>${ic('plus')}Plus <small>raccord, caméra, son, LoRA, rognage</small></summary>
+      <details class="pli" data-sec="plus:${P.id}:${s.id}"${ouv(`plus:${P.id}:${s.id}`, false)}><summary>${ic('plus')}Plus <small>pose, raccord, caméra, son, LoRA, rognage</small></summary>
+        <div class="gt">Pose détaillée (facultatif, en anglais)</div>
+        <div class="mut" style="margin:4px 0 6px">Un champ rempli est ajouté à la description et vérifié à part sur l'image. Ne pas le redire dans la description.</div>
+        ${POSE.map(c => f(c[0], c[1], s[c[0]] || '', {at: `data-s="${s.id}"`, ph: c[2]})).join('')}
+        ${f('autres', 'Autres personnes à l\'image', s.autres || '', {at: `data-s="${s.id}"`, ph: 'a man standing behind her, seen from the chest down',
+          aide: 'Vide : elle est seule, et le contrôle signale toute autre personne. À remplir seulement si quelqu\'un d\'autre est visible à l\'image (pas hors champ) : qui, où, quelle partie du corps.'})}
         <div class="gt">Place dans la vidéo</div>
         <div class="row haut"><label class="g">Rôle<select data-s="${s.id}" data-k="role">${opt([['accroche', 'Accroche'], ['montee', 'Montée'], ['chute', 'Chute']], s.role)}</select></label>
           <label class="g">Cran<select data-s="${s.id}" data-k="cran">${[0, 1, 2, 3, 4, 5].map(v => `<option value="${v}" ${v === (s.cran || 0) ? 'selected' : ''}>${v ? v + (v === 1 ? ' : anodin' : v === 5 ? ' : le plus osé' : '') : 'Non renseigné'}</option>`).join('')}</select>

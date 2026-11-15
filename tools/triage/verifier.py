@@ -5,6 +5,7 @@ remarques du controle des plans, modele perime. Lecture seule, sans GPU ni IA, s
 
     python3 tools/triage/verifier.py server/jobs/atelier/mavideo_t1.yaml [autre.yaml ...]
     python3 tools/triage/verifier.py --etat      # modeles en cours, personnages, projets
+    python3 tools/triage/verifier.py --notes pNNNN   # ce que le controle automatique et le proprietaire ont trouve, par scene
 
 Code de sortie : 0 rien a corriger ; 1 des remarques restent ; 2 un fichier est refuse ou ecrit d'apres un modele perime."""
 import sys
@@ -42,6 +43,38 @@ def etat(a):
         p = atelier._load(d, {})
         temps = sorted({s.get("temps", 1) for s in p.get("scenes") or []})
         print(f"  {d.parent.name} : {p.get('personnage', '')}, temps ecrits {temps or 'aucun'}")
+
+
+POINTS = ("decor", "tenue", "geste", "objet", "cadrage")
+
+
+def notes(a, pid):
+    """Retour d'un calcul, scene par scene : note de l'image retenue (sinon la mieux notee), points douteux ou absents,
+    champs de pose, cases du proprietaire. Rien que des valeurs fermees et des nombres."""
+    import re
+    d = a.dj / pid
+    if not re.fullmatch(r"p\d{4}", pid) or not (d / "projet.json").is_file():
+        print(f"projet inconnu : {pid}")
+        return 2
+    p, n, v = atelier._load(d / "projet.json", {}), atelier._load(d / "notes_images.json", {}), atelier._load(d / "verdicts.json", {})
+    avis = lambda x: "respecte" if x >= 0.6 else "douteux" if x >= 0.35 else "absent"
+    for s in p.get("scenes") or []:
+        ims = [k for k in n if re.fullmatch(rf"{pid}r\d+_{s['id']}\.png", k) and isinstance(n[k].get("score"), int) and n[k]["score"] >= 0]
+        im = s.get("image") if s.get("image") in ims else max(ims, key=lambda k: n[k]["score"], default="")
+        print(f"{s['id']} [{s.get('origine') or s.get('titre') or ''}] temps {s.get('temps', 1)} : "
+              + (f"{im}{' (retenue)' if im == s.get('image') else ''}, note {n[im]['score']}/10, {len(ims)} image(s) notee(s)" if im else "aucune image notee"))
+        if not im:
+            continue
+        x = n[im]
+        pr, ch = x.get("p") or {}, x.get("champs") or {}
+        faibles = [f"{k} {avis(pr[k])} ({pr[k]})" for k in POINTS if k in pr and pr[k] < 0.6]
+        faibles += [m for k, m in (("en_trop", "telephone, personne ou texte en trop"), ("anatomie", "anatomie douteuse")) if pr.get(k, 0) >= 0.6]
+        print("   controle : " + ("; ".join(faibles) or "rien a signaler"))
+        if ch:
+            print("   pose : " + "; ".join(f"{k} {avis(c)} ({c})" for k, c in ch.items()))
+        if v.get(im):
+            print("   proprietaire : " + ", ".join(v[im]))
+    return 0
 
 
 def verifier(a, f):
@@ -85,4 +118,6 @@ if __name__ == "__main__":
     if args[0] == "--etat":
         etat(a)
         sys.exit(0)
+    if args[0] == "--notes":
+        sys.exit(max([notes(a, x) for x in args[1:]] or [2]))
     sys.exit(max(verifier(a, Path(x).resolve()) for x in args))

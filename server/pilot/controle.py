@@ -133,8 +133,15 @@ def vision():
     for x in lot:
         try:
             im, r = ouvrir(x, 1280), res[x["image"]]
-            r["p"] = {}
+            r["p"], ch = {}, x.get("champs") or {}
+            for k, v in ch.items():  # pose decomposee : une question par champ rempli
+                q = (f"Besides the main woman, the image should also show: \\"{v}\\". Is that visible in this image?" if k == "autres"
+                     else f"Look only at this point about the woman: \\"{v}\\". Is it true in this image?")
+                lg = model(**entree(im, "You answer with a single word: yes or no.", q + " Answer yes or no.")).logits[0, -1].float()
+                r.setdefault("champs", {})[k] = round(float(torch.sigmoid(lg[oui].max() - lg[non].max())), 2)
             for k, (mode, q) in ouinon.items():
+                if k == "en_trop" and ch.get("autres"):  # une autre personne est attendue : on ne cherche que la personne de trop
+                    q = q.replace("a second person", "a person the description does not mention")
                 ent = entree(im, "You answer with a single word: yes or no.", qdesc.format(desc=x["desc"], question=q) if mode else q + " Answer yes or no.")
                 lg = model(**ent).logits[0, -1].float()
                 r["p"][k] = round(float(torch.sigmoid(lg[oui].max() - lg[non].max())), 2)

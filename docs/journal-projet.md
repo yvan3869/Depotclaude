@@ -431,4 +431,13 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
   3 min 30 d'images au lieu de 8 min 30 (9 s par image creee et 18 s par retouche une fois le modele charge),
   8 min 30 en tout au lieu de 13 min 30 ; 0,32 $ au releve (pod de calcul a demarrer compris). Le pod du controleur demarre maintenant d'apres le nombre
   d'images. Reste lent : le controle (4 min, dont 2 d'installation a chaque pod).
+- 15/11 : pose decomposee, apres l'avis du scenariste ("je peux raconter une scene, je ne peux pas la specifier").
+  Modele de plan `2026-11-15b` : champs facultatifs `pose` (position, appui, bassin, genoux, mains, regard), `contact`
+  et `autres` (les autres personnes visibles a l'image ; vide quand elle est seule, a la demande du proprietaire qui ne
+  veut pas d'un champ "partenaire" rempli a chaque plan). Un champ rempli est ajoute a la description (pose en tete,
+  `autres` a la fin) et verifie a part par le controleur (une question oui/non par champ, `champs` dans
+  `notes_images.json`) ; avec `autres`, le controle ne signale plus la seconde personne. Page : bloc "Pose detaillee"
+  dans "Plus". Retour au scenariste : `verifier.py --notes pNNNN` (note, points douteux ou absents, cases du
+  proprietaire, sans texte libre). Limite : les champs aident a verifier, ils ne forcent pas le modele d'image ;
+  seuils (0,35 et 0,6) a caler sur les verdicts.
 

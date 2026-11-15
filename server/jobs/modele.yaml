@@ -30,8 +30,11 @@
 #   2026-11-14k  champ de plan son (atelier) : bruit du geste, une phrase en anglais, cale au montage sur le geste.
 #   2026-11-15a  bloc "atelier" : projet_de (temps 2 a 4 d'une video entiere deposee d'un coup : nom du fichier du
 #                temps 1, le depot ira dans le projet que ce fichier ouvre ; plus besoin d'attendre le numero du projet).
+#   2026-11-15b  champs de plan pose, contact et autres (atelier), facultatifs : la pose decomposee. Chaque champ rempli
+#                est ajoute a la description (la pose en tete, "autres" a la fin) et verifie a part sur l'image par le controle automatique.
+#                "autres" : les autres personnes VISIBLES a l'image ; vide quand elle est seule (le cas courant).
 
-modele: "2026-11-15a"
+modele: "2026-11-15b"
 name: monlot                 # prefixe des fichiers produits (lettres, chiffres, _), unique par lancement
 
 # --- Facultatif : plans deposes dans l'atelier (docs/agents.md, "Deposer des plans") --------------
@@ -117,6 +120,19 @@ shots:
     # libre: false           # true : autre lieu ou autre tenue, sans la fiche de continuite ni l'image de reference
     # cran: 1                # niveau du plan dans la progression du temps, de 1 (anodin) a 5 (le plus ose de ce temps) ;
     #                        # il ne redescend pas d'un plan au suivant (verifie par le controle des plans)
+    # pose:                  # facultatif (atelier) : la pose decomposee, en anglais, une courte phrase par champ. Ne remplir
+    #                        # que les champs qui comptent pour ce plan, et ne pas les redire dans "still". Chaque champ
+    #                        # rempli est verifie a part sur l'image ; le resultat se lit avec verifier.py --notes.
+    #   position: "kneeling on the bed"          # la position d'ensemble
+    #   appui: "weight on her left forearm"      # sur quoi le corps repose
+    #   bassin: "hips turned to the camera"
+    #   genoux: "knees together"
+    #   mains: "right hand in her hair"
+    #   regard: "looking over her shoulder at the camera"
+    # contact: ""            # ce que son corps touche et ou ("her cheek against the pillow")
+    # autres: ""             # les autres personnes VISIBLES a l'image : qui, ou, quelle partie du corps. Laisser vide
+    #                        # quand elle est seule a l'image (le cas courant, meme si quelqu'un est suppose hors champ) :
+    #                        # le controle signale alors toute autre personne.
 
   # 2. Image puis clip de 5 s : un seul geste lent, phrase en anglais commencant par "She".
   - name: clip01
