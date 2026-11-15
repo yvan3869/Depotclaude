@@ -581,6 +581,7 @@ class Atelier:
             # LoRA du projet : "0" = tout le projet, "1" a "4" = un temps ; s'ajoutent a celles d'une scene (_loras_scene)
             p["loras"] = {k: _loras((b.get("loras", old.get("loras")) or {}).get(k)) for k in ("0", "1", "2", "3", "4")}
             p["tirage"] = {str(k): _tirage({"tirage": b.get("tirage", old.get("tirage"))}, k) for k in TEMPS}
+            p["graines"] = {str(k): int(v) for k, v in (old.get("graines") or {}).items()}  # tirage commun d'un temps (images creees a part)
             p["scenes"] = [self._scene(s, p) for s in (b["scenes"] if "scenes" in b else old.get("scenes") or [])][:30]
             ref = b.get("reference", old.get("reference"))
             p["reference"] = ref if ref in [s["id"] for s in p["scenes"] if s["temps"] == 1] else ""
@@ -1345,11 +1346,14 @@ class Atelier:
                 base = f"{pid}r{n}_{ref}.png" if ref in ids else ch.get(ref, {}).get("image") if ref else ""
                 for s in sorted((s for s in p["scenes"] if s["id"] in ids), key=lambda s: s["id"] != ref):
                     lo = self._loras_scene(p, s, tmin)  # LoRA du projet, du temps et de la scene
+                    retouche = (base and s["id"] != ref and not s["libre"] and _tirage(p, s["temps"]) == "ref"
+                                and not self._lora_image({"loras": lo}) and not GROS_PLAN.search(s["still"]))
                     if ch[s["id"]]["image"]:  # nouvelle prise demandee : autre tirage
                         s["seed"] = random.randint(1, 999999)
+                    elif not retouche:  # premiere image creee a part : tirage commun aux scenes du temps, le decor bouge moins
+                        s["seed"] = p.setdefault("graines", {}).setdefault(str(s["temps"]), s["seed"])
                     s["image"], s["clip"] = "", ""  # la prise retenue sera la nouvelle
-                    if (base and s["id"] != ref and not s["libre"] and _tirage(p, s["temps"]) == "ref"
-                            and not self._lora_image({"loras": lo}) and not GROS_PLAN.search(s["still"])):
+                    if retouche:
                         shots.append({"name": s["id"], "image": str(media / base), "edit": self._still(p, s), "seed": s["seed"]}
                                      | ({"tenue_libre": True} if s["temps"] >= 2 else {}))
                     else:
