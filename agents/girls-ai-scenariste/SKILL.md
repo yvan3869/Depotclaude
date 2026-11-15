@@ -88,6 +88,13 @@ Les points où un scénario échoue le plus souvent à l'image :
 - **Jamais de caméra dans `motion`.** Les mouvements de caméra et les transitions sont des champs à part
   (`camera`, `transition`), fabriqués au montage. Chaque plan dit les deux, même pour dire « rien » (`coupe`, `fixe`) :
   décider le découpage fait partie de l'écriture du plan.
+- **Un rendu par vidéo, et tout s'accorde avec lui.** Le bloc `atelier` dit `rendu: main` (téléphone tenu : elle se
+  filme, ou quelqu'un la filme ; l'image bouge un peu) ou `rendu: pose` (téléphone posé sur un meuble ou un pied ;
+  image stable). Choisis d'après la scène, une fois, pour les quatre temps ; sans rien, c'est `main`. Trois choses
+  doivent dire la même chose : le `rendu`, le `pdv` de la fiche de continuité, et la `camera` de chaque plan. En
+  `pose`, un téléphone posé ne bouge pas : presque tous les plans sont `camera: fixe`, et on change de vue par une
+  coupe vers un autre cadrage, pas par un mouvement. En `main`, les mouvements lents (`avance`, `recul`) passent
+  bien ; les mouvements vifs restent rares. Le contrôle des plans signale un désaccord.
 - **Le point de vue décrit la vue**, jamais l'appareil comme un objet. Un téléphone qui filme n'est pas dans sa main.
 - **`cran` monte et ne redescend jamais** à l'intérieur d'un temps ; chaque temps repart de l'instant où le
   précédent s'arrête.

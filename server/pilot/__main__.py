@@ -14,7 +14,7 @@ from .comfy import Comfy
 
 ROOT = Path(__file__).resolve().parents[2]
 PREFIX = "girls-ai-"
-MODELE = "2026-11-15g"  # version du format des plans : la meme que dans server/jobs/modele.yaml
+MODELE = "2026-11-15h"  # version du format des plans : la meme que dans server/jobs/modele.yaml
 INTERP = "minterpolate=fps=32:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1"
 
 
@@ -462,6 +462,8 @@ def cmd_run(a):
                     if steps:
                         chains[name] = ends_of(s, name, seed)
                 suffix = char.get("motion_suffix", "")
+                if s.get("camera_posee") or d.get("camera_posee"):  # video filmee telephone pose : pas de tenue a la main dans le mouvement
+                    suffix = char.get("motion_suffix_pose", " Natural subtle movement, static locked-off camera, phone resting on a stable surface.")
                 vlo = loras_video(resolve_loras(cfg, s.get("loras")))  # LoRA video du plan, avec leurs mots declencheurs
                 suffix += "".join(f" {x['trigger']}" for x in vlo if x.get("trigger"))
                 parts = []

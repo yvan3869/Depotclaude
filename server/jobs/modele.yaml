@@ -52,8 +52,12 @@
 #                les met en tete de la description, dans cet ordre. "still" ne les redit plus : il garde l'expression,
 #                les objets et le detail. Quand "angle" est rempli, le "pdv" de la fiche de continuite n'est pas ajoute.
 #                Gros plan au temps 1 : "still" dit ce qu'on voit de la tenue, la tenue entiere de la fiche n'est pas ajoutee.
+#   2026-11-15h  bloc "atelier" : rendu (avec le temps 1). "main" : telephone tenu, l'image bouge un peu (elle se filme, ou
+#                quelqu'un la filme). "pose" : telephone pose sur un meuble ou un pied, image stable. Un seul rendu par
+#                video ; absent : "main". Les clips et le montage le suivent. En "pose", les plans sont presque tous en
+#                "camera: fixe" et le "pdv" decrit un telephone pose ; le controle des plans signale un desaccord.
 
-modele: "2026-11-15g"
+modele: "2026-11-15h"
 name: monlot                 # prefixe des fichiers produits (lettres, chiffres, _), unique par lancement
 
 # --- Facultatif : script livre a la Production (docs/agents.md, "Livrer un script a la Production") --------------
@@ -74,6 +78,9 @@ name: monlot                 # prefixe des fichiers produits (lettres, chiffres,
 #   legende: ""              # legende de la publication, avec l'appel a l'action
 #   cta: ""                  # appel a l'action du carton de fin
 #   hashtags: ""
+#   rendu: main              # main (telephone tenu : selfie, ou quelqu'un filme) ou pose (telephone pose, image stable).
+#                            # Un seul pour toute la video. A accorder avec "pdv" et avec "camera" des plans : en "pose",
+#                            # presque tous les plans sont "camera: fixe".
 #   ambiance: ""             # fond sonore du lieu pour toute la video, une phrase en anglais, sans musique ni voix :
 #                            # la piece et deux ou trois sons precis ("Quiet kitchen room tone, soft hum of a fridge,
 #                            # faint birds through an open window"). Fabrique depuis la page (etape Montage, Son).

@@ -153,6 +153,7 @@ VIF = (0.6, 0.18)  # mouvement vif : fait au debut du plan (duree, ampleur), pui
 AMPLE = 0.08  # ampleur d'un mouvement de camera sur un clip (une image fixe prend 0,10)
 # Rendu au montage : tel quel ; rendu d'un telephone (nettete, contraste, grain qui bouge) ; le meme, tenu a la main
 RENDUS = ("net", "telephone", "main")
+RENDU_SCRIPT = {"main": "main", "pose": "telephone"}  # "atelier.rendu" d'un script -> rendu du projet
 # Tirage des images d'un temps quand le projet a une image de reference : "ref" = par retouche de la reference (meme
 # piece, meme tenue, pose proche), "direct" = chaque image creee a part (LoRA du visage et fiche de continuite)
 # "pose" = creee a part elle aussi, mais sur le squelette d'un brouillon (pose imposee, voir plus bas)
@@ -1498,6 +1499,9 @@ class Atelier:
         lestemps = sorted({s["temps"] for s in scenes})
         un = 1 in lestemps  # les textes, la fiche de continuite et la reference du projet voyagent avec le temps 1
         textes = {k: _s(a.get(k), n) for k, n in lim.items() if un and _s(a.get(k), n)}
+        rendu = str(a.get("rendu") or "")  # rendu de la video entiere, propose par le script : filme a la main ou camera posee
+        if rendu not in ("", *RENDU_SCRIPT):
+            raise ValueError('"atelier.rendu" vaut "main" (téléphone tenu, l\'image bouge un peu) ou "pose" (téléphone posé, image stable)')
         if a.get("date_perso"):  # date du personnage (fictive) ; YAML peut la lire comme une date
             if not _date(a["date_perso"]):
                 raise ValueError('"atelier.date_perso" : date au format AAAA-MM-JJ')
@@ -1529,7 +1533,7 @@ class Atelier:
             raise ValueError('"atelier.projet_de" : nom du fichier du temps 1 de la même vidéo, pour un temps 2 à 4, sans "projet"')
         return {"projet": str(a.get("projet") or ""), "projet_de": de, "temps": lestemps[0], "lestemps": lestemps, "entier": entier, "personnage": str(a.get("personnage") or ""),
                 "titre": _s(a.get("titre"), 100), "note": _s(a.get("note"), 300), "modele": str(j.get("modele") or ""), "scenes": scenes,
-                "textes": textes, "reference": ref if un else "", "garder": garder}
+                "textes": textes, "reference": ref if un else "", "garder": garder, "rendu": rendu if un else ""}
 
     def depots(self):
         import yaml
@@ -1580,6 +1584,14 @@ class Atelier:
             base = _fusion(lp.get("0"), "" if t in (pr.get("lora_def") or []) else self._defauts().get(tp, ""), lp.get(t))
             out += controle({"continuite": fiche, "accroche": pl["textes"].get("accroche"), "scenes": [
                 {**s, "id": str(i), "loras": _fusion(base, _loras(s["loras"]))} for i, s in enumerate(pl["scenes"]) if s["temps"] == tp]}, tp, lib or self._lib())
+        rendu = RENDU_SCRIPT.get(pl.get("rendu") or "") or (pr.get("montage") or {}).get("rendu") or "main"
+        coupes = [s for s in pl["scenes"] if s.get("raccord") != "continu"]
+        bouge = [s for s in coupes if s.get("camera")]
+        if rendu != "main" and len(bouge) > max(1, len(coupes) // 4):  # camera posee : elle ne bouge presque jamais
+            out.append({"scene": "", "grave": False, "msg": f"rendu « caméra posée » mais {len(bouge)} plans sur {len(coupes)} ont un mouvement de caméra : "
+                        "un téléphone posé ne bouge pas, mettre ces plans en « fixe » ou choisir le rendu « main »"})
+        if rendu == "main" and re.search(r"tripod|propped|phone (is )?(set|placed|resting|leaning)|static camera|fixed camera", str(fiche.get("pdv") or ""), re.I):
+            out.append({"scene": "", "grave": False, "msg": "rendu « filmé à la main » mais le point de vue de la fiche de continuité décrit un téléphone posé : accorder les deux"})
         vus = set()  # une remarque sur le projet entier ne se repete pas a chaque temps
         return [r for r in out if not ((k := (r.get("scene"), r["msg"])) in vus or vus.add(k))]
 
@@ -1675,6 +1687,8 @@ class Atelier:
                 raise ValueError("trop de scènes dans ce projet")
             p["scenes"] = sorted(reste + neuves, key=lambda s: s["temps"])
             p.update(pl["textes"])
+            if pl.get("rendu"):  # le script propose le rendu de la video ; le proprietaire le change dans les reglages du montage
+                p["montage"]["rendu"] = RENDU_SCRIPT[pl["rendu"]]
             if pl["reference"]:
                 p["reference"] = next(s["id"] for s in neuves if s["origine"] == f"{f.name}:{pl['reference']}")
             elif p["reference"] not in [s["id"] for s in p["scenes"]]:
@@ -1847,6 +1861,8 @@ class Atelier:
                    "defaults": {"still_size": [720, 1280], "clip_size": [720, 1280] if b.get("hd") else [480, 832], "mode": "natural",
                                 "smooth": True, "grain": True, "same_seed": True, "loras": []},
                    "shots": shots}
+            if (p.get("montage") or {}).get("rendu", "main") != "main":  # camera posee : les clips ne sont pas filmes a la main
+                job["defaults"]["camera_posee"] = True
             if quoi == "images":
                 # Serie : IMAGES_PAR_SCENE variantes des memes scenes (un lancement chacune, tirage decale), notees par le
                 # controleur d'images ; une scene ratee partout est refaite (pilot serie). La mieux notee est proposee.

@@ -393,6 +393,7 @@ y placer un geste ni un texte important. Elle est remplacee par une coupe si l'u
          legende: ""
          cta: ""
          hashtags: ""
+         rendu: main                # main (telephone tenu) ou pose (telephone pose) : un seul par video (modele 2026-11-15h)
          ambiance: ""               # fond sonore du lieu, une phrase en anglais, sans musique ni voix
          # facultatifs (absents : ceux du projet sont gardes) :
          date_perso: "2026-12-19"   # date du personnage, fictive, entre guillemets
@@ -461,6 +462,15 @@ Un plan porte, en plus de `still`, le bloc `pose` (`cadrage`, `angle`, `position
 `mains`, `regard`) et les champs facultatifs `contact` et `autres`, en anglais, une courte phrase chacun. Un champ
 rempli est ajoute a la description envoyee au modele d'image (la pose en tete, dans cet ordre ; `autres` a la fin),
 puis verifie a part par le controle automatique (une question oui/non par champ). Ne pas le redire dans `still`.
+
+**Rendu de la video (modele `2026-11-15h`).** `atelier.rendu` vaut `main` (telephone tenu, l'image bouge un peu) ou
+`pose` (telephone pose, image stable) ; absent, le projet garde le sien (`main` pour un nouveau projet). Le script le
+propose, le proprietaire le change dans les reglages du montage (« Rendu »). Tout le suit : en `main`, les clips
+recoivent la phrase `motion_suffix` (tenu a la main) et le montage ajoute le tremble ; sinon ils recoivent
+`motion_suffix_pose` (camera fixe) et le montage n'ajoute aucun tremble. Les clips prennent le rendu au moment ou ils
+sont fabriques. Le controle des plans signale un rendu « pose » dont plus d'un quart des plans bougent la camera, et un
+rendu « main » dont le `pdv` decrit un telephone pose. Regle pour le scenariste : `rendu`, `pdv` et `camera` des plans
+disent la meme chose.
 
 **Pose obligatoire (modele `2026-11-15g`).** Le modele d'image donne le plus de poids au debut de la description et,
 sans precision, rend toujours la meme photo : une femme de face, debout ou a genoux, cadree a la taille, les yeux dans

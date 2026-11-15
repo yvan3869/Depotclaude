@@ -74,6 +74,7 @@ character:
   lora_clip_strength: 1.0
   still_suffix: ", candid smartphone photo, natural light, detailed natural skin texture"
   motion_suffix: " Natural subtle movement, handheld smartphone video."
+  motion_suffix_pose: " Natural subtle movement, static locked-off camera, phone resting on a stable surface."   # video au rendu "camera posee"
   negative_still: "blurry, soft focus, plastic skin, airbrushed, cgi, 3d render, doll, teenager, young girl, childlike, deformed, text, watermark"
   negative_clip: "blurry, distorted face, deformed hands, extra fingers, morphing, flickering, jerky motion, smoke, fog, steam, mist, haze, cartoon, cgi, text, watermark, static image, low quality"
 
