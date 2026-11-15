@@ -440,6 +440,10 @@ class Atelier:
                 if b.get("famille") in FAMILLES:
                     cat[nom]["famille"] = b["famille"]
                 cat[nom].pop("ou", None)
+                h, cle = _load(self.data / "hub.json", {}), cat[nom].get("hub")
+                if isinstance(h, dict) and isinstance(h.get(cle), dict):  # la fiche du hub suit : sans cela, le hub remettrait l'ancienne au prochain reglage
+                    h[cle] |= {k: cat[nom][k] for k in ("cat", "strength", "label", "trigger") if k in cat[nom]}
+                    (self.data / "hub.json").write_text(json.dumps(h, ensure_ascii=False, indent=1), encoding="utf-8")
             f.write_text(yaml.safe_dump(cat, allow_unicode=True, sort_keys=False), encoding="utf-8")
         return self.bibliotheque()
 

@@ -449,3 +449,6 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
   Bibliotheque de LoRA (une LoRA d'image et une de clip par temps), posees sur le projet a sa creation ou au premier
   depot du temps, retirables ; alerte du controle des plans pour un temps 4 sans LoRA porno d'image ou de clip (grave,
   non bloquante) et un temps 3 sans LoRA de nu. Le choix des LoRA reste au proprietaire.
+- 15/11, hub et Bibliotheque de LoRA : une correction faite dans la Bibliotheque (categorie, force, intitule, mots
+  declencheurs) est maintenant recopiee dans la fiche du hub. Avant, le hub gardait l'ancienne valeur et la remettait
+  au catalogue a son prochain reglage (cas vu sur une LoRA reclassee par le proprietaire, alignee a la main).
