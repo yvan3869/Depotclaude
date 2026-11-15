@@ -811,6 +811,7 @@ class Atelier:
                 "finals": finals, "etape": self._etape(e, finals[1]), "montage": mt, "prod": self.prod(pid),
                 "devis": {t: self.devis(e, t) for t in TEMPS}, "depots": [x for x in self.depots() if x.get("projet") == pid],
                 "verdicts": _load(self._pdir(pid) / "verdicts.json", {}),
+                "notes": _load(self._pdir(pid) / "notes_images.json", {}),  # notes du controleur d'images (pilot controle)
                 "chaine": self.chaine_vue(pid), "son": (self.sons.get(pid) or {"etat": ""}) | {"a_faire": len(self._sons_lot(p, False)), "prets": self._sons_prets(p),
                                                                                          "image": {t: len(self._simage_lot(p, t, e=e)) for t in TEMPS}},
                 "controle": {t: self._ctl(p, t) for t in TEMPS}, "relecture": self.relecture(pid),
