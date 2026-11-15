@@ -70,6 +70,9 @@ Les points où un scénario échoue le plus souvent à l'image :
   - `position` : le corps entier, jambes comprises (`sitting cross-legged on the mat`, pas seulement `sitting`).
   - `regard` : la tête et les yeux ; si elle ne regarde pas l'objectif, écris-le (`head turned to the left, eyes
     looking away toward the window, not looking at the camera`).
+  - `appui`, `bassin`, `genoux`, `mains` : facultatifs, mais à remplir dès que la pose n'est pas simple (au sol,
+    de dos, penchée, allongée : surtout aux temps 3 et 4). La Production dessine d'abord un brouillon de la pose,
+    le relit champ par champ et le refait s'il manque un point : ce qui n'est pas écrit n'est pas vérifié.
 
   `still` garde le reste (expression, objets, détail) et ne redit rien de `pose`. Sur un gros plan du temps 1, `still`
   dit ce qu'on voit de la tenue (`thin black tank top straps on her shoulders`) : la tenue entière de la fiche de
