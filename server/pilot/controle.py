@@ -95,6 +95,8 @@ def visages():
     rn = InceptionResnetV1(pretrained="vggface2").eval().to("cuda")
     emb = {}
     for x in lot:
+        if x.get("leger"):  # brouillon d'une pose : seuls ses champs sont verifies
+            continue
         try:
             im = ouvrir(x, 1280)
             boites, probas = mt.detect(im)
@@ -103,6 +105,7 @@ def visages():
             if bons:
                 b = max(bons, key=lambda b: (b[2] - b[0]) * (b[3] - b[1]))
                 res[x["image"]]["taille_visage"] = round(float(b[3] - b[1]) / im.height, 3)
+                res[x["image"]]["boite_visage"] = [round(max(0.0, min(1.0, float(v) / (im.width, im.height)[i % 2])), 4) for i, v in enumerate(b[:4])]
                 t = mt.extract(im, [b], None)
                 emb[x["image"]] = (rn(t.reshape(-1, 3, 160, 160)[:1].to("cuda"))[0], x.get("perso") or "")
         except Exception:
@@ -139,6 +142,9 @@ def vision():
                      else f"Look only at this point about the woman: \\"{v}\\". Is it true in this image?")
                 lg = model(**entree(im, "You answer with a single word: yes or no.", q + " Answer yes or no.")).logits[0, -1].float()
                 r.setdefault("champs", {})[k] = round(float(torch.sigmoid(lg[oui].max() - lg[non].max())), 2)
+            if x.get("leger"):
+                print("FAIT", x["image"], flush=True)
+                continue
             for k, (mode, q) in ouinon.items():
                 if k == "en_trop" and ch.get("autres"):  # une autre personne est attendue : on ne cherche que la personne de trop
                     q = q.replace("a second person", "a person the description does not mention")

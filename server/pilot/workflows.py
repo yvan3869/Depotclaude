@@ -111,6 +111,31 @@ def finition(g, w, h, facteur=1.5, denoise=0.3, steps=6):
     return g
 
 
+def reprise_visage(m, char, image_name, prompt, W, H, boite, seed, prefix, cote=768, denoise=0.45, steps=8):
+    """Reprise d'un visage petit dans le cadre (plan large, en pied) : un carre autour du visage est agrandi, redessine
+    legerement avec la seule LoRA du personnage, puis recolle a sa place, bord adouci. Le reste de l'image ne change pas.
+    `boite` : (x0, y0, x1, y1) du visage en fractions de l'image (rendue par le controleur) ; W, H : taille de l'image."""
+    x0, y0, x1, y1 = boite[0] * W, boite[1] * H, boite[2] * W, boite[3] * H
+    c = int(max(64, min(2.2 * max(x1 - x0, y1 - y0), W, H))) // 8 * 8
+    x = int(max(0, min((x0 + x1) / 2 - c / 2, W - c)))
+    y = int(max(0, min((y0 + y1) / 2 - c / 2, H - c)))
+    g = still_zimage(m, char, prompt, cote, cote, seed, prefix, steps=steps, loras=[])
+    del g["lat"]
+    g["vi"] = {"class_type": "LoadImage", "inputs": {"image": image_name}}
+    g["vc"] = {"class_type": "ImageCrop", "inputs": {"image": ["vi", 0], "width": c, "height": c, "x": x, "y": y}}
+    g["vs"] = {"class_type": "ImageScale", "inputs": {"image": ["vc", 0], "upscale_method": "lanczos", "width": cote, "height": cote, "crop": "disabled"}}
+    g["ve"] = {"class_type": "VAEEncode", "inputs": {"pixels": ["vs", 0], "vae": ["vae", 0]}}
+    g["ks"]["inputs"].update(latent_image=["ve", 0], denoise=denoise)
+    g["vr"] = {"class_type": "ImageScale", "inputs": {"image": ["dec", 0], "upscale_method": "lanczos", "width": c, "height": c, "crop": "disabled"}}
+    g["vm"] = {"class_type": "SolidMask", "inputs": {"value": 1.0, "width": c, "height": c}}
+    b = max(4, c // 6)
+    g["vf"] = {"class_type": "FeatherMask", "inputs": {"mask": ["vm", 0], "left": b, "top": b, "right": b, "bottom": b}}
+    g["vk"] = {"class_type": "ImageCompositeMasked", "inputs": {"destination": ["vi", 0], "source": ["vr", 0], "x": x, "y": y,
+                                                                "resize_source": False, "mask": ["vf", 0]}}
+    g["save"]["inputs"]["images"] = ["vk", 0]
+    return g
+
+
 def imposer_pose(g, m, pose_name, force=0.9):
     """Ajoute a un graphe de still_zimage une pose imposee : le dessin d'un squelette (image deja deposee) guide la
     position du corps et le cadrage ; le visage, la tenue et le lieu restent ceux du texte et de la LoRA."""

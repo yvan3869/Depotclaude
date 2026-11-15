@@ -125,14 +125,22 @@ def traits(png):
     return len(brut) - brut.count(0) - sum(1 for k in range(0, len(brut), larg) if brut[k]) if larg else 0
 
 
-def poses_imposees(c, models, char, shots, data, work, over, decors=None):
+POSE = ("cadrage", "angle", "position", "appui", "bassin", "genoux", "mains")  # champs qu'un brouillon doit rendre
+PORTRAIT = "close-up photo of her face and shoulders, natural skin texture, sharp eyes, natural smartphone photo"
+
+
+def poses_imposees(c, models, char, shots, data, work, over, decors=None, verif=None):
     """Pose imposee des plans qui portent "squelette" : un brouillon de la scene est tire d'une image neutre du personnage
     par retouche (elle rend la pose et le cadrage ecrits, pas le visage), son squelette est dessine, et l'image finale
     sera creee sur ce squelette. Un brouillon par scene, commun a ses variantes. Rend {(scene, texte): fichier depose} ;
     une scene dont le squelette manque est creee d'apres le texte seul.
     Decor fixe (plan qui porte "decor", l'image du lieu vide, et au besoin "tenue_image", la tenue a plat) : le brouillon
     est tire de l'image neutre, de la tenue et du lieu ensemble ; `decors` recoit {(scene, texte): (brouillon, squelette
-    epais)} deposes, pour refaire la seule zone du personnage (workflows.decor_gele)."""
+    epais)} deposes, pour refaire la seule zone du personnage (workflows.decor_gele).
+    `verif` (serie controlee) : fonction qui fait relire les brouillons par le controleur avant que les images en soient
+    tirees ; elle recoit [(nom, fichier, texte, champs)] et rend {nom: {champ: probabilite}}. Un brouillon qui manque un
+    champ de pose est refait une fois, les champs manques redits en tete ; le meilleur des deux sert. Sans elle, ou si
+    elle echoue, les brouillons servent tels quels."""
     faits, dus, vus = {}, [], {}
 
     def epais():  # trait le plus large que le noeud de dessin accepte, 100 au plus
@@ -171,11 +179,11 @@ def poses_imposees(c, models, char, shots, data, work, over, decors=None):
             log(f"pose imposee : image neutre du personnage ({round(time.time() - t)} s)")
         up = c.upload("ga_neutre.png", neutre.read_bytes())
         brouillons = {}
-        for cle, s, name, seed in dus:  # tous les brouillons, puis tous les squelettes : un seul changement de modele
-            if over():
-                break
+
+        def brouillon(cle, s, name, seed, tete=""):
             try:
                 t = time.time()
+                s = {**s, "still": tete + s["still"]}
                 if s.get("decor"):
                     autres = ([depose(s["tenue_image"])] if s.get("tenue_image") else []) + [depose(s["decor"])]
                     n = len(autres) + 1
@@ -192,8 +200,44 @@ def poses_imposees(c, models, char, shots, data, work, over, decors=None):
                 (work / f"{name}_brouillon.png").write_bytes(b)
                 brouillons[cle] = (c.upload(f"ga_{name}_b.png", b), name, bool(s.get("decor")))
                 log(f"{name} : brouillon de la pose ({round(time.time() - t)} s)")
+                return True
             except Exception as e:
                 log(f"{name} : brouillon de la pose rate, image d'apres le texte seul ({str(e)[:200]})")
+
+        for cle, s, name, seed in dus:  # tous les brouillons, puis tous les squelettes : un seul changement de modele
+            if over():
+                break
+            brouillon(cle, s, name, seed)
+        if verif and brouillons:
+            try:
+                def relire(l):
+                    r = verif([(name, work / f"{name}_brouillon.png", s["still"], {k: v for k, v in s["champs"].items() if k in POSE})
+                               for cle, s, name, seed in l])
+                    return {name: (sorted(k for k, v in ch.items() if v < SEUIL_CHAMP), sum(ch.values()) / max(1, len(ch))) for name, ch in r.items() if ch}
+                l = [x for x in dus if x[0] in brouillons and isinstance(x[1].get("champs"), dict) and any(k in POSE for k in x[1]["champs"])]
+                un = relire(l) if l else {}
+                refaits = [x for x in l if un.get(x[2], ([],))[0]]
+                log(f"brouillons relus : {len(un)}, a refaire : {len(refaits)}")
+                gardes = {}
+                for cle, s, name, seed in refaits:
+                    if over():
+                        break
+                    gardes[name] = (brouillons[cle], (work / f"{name}_brouillon.png").read_bytes())
+                    (work / f"{name}_brouillon1.png").write_bytes(gardes[name][1])
+                    dire = ", ".join(str(s["champs"][k]).strip(" .,") for k in un[name][0])
+                    if not brouillon(cle, s, name, seed + 7919, dire + ", "):
+                        (work / f"{name}_brouillon.png").write_bytes(gardes[name][1])
+                        del gardes[name]
+                deux = relire([x for x in refaits if x[2] in gardes]) if gardes else {}
+                for cle, s, name, seed in refaits:
+                    if name in gardes and (name not in deux or (len(deux[name][0]), -deux[name][1]) >= (len(un[name][0]), -un[name][1])):
+                        brouillons[cle] = gardes[name][0]  # le second n'est pas meilleur : le premier sert
+                        (work / f"{name}_brouillon.png").write_bytes(gardes[name][1])
+                        log(f"{name} : brouillon refait pas meilleur, le premier est garde")
+                    elif name in gardes:
+                        log(f"{name} : brouillon refait garde ({len(un[name][0])} point(s) manque(s) avant, {len(deux[name][0])} apres)")
+            except Exception as e:  # la relecture est un plus
+                log(f"brouillons non relus : {str(e)[:200]}")
         for cle, (bu, name, decor) in brouillons.items():
             try:
                 t = time.time()
@@ -279,7 +323,7 @@ def cmd_run(a):
             return False
 
         decors, lieux = {}, {}
-        poses = poses_imposees(c, models, char, shots, data, work, over, decors) if cfg.get("image_model", "wan") == "zimage" else {}
+        poses = poses_imposees(c, models, char, shots, data, work, over, decors, getattr(a, "verif", None)) if cfg.get("image_model", "wan") == "zimage" else {}
         # Images creees d'abord, images tirees d'une autre par retouche ensuite : un seul changement de modele
         # (creation <-> retouche) au lieu d'un par plan, qui coutait une minute a chaque fois.
         for s, name, seed, entry in sorted(shots, key=lambda x: bool(x[0].get("image") and x[0].get("edit"))):
@@ -299,8 +343,18 @@ def cmd_run(a):
                         stills[name] = c.fetch(files[0])
                         entry["still_s"] = round(time.time() - t)
                         log(f"{name} : image par retouche ({entry['still_s']} s)")
+                    if s.get("visage") and cfg.get("image_model", "wan") == "zimage":  # visage petit dans le cadre : repris seul, recolle
+                        import struct
+                        W, H = struct.unpack(">II", stills[name][16:24])
+                        (work / f"{name}_avant.png").write_bytes(stills[name])
+                        up = c.upload(f"ga_{name}_v.png", stills[name])
+                        g = workflows.reprise_visage(models, char, up, f"{char.get('zimage_prefix', char['prefix'])}{PORTRAIT}{char.get('zimage_suffix', '')}",
+                                                     W, H, [float(v) for v in s["visage"]], seed, f"ga_{name}")
+                        stills[name] = c.fetch(c.run(g)[0])
+                        entry["still_s"] = round(time.time() - t)
+                        log(f"{name} : visage repris ({entry['still_s']} s)")
                     (work / f"{name}.png").write_bytes(stills[name])
-                    if s.get("edit") and a.stills_only:
+                    if (s.get("edit") or s.get("visage")) and a.stills_only:
                         shutil.copy(work / f"{name}.png", inbox / f"{name}.png")
                     continue
                 if cfg.get("image_model", "wan") == "zimage":
@@ -971,6 +1025,7 @@ SEUIL_RELANCE = 4   # une scene dont aucune image ne depasse cette note sur 10 e
 SEUIL_CALC = 7      # ... sauf si la note calculee d'une de ses images atteint celle-ci : la note libre s'est trompee
 SEUIL_CHAMP = 0.3   # un champ de pose sous cette probabilite est manque : il est redit en tete a la relance
 RELANCES = 2        # nouvelles tentatives au plus
+SEUIL_VISAGE = 0.13  # visage plus petit que cette part de la hauteur de l'image : repris seul en fin de serie
 
 
 def cmd_serie(a):
@@ -999,8 +1054,17 @@ def cmd_serie(a):
         except Exception as e:
             ouverture["erreur"] = str(e)[:300]
 
+    def verif(l):  # brouillons des poses relus avant les images : le controleur est ouvert des le debut
+        depart.set()
+        fil.join(timeout=240)
+        if fil.is_alive() or not c.pret:
+            raise RuntimeError(ouverture.get("erreur") or "controleur pas encore pret")
+        res = c.noter([{"image": f.name, "projet": pid, "desc": desc[:1500], "champs": ch, "leger": True, "perso": "", "temps": 0} for nom, f, desc, ch in l],
+                      {f.name: f for nom, f, desc, ch in l}, delai_min=8)
+        return {nom: (res.get(f.name) or {}).get("champs") or {} for nom, f, desc, ch in l}
+
     def lancer(j):
-        return cmd_run(argparse.Namespace(job=str(j), data=a.data, out=a.out, pod_id=a.pod_id, keep_pod=False, stills_only=True, config=a.config))
+        return cmd_run(argparse.Namespace(job=str(j), data=a.data, out=a.out, pod_id=a.pod_id, keep_pod=False, stills_only=True, config=a.config, verif=verif))
 
     # Les variantes sont regroupees en un seul lancement : le pilote y calcule toutes les images creees puis toutes
     # les retouches, sans recharger les modeles entre deux variantes. Chaque plan garde le nom de fichier de sa variante.
@@ -1017,7 +1081,9 @@ def cmd_serie(a):
     regroupe.write_text(json.dumps({**groupe, "shots": tout}, ensure_ascii=False), encoding="utf-8")
     # le pod du controleur demarre vers la fin des images (environ 25 s par image, 2 min 30 de demarrage)
     depart = threading.Event()
-    fil = threading.Thread(target=lambda: (depart.wait(max(0, 25 * len(tout) - 150)), ouvrir()), daemon=True)
+    # ... ou tout de suite quand des poses sont imposees : il relit d'abord les brouillons
+    tot = any(s.get("squelette") and isinstance(s.get("champs"), dict) for s in tout)
+    fil = threading.Thread(target=lambda: (depart.wait(0 if tot else max(0, 25 * len(tout) - 150)), ouvrir()), daemon=True)
     try:
         fil.start()
         try:
@@ -1031,6 +1097,11 @@ def cmd_serie(a):
             if "erreur" in ouverture:
                 raise RuntimeError(ouverture["erreur"])
             base = json.loads(jobs[0].read_text(encoding="utf-8"))
+            pj = json.loads((data / "projets" / pid / "projet.json").read_text(encoding="utf-8"))
+            cont = pj.get("continuite") or {}
+            propre = lambda l: [str(x).strip(" .,") for x in l if str(x or "").strip(" .,")]
+            redire = {"lieu": propre([*(pj.get("decors") or {}).values(), cont.get("lieu")] if isinstance(pj.get("decors"), dict) else [cont.get("lieu")]),
+                      "tenue": propre([cont.get("tenue")])}
             for tour in range(RELANCES + 1):
                 lot, fichiers = controle_lot(data, pid, runs)
                 nf = data / "projets" / pid / "notes_images.json"
@@ -1048,7 +1119,7 @@ def cmd_serie(a):
                         if nt.get("calc", -1) >= max(SEUIL_CALC, sauve.get(sc, (0,))[0]):
                             sauve[sc] = (nt["calc"], x["image"])
                         if s >= mieux.get(sc, (-1,))[0]:  # la mieux notee : ses champs manques sont redits a la relance
-                            mieux[sc] = (s, [k for k, v in (nt.get("champs") or {}).items() if v < SEUIL_CHAMP and k != "autres"])
+                            mieux[sc] = (s, [k for k, v in (nt.get("champs") or {}).items() if v < SEUIL_CHAMP and k != "autres"], nt.get("p") or {})
                 rates = [s for s, l in par.items() if max(l) <= SEUIL_RELANCE and s not in sauve]
                 if [s for s in sauve if max(par[s]) <= SEUIL_RELANCE]:
                     log(f"controle : note libre basse mais note calculee bonne, pas refaite : {', '.join(s for s in sauve if max(par[s]) <= SEUIL_RELANCE)}")
@@ -1060,10 +1131,16 @@ def cmd_serie(a):
                 job["shots"] = [sh for sh in job["shots"] if sh["name"] in rates]
                 for sh in job["shots"]:
                     sh["seed"] = random.randint(1, 999999)
-                    dire = [str(sh["champs"][k]).strip(" .,") for k in mieux.get(sh["name"], (0, []))[1] if isinstance(sh.get("champs"), dict) and sh["champs"].get(k)]
-                    if dire and sh.get("still") and not str(sh["still"]).startswith(", ".join(dire)):  # le debut du texte pese le plus
-                        sh["still"] = ", ".join(dire) + ", " + sh["still"]
-                        log(f"relance de {sh['name']} : {len(dire)} point(s) de pose manque(s) redit(s) en tete")
+                    mx = mieux.get(sh["name"], (0, [], {}))
+                    dire = [str(sh["champs"][k]).strip(" .,") for k in mx[1] if isinstance(sh.get("champs"), dict) and sh["champs"].get(k)]
+                    cle = "still" if sh.get("still") else "edit" if sh.get("edit") else ""
+                    # lieu ou tenue manques sur la mieux notee : la phrase de la fiche, deja dans le texte, est redite en tete elle aussi
+                    for k, v in (("decor", redire["lieu"]), ("tenue", redire["tenue"])):
+                        if cle and mx[2].get(k, 1) < SEUIL_CHAMP:
+                            dire += [x for x in v if x in str(sh[cle]) and x not in dire][:1]
+                    if dire and cle and not str(sh[cle]).startswith(", ".join(dire)):  # le debut du texte pese le plus
+                        sh[cle] = ", ".join(dire) + ", " + sh[cle]
+                        log(f"relance de {sh['name']} : {len(dire)} point(s) manque(s) redit(s) en tete")
                     m = re.fullmatch(rf"{base['name']}_(s\d+)\.png", Path(str(sh.get("image") or "")).name)
                     if m and m.group(1) in rates:  # tiree d'une image elle-meme refaite : partir de la nouvelle
                         sh["image"] = str(Path(sh["image"]).with_name(f"{pid}r{n}_{m.group(1)}.png"))
@@ -1071,6 +1148,27 @@ def cmd_serie(a):
                 runs.add(f"r{n}")
                 log(f"relance {tour + 1} sur {RELANCES} : {len(job['shots'])} image(s)")
                 lancer(d / f"r{n}.json")
+            # visages petits dans le cadre (plans larges, en pied) : repris un par un, le reste de l'image ne change pas
+            lot, fichiers = controle_lot(data, pid, runs)
+            notes = json.loads(nf.read_text(encoding="utf-8")) if nf.exists() else {}
+            petits = [x["image"] for x in lot if (notes.get(x["image"]) or {}).get("visages") == 1 and not x["champs"].get("autres")
+                      and 0 < notes[x["image"]].get("taille_visage", 1) < SEUIL_VISAGE and len(notes[x["image"]].get("boite_visage") or []) == 4
+                      and not notes[x["image"]].get("visage_repris")]
+            if petits:
+                nom = f"girls-ai-visage-{pid}"
+                for im in petits:
+                    (data / "work" / nom / im).unlink(missing_ok=True)
+                jv = data / "work" / f"{nom}.json"
+                jv.write_text(json.dumps({**{k: v for k, v in base.items() if k != "shots"}, "name": nom, "shots": [
+                    {"name": re.search(r"_(s\d+)\.png$", im).group(1), "sortie": im[:-4], "image": str(fichiers[im]), "visage": notes[im]["boite_visage"],
+                     "seed": random.randint(1, 999999), "same_seed": True} for im in petits]}, ensure_ascii=False), encoding="utf-8")
+                log(f"visages petits dans le cadre : {len(petits)} a reprendre")
+                lancer(jv)
+                notes = json.loads(nf.read_text(encoding="utf-8"))
+                for im in petits:
+                    if (data / "work" / nom / im).exists() and im in notes:
+                        notes[im]["visage_repris"] = True
+                nf.write_text(json.dumps(notes, indent=1), encoding="utf-8")
         except Exception as e:  # le controle est un plus : sans lui les images restent, sans note
             log(f"controle impossible : {str(e)[:300]}")
     finally:
