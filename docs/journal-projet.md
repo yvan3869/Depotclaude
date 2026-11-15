@@ -623,3 +623,21 @@ modeles de retouche ne servent qu'a preparer (brouillon, tenue, lieu). Rien n'es
 - Reste : la mesure de place du volume affichee par l'entrainement est fausse (« 396536 Go ») ; planches nues,
   sous-vetements portes et temps 3-4 : lances et juges par le proprietaire.
 - Depense de l'ensemble : environ 0,65 $ ; total du jour 4,98 $ sur 7,50. Disque : 32 Go sur 197.
+
+## 2026-11-15 (soir) : cabine d'essayage, import par photo, comparaison des methodes
+
+- **Cabine** (atelier du personnage, onglet Cabine) : tenue de la garde-robe portee par elle, fond neutre ou lieu,
+  cinq poses. Essai : pull creme, fond neutre, debout de face, 3 images en 3,8 min ; pull fidele, visage tenu.
+  Limites : l'image neutre est cadree aux cuisses ; un haut seul garde le jean de l'image neutre.
+- **Import par photo** : photo d'un lieu = son image ; photo d'un vetement = vetement a plat sur fond blanc. Essai
+  avec une planche d'elle en ensemble de sport : brassiere et legging a plat, fideles, 2 images en 27 s.
+- **Comparaison des methodes** (page `#/cmp/<projet>`) : memes scenes, memes tirages, pose imposee seule puis lieu et
+  tenue de la bibliotheque ; images a part du projet. p0004, scenes 1 et 4, 3 images chacune : nouvelle methode =
+  cuisine identique entre les images d'une scene et pull tenu, mais les 3 images sont presque des copies, elle est
+  plus petite dans le cadre et la cuisine change encore d'une scene a l'autre ; methode actuelle = images plus variees
+  et plus nettes, cuisine reinventee a chaque image. Planches : `data/inbox/p0004essai_methodes_ancienne_nouvelle.png`,
+  `p0004essai_cabine_pull.png`, `p0004essai_import_photo.png`.
+- **p0005** : comparables 1 scene sur 3 au temps 1 (deux scenes libres), 4 sur 5 au temps 2, 6 sur 6 au temps 3, 0 sur
+  7 au temps 4 (une autre personne a l'image partout : la methode ne pose qu'elle). Temps 1 lance par l'assistant
+  (6 images, non regardees) ; temps 2 et 3 a lancer par le proprietaire depuis la page.
+- Depense : environ 0,50 $ ; total du jour 5,45 $ sur 7,50 environ. Disque : voir releve suivant.

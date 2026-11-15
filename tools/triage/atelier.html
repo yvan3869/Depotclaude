@@ -18,6 +18,7 @@
   .takes button.on { border-color:var(--acc); color:var(--acc); }
   .lch .chip { white-space:normal; text-align:left; height:auto; max-width:100%; }
   .bgal { display:flex; gap:6px; overflow-x:auto; margin:6px 0 4px; } .bgal img { width:108px; aspect-ratio:9/16; object-fit:cover; border-radius:6px; border:3px solid transparent; flex:none; cursor:pointer; background:var(--fond); }
+  .bgal.cm img { width:min(42vw,220px); }
   .bgal img.on { border-color:var(--acc); } .bgal.pl { flex-wrap:wrap; overflow:visible; } .bgal.pl img { width:92px; opacity:.55; } .bgal.pl img.on { opacity:1; }
   .vd { display:flex; flex-wrap:wrap; gap:5px; margin-top:4px; }
   .vd button { border-radius:16px; } .vd button.on { border-color:var(--warn); color:var(--warn); } .vd button.on[data-c=ok] { border-color:var(--ok); color:var(--ok); }
@@ -125,7 +126,7 @@ function rendreComparer() {
   const ok = CM.t.reduce((a, t) => a + C.temps[t].ok, 0), n = 2 * CM.n * ok, T1 = CM.t.length === 1 && +CM.t[0] === 1;
   const sel = (k, l) => `<select data-cm="${k}">${l.map(([v, lab]) => `<option value="${esc(v)}" ${String(v) === String(CM[k]) ? 'selected' : ''}>${esc(lab)}</option>`).join('')}</select>`;
   const nom = (l, en) => (l.find(x => x.en === en) || {}).fr || en;
-  const rang = (titre, l) => `<div class="mut" style="margin-top:6px"><b>${titre}</b></div>${l.length ? `<div class="bgal">${l.map(f => `<a href="${u(f)}" target="_blank"><img loading="lazy" src="${u(f)}" alt=""></a>`).join('')}</div>` : '<div class="mut">Pas encore d\'image.</div>'}`;
+  const rang = (titre, l) => `<div class="mut" style="margin-top:6px"><b>${titre}</b></div>${l.length ? `<div class="bgal cm">${l.map(f => `<a href="${u(f)}" target="_blank"><img loading="lazy" src="${u(f)}" alt=""></a>`).join('')}</div>` : '<div class="mut">Pas encore d\'image.</div>'}`;
   vue.innerHTML = `<div class="row tete"><a class="lien" href="#/p/${C.id}">${ic('retour')}${esc(C.titre)}</a><span class="sp"></span><span class="mut">${C.id}</span></div>
     <h2>Comparer les deux méthodes</h2>
     <p class="mut">Les mêmes scènes sont fabriquées deux fois, avec le même tirage au sort et les mêmes LoRA. En haut, la méthode actuelle : le lieu et la tenue viennent du texte. En bas, la nouvelle : le lieu et la tenue viennent des images de l'atelier du personnage. Rien ne change dans le projet : ces images restent sur cette page.</p>
