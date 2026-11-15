@@ -452,3 +452,6 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
 - 15/11, hub et Bibliotheque de LoRA : une correction faite dans la Bibliotheque (categorie, force, intitule, mots
   declencheurs) est maintenant recopiee dans la fiche du hub. Avant, le hub gardait l'ancienne valeur et la remettait
   au catalogue a son prochain reglage (cas vu sur une LoRA reclassee par le proprietaire, alignee a la main).
+- 15/11, les deux LoRA inscrites dans `persona/production.yaml` passent dans `server/data/lora_catalog.yaml` (memes
+  valeurs, licence recopiee dans leur note) : le proprietaire peut maintenant les corriger et les retirer depuis la
+  Bibliotheque comme les autres. `lora_catalog` du depot reste vide.

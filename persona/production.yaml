@@ -76,16 +76,6 @@ character:
 # Un plan sans ligne "loras" utilise extra_loras_still ; "loras: []" n'en applique aucun.
 # Exemple :
 #   detail: {file: "mon_lora.safetensors", strength: 0.6}
-lora_catalog:
-  # Ajoute le 14/11/2026 a la demande du proprietaire (Civitai 2183555, version 2740476, base
-  # Z-Image Turbo, licence : usage commercial des images autorise). Non teste par l'assistant.
-  better_nipples_and_pussy_v2_0: {label: "better nipples and pussy (v2.0)", file: "anatomie.safetensors", strength: 0.6, cat: nu}
-  # Ajoute le 14/11/2026 sur decision du proprietaire, malgre l'alerte : la licence Civitai de ce
-  # LoRA (411088, version 2709983, base Z-Image) n'autorise PAS l'usage commercial des images.
-  # Mots declencheurs : 3 des 10 donnes par l'auteur, pour ne pas alourdir chaque prompt.
-  detailed_perfection_zib_v1:
-    label: "Detailed Perfection style (Perfection zib v1.0)"
-    file: "detailed_perfection_style_hands_feet_face_body_a.safetensors"
-    strength: 0.6
-    cat: peau
-    trigger: "ultra detailed, detailed skin pore, realistic style"
+# Vide depuis le 15/11/2026 : les LoRA s'inscrivent dans server/data/lora_catalog.yaml (hub et Bibliotheque de LoRA),
+# ou le proprietaire peut les corriger et les retirer depuis la page.
+lora_catalog: {}
