@@ -192,7 +192,7 @@ Trois outils evitent qu'une video change de piece, de tenue ou de personne d'une
   image creee a part l'utilise (image de reference comprise, ou projet sans reference) sauf tirage `direct` ; aux
   temps 3 et 4 c'est le tirage par defaut (`direct` = texte seul, au choix du proprietaire). Rien ne change dans l'ecriture d'un script.
   Quatrieme valeur, `decor` (lieu et tenue de la bibliotheque) : pose imposee, et en plus le brouillon est fabrique
-  dans l'image retenue du lieu (atelier du personnage, voir plus bas), avec au temps 1 l'image de la tenue ; dans
+  dans l'image retenue du lieu (atelier du personnage, voir plus bas), avec l'image d'une tenue de la garde-robe si le proprietaire en choisit une pour ce temps (a tous les temps ; au temps 1, celle de la fiche de continuite par defaut) ; dans
   l'image finale seule la zone du personnage est refaite (champs de pilote `decor` et `tenue_image`, poses par la
   Production) : la piece reste identique au pixel d'une scene a l'autre. Il faut que le lieu de la fiche de continuite
   soit un lieu de la fiche du personnage qui a son image ; sinon la scene est faite en `pose`. Aux temps 2 a 4 la

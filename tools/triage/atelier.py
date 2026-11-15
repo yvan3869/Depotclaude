@@ -156,7 +156,7 @@ RENDUS = ("net", "telephone", "main")
 # Tirage des images d'un temps quand le projet a une image de reference : "ref" = par retouche de la reference (meme
 # piece, meme tenue, pose proche), "direct" = chaque image creee a part (LoRA du visage et fiche de continuite)
 # "pose" = creee a part elle aussi, mais sur le squelette d'un brouillon (pose imposee, voir plus bas)
-# "decor" = pose imposee, et en plus le lieu (et au temps 1 la tenue) sont ceux des images de la bibliotheque du personnage :
+# "decor" = pose imposee, et en plus le lieu et, au choix, une tenue de la garde-robe sont ceux des images de la bibliotheque du personnage :
 # le brouillon est fabrique dans la photo du lieu, puis seule la zone du personnage est refaite (la piece reste identique)
 TIRAGES = ("ref", "direct", "pose", "decor")
 # Verdict du proprietaire sur une image : des cases, pas de texte (l'assistant corrige les reglages sans voir l'image)
@@ -728,6 +728,9 @@ class Atelier:
             p["loras"] = {k: _loras((b.get("loras", old.get("loras")) or {}).get(k)) for k in ("0", "1", "2", "3", "4")}
             p["lora_def"] = [t for t in old.get("lora_def") or [] if t in ("1", "2", "3", "4")]  # temps qui ont deja recu leurs LoRA par defaut
             p["tirage"] = {str(k): _tirage({"tirage": b.get("tirage", old.get("tirage"))}, k) for k in TEMPS}
+            # Tenue de la garde-robe par temps (tirage "decor") : "" = celle de la fiche de continuite au temps 1, aucune ensuite ;
+            # "aucune" = dite par le texte seul ; sinon la ligne d'une tenue du personnage (le proprietaire choisit, a tous les temps)
+            p["tenues"] = {str(k): str((b.get("tenues", old.get("tenues")) or {}).get(str(k)) or "")[:400] for k in TEMPS}
             p["graines"] = {str(k): int(v) for k, v in (old.get("graines") or {}).items()}  # tirage commun d'un temps (images creees a part)
             p["scenes"] = [self._scene(s, p) for s in (b["scenes"] if "scenes" in b else old.get("scenes") or [])][:30]
             ref = b.get("reference", old.get("reference"))
@@ -1649,13 +1652,16 @@ class Atelier:
         return out
 
     def _decor(self, p, s):
-        """Tirage "decor" : images de la bibliotheque du personnage pour le lieu du projet et, au temps 1, pour sa tenue (aux
-        temps suivants la tenue se defait : elle reste dite par le texte). Sans image du lieu, la scene reste en pose imposee."""
+        """Tirage "decor", a tous les temps : image de la bibliotheque du personnage pour le lieu du projet et, au choix du
+        proprietaire, pour une tenue de sa garde-robe (par defaut : celle de la fiche de continuite au temps 1, aucune aux
+        temps suivants ou la tenue se defait et reste dite par le texte). Sans image du lieu, la scene reste en pose imposee."""
         c = p.get("continuite") or {}
         lieu = self.biblio.image(p["personnage"], "l", c.get("lieu")) if c.get("lieu") else None
         if not lieu:
             return {}
-        tenue = self.biblio.image(p["personnage"], "t", c.get("tenue")) if s["temps"] == 1 and c.get("tenue") else None
+        v = (p.get("tenues") or {}).get(str(s["temps"])) or ""
+        ligne = "" if v == "aucune" else v or (c.get("tenue") if s["temps"] == 1 else "")
+        tenue = self.biblio.image(p["personnage"], "t", ligne) if ligne else None
         return {"decor": str(lieu)} | ({"tenue_image": str(tenue)} if tenue else {})
 
     def devis(self, p, temps=1):

@@ -295,6 +295,14 @@ function coteMaj() {
   $$('.rail button', a).forEach(b => b.classList.toggle('on', vu && b.dataset.c === COTE.c));
   $$('.cpan', a).forEach(x => x.classList.toggle('on', x.dataset.c === COTE.c));
 }
+function tenueTemps() {  // tirage « bibliotheque » : la tenue de la garde-robe posee dans le brouillon de ce temps, au choix
+  const g = GR[P.personnage], v = (P.tenues || {})[T] || '';
+  if (!g) { if (g !== null) { GR[P.personnage] = null; api('/api/a/b?slug=' + encodeURIComponent(P.personnage)).then(r => { GR[P.personnage] = r.tenues.filter(x => x.choix); rendreProjet(); }).catch(() => {}); } return ''; }
+  const l = [['', T === 1 ? 'Celle de la fiche de continuité' : 'Aucune : dite par le texte'], ...(T === 1 ? [['aucune', 'Aucune : dite par le texte']] : []), ...g.map(x => [x.en, x.fr || x.en])];
+  if (v && !l.some(x => x[0] === v)) l.push([v, v]);
+  return `<label>${ic('personnage')}Tenue de la garde-robe<select data-ten="${T}">${l.map(([k, lab]) => `<option value="${esc(k)}" ${k === v ? 'selected' : ''}>${esc(lab)}</option>`).join('')}</select>
+    ${aide('L\'image de cette tenue (atelier du personnage, garde-robe) est posée dans le brouillon de chaque scène de ce temps. Seules les tenues qui ont une image retenue sont proposées. La description de la scène dit toujours comment elle est portée (ouverte, glissée, retirée).')}</label>`;
+}
 function rendreProjet() {
   const p = perso() || {nom: P.personnage}, vide = !P.scenes.some(s => s.temps === 1);
   const SC = P.scenes.filter(s => s.temps === T), dep = D.depots.filter(x => (x.lestemps || []).includes(T) || x.erreur);
@@ -331,7 +339,8 @@ function rendreProjet() {
       ${dep.length ? `<div class="gt">Scripts livrés</div>${dep.map(depotHtml).join('')}` : ''}
       ${lorasBloc(String(T), `${ic('lora')} LoRA de ce temps`, LT)}
       ${`<label>${ic('image')}Images de ce temps<select data-tir="${T}">${opt([...(P.reference ? [['ref', 'Tirées de la référence']] : []), ['pose', 'Créées à part, pose imposée'], ['decor', 'Pose imposée, lieu et tenue de la bibliothèque'], ['direct', 'Créées à part, texte seul']], !P.reference && TIR(T) === 'ref' ? 'pose' : TIR(T))}</select>
-        ${aide('Tirée de la référence, une image garde la pièce, la tenue et à peu près la pose : bon pour un temps où elle reste habillée et bouge peu. Créée à part (visage du personnage et fiche de continuité), la tenue et la pose suivent la description de la scène, au prix d\'un décor moins constant. Lieu et tenue de la bibliothèque : pose imposée, et en plus le brouillon est fabriqué dans l\'image retenue du lieu (atelier du personnage), avec au temps 1 l\'image de la tenue ; seule la zone du personnage est ensuite refaite, la pièce reste identique. Il faut que le lieu de la fiche de continuité soit un lieu du personnage qui a son image ; sinon la scène est faite en pose imposée. Pose imposée : un brouillon de la scène est d\'abord tiré, son squelette (un dessin en bâtons du corps) est relevé, et l\'image est créée dessus ; la position du corps et le cadrage écrits sont tenus (sauf gros plan et scène à plusieurs, faits d\'après le texte). Par défaut : référence aux temps 1 et 2 (pose imposée s\'il n\'y a pas de référence), pose imposée aux temps 3 et 4.')}</label>`}
+        ${aide('Tirée de la référence, une image garde la pièce, la tenue et à peu près la pose : bon pour un temps où elle reste habillée et bouge peu. Créée à part (visage du personnage et fiche de continuité), la tenue et la pose suivent la description de la scène, au prix d\'un décor moins constant. Lieu et tenue de la bibliothèque : pose imposée, et en plus le brouillon est fabriqué dans l\'image retenue du lieu (atelier du personnage), avec l\'image d\'une tenue de la garde-robe si vous en choisissez une (au temps 1, celle de la fiche de continuité par défaut) ; seule la zone du personnage est ensuite refaite, la pièce reste identique. Il faut que le lieu de la fiche de continuité soit un lieu du personnage qui a son image ; sinon la scène est faite en pose imposée. Pose imposée : un brouillon de la scène est d\'abord tiré, son squelette (un dessin en bâtons du corps) est relevé, et l\'image est créée dessus ; la position du corps et le cadrage écrits sont tenus (sauf gros plan et scène à plusieurs, faits d\'après le texte). Par défaut : référence aux temps 1 et 2 (pose imposée s\'il n\'y a pas de référence), pose imposée aux temps 3 et 4.')}</label>`}
+      ${TIR(T) === 'decor' ? tenueTemps() : ''}
       <div class="row"><span class="mut">Tout le projet :</span><button class="s" data-a="cote" data-c="lora">${ic('lora')}LoRA (${LN(0)})</button>
         <button class="s" data-a="cote" data-c="cont">${ic('epingle')}Continuité${P.reference ? '' : ', sans référence'}</button></div>
     </div></details>
@@ -709,6 +718,7 @@ vue.addEventListener('input', e => {
   if (t.dataset.ch) { CH[t.dataset.ch] = t.type === 'checkbox' ? t.checked : t.value; delete sig.prod; return majDyn(); }
   if (t.dataset.lf && P) { P.loras = {...(P.loras || {}), [t.dataset.lf]: LP(t.dataset.lf).map(x => x.n === t.dataset.n ? `${x.n}:${t.value}` : x.f ? `${x.n}:${x.f}` : x.n).join(', ')}; return planifier(); }
   if (t.dataset.tir && P) { P.tirage = {...(P.tirage || {}), [t.dataset.tir]: t.value}; return essai(structure)(() => {}); }
+  if (t.dataset.ten && P) { P.tenues = {...(P.tenues || {}), [t.dataset.ten]: t.value}; return essai(structure)(() => {}); }
   if (!k || !P) return;
   const v = t.type === 'checkbox' ? t.checked : t.type === 'number' || k === 'nb_scenes' || k === 'nb2' || k === 'cran' || k === 'cible' ? +t.value : t.value;
   if (t.dataset.s) sc(t.dataset.s)[k] = v; else if (t.dataset.m) P.montage[k] = v; else if (t.dataset.c) P.continuite[k] = v; else P[k] = v;
@@ -856,6 +866,7 @@ async function persoIA() {
 
 // --- Atelier du personnage : images de ses lieux et de ses tenues, planches du corps, LoRA ----------
 let A = null, AO = 'lieux', aT = null;
+const GR = {};  // garde-robe d'un personnage (tenues qui ont une image retenue), lue une fois pour la Production
 const ATABS = [['lieux', 'image', 'Lieux'], ['tenues', 'personnage', 'Garde-robe'], ['corps', 'planche', 'Corps'], ['lora', 'lora', 'LoRA']];
 const af = n => `/afile/perso-${A.slug}/${n}`;
 const acout = n => usd((A.pod ? 0 : 0.05) + n * 0.01);

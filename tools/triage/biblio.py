@@ -78,6 +78,16 @@ def _load(p, default=None):
         return default
 
 
+def _sans_elle(en):
+    """Un lieu decrit pour une scene (« in her kitchen », « rooftops behind her ») devient un lieu vide : toute mention
+    d'elle appelle une personne dans l'image (essai du 15/11/2026 : 3 images sur 14 avec quelqu'un)."""
+    t = re.sub(r"^(in|on|at|inside) ", "", en)
+    t = re.sub(r"\b(in front of|front of) ", "", t)
+    t = re.sub(r"\s*\b(behind|around|next to|beside|above|below|near) (her|him|them)\b", "", t)
+    t = re.sub(r"\b(her|his|their)\b", "the", t)
+    return re.sub(r"^the ", "a ", t).strip()
+
+
 class Biblio:
     def __init__(self, at):
         self.at, self.job = at, None  # job : {"slug", "quoi", "log", "n"}, dernier calcul lance d'ici
@@ -274,7 +284,7 @@ class Biblio:
             deja = {int(i.rsplit("_", 1)[1][:-4]) for i in x["images"]}
             for s in [s for s in range(1, 60) if s not in deja][:n]:
                 if q == "l":
-                    pr = f"vertical wide shot, eye-level, empty place, nobody, no people, {re.sub(r'^her ', 'a ', re.sub(r'^(in|on|at|inside) ', '', x['en']))}, smartphone photo, natural light"
+                    pr = f"real estate listing photo, vertical wide shot, eye-level, empty deserted place, {_sans_elle(x['en'])}, natural light"
                 else:
                     pr = f"product photo, flat lay on a plain white background, {re.sub(r'^wearing ', '', x['en'])} laid flat, nothing else, no person, no mannequin"
                 taches.append({"sortie": f"{q}_{x['cle']}_{s}", "prompt": pr, "seed": 7 * s + int(x["cle"][:4], 16), "taille": [720, 1280], "lora": False})
