@@ -14,6 +14,7 @@
   .takes { display:flex; gap:5px; overflow-x:auto; margin:4px 0 8px; }
   .takes img { width:36px; height:64px; object-fit:cover; border-radius:4px; border:2px solid transparent; flex:none; cursor:pointer; opacity:.6; }
   .takes img.on { border-color:var(--acc); opacity:1; }
+  .takes .tk { display:flex; flex-direction:column; align-items:center; flex:none; font-size:11px; }
   .takes button.on { border-color:var(--acc); color:var(--acc); }
   .lch .chip { white-space:normal; text-align:left; height:auto; max-width:100%; }
   .lsel { margin-top:8px; padding:8px 10px; border:1px solid var(--line); border-radius:var(--r); } .lsel input { width:76px; flex:none; } .lsel .row { margin:0; align-items:center; }
@@ -78,8 +79,9 @@ function noteHtml(n) {
   if (typeof x.people === 'number' && x.people !== 1) plus.push(x.people + ' personnes');
   if (x.visages === 0) plus.push('aucun visage trouvé');
   if (typeof x.ressemblance === 'number' && x.ressemblance < 0.6) plus.push(x.visages > 1 ? 'visage peu ressemblant (plusieurs visages)' : 'visage peu ressemblant');
-  return `<div class="${x.score <= 4 ? 'err' : x.score <= 6 ? 'avt' : 'okc'}" style="margin-top:6px;font-size:13px" title="Note donnée par un modèle de vision qui compare l'image à sa description. À l'essai : rien n'est refait d'après elle.">Contrôle automatique (essai) : ${x.score}/10${plus.length ? ' · ' + plus.join(' · ') : ''}</div>`;
+  return `<div class="${x.score <= 4 ? 'err' : x.score <= 6 ? 'avt' : 'okc'}" style="margin-top:6px;font-size:13px" title="Note donnée par un modèle de vision qui compare l'image à sa description. Une scène dont aucune image ne dépasse 4 est refaite toute seule, deux fois au plus ; la mieux notée est proposée, vous gardez le choix.">Contrôle automatique : ${x.score}/10${plus.length ? ' · ' + plus.join(' · ') : ''}</div>`;
 }
+const noteCourte = n => { const x = (D.notes || {})[n]; return x && x.score >= 0 ? `<span class="${x.score <= 4 ? 'err' : x.score <= 6 ? 'avt' : 'okc'}">${x.score}</span>` : '<span class="mut">·</span>'; };
 const VERDICTS = [['ok', 'Bonne'], ['passable', 'Passable'], ['pose', 'Position moyenne'], ['ton', 'Pas dans le ton'], ['tenue', 'Tenue fausse'], ['geste', 'Geste absent'], ['objet', 'Objet en trop'], ['visage', 'Visage'], ['corps', 'Corps'], ['decor', 'Décor'], ['cadrage', 'Cadrage']];
 const QUOI = {1: 'Tous publics, pour les réseaux : elle donne envie de voir la suite. Le rédacteur IA peut l\'écrire, la relire et l\'analyser.',
   2: 'Suggestif poussé : lingerie, nu suggéré, rien d\'explicite. Offert ou réservé aux abonnés, c\'est le temps qui convertit. Le rédacteur IA peut l\'écrire, sauf les scènes qui portent des LoRA.',
@@ -468,7 +470,7 @@ function majDyn() {
       <div class="pv">${c.clip ? `<video src="${u(c.clip)}" poster="${u(c.image)}" muted loop playsinline controls preload="none"></video>`
         : c.image ? `<a href="${u(c.image)}" target="_blank"><img src="${u(c.image)}" loading="lazy"></a>` : 'pas encore d\'image'}</div>
       <div class="side">
-        ${t.images.length > 1 && !cont ? `<div class="mut">Prises</div><div class="takes">${t.images.map(n => `<img src="${u(n)}" loading="lazy" class="${n === c.image ? 'on' : ''}" data-a="prise" data-n="${n}">`).join('')}</div>` : ''}
+        ${t.images.length > 1 && !cont ? `<div class="mut">Prises</div><div class="takes">${t.images.map(n => `<span class="tk"><img src="${u(n)}" loading="lazy" class="${n === c.image ? 'on' : ''}" data-a="prise" data-n="${n}">${noteCourte(n)}</span>`).join('')}</div>` : ''}
         ${clips.length > 1 ? `<div class="takes">${clips.map((n, j) => `<button class="s ${n === c.clip ? 'on' : ''}" data-a="priseclip" data-n="${n}">Clip ${j + 1}</button>`).join('')}</div>` : ''}
         <div class="row tete">${cont ? '' : `<button class="s" data-a="image" ${occ || !s.still ? 'disabled' : ''}>${ic(c.image ? 'refaire' : 'image')}${c.image ? 'Autre image' : 'Créer l\'image'}</button>`}
           <button class="s" data-a="clip" ${occ || !(cont ? (D.choix[pv.id] || {}).clip : c.image) || !s.motion ? 'disabled' : ''}>${ic(c.clip ? 'refaire' : 'clip')}${c.clip ? 'Autre clip' : 'Créer le clip'}</button></div>
@@ -485,7 +487,7 @@ function majDyn() {
       <span class="mut">${c.etat === 'pause' ? 'Indisponible : chaîne en pause (panneau Chaîne).' : `Images, ${CH.mode === 'pause' ? 'pause, ' : ''}clips, montage. Réglages : panneau Chaîne.`}</span></div>
     <div class="act"><button data-a="images" ${occ || !d.images.n ? 'disabled' : ''}>${ic('image')}Images manquantes (${d.images.n})</button><span class="mut">${d.images.n ? 'Environ ' + usd(d.images.usd) + '.' : 'Aucune image ne manque.'}</span></div>
     <div class="act"><button data-a="refaireimages" ${occ || !nRI ? 'disabled' : ''}>${ic('refaire')}Refaire les images (${RI.length})</button>
-      <span class="mut">${nRI ? `Environ ${usd(0.003 * RI.length + 0.05)}. Nouvelles prises ; les anciennes restent sélectionnables${c.etat === 'pause' ? ', la chaîne reste en pause' : ''}.` : 'Aucune image à refaire.'}</span></div>
+      <span class="mut">${nRI ? `Environ ${usd(0.009 * RI.length + 0.17)}. Nouvelles prises ; les anciennes restent sélectionnables${c.etat === 'pause' ? ', la chaîne reste en pause' : ''}.` : 'Aucune image à refaire.'}</span></div>
     <div class="act"><button data-a="clips" ${occ || !d.clips.n ? 'disabled' : ''}>${ic('clip')}Clips manquants (${d.clips.n})</button>
       <span class="mut">${d.clips.n ? `Environ ${usd(d.clips.usd)} en 480p, ${usd(d.clips.usd_hd)} en 720p.` : 'Aucun clip ne manque.'}</span></div>
     ${T < 3 ? `<div class="act"><button data-a="relire" ${R.etat === 'attente' || !E.redacteur || !SCT.some(s => (D.choix[s.id] || {}).image) ? 'disabled' : ''}>${ic('relire')}${R.etat === 'attente' ? 'Relecture en cours...' : 'Relire les images'}</button>
@@ -565,7 +567,7 @@ const actions = {
   cotefermer: () => { COTE.o = false; coteMaj(); },
   refaireimages: () => {
     const l = aRefaire();
-    if (confirm(`Refaire les ${l.length} image(s) du temps ${T}, environ ${usd(0.003 * l.length + 0.05)} ?\nLes prises actuelles sont gardées et restent sélectionnables. Les clips faits sur les anciennes images ne seront plus rattachés.`
+    if (confirm(`Refaire les ${l.length} image(s) du temps ${T} (3 essais par scène, notés par le contrôle automatique), environ ${usd(0.009 * l.length + 0.17)} ?\nLes prises actuelles sont gardées et restent sélectionnables. Les clips faits sur les anciennes images ne seront plus rattachés.`
       + (D.chaine.etat === 'pause' ? '\nLa chaîne reste en pause : « Continuer » une fois les prises choisies.' : ''))) return produire('images', l.map(s => s.id));
   },
   plier: () => { const ds = $$('.scene > details.pli', vue), o = !ds.every(x => x.open); ds.forEach(x => x.open = o); },

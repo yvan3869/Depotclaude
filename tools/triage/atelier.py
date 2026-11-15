@@ -16,6 +16,7 @@ Donnees : data/personnages/<slug>.json, data/projets/<id>/ (projet.json, runs/, 
 data/ecriture/ (demandes et reponses du redacteur), data/audio/ (musiques deposees par le proprietaire).
 """
 import base64
+import copy
 import datetime
 import json
 import os
@@ -145,6 +146,7 @@ RENDUS = ("net", "telephone", "main")
 # piece, meme tenue, pose proche), "direct" = chaque image creee a part (LoRA du visage et fiche de continuite)
 TIRAGES = ("ref", "direct")
 # Verdict du proprietaire sur une image : des cases, pas de texte (l'assistant corrige les reglages sans voir l'image)
+IMAGES_PAR_SCENE = 3  # images creees par scene a chaque lancement ; le controleur les note (pilot serie), la mieux notee est proposee
 VERDICTS = ("ok", "tenue", "geste", "objet", "visage", "corps", "decor", "cadrage", "passable", "pose", "ton")
 
 
@@ -700,18 +702,22 @@ class Atelier:
 
     def prises(self, pid):
         """Prises de chaque scene, de la plus ancienne a la plus recente. "source" : image dont un clip est tire ;
-        "depuis" : clip dont une image est la derniere image (scene continue) ; "fin" : image sur laquelle un clip arrive."""
+        "depuis" : clip dont une image est la derniere image (scene continue) ; "fin" : image sur laquelle un clip arrive ;
+        "serie" : numero de la serie d'une image (lancement a plusieurs images par scene)."""
         d, out, runs = self._pdir(pid), {}, {}
         for f in sorted((d / "media").iterdir(), key=lambda f: f.stat().st_mtime):
             m = re.fullmatch(rf"{pid}(r\d+)_(s\d+)\.(png|mp4)", f.name)
             if not m:
                 continue
             if m.group(1) not in runs:
-                runs[m.group(1)] = {x["name"]: x for x in (_load(d / "runs" / f"{m.group(1)}.json") or {}).get("shots", [])}
+                j = _load(d / "runs" / f"{m.group(1)}.json") or {}
+                runs[m.group(1)] = {x["name"]: x for x in j.get("shots", [])} | {"": j.get("serie")}
             sh = runs[m.group(1)].get(m.group(2)) or {}
-            t = out.setdefault(m.group(2), {"images": [], "clips": [], "source": {}, "depuis": {}, "fin": {}})
+            t = out.setdefault(m.group(2), {"images": [], "clips": [], "source": {}, "depuis": {}, "fin": {}, "serie": {}})
             if m.group(3) == "png":
                 t["images"].append(f.name)
+                if runs[m.group(1)][""]:  # image d'une serie (plusieurs images par scene, notees par le controleur)
+                    t["serie"][f.name] = runs[m.group(1)][""]
                 if sh.get("depuis"):
                     t["depuis"][f.name] = sh["depuis"]
                 continue
@@ -727,13 +733,24 @@ class Atelier:
         elle sort du clip retenu de la scene precedente ; le clip qui precede une scene "arrivee" ne compte que s'il finit
         sur l'image retenue de cette scene. Changer une prise en amont rend donc la suite a refaire."""
         pr = pr if pr is not None else self.prises(p["id"])
-        vide = {"images": [], "clips": [], "source": {}, "depuis": {}, "fin": {}}
+        vide = {"images": [], "clips": [], "source": {}, "depuis": {}, "fin": {}, "serie": {}}
         prec, out = _prec(p), {}
+        notes = _load(self._pdir(p["id"]) / "notes_images.json", {})
+
+        def derniere(t):
+            """Sans choix du proprietaire : la mieux notee de la derniere serie (controleur d'images), sinon la derniere."""
+            if not t["images"]:
+                return ""
+            n = t.get("serie", {}).get(t["images"][-1])
+            lot = [i for i in t["images"] if n and t["serie"].get(i) == n] or t["images"][-1:]
+            cle = lambda i: (notes.get(i, {}).get("score", -1), (notes.get(i, {}).get("p") or {}).get("fidele", 0))
+            return max(reversed(lot), key=cle)
+
         cont = {s["id"]: bool(prec[s["id"]]) and s["raccord"] == "continu" for s in p["scenes"]}
         for s in p["scenes"]:  # images des scenes qui ont la leur
             if not cont[s["id"]]:
                 t = pr.get(s["id"], vide)
-                out[s["id"]] = {"image": s["image"] if s["image"] in t["images"] else (t["images"][-1] if t["images"] else ""), "clip": ""}
+                out[s["id"]] = {"image": s["image"] if s["image"] in t["images"] else derniere(t), "clip": ""}
         suiv = {prec[s["id"]]["id"]: s for s in p["scenes"] if prec[s["id"]]}
         for s in p["scenes"]:  # dans l'ordre : le clip d'une scene decide de l'image de la scene continue qui la suit
             t = {**vide, **pr.get(s["id"], vide)}
@@ -1437,7 +1454,7 @@ class Atelier:
         ch = {s["id"]: s for s in p["scenes"]}
         img = self._a_imager(p, ch, (temps,))
         clp = [ch[i] for i in self._a_cliper(p, ch, temps)]
-        return {"images": {"n": len(img), "usd": round(0.003 * len(img) + (0 if self.studio.pod() else 0.05), 2)},
+        return {"images": {"n": len(img), "usd": round((0.003 * IMAGES_PAR_SCENE * len(img) + 0.12 + (0 if self.studio.pod() else 0.05)) if img else 0, 2)},
                 "clips": {"n": len(clp), "usd": round(sum(0.07 if s["end_edit"] else 0.035 for s in clp) + 0.12, 2),
                           "usd_hd": round(sum(0.26 if s["end_edit"] else 0.13 for s in clp) + 0.12, 2)}}
 
@@ -1468,7 +1485,7 @@ class Atelier:
             perso = self.perso(p["personnage"])
             want = set(b.get("scenes") or [])
             d = self._pdir(pid)
-            n = len(list((d / "runs").glob("r*.json"))) + 1 if (d / "runs").is_dir() else 1
+            n = max([int(f.stem[1:]) for f in (d / "runs").glob("r*.json") if f.stem[1:].isdigit()] or [0]) + 1 if (d / "runs").is_dir() else 1
             shots, media, prec, ch_s = [], d / "media", _prec(p), {s["id"]: s for s in p["scenes"]}
             tmin = self._lib()["tmin"]
             if quoi == "images":
@@ -1525,15 +1542,28 @@ class Atelier:
                    "defaults": {"still_size": [720, 1280], "clip_size": [720, 1280] if b.get("hd") else [480, 832], "mode": "natural",
                                 "smooth": True, "grain": True, "same_seed": True, "loras": []},
                    "shots": shots}
-            _dump(d / "runs" / f"r{n}.json", job)
+            if quoi == "images":
+                # Serie : IMAGES_PAR_SCENE variantes des memes scenes (un lancement chacune, tirage decale), notees par le
+                # controleur d'images ; une scene ratee partout est refaite (pilot serie). La mieux notee est proposee.
+                fichiers = []
+                for k in range(IMAGES_PAR_SCENE):
+                    v = copy.deepcopy(job) | {"name": f"{pid}r{n + k}", "serie": n}
+                    for sh in v["shots"]:
+                        sh["seed"] += k
+                        if Path(sh.get("image") or "").name.startswith(f"{pid}r{n}_"):  # tiree de l'image de reference de sa variante
+                            sh["image"] = str(media / Path(sh["image"]).name.replace(f"{pid}r{n}_", f"{pid}r{n + k}_", 1))
+                    _dump(d / "runs" / f"r{n + k}.json", v)
+                    fichiers.append(str(d / "runs" / f"r{n + k}.json"))
+                cmd = [sys.executable, "-m", "pilot", "serie", pid, *fichiers, "--data", str(self.data), "--out", str(d / "media"),
+                       "--pod-id", os.environ.get("STUDIO_POD_ID") or self.studio.ensure_pod()]  # pod de veille du studio, partage avec la page Test
+            else:
+                _dump(d / "runs" / f"r{n}.json", job)
+                cmd = [sys.executable, "-m", "pilot", "run", str(d / "runs" / f"r{n}.json"), "--data", str(self.data), "--out", str(d / "media")]
             _dump(d / "projet.json", p)
-            cmd = [sys.executable, "-m", "pilot", "run", str(d / "runs" / f"r{n}.json"), "--data", str(self.data), "--out", str(d / "media")]
-            if quoi == "images":  # pod de veille du studio, partage avec la page Test
-                cmd += ["--stills-only", "--pod-id", os.environ.get("STUDIO_POD_ID") or self.studio.ensure_pod()]
             log = d / "runs" / f"r{n}.log"
             self.studio.proc = subprocess.Popen(cmd, cwd=str(self.repo / "server"), stdout=open(log, "w"), stderr=subprocess.STDOUT)
-            self.job = {"projet": pid, "quoi": quoi, "log": str(log), "n": len(shots)}
-            return {"lance": len(shots), "quoi": quoi}
+            self.job = {"projet": pid, "quoi": quoi, "log": str(log), "n": len(shots) * (IMAGES_PAR_SCENE if quoi == "images" else 1)}
+            return {"lance": self.job["n"], "quoi": quoi}
 
     def prod(self, pid):
         d = self._pdir(pid) / "runs"
@@ -1650,7 +1680,7 @@ class Atelier:
         p = self._raw(pid)
         ch = self._choix(p)
         img = self._a_imager(p, ch, temps, refaire)
-        usd, clips, montages = (0.003 * len(img) + (0 if self.studio.pod() else 0.05)) if img else 0, 0, 0
+        usd, clips, montages = (0.003 * IMAGES_PAR_SCENE * len(img) + 0.12 + (0 if self.studio.pod() else 0.05)) if img else 0, 0, 0
         for t in temps:
             sc = [s for s in p["scenes"] if s["temps"] == t]
             ok = self._a_cliper(p, ch, t, neuves=img)
