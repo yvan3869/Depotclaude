@@ -657,3 +657,11 @@ modeles de retouche ne servent qu'a preparer (brouillon, tenue, lieu). Rien n'es
 - Avis : garder l'ancienne par defaut ; la nouvelle pour les plans larges ou la piece doit etre reconnue. A faire pour la rendre utile en plan serre : photos du lieu de plus pres (ou recadrage de la photo autour du personnage).
 - Depense : environ 0,35 $ ; total du jour 6,15 $ sur 20.
 - Demande notee : file d'attente des calculs (enchainer sur un meme pod).
+
+## 2026-11-15 (nuit) : file d'attente, finition, page Schemas
+
+- File d'attente des calculs : faite et en ligne ; affichee en haut de la Production, sur la ligne de la depense (elle vaut pour tous les projets). Prouvee sur p0004 (un lancement mis en file est parti seul a la fin du precedent, sur le meme pod).
+- Finition (seconde passe en 1088 x 1920) : essai p0004, memes tirages avec et sans, 6 images. Meme image, visage et mains nettement plus detailles ; environ 8 secondes de plus par image ; petits details inventes possibles. Activee (`finition: true`). Planche `data/inbox/p0004essai_finition.png`.
+- Page Schemas (`#/schemas`) : arbre de decision de la fabrication des images ; video et son a venir.
+- Avis donne sur l'arbre : manquent le controle du brouillon avant les trois images, une reprise ciblee du visage, une relance qui redit tout ce qui a manque (pas seulement la pose). En attente de l'accord du proprietaire.
+- Depense : environ 0,30 $ ; total du jour 6,44 $ sur 20.

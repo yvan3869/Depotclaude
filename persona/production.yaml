@@ -2,6 +2,9 @@
 # Pour un autre personnage : copier ce fichier, changer la section character.
 # image_model : zimage (photo realiste, retenu le 13/11/2026) ou wan (ancienne methode, en secours).
 image_model: zimage
+# Finition : chaque image Z-Image est agrandie une fois et demie puis redessinee legerement (detail de la peau, des
+# yeux, des mains). Voir docs/agents.md.
+finition: true
 
 infra:
   template_id: "6uf2r3i7sy"
