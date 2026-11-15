@@ -216,12 +216,13 @@ async function ouvrirProjet(id) {
   surveiller();
 }
 const GARDER = {tenues: ['Tenue', 'Ajouter à la garde-robe'], lieux: ['Lieu', 'Ajouter aux lieux']};
-function garderHtml(nom) {  // tenues et lieux nouveaux que le script propose de garder dans la fiche du personnage
+function garderHtml(nom) {  // tenues et lieux du script absents de la fiche du personnage
   const l = Object.keys(GARDER).flatMap(k => ((D.garder || {})[k] || []).map((x, i) => [k, i, x]));
   return l.length ? `<div class="panel" style="margin-top:8px"><b>${ic('epingle')}À garder pour ${esc(nom)} ?</b>
-    <div class="mut">Nouveautés de ce script. Ajoutées à sa fiche, elles reviendront avec les mêmes mots dans les prochaines vidéos.</div>
-    ${l.map(([k, i, x]) => { const [fr, en] = x.split(' | '); return `<div class="var"><span class="mut">${GARDER[k][0]}</span> <b>${esc(fr)}</b><div class="mut">${esc(en || '')}</div>
-      <div class="row" style="margin-top:6px"><button class="p s" data-a="garder" data-g="${k}" data-i="${i}" data-o="1">${ic('ajouter')}${GARDER[k][1]}</button><button class="s" data-a="garder" data-g="${k}" data-i="${i}">Non</button></div></div>`; }).join('')}</div>` : '';
+    <div class="mut">Nouveautés de ce script, absentes de sa fiche. Ajoutées, elles reviendront avec les mêmes mots dans les prochaines vidéos.</div>
+    ${l.map(([k, i, x]) => `<div class="var"><span class="mut">${GARDER[k][0]}</span><div>${esc(x.en)}</div>
+      <label style="margin-top:6px">Nom court, en français<input id="gn_${k}_${i}" maxlength="60" value="${esc(x.fr)}" placeholder="${k === 'tenues' ? 'robe rouge' : 'balcon'}"></label>
+      <div class="row" style="margin-top:6px"><button class="p s" data-a="garder" data-g="${k}" data-i="${i}" data-o="1">${ic('ajouter')}${GARDER[k][1]}</button><button class="s" data-a="garder" data-g="${k}" data-i="${i}">Non</button></div></div>`).join('')}</div>` : '';
 }
 async function recharger() {
   const y = window.scrollY;
@@ -609,7 +610,9 @@ const actions = {
   cotefermer: () => { COTE.o = false; coteMaj(); },
   garder: async el => {
     const k = el.dataset.g, oui = !!el.dataset.o;
-    await api('/api/a/garder', {id: P.id, genre: k, texte: D.garder[k][+el.dataset.i], oui});
+    const nom = ($('#gn_' + k + '_' + el.dataset.i) || {}).value || '';
+    if (oui && !nom.trim()) return toast('Donner un nom court avant d\'ajouter');
+    await api('/api/a/garder', {id: P.id, genre: k, en: D.garder[k][+el.dataset.i].en, nom, oui});
     toast(oui ? 'Ajouté à la fiche du personnage' : 'Proposition écartée', true); await recharger();
   },
   refaireimages: () => {

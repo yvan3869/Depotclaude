@@ -44,8 +44,9 @@
 #                et les plans se suivent dans l'ordre des temps. 30 plans au plus, 10 par temps. Le fichier s'importe
 #                tout seul dans la page (plus de bouton) ; redepose, il met le projet a jour. "projet_de" ne sert plus.
 #                L'ancienne forme (un fichier par temps, avec "atelier.temps") reste lue.
-#   2026-11-15f  bloc "atelier" : garder (facultatif). Tenues et lieux NOUVEAUX, nes de la discussion, que le scenariste
-#                propose de garder dans la fiche du personnage. Le proprietaire decide dans la page, une fois les images faites.
+#   2026-11-15f  bloc "atelier" : garder (facultatif). La tenue et le lieu de la continuite absents de la fiche du personnage
+#                sont proposes d'office au proprietaire, une fois les images faites : rien a declarer. "garder" ne sert qu'a
+#                souffler leur nom francais, ou a proposer une tenue qui n'est pas celle de la continuite.
 
 modele: "2026-11-15f"
 name: monlot                 # prefixe des fichiers produits (lettres, chiffres, _), unique par lancement
@@ -82,10 +83,9 @@ name: monlot                 # prefixe des fichiers produits (lettres, chiffres,
 #     cheveux: "hair in a loose bun"        # coiffure du jour, ou ""
 #     lumiere: "soft morning window light"
 #     pdv: "shot at eye level on a phone"   # point de vue : la vue, jamais l'appareil comme un objet pose
-#   # Tenue ou lieu nouveau (absent des listes de la fiche du personnage) qui doit pouvoir revenir dans d'autres videos.
-#   # Forme de la fiche : "francais | anglais", l'anglais mot pour mot comme dans la continuite ou les "still".
-#   # La page le propose au proprietaire une fois les images faites ; lui seul l'ajoute a la fiche. 4 lignes au plus par liste.
-#   # Une tenue d'un jour ne se met pas ici. Bloc a retirer s'il n'y a rien a garder.
+#   # Facultatif. Une tenue ou un lieu nouveau de la continuite est propose d'office au proprietaire, qui seul l'ajoute a la
+#   # fiche du personnage. Ce bloc sert a souffler son nom francais ("francais | anglais", l'anglais mot pour mot comme
+#   # dans la continuite), ou a proposer une tenue qui n'est pas celle de la continuite. 4 lignes au plus par liste.
 #   garder:
 #     tenues: ["robe rouge a fines bretelles | wearing a red slip dress with thin straps"]
 #     lieux: []

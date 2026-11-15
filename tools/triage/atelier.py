@@ -40,7 +40,7 @@ ETAPES = ("idee", "ecrit", "images", "clips", "monte", "valide")
 FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 TEMPS = {1: "accroche", 2: "montee", 3: "devoile", 4: "final"}
 V = 4            # version des donnees : 4 = quatre temps (l'ancien temps 3, le final, est devenu le temps 4)
-GARDER = ("tenues", "lieux")  # listes de la fiche du personnage qu'un script peut proposer d'allonger
+GARDER = ("tenues", "lieux")  # listes de la fiche du personnage qu'un script peut allonger, sur accord du proprietaire
 MODELE_UN = "2026-11-15e"  # premier modele de plans ou une video entiere tient dans un fichier, importe sans bouton
 MODELE_DEC = "2026-11-15d"  # premier modele de plans ou chaque plan dit son passage et sa camera
 MODELE_4T = "2026-11-14f"  # premier modele de plans a quatre temps : avant lui, "temps: 3" designait le final
@@ -168,6 +168,11 @@ def _tirage(p, t):
     return v if v in TIRAGES else "ref" if t <= 2 else "direct"
 MARGE = 0.03  # le tremble de main recadre dans une image agrandie d'autant
 JOINT = 1 / 32  # a un raccord continu, la premiere image du clip suivant repete la derniere du precedent : elle est retiree
+
+
+def _cle(x):
+    """Cle de comparaison d'une tenue ou d'un lieu : sa partie anglaise (celle qui part dans les images), sans casse ni ponctuation de fin."""
+    return _s(str(x or "").rpartition("|")[2]).strip(" .,").lower()
 
 
 def _cont(d):
@@ -731,25 +736,35 @@ class Atelier:
             return v
 
     def _a_garder(self, p):
-        """Tenues et lieux proposes par le script, pas encore dans la fiche du personnage ni ecartes par le proprietaire."""
-        per, non = self.persos().get(p["personnage"]) or {}, set(p.get("garder_non") or [])
-        cle = lambda x: _s(str(x).partition("|")[2] or x).lower()  # la partie anglaise : c'est elle qui part dans les images
-        return {k: [x for x in (p.get("garder") or {}).get(k) or [] if x not in non and cle(x) not in {cle(y) for y in per.get(k) or []}]
-                for k in GARDER}
+        """Tenues et lieux du script absents de la fiche du personnage et pas ecartes par le proprietaire : la tenue et le lieu de
+        la fiche de continuite, reperes d'office, puis les lignes de "atelier.garder" (qui donnent aussi le nom francais)."""
+        per, non = self.persos().get(p["personnage"]) or {}, {_cle(x) for x in p.get("garder_non") or []}
+        out = {}
+        for k, c in zip(GARDER, ("tenue", "lieu")):
+            vus, l = {_cle(y) for y in per.get(k) or []} | non, []
+            noms = {_cle(x): x.partition(" | ")[0] for x in (p.get("garder") or {}).get(k) or []}
+            for en in [(p.get("continuite") or {}).get(c) or "", *[x.partition(" | ")[2] for x in (p.get("garder") or {}).get(k) or []]]:
+                if _cle(en) and _cle(en) not in vus:
+                    vus.add(_cle(en)), l.append({"fr": noms.get(_cle(en), ""), "en": en})
+            out[k] = l
+        return out
 
     def garder(self, b):
-        """Le proprietaire ajoute a la fiche du personnage une tenue ou un lieu propose par le script ("oui"), ou l'ecarte."""
+        """Le proprietaire ajoute a la fiche du personnage une tenue ou un lieu nouveau du script, sous le nom court qu'il lui
+        donne ("oui"), ou l'ecarte."""
         with self.lock:
-            p, k, x = self._raw(b["id"]), b.get("genre"), str(b.get("texte") or "")
-            if k not in GARDER or x not in self._a_garder(p)[k]:
+            p, k, en = self._raw(b["id"]), b.get("genre"), _s(b.get("en"))
+            if k not in GARDER or _cle(en) not in {_cle(x["en"]) for x in self._a_garder(p)[k]}:
                 raise ValueError("proposition inconnue")
             if b.get("oui"):
-                per = self.perso(p["personnage"])
+                nom, per = _s(b.get("nom"), 60).replace("|", " "), self.perso(p["personnage"])
+                if not nom:
+                    raise ValueError("Donner un nom court, en français, avant d'ajouter.")
                 if len(per.get(k) or []) >= 30:
                     raise ValueError("La fiche a déjà 30 lignes : en retirer une dans le Casting avant d'en ajouter.")
-                self.save_perso({**per, k: [*(per.get(k) or []), x]})
+                self.save_perso({**per, k: [*(per.get(k) or []), f"{nom} | {en}"]})
             else:
-                p["garder_non"] = [*p["garder_non"], x][-40:]
+                p["garder_non"] = [*p["garder_non"], en][-40:]
                 _dump(self.dj / p["id"] / "projet.json", p)
             return {"garder": self._a_garder(p)}
 
@@ -1379,7 +1394,7 @@ class Atelier:
         ref = str(a.get("reference") or "")
         if ref and ref not in [str(sh["name"]) for sh in shots if (sh.get("temps") == 1 or not entier) and not (sh["name"] not in premiers and sh.get("raccord") == "continu")]:
             raise ValueError('"atelier.reference" : nom d\'un plan ' + ("du temps 1 " if entier else "") + 'de ce fichier qui a sa propre image (pas un plan continu)')
-        # tenues et lieux nouveaux que le scenariste propose de garder dans la fiche du personnage (le proprietaire decide)
+        # facultatif : nom francais d'une tenue ou d'un lieu nouveau (ceux de la continuite sont reperes d'office), ou ligne en plus
         garder = None
         if a.get("garder") is not None:
             g, garder, msg = a["garder"], {}, '"atelier.garder" : "tenues" et "lieux", 4 lignes au plus chacune, chaque ligne "français | anglais"'

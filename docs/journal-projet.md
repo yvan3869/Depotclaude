@@ -495,3 +495,6 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
 - 15/11, garde-robe qui grandit : modele de plans `2026-11-15f`, bloc `atelier.garder` (tenues et lieux nouveaux nes
   de la discussion avec le scenariste). La page les propose au proprietaire une fois une image retenue ; un appui les
   ajoute a la fiche du personnage, sans redeposer la fiche. Le scenariste ne touche pas a la fiche. Aucune depense GPU.
+- 15/11, garde-robe, suite : le scenariste n'a plus rien a declarer. La page repere d'office la tenue et le lieu de la
+  continuite absents de la fiche ; le proprietaire donne le nom francais dans une case et ajoute, ou ecarte.
+  `atelier.garder` reste lu (nom francais souffle, tenue hors continuite). Aucune depense GPU.
