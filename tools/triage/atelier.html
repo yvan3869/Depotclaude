@@ -369,6 +369,9 @@ function rendreProjet() {
             aide: 'Un seul son bref et concret. Vide : pas de bruit. ' + (D.son.prets.includes(s.id) ? 'Fabriqué.' : s.son ? 'Pas encore fabriqué (panneau Son).' : '')})}</div>
           <div class="g">${f('son_t', 'Instant (s)', s.son_t ?? '', {at: `data-s="${s.id}"`, ph: 'auto', aide: 'Vide : calé sur le moment où l\'image bouge le plus.'})}</div></div>
         ${f('voix', 'Voix off', s.voix, {at: `data-s="${s.id}"`, aide: 'Gardée pour plus tard : pas encore de synthèse vocale.'})}
+        ${(() => { const h = [...LP('0'), ...LP(String(T))].filter((y, i, l) => l.findIndex(z => z.n === y.n) === i).filter(y => ((E.bibliotheque.loras.find(x => x.name === y.n) || {}).temps_min || 1) <= T);
+          const off = n => (s.loras || '').split(',').some(v => v.trim() === n + ':0');  // « nom:0 » sur la scene : LoRA coupee ici seulement
+          return h.length ? `<div class="gt">LoRA du projet et du temps, sur cette scène</div><div class="chips">${h.map(y => `<button class="chip ${off(y.n) ? '' : 'on'}" data-a="loraoff" data-n="${esc(y.n)}">${ic(off(y.n) ? 'fermer' : 'valider')}${esc(y.n)} <small>${off(y.n) ? 'coupée ici' : 'active'}</small></button>`).join('')}</div><div class="mut">Toucher une LoRA pour la couper ou la remettre sur cette scène seulement.</div>` : ''; })()}
         <div class="gt">LoRA de cette scène (rare)</div>
         ${f('loras', 'En plus de celles du projet et du temps', s.loras, {at: `data-s="${s.id}"`, ph: 'nom:0.6, autre',
           aide: `« nom:force », séparés par des virgules. Seules les LoRA que leur catégorie admet au temps ${T} sont acceptées. Une LoRA d'image fait tirer l'image directement, sans retouche depuis l'image de référence ; une LoRA vidéo s'applique au clip.`})}
@@ -658,6 +661,7 @@ const actions = {
   ajouter: () => structure(() => P.scenes.push({titre: '', role: 'montee', temps: T, still: '', motion: '', texte: '', tattoos: true, loras: ''})),
   poserdefauts: () => { const d = (E.bibliotheque.defauts || {})[T] || ''; if (d && confirm(`Poser « ${d} » sur toutes les scènes du temps ${T} ? Les LoRA déjà notées sur ces scènes sont remplacées.`)) return structure(() => P.scenes.filter(s => s.temps === T).forEach(s => s.loras = d)); },
   loratog: el => { const l = LP(el.dataset.k), n = el.dataset.n; return lpSet(el.dataset.k, l.some(x => x.n === n) ? l.filter(x => x.n !== n) : [...l, {n}]); },
+  loraoff: (el, sid) => structure(() => { const x = sc(sid), n = el.dataset.n, l = (x.loras || '').split(',').map(v => v.trim()).filter(Boolean), i = l.findIndex(v => v.split(':')[0] === n); if (i >= 0 && l[i] === n + ':0') l.splice(i, 1); else if (i >= 0) l[i] = n + ':0'; else l.push(n + ':0'); x.loras = l.join(', '); }),
   loraplus: (el, sid) => structure(() => { const x = sc(sid), l = (x.loras || '').split(',').map(v => v.trim()).filter(Boolean); if (!l.some(v => v.split(':')[0] === el.dataset.n)) l.push(el.dataset.n); x.loras = l.join(', '); }),
   lorasauver: loraSauver, loraretirer: loraRetirer, loracorriger: el => loraForm(E.bibliotheque.loras.find(x => x.name === el.dataset.n)), lorainscrire: el => loraForm({file: el.dataset.n}), defautssauver: defautsSauver,
   dupliquer: (el, sid) => structure(() => { const i = P.scenes.findIndex(s => s.id === sid); P.scenes.splice(i + 1, 0, {...P.scenes[i], id: null, seed: 0, image: '', clip: '', origine: ''}); }),
