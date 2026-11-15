@@ -665,3 +665,22 @@ modeles de retouche ne servent qu'a preparer (brouillon, tenue, lieu). Rien n'es
 - Page Schemas (`#/schemas`) : arbre de decision de la fabrication des images ; video et son a venir.
 - Avis donne sur l'arbre : manquent le controle du brouillon avant les trois images, une reprise ciblee du visage, une relance qui redit tout ce qui a manque (pas seulement la pose). En attente de l'accord du proprietaire.
 - Depense : environ 0,30 $ ; total du jour 6,44 $ sur 20.
+
+## 2026-11-15 (nuit, suite) : essai des trois chantiers, nettoyage de p0005
+
+- Essai sur p0004 (3 scenes en pose imposee, 3 variantes, tous publics) : brouillons relus avant les images (2 sur 3
+  a refaire ; 1 refait garde, 1 refait pas meilleur donc premier garde), 9 images notees 8 ou 9, aucune relance,
+  6 visages petits repris (6 s chacun, sans raccord visible ; gain net mais modeste apres la finition).
+  Planche : `data/inbox/p0004essai_visage_avant_apres.png`. Duree 23 min, environ 0,60 $ (dont controle 0,33 $).
+- Defaut constate : chaque relecture du controleur relance son script (environ 3 min) et l'essai a retenu la file
+  23 min alors que le proprietaire y avait 6 series de planches. A faire : garder le controleur charge entre deux
+  relectures ; ne lancer un essai que file vide.
+- p0005 nettoye a la demande du proprietaire : images, clips, montages, planches de comparaison, notes, verdicts et
+  journaux deplaces dans `data/archives/girls-ai-p0005-20261115/` ; `projet.json.avant-nettoyage` garde. Son script
+  date d'avant le modele `2026-11-15g` (aucun champ de pose) : a redeposer par le scenariste.
+- Scenariste : les champs de pose facultatifs (appui, bassin, genoux, mains) sont a remplir pour les poses difficiles.
+- Decide avec le proprietaire, a faire au debut du chantier video : le rendu (« filme a la main » ou « camera
+  posee ») se choisit une fois par video, propose par le script (champ `rendu`), modifiable dans la page ; la phrase
+  ajoutee aux clips et le reglage du montage suivent ce choix. Ordre des chantiers : videos et leur qualite, son,
+  voix, synchro des levres.
+- Depense du jour : 7,50 $ sur 20.
