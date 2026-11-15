@@ -132,6 +132,8 @@ def verifier(a, f):
         elif f.parent.resolve() == a.dd.resolve():
             x = a.examen(f)
             print(f"  {x['plans']} plan(s) pour " + (f"les temps {', '.join(map(str, x['lestemps']))}, " if len(x['lestemps']) > 1 else f"le temps {x['temps']}, ") + (f"projet {x['projet']}" if x["projet"] else f"projet qu'ouvrira {x['attente']}" if x["attente"] else "nouveau projet"))
+            if any(x["garder"].values()):
+                print(f"  a garder : {x['garder']['tenues']} tenue(s), {x['garder']['lieux']} lieu(x), proposes au proprietaire pour la fiche du personnage une fois les images faites")
             rem, perime, ref = x["remarques"], x["perime"], "server/jobs/modele.yaml"
         else:
             print("  REFUSE : un depot se place dans server/jobs/atelier/ (plans) ou server/jobs/atelier/personnages/ (fiche)")

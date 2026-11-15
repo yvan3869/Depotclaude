@@ -492,3 +492,6 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
   `--retour <script>` (par scene : images faites, scene refaite ou non, image retenue, clip, note, points douteux,
   cases du proprietaire ; valeurs fermees et nombres seulement). Ancien formulaire en trois temps retire (`/nouveau`,
   `form.html`, `/api/job`) : tout script passe par la Production. Aucune depense GPU.
+- 15/11, garde-robe qui grandit : modele de plans `2026-11-15f`, bloc `atelier.garder` (tenues et lieux nouveaux nes
+  de la discussion avec le scenariste). La page les propose au proprietaire une fois une image retenue ; un appui les
+  ajoute a la fiche du personnage, sans redeposer la fiche. Le scenariste ne touche pas a la fiche. Aucune depense GPU.

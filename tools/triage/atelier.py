@@ -40,6 +40,7 @@ ETAPES = ("idee", "ecrit", "images", "clips", "monte", "valide")
 FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 TEMPS = {1: "accroche", 2: "montee", 3: "devoile", 4: "final"}
 V = 4            # version des donnees : 4 = quatre temps (l'ancien temps 3, le final, est devenu le temps 4)
+GARDER = ("tenues", "lieux")  # listes de la fiche du personnage qu'un script peut proposer d'allonger
 MODELE_UN = "2026-11-15e"  # premier modele de plans ou une video entiere tient dans un fichier, importe sans bouton
 MODELE_DEC = "2026-11-15d"  # premier modele de plans ou chaque plan dit son passage et sa camera
 MODELE_4T = "2026-11-14f"  # premier modele de plans a quatre temps : avant lui, "temps: 3" designait le final
@@ -642,6 +643,7 @@ class Atelier:
         p.setdefault("reference", "")
         p.setdefault("brief2", ""), p.setdefault("nb2", 3), p.setdefault("depots", {})
         p.setdefault("date_perso", ""), p.setdefault("contexte", "")
+        p.setdefault("garder", {}), p.setdefault("garder_non", [])
         return p
 
     def _scene(self, d, proj):
@@ -685,7 +687,7 @@ class Atelier:
                  "brief": _s(b.get("brief", old.get("brief")), 1500), "suite": _s(b.get("suite", old.get("suite")), 600),
                  "nb_scenes": max(2, min(int(b.get("nb_scenes", old.get("nb_scenes")) or 3), 8)),
                  "brief2": _s(b.get("brief2", old.get("brief2")), 1500), "nb2": max(2, min(int(b.get("nb2", old.get("nb2")) or 3), 6)),
-                 "depots": old.get("depots") or {}, "continuite": _cont(b.get("continuite", old.get("continuite"))),
+                 "depots": old.get("depots") or {}, "garder": old.get("garder") or {}, "garder_non": old.get("garder_non") or [], "continuite": _cont(b.get("continuite", old.get("continuite"))),
                  # date_perso : date fictive, celle du jour ou le personnage vit la scene ; cree et modifie : dates reelles
                  "date_perso": _date(b.get("date_perso", old.get("date_perso"))), "contexte": _s(b.get("contexte", old.get("contexte")), 400),
                  "pitch": _s(b.get("pitch", old.get("pitch")), 400), "ambiance": _s(b.get("ambiance", old.get("ambiance")), 300), "accroche": _s(b.get("accroche", old.get("accroche")), 120),
@@ -727,6 +729,29 @@ class Atelier:
                 v[n] = codes
             _dump(f, v)
             return v
+
+    def _a_garder(self, p):
+        """Tenues et lieux proposes par le script, pas encore dans la fiche du personnage ni ecartes par le proprietaire."""
+        per, non = self.persos().get(p["personnage"]) or {}, set(p.get("garder_non") or [])
+        cle = lambda x: _s(str(x).partition("|")[2] or x).lower()  # la partie anglaise : c'est elle qui part dans les images
+        return {k: [x for x in (p.get("garder") or {}).get(k) or [] if x not in non and cle(x) not in {cle(y) for y in per.get(k) or []}]
+                for k in GARDER}
+
+    def garder(self, b):
+        """Le proprietaire ajoute a la fiche du personnage une tenue ou un lieu propose par le script ("oui"), ou l'ecarte."""
+        with self.lock:
+            p, k, x = self._raw(b["id"]), b.get("genre"), str(b.get("texte") or "")
+            if k not in GARDER or x not in self._a_garder(p)[k]:
+                raise ValueError("proposition inconnue")
+            if b.get("oui"):
+                per = self.perso(p["personnage"])
+                if len(per.get(k) or []) >= 30:
+                    raise ValueError("La fiche a déjà 30 lignes : en retirer une dans le Casting avant d'en ajouter.")
+                self.save_perso({**per, k: [*(per.get(k) or []), x]})
+            else:
+                p["garder_non"] = [*p["garder_non"], x][-40:]
+                _dump(self.dj / p["id"] / "projet.json", p)
+            return {"garder": self._a_garder(p)}
 
     def prises(self, pid):
         """Prises de chaque scene, de la plus ancienne a la plus recente. "source" : image dont un clip est tire ;
@@ -857,6 +882,8 @@ class Atelier:
                 "finals": finals, "etape": self._etape(e, finals[1]), "montage": mt, "prod": self.prod(pid),
                 "devis": {t: self.devis(e, t) for t in TEMPS}, "depots": [x for x in self.depots() if x.get("projet") == pid],
                 "verdicts": _load(self._pdir(pid) / "verdicts.json", {}),
+                # propositions du script pour la fiche du personnage : montrees une fois une image retenue
+                "garder": self._a_garder(p) if any(s["image"] for s in e["scenes"]) else {k: [] for k in GARDER},
                 "notes": _load(self._pdir(pid) / "notes_images.json", {}),  # notes du controleur d'images (pilot controle)
                 "chaine": self.chaine_vue(pid), "son": (self.sons.get(pid) or {"etat": ""}) | {"a_faire": len(self._sons_lot(p, False)), "prets": self._sons_prets(p),
                                                                                          "image": {t: len(self._simage_lot(p, t, e=e)) for t in TEMPS}},
@@ -1352,12 +1379,23 @@ class Atelier:
         ref = str(a.get("reference") or "")
         if ref and ref not in [str(sh["name"]) for sh in shots if (sh.get("temps") == 1 or not entier) and not (sh["name"] not in premiers and sh.get("raccord") == "continu")]:
             raise ValueError('"atelier.reference" : nom d\'un plan ' + ("du temps 1 " if entier else "") + 'de ce fichier qui a sa propre image (pas un plan continu)')
+        # tenues et lieux nouveaux que le scenariste propose de garder dans la fiche du personnage (le proprietaire decide)
+        garder = None
+        if a.get("garder") is not None:
+            g, garder, msg = a["garder"], {}, '"atelier.garder" : "tenues" et "lieux", 4 lignes au plus chacune, chaque ligne "français | anglais"'
+            if not isinstance(g, dict) or set(g) - set(GARDER):
+                raise ValueError(msg)
+            for k in GARDER:
+                l = g.get(k) or []
+                if not isinstance(l, list) or len(l) > 4 or any(not isinstance(x, str) or len(x) > 300 or not all(_s(y) for y in x.partition("|")) for x in l):
+                    raise ValueError(msg)
+                garder[k] = [" | ".join(_s(y) for y in x.partition("|")[::2]) for x in l]
         de = str(a.get("projet_de") or "")
         if de and (entier or a.get("projet") or a["temps"] == 1 or de == f.name or not re.fullmatch(r"[A-Za-z0-9_.-]{1,80}\.yaml", de)):
             raise ValueError('"atelier.projet_de" : nom du fichier du temps 1 de la même vidéo, pour un temps 2 à 4, sans "projet"')
         return {"projet": str(a.get("projet") or ""), "projet_de": de, "temps": lestemps[0], "lestemps": lestemps, "entier": entier, "personnage": str(a.get("personnage") or ""),
                 "titre": _s(a.get("titre"), 100), "note": _s(a.get("note"), 300), "modele": str(j.get("modele") or ""), "scenes": scenes,
-                "textes": textes, "reference": ref if un else ""}
+                "textes": textes, "reference": ref if un else "", "garder": garder}
 
     def depots(self):
         import yaml
@@ -1437,7 +1475,7 @@ class Atelier:
         rem = self._remarques(pl, pid, lib)
         noms = {str(i): s["origine"].partition(":")[2] for i, s in enumerate(pl["scenes"])}
         modele = str(yaml.safe_load((self.dd.parent / "modele.yaml").read_text(encoding="utf-8"))["modele"])
-        return {"projet": pid, "attente": "" if pid else pl["projet_de"], "temps": pl["temps"], "lestemps": pl["lestemps"], "plans": len(pl["scenes"]), "modele": modele, "perime": pl["modele"] != modele,
+        return {"projet": pid, "attente": "" if pid else pl["projet_de"], "temps": pl["temps"], "lestemps": pl["lestemps"], "plans": len(pl["scenes"]), "garder": {k: len((pl["garder"] or {}).get(k) or []) for k in GARDER}, "modele": modele, "perime": pl["modele"] != modele,
                 "remarques": [{"plan": noms.get(str(r.get("scene")), ""), "grave": bool(r.get("grave")), "msg": r["msg"]} for r in rem]}
 
     def auto(self):
@@ -1507,6 +1545,8 @@ class Atelier:
                 p["reference"] = ""
             if 1 in pl["lestemps"] and not p["brief"]:  # l'idee de depart d'un projet depose est son pitch
                 p["brief"] = p["pitch"]
+            if pl["garder"] is not None:
+                p["garder"] = pl["garder"]
             p.setdefault("depots", {})[f.name] = int(f.stat().st_mtime)
             p["modifie"] = time.strftime("%Y-%m-%d %H:%M")
             _dump(self.dj / pid / "projet.json", p)
@@ -2010,6 +2050,8 @@ class Atelier:
             return self.monter(b)
         if path == "/api/a/verdict":
             return {"verdicts": self.verdict(b)}
+        if path == "/api/a/garder":
+            return self.garder(b)
         if path == "/api/a/son":
             return self.son(b)
         if path == "/api/a/chaine":

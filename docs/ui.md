@@ -38,6 +38,9 @@ page de reference. Un nouvel espace part de ce squelette :
   (`/atelier`, etapes Preparation, Decoupage, Tournage, Montage), Casting (`/atelier#/persos`), Materiel (`/hub`),
   Essais (`/test`), Rushes (`/tri`), Diffusion (`/social`). Un fichier du scenariste s'appelle un script. Table
   complete : `docs/agents.md`, "Vocabulaire".
+- Production, « A garder pour <personnage> ? » (sous les etapes d'un projet) : tenues et lieux nouveaux proposes par le
+  script (`atelier.garder`), montres une fois une image retenue. « Ajouter a la garde-robe » / « Ajouter aux lieux »
+  ecrit la ligne dans la fiche du personnage ; « Non » l'ecarte pour ce projet. Rien d'affiche s'il n'y a rien.
 - Ancien formulaire en trois temps (`/nouveau`) retire le 15/11/2026 : l'accueil n'a plus cette carte, tout script passe
   par la Production.
 - Production, scripts du scenariste : pas de bouton « Importer ». Un fichier accepte devient un projet (ou le met a jour)

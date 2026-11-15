@@ -215,6 +215,14 @@ async function ouvrirProjet(id) {
   else if (autoEcrire === id) { autoEcrire = ''; ecrire({kind: 'scenario', projet: id}, recharger, 'Écriture du scénario'); }
   surveiller();
 }
+const GARDER = {tenues: ['Tenue', 'Ajouter à la garde-robe'], lieux: ['Lieu', 'Ajouter aux lieux']};
+function garderHtml(nom) {  // tenues et lieux nouveaux que le script propose de garder dans la fiche du personnage
+  const l = Object.keys(GARDER).flatMap(k => ((D.garder || {})[k] || []).map((x, i) => [k, i, x]));
+  return l.length ? `<div class="panel" style="margin-top:8px"><b>${ic('epingle')}À garder pour ${esc(nom)} ?</b>
+    <div class="mut">Nouveautés de ce script. Ajoutées à sa fiche, elles reviendront avec les mêmes mots dans les prochaines vidéos.</div>
+    ${l.map(([k, i, x]) => { const [fr, en] = x.split(' | '); return `<div class="var"><span class="mut">${GARDER[k][0]}</span> <b>${esc(fr)}</b><div class="mut">${esc(en || '')}</div>
+      <div class="row" style="margin-top:6px"><button class="p s" data-a="garder" data-g="${k}" data-i="${i}" data-o="1">${ic('ajouter')}${GARDER[k][1]}</button><button class="s" data-a="garder" data-g="${k}" data-i="${i}">Non</button></div></div>`; }).join('')}</div>` : '';
+}
 async function recharger() {
   const y = window.scrollY;
   D = await api('/api/a/projet?id=' + P.id); P = D.projet; sig = {};
@@ -300,6 +308,7 @@ function rendreProjet() {
     <div class="row tete"><a class="lien" href="#/">${ic('retour')}${esc((E.personnages.find(x => x.slug === P.personnage) || p).nom)}</a><span class="sp"></span><span class="mut">${P.id}</span></div>
     <input data-k="titre" value="${esc(P.titre)}" style="font-size:18px;font-weight:600;margin-top:8px">
     <div class="steps" id="etapes"></div>
+    ${garderHtml((E.personnages.find(x => x.slug === P.personnage) || p).nom)}
     <div class="th"><b>${T}. ${TEMPS[T][0]}</b> <span class="mut">${TEMPS[T][1]}</span><span class="aide">${QUOI[T]}${T > 2 && P.suite ? ` Suite annoncée : ${esc(P.suite)}` : ''}</span></div>
 
     ${sec('prep', 'Préparation', `${L0 + LN(T)} LoRA${P.reference ? (TIR(T) === 'ref' ? ', images tirées de la référence' : ', images créées à part') : ''}`)}
@@ -598,6 +607,11 @@ const aRefaire = () => P.scenes.filter(s => s.temps === T).filter((s, i) => s.st
 const actions = {
   cote: el => { const c = el.dataset.c; if (!large() && COTE.o && COTE.c === c && el.closest('.rail')) COTE.o = false; else { COTE.c = c; COTE.o = true; localStorage.setItem('cote', c); } coteMaj(); },
   cotefermer: () => { COTE.o = false; coteMaj(); },
+  garder: async el => {
+    const k = el.dataset.g, oui = !!el.dataset.o;
+    await api('/api/a/garder', {id: P.id, genre: k, texte: D.garder[k][+el.dataset.i], oui});
+    toast(oui ? 'Ajouté à la fiche du personnage' : 'Proposition écartée', true); await recharger();
+  },
   refaireimages: () => {
     const l = aRefaire();
     if (confirm(`Refaire les ${l.length} image(s) du temps ${T} (3 essais par scène, notés par le contrôle automatique), environ ${usd(0.009 * l.length + 0.17)} ?\nLes prises actuelles sont gardées et restent sélectionnables. Les clips faits sur les anciennes images ne seront plus rattachés.`

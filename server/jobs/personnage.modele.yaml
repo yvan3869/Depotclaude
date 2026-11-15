@@ -12,6 +12,8 @@
 #   - "fiche", "ecriture", "accroche" : lus par le scenariste a chaque idee, scenario et texte. En francais.
 #   - "lieux", "tenues" : le scenariste y pioche la fiche de continuite. Forme "francais | anglais" : la partie
 #     francaise sert a choisir, la partie anglaise part telle quelle dans la description des images.
+#     Ces listes grandissent : un script peut proposer une tenue ou un lieu nouveau ("atelier.garder"), que le
+#     proprietaire ajoute d'un appui dans la page. Une fiche redeposee remplace ces ajouts : les y reprendre.
 #   - "generation" : colle dans chaque description d'image. En anglais, sans accent.
 #
 # Historique

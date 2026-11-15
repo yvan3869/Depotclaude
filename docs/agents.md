@@ -348,6 +348,9 @@ y placer un geste ni un texte important. Elle est remplacee par une coupe si l'u
            lumiere: "..."
            pdv: "..."
          reference: plan01          # nom d'un plan du temps 1 de ce fichier
+         garder:                    # facultatif : tenues et lieux nouveaux a garder dans la fiche du personnage
+           tenues: ["robe rouge a fines bretelles | wearing a red slip dress with thin straps"]
+           lieux: []
        defaults:
          seed: 100
          # loras: [nom]       # noms du catalogue ; s'ajoutent aux LoRA par defaut du temps, posees sur le projet
@@ -403,6 +406,15 @@ verifier ; ils ne forcent pas le modele d'image.
 `autres` decrit les autres personnes visibles a l'image (qui, ou, quelle partie du corps). Vide dans le cas courant :
 elle est seule, et le controle signale toute autre personne. Ne pas le remplir pour quelqu'un qui reste hors champ.
 Toute personne decrite est adulte et fictive (`docs/compliance.md`).
+
+Tenues et lieux nouveaux (`atelier.garder`, modele `2026-11-15f`). Les listes `tenues` et `lieux` de la fiche du
+personnage sont sa garde-robe et ses lieux de vie : on y pioche, mais une discussion peut en inventer d'autres, et
+rien ne l'interdit. Une tenue d'un jour reste dans le script. Une tenue ou un lieu qui doit revenir se declare dans
+`garder`, sous la forme de la fiche (`francais | anglais`), avec en anglais exactement les mots utilises dans la
+fiche de continuite ou les `still`. La page le montre au proprietaire une fois une image retenue (« A garder pour
+... ? ») ; d'un appui il l'ajoute a la fiche du personnage, ou l'ecarte. Le scenariste ne modifie jamais la fiche
+lui-meme. Une ligne deja dans la fiche n'est pas reproposee. A la video suivante, la tenue se reprend dans la fiche,
+mot pour mot : pour le modele d'image, d'autres mots font un autre vetement.
 
 Le retour de tournage, a lire avant d'ecrire la video suivante :
 
