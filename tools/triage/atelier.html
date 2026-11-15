@@ -17,7 +17,6 @@
   .takes .tk { display:flex; flex-direction:column; align-items:center; flex:none; font-size:11px; }
   .takes button.on { border-color:var(--acc); color:var(--acc); }
   .lch .chip { white-space:normal; text-align:left; height:auto; max-width:100%; }
-  .lsel { margin-top:8px; padding:8px 10px; border:1px solid var(--line); border-radius:var(--r); } .lsel input { width:76px; flex:none; } .lsel .row { margin:0; align-items:center; }
   .vd { display:flex; flex-wrap:wrap; gap:5px; margin-top:4px; }
   .vd button { border-radius:16px; } .vd button.on { border-color:var(--warn); color:var(--warn); } .vd button.on[data-c=ok] { border-color:var(--ok); color:var(--ok); }
   video.fin { width:100%; max-width:300px; border-radius:8px; display:block; margin:8px auto; background:#000; }
@@ -25,7 +24,7 @@
   label .ic, .gt .ic { width:14px; height:14px; margin-right:5px; } label small { opacity:.75; }
   .th { position:relative; margin:14px 0 0; font-size:17px; } .th .mut { font-size:14px; }
   /* Aides : repliees derriere un « i » ; un toucher les ouvre, le bouton de l'en-tete les ouvre toutes */
-  label, .lsel { position:relative; } label.c { display:grid; grid-template-columns:auto 1fr auto; } .aide { cursor:pointer; } label.c > .aide.voir, body.aides label.c > .aide { grid-column:1 / -1; }
+  label { position:relative; } label.c { display:grid; grid-template-columns:auto 1fr auto; } .aide { cursor:pointer; } label.c > .aide.voir, body.aides label.c > .aide { grid-column:1 / -1; }
   header .l1 { min-width:0; } #baide { flex:none; } @media (max-width:520px) { #redac span { font-size:0; } #redac span::before { content:"IA"; font-size:12px; } #gpu { white-space:nowrap; } }
   body:not(.aides) .aide:not(.voir):not(.avt):not(:has(.err)) { font-size:0; line-height:0; display:inline-block; margin:4px 0 0; opacity:.8; }
   body:not(.aides) .aide:not(.voir):not(.avt):not(:has(.err))::before { content:"i"; display:block; width:18px; height:18px; border:1.5px solid var(--mut); border-radius:50%; font:italic 600 12px/15px Georgia,serif; text-align:center; color:var(--mut); }
@@ -33,7 +32,7 @@
   body:not(.aides) label.c > .aide:not(.voir):not(.avt):not(:has(.err)) { position:static; }
   body.aides #baide { color:var(--acc); border-color:var(--acc); }
   /* Page d'un projet : le travail a gauche, le projet entier dans le panneau de cote */
-  body.proj { --larg:1200px; }
+  body.proj { --larg:1500px; }
   .cote { background:var(--bg); } .cpan { display:none; } .cpan.on { display:block; }
   .ct { display:flex; align-items:center; gap:8px; font-size:16px; margin-bottom:6px; } .ct .ic { color:var(--acc); }
   .rail { display:flex; gap:2px; }
@@ -42,7 +41,7 @@
   .rail i { position:absolute; top:3px; left:calc(50% + 7px); font-style:normal; } .rail i.nb { background:var(--acc); color:#06131a; border-radius:8px; font-size:10px; line-height:14px; min-width:14px; padding:0 3px; }
   .rail i.pt { width:9px; height:9px; border-radius:50%; background:var(--acc); } .rail i.pt.avt { background:var(--warn); } .rail i.pt.err { background:var(--bad); } .rail i.pt.okc { background:var(--ok); }
   @media (min-width:1000px) {
-    .pg { display:grid; grid-template-columns:minmax(0,1fr) 380px; gap:22px; align-items:start; }
+    .pg { display:grid; grid-template-columns:360px minmax(0,1fr); gap:22px; align-items:start; } .cote { order:-1; }
     .cote { position:sticky; top:var(--htop,100px); max-height:calc(100vh - var(--htop,100px) - 10px); display:flex; flex-direction:column; border:1px solid var(--line); border-radius:var(--r); background:var(--panel); }
     .cote .rail { border-bottom:1px solid var(--line); padding:4px; } .cote .cpans { overflow:auto; padding:12px; } .ct button { display:none; }
   }
@@ -52,6 +51,9 @@
     .cote .rail { padding:2px 4px calc(2px + env(safe-area-inset-bottom)); } .cote .cpans { overflow:auto; padding:12px; border-bottom:1px solid var(--line); background:var(--panel); }
     .cote:not(.ouvert) .cpans { display:none; }
   }
+  /* Scenes en tuiles : l'image d'abord, le texte de la scene replie dessous */
+  .tx { font-size:15px; margin-bottom:6px; } .scene .outils { margin:0 0 4px; }
+  .media { flex-direction:column; } .media .pv { width:100%; max-width:330px; margin:0 auto; }
   .ver { display:flex; gap:8px; align-items:center; padding:4px 0; font-size:14px; }
 </style></head><body>
 <header>
@@ -159,11 +161,11 @@ function vueProjets() {
     ${(E.fiches || []).some(x => !x.fait) ? `<div class="panel"><div class="row"><span>Votre agent a déposé ${E.fiches.filter(x => !x.fait).length} fiche(s) de personnage à relire.</span><span class="sp"></span><button class="p s" onclick="location.hash='#/persos'">${ic('importer')}Voir les fiches</button></div></div>` : ''}
     ${E.depots.length ? `<h2>Plans déposés par l'agent <small>sans projet</small></h2><div class="panel">${E.depots.map(depotHtml).join('')}</div>` : ''}
     <h2>Projets <small>${liste.length}, par date du personnage</small></h2>
-    ${liste.map(x => `<a class="card" href="#/p/${x.id}">
+    <div class="grille">${liste.map(x => `<a class="card" href="#/p/${x.id}">
       <div class="th" ${x.vignette ? `style="background-image:url('/afile/${x.id}/${esc(x.vignette)}')"` : ''}></div>
       <div><b>${esc(x.titre)}</b><span class="mut">${x.date_perso ? 'Elle le vit le ' + dfr(x.date_perso) : 'Sans date du personnage'}</span><span class="mut">${esc(x.pitch)}</span>
-      <span class="badge ${x.etape === 'valide' ? 'v' : ''}">${lab[x.etape]}</span> <span class="mut">${x.scenes} scènes${x.temps.length > 1 ? ', temps ' + x.temps.join(' ') : ''}, modifié le ${esc(x.modifie || '')}</span></div></a>`).join('')
-      || '<p class="mut">Aucune vidéo pour ce personnage. Commencer par « Trouver des idées ».</p>'}`;
+      <span class="badge ${x.etape === 'valide' ? 'v' : ''}">${lab[x.etape]}</span> <span class="mut">${x.scenes} scènes${x.temps.length > 1 ? ', temps ' + x.temps.join(' ') : ''}, modifié le ${esc(x.modifie || '')}</span></div></a>`).join('')}</div>
+    ${liste.length ? '' : '<p class="mut">Aucune vidéo pour ce personnage. Commencer par « Trouver des idées ».</p>'}`;
 }
 async function creer(titre, brief) {
   const r = await api('/api/a/projet', {personnage: cur, titre, brief});
@@ -245,16 +247,18 @@ const LP = k => ((P.loras || {})[k] || '').split(', ').filter(Boolean).map(x => 
 const LN = k => LP(String(k)).length;
 const lpSet = (k, l) => structure(() => P.loras = {...(P.loras || {}), [k]: l.map(x => x.f ? `${x.n}:${x.f}` : x.n).join(', ')});
 let HUBATT = null;  // LoRA retenues dans le hub mais pas encore chargees (lu une fois)
-function lorasBloc(k, titre, liste) {
-  const B = E.bibliotheque, sel = LP(k), fiche = n => B.loras.find(x => x.name === n), reste = liste.filter(x => !sel.some(y => y.n === x.name) && !(k !== '0' && LP('0').some(y => y.n === x.name)));
-  const quoi = x => `${esc(B.categories[x.cat].label)}, ${x.famille === 'wan22' ? 'clip' : 'image'}${k === '0' && x.temps_min > 1 ? `, à partir du temps ${x.temps_min}` : ''}`;
-  return `<div class="gt">${titre}</div>
-    ${sel.map(y => { const x = fiche(y.n); return `<div class="lsel"><div class="row"><b>${esc(x ? x.label : y.n)}</b><span class="sp"></span>
-      <input type="number" step="0.05" min="0" max="2" data-lf="${k}" data-n="${esc(y.n)}" value="${y.f || (x ? x.strength : 1)}" title="Force">
-      <button class="i" data-a="loramoins" data-k="${k}" data-n="${esc(y.n)}" title="Retirer">${ic('supprimer')}</button></div>
-      <div class="aide">${x ? `${quoi(x)}. ${x.trigger ? `Mots ajoutés d'office : « ${esc(x.trigger)} »` : 'Aucun mot déclencheur noté : si elle en demande, les écrire dans la Bibliothèque.'}${x.volume === false ? ' <span class="err">Fichier absent du volume.</span>' : ''}` : '<span class="err">Absente du catalogue.</span>'}</div></div>`; }).join('')}
-    ${reste.length ? `<div class="chips lch" style="margin:6px 0 0">${reste.map(x => `<button class="chip" data-a="loraproj" data-k="${k}" data-n="${esc(x.name)}">${ic('ajouter')}${esc(x.label)} <small>${quoi(x)}</small></button>`).join('')}</div>`
-      : sel.length ? '' : '<div class="aide">Aucune LoRA admise à ce temps dans le catalogue.</div>'}`;
+function lorasBloc(k, titre, liste) {  // tuiles a cocher : image d'abord, clip ensuite ; un toucher choisit ou retire
+  const B = E.bibliotheque, sel = LP(k), deja = k === '0' ? [] : LP('0').map(y => y.n);
+  const tuile = x => { const y = sel.find(y => y.n === x.name), pr = deja.includes(x.name);
+    return `<div class="lt ${y ? 'on' : ''} ${pr ? 'off' : ''}"><button data-a="loratog" data-k="${k}" data-n="${esc(x.name)}" ${pr ? 'disabled' : ''} title="${esc(x.note || x.label)}">
+      <b>${esc(x.label)}</b><span class="tg"><span class="badge">${esc(B.categories[x.cat].label)}</span><span class="badge ${x.famille === 'wan22' ? 'i' : 'v'}">${x.famille === 'wan22' ? 'clip' : 'image'}</span>${k === '0' && x.temps_min > 1 ? `<span class="badge">dès le temps ${x.temps_min}</span>` : ''}</span>
+      <small>${pr ? 'Déjà dans tout le projet' : y ? (x.trigger ? `Mots ajoutés d'office : « ${esc(x.trigger)} »` : 'Choisie, sans mot à ajouter') : 'Toucher pour choisir'}${x.volume === false ? ' <span class="err">Fichier absent du volume.</span>' : ''}</small></button>
+      ${y ? `<div class="fo">Force<input type="number" step="0.05" min="0" max="2" data-lf="${k}" data-n="${esc(x.name)}" value="${y.f || x.strength}" title="Force"></div>` : ''}</div>`; };
+  const perdues = sel.filter(y => !liste.some(x => x.name === y.n));
+  return `<div class="gt">${titre} <small style="text-transform:none;letter-spacing:0;color:var(--mut)">${sel.length} choisie(s) sur ${liste.length}</small></div>
+    ${liste.length || perdues.length ? `<div class="tuiles">${[...liste].sort((x, y) => (x.famille === 'wan22') - (y.famille === 'wan22')).map(tuile).join('')}
+      ${perdues.map(y => `<div class="lt on"><button data-a="loratog" data-k="${k}" data-n="${esc(y.n)}"><b>${esc(y.n)}</b><small class="err">${B.loras.some(x => x.name === y.n) ? 'Pas admise à ce temps' : 'Absente du catalogue'} : toucher pour la retirer.</small></button></div>`).join('')}</div>`
+      : '<div class="aide">Aucune LoRA admise à ce temps dans le catalogue.</div>'}`;
 }
 // Panneau de cote : ce qui vaut pour tout le projet, toujours a la meme place (colonne de droite sur ecran large, barre du bas sur telephone).
 const COTES = [['projet', 'dossier', 'Projet'], ['cont', 'epingle', 'Continuité'], ['lora', 'lora', 'LoRA'], ['rendu', 'reglages', 'Montage'], ['son', 'son', 'Son'], ['chaine', 'chaine', 'Chaîne'], ['pub', 'publier', 'Publier']];
@@ -307,13 +311,13 @@ function rendreProjet() {
     </div></details>
 
     ${sec('scenes', 'Scènes', `${SC.length}, environ ${Math.round(SC.reduce((a, s) => a + (s.duree || 5), 0) + (T === 1 && P.montage.carton ? 2.6 : 0))} s`)}
-    ${SC.length > 1 ? `<div class="row tete" style="margin-bottom:8px"><button class="s" data-a="plier">${ic('plier')}Replier ou déplier</button></div>` : ''}
-    ${SC.map((s, i) => { const cont = s.raccord === 'continu' && i, coupe = !i || (s.raccord || 'coupe') === 'coupe'; return `<div class="scene" data-sid="${s.id}">
-      <div class="sh"><b>${i + 1}</b><input data-s="${s.id}" data-k="titre" value="${esc(s.titre)}" placeholder="Titre">
-        ${bi('haut', 'Monter la scène', `data-a="monte" ${i ? '' : 'disabled'}`)}${bi('bas', 'Descendre la scène', `data-a="descend" ${i < SC.length - 1 ? '' : 'disabled'}`)}${bi('copier', 'Dupliquer la scène', 'data-a="dupliquer"')}${bi('supprimer', 'Supprimer la scène', 'data-a="supprimer"', 's d')}</div>
+    <div class="row tete" style="margin-bottom:8px"><span class="mut" style="flex:1;min-width:200px">Le texte de chaque scène vient du scénariste : il reste replié, et s'ouvre quand une remarque demande une retouche.</span>${SC.length > 1 ? `<button class="s" data-a="plier">${ic('plier')}Ouvrir ou fermer les textes</button>` : ''}</div>
+    <div class="grille">${SC.map((s, i) => { const cont = s.raccord === 'continu' && i, coupe = !i || (s.raccord || 'coupe') === 'coupe'; return `<div class="scene" data-sid="${s.id}">
+      <div class="sh"><b>${i + 1}</b><input data-s="${s.id}" data-k="titre" value="${esc(s.titre)}" placeholder="Titre"></div>
       <div class="media" data-sid="${s.id}"></div>
-      <details class="pli" data-sec="sc:${P.id}:${s.id}"${ouv(`sc:${P.id}:${s.id}`)}><summary>${ic('ecrire')}<span class="ell">${esc(s.still || s.motion || 'Décrire la scène')}</span>
+      <details class="pli" data-sec="tx:${P.id}:${s.id}"${ouv(`tx:${P.id}:${s.id}`, !(s.still || s.motion))}><summary>${ic('ecrire')}<span class="ell">Texte et réglages de la scène</span>
         ${!coupe ? `<span class="badge">${cont ? 'continu' : 'arrivée'}</span>` : ''}${s.libre ? '<span class="badge i">libre</span>' : ''}${s.loras ? '<span class="badge">LoRA</span>' : ''}</summary>
+      <div class="row outils"><span class="mut">Scène :</span>${bi('haut', 'Avancer la scène', `data-a="monte" ${i ? '' : 'disabled'}`, 's')}${bi('bas', 'Reculer la scène', `data-a="descend" ${i < SC.length - 1 ? '' : 'disabled'}`, 's')}${bi('copier', 'Dupliquer la scène', 'data-a="dupliquer"', 's')}${bi('supprimer', 'Supprimer la scène', 'data-a="supprimer"', 's d')}</div>
       ${cont ? '' : f('still', `${ic('image')}Image <small>en anglais</small>`, s.still, {area: 1, rows: 3, at: `data-s="${s.id}"`,
         aide: T > 1 ? 'Cadrage, pose, expression, et ce qu\'elle porte à cet instant. Le lieu, la coiffure et la lumière viennent de la continuité ; « nsfw » est ajouté d\'office.'
           : 'Cadrage, pose, expression. Le lieu, la tenue, la coiffure et la lumière viennent de la continuité : ne pas les répéter ici.'})}
@@ -357,8 +361,8 @@ function rendreProjet() {
       </details>
       ${T < 3 ? `<div class="row"><button class="s" data-a="recrire">${ic('retoucher')}Réécrire la scène</button></div>` : ''}
       </details>
-    </div>`; }).join('')}
-    <button data-a="ajouter">${ic('ajouter')}Ajouter une scène</button></details>
+    </div>`; }).join('')}</div>
+    <button data-a="ajouter" style="margin-top:10px">${ic('ajouter')}Ajouter une scène</button></details>
 
     ${sec('prod', 'Produire', 'images et clips')}
     <div class="panel" id="controle"></div>
@@ -482,6 +486,8 @@ function majDyn() {
       <div class="pv">${c.clip ? `<video src="${u(c.clip)}" poster="${u(c.image)}" muted loop playsinline controls preload="none"></video>`
         : c.image ? `<a href="${u(c.image)}" target="_blank"><img src="${u(c.image)}" loading="lazy"></a>` : 'pas encore d\'image'}</div>
       <div class="side">
+        ${s.temps === T ? `${s.texte ? `<div class="tx">« ${esc(s.texte)} »</div>` : ''}${(l => l.length ? `<div style="margin-bottom:8px">${l.map(x => `<div class="${x.grave ? 'err' : 'avt'}" style="font-size:13px">${esc(x.msg)}</div>`).join('')}
+          <button class="s" data-a="ouvrirtexte" style="margin-top:4px">${ic('retoucher')}Voir le texte de la scène</button></div>` : '')(rq.filter(x => x.scene === s.id))}` : ''}
         ${t.images.length > 1 && !cont ? `<div class="mut">Prises</div><div class="takes">${t.images.map(n => `<span class="tk"><img src="${u(n)}" loading="lazy" class="${n === c.image ? 'on' : ''}" data-a="prise" data-n="${n}">${noteCourte(n)}</span>`).join('')}</div>` : ''}
         ${clips.length > 1 ? `<div class="takes">${clips.map((n, j) => `<button class="s ${n === c.clip ? 'on' : ''}" data-a="priseclip" data-n="${n}">Clip ${j + 1}</button>`).join('')}</div>` : ''}
         <div class="row tete">${cont ? '' : `<button class="s" data-a="image" ${occ || !s.still ? 'disabled' : ''}>${ic(c.image ? 'refaire' : 'image')}${c.image ? 'Autre image' : 'Créer l\'image'}</button>`}
@@ -582,6 +588,7 @@ const actions = {
     if (confirm(`Refaire les ${l.length} image(s) du temps ${T} (3 essais par scène, notés par le contrôle automatique), environ ${usd(0.009 * l.length + 0.17)} ?\nLes prises actuelles sont gardées et restent sélectionnables. Les clips faits sur les anciennes images ne seront plus rattachés.`
       + (D.chaine.etat === 'pause' ? '\nLa chaîne reste en pause : « Continuer » une fois les prises choisies.' : ''))) return produire('images', l.map(s => s.id));
   },
+  ouvrirtexte: el => { const d = $('details.pli', el.closest('.scene')); d.open = true; d.scrollIntoView({behavior: 'smooth', block: 'nearest'}); },
   plier: () => { const ds = $$('.scene > details.pli', vue), o = !ds.every(x => x.open); ds.forEach(x => x.open = o); },
   chaine: () => chaine(NT.filter(t => CH['t' + t])),
   chainetemps: () => chaine([T]),
@@ -618,8 +625,7 @@ const actions = {
   copier: () => copier([P.legende, P.hashtags].filter(Boolean).join('\n\n')),
   ajouter: () => structure(() => P.scenes.push({titre: '', role: 'montee', temps: T, still: '', motion: '', texte: '', tattoos: true, loras: ''})),
   poserdefauts: () => { const d = (E.bibliotheque.defauts || {})[T] || ''; if (d && confirm(`Poser « ${d} » sur toutes les scènes du temps ${T} ? Les LoRA déjà notées sur ces scènes sont remplacées.`)) return structure(() => P.scenes.filter(s => s.temps === T).forEach(s => s.loras = d)); },
-  loraproj: el => lpSet(el.dataset.k, [...LP(el.dataset.k), {n: el.dataset.n}]),
-  loramoins: el => lpSet(el.dataset.k, LP(el.dataset.k).filter(x => x.n !== el.dataset.n)),
+  loratog: el => { const l = LP(el.dataset.k), n = el.dataset.n; return lpSet(el.dataset.k, l.some(x => x.n === n) ? l.filter(x => x.n !== n) : [...l, {n}]); },
   loraplus: (el, sid) => structure(() => { const x = sc(sid), l = (x.loras || '').split(',').map(v => v.trim()).filter(Boolean); if (!l.some(v => v.split(':')[0] === el.dataset.n)) l.push(el.dataset.n); x.loras = l.join(', '); }),
   lorasauver: loraSauver, loraretirer: loraRetirer, loracorriger: el => loraForm(E.bibliotheque.loras.find(x => x.name === el.dataset.n)), lorainscrire: el => loraForm({file: el.dataset.n}), defautssauver: defautsSauver,
   dupliquer: (el, sid) => structure(() => { const i = P.scenes.findIndex(s => s.id === sid); P.scenes.splice(i + 1, 0, {...P.scenes[i], id: null, seed: 0, image: '', clip: '', origine: ''}); }),
@@ -685,20 +691,20 @@ function vueLoras() {
     <h2 id="ldef">LoRA par défaut de chaque temps</h2>
     <div class="panel"><div class="mut">Posées d'office dans « LoRA de ce temps » de tout nouveau projet, et d'un projet existant au premier plan déposé pour ce temps. Elles se retirent ensuite dans le projet, comme les autres.</div>
       <div class="aide">Une LoRA d'image agit sur les images, une LoRA de clip sur le mouvement de la vidéo. Le contrôle des plans signale un temps 4 sans LoRA porno d'image ou de clip, et un temps 3 sans LoRA de nu d'image.</div>
-      ${NT.map(t => `<div class="gt">${t}. ${TEMPS[t][0]} <small>${TEMPS[t][1]}</small></div><div class="row haut">${[['zimage', 'Image'], ['wan22', 'Clip']].map(([fam, lab]) => {
+      <div class="grille" style="margin-top:10px">${NT.map(t => `<div class="lt" style="padding:10px"><div class="gt">${t}. ${TEMPS[t][0]} <small>${TEMPS[t][1]}</small></div><div class="row haut">${[['zimage', 'Image'], ['wan22', 'Clip']].map(([fam, lab]) => {
         const adm = B.loras.filter(x => x.famille === fam && x.temps_min <= t), d = ((B.defauts || {})[t] || '').split(', ').filter(Boolean).map(x => x.split(':')[0]), sel = adm.find(x => d.includes(x.name));
-        return `<label style="flex:1;min-width:140px">${lab}<select data-d="${t}"><option value="">Aucune</option>${adm.map(x => `<option value="${esc(x.name)}"${x === sel ? ' selected' : ''}>${esc(x.label)} (${esc(B.categories[x.cat].label)})</option>`).join('')}</select></label>`; }).join('')}</div>`).join('')}
+        return `<label style="flex:1;min-width:140px">${lab}<select data-d="${t}"><option value="">Aucune</option>${adm.map(x => `<option value="${esc(x.name)}"${x === sel ? ' selected' : ''}>${esc(x.label)} (${esc(B.categories[x.cat].label)})</option>`).join('')}</select></label>`; }).join('')}</div></div>`).join('')}</div>
       <div class="row"><button class="p" data-a="defautssauver">${ic('valider')}Enregistrer les LoRA par défaut</button></div></div>
     <h2>LoRA inscrites</h2>
-    ${B.loras.map(x => `<div class="panel"><b>${esc(x.label)}</b> <span class="badge ${x.volume === null ? 'i' : x.volume ? 'v' : 'a'}">${x.volume === null ? 'présence inconnue' : x.volume ? 'sur le volume' : 'absente du volume'}</span>
+    <div class="grille">${B.loras.map(x => `<div class="panel"><b>${esc(x.label)}</b> <span class="badge ${x.volume === null ? 'i' : x.volume ? 'v' : 'a'}">${x.volume === null ? 'présence inconnue' : x.volume ? 'sur le volume' : 'absente du volume'}</span>
       <div class="mut">${esc(B.categories[x.cat].label)}, dès le temps ${x.temps_min} · ${esc(B.familles[x.famille].label)}</div>
       <div class="mut">Nom à écrire dans une scène : <b style="color:var(--txt)">${esc(x.name)}</b> · force conseillée ${String(x.strength).replace('.', ',')}${x.base ? ' · ' + esc(x.base) : ''}</div>
       <div class="mut" style="word-break:break-all">${esc(x.file)}</div>
       ${x.trigger ? `<div style="font-size:14px;margin-top:4px">Mots déclencheurs : ${esc(x.trigger)}</div>` : ''}
       ${x.note ? `<div style="font-size:14px;margin-top:4px">${esc(x.note)}</div>` : ''}
       <div class="row"><button class="s" data-a="loracorriger" data-n="${esc(x.name)}">Corriger</button>${x.source ? `<a href="${esc(x.source)}" target="_blank" rel="noopener">Page d'origine</a>` : ''}<span class="sp"></span>
-        ${x.ou === 'donnees' ? `<button class="s d" data-a="loraretirer" data-n="${esc(x.name)}">Retirer du catalogue</button>` : '<span class="mut">inscrite dans le dépôt</span>'}</div></div>`).join('')
-      || '<p class="mut">Aucune LoRA inscrite.</p>'}
+        ${x.ou === 'donnees' ? `<button class="s d" data-a="loraretirer" data-n="${esc(x.name)}">Retirer du catalogue</button>` : '<span class="mut">inscrite dans le dépôt</span>'}</div></div>`).join('')}</div>
+    ${B.loras.length ? '' : '<p class="mut">Aucune LoRA inscrite.</p>'}
     ${B.hors.length ? `<h2>Sur le volume, non inscrites <small>${B.hors.length}</small></h2><div class="panel"><div class="mut">Fichiers présents sur le volume que le catalogue ne connaît pas. Les inscrire pour pouvoir les nommer dans une scène.</div>
       ${B.hors.map(n => `<div class="row"><span style="flex:1;word-break:break-all;font-size:14px">${esc(n)}</span><button class="s" data-a="lorainscrire" data-n="${esc(n)}">Inscrire</button></div>`).join('')}</div>` : ''}
     <h2 id="lform">Inscrire ou corriger une LoRA</h2>

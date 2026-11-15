@@ -457,3 +457,10 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
   Bibliotheque comme les autres. `lora_catalog` du depot reste vide.
 - 15/11, alerte des LoRA : au temps 3, plus de remarque pour le clip (aucune LoRA de nu de clip n'existe, la remarque
   ne pouvait pas disparaitre) ; seule l'image est verifiee. Temps 4 inchange.
+- 15/11, interface reprise pour un proprietaire qui lit et decide, sans retoucher les prompts : panneau du projet a
+  gauche sur ecran large ; scenes en tuiles (image en grand, texte a l'ecran, verdict, note du controle ; le texte et
+  les reglages de la scene sont replies, les remarques du controle des plans s'affichent dans la tuile avec un bouton
+  pour l'ouvrir ; deplacer, dupliquer, supprimer passent dans le pli) ; LoRA en tuiles a cocher (categorie, image ou
+  clip, temps, force) ; projets, Bibliotheque et LoRA par defaut en grille. Espace reseaux : choix des LoRA d'image
+  tous publics du catalogue par personnage (`loras` de `reglages.json`), a defaut celles par defaut du temps 1,
+  filtrees (image, tous publics, presentes sur le volume). Aucune depense GPU.

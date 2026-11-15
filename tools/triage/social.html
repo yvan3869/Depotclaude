@@ -87,6 +87,12 @@ function vueReglages() {
         <label>Jour de préparation<select data-r="jour">${E.jours.map((j, i) => `<option value="${i}"${i === r.jour ? ' selected' : ''}>${j}</option>`).join('')}</select></label></div>
       <div class="deux"><label>Format<select data-r="format">${E.formats.map(f => `<option${f === r.format ? ' selected' : ''}>${f}</option>`).join('')}</select></label>
         <label>Mention IA<input data-r="mention" value="${esc(r.mention)}"></label></div>
+      <div class="gt" style="margin-top:14px">LoRA des images <small style="text-transform:none;letter-spacing:0;color:var(--mut)">${(r.loras || '').split(', ').filter(Boolean).length} choisie(s) sur ${(E.loras || []).length}${r.loras_defaut ? ', reprises du temps 1 de l\'atelier' : ''}</small></div>
+      ${(E.loras || []).length ? `<div class="tuiles">${E.loras.map(x => { const y = (r.loras || '').split(', ').find(y => y.split(':')[0] === x.name);
+        return `<div class="lt ${y ? 'on' : ''}" data-lo="${esc(x.name)}"><button data-a="loratog" title="${esc(x.note || x.label)}"><b>${esc(x.label)}</b><span class="tg"><span class="badge">${esc(x.cat)}</span><span class="badge v">image</span></span>
+          <small>${y ? 'Choisie' : 'Toucher pour choisir'}</small></button><div class="fo"${y ? '' : ' hidden'}>Force<input type="number" step="0.05" min="0.1" max="2" value="${y && y.split(':')[1] || x.strength}"></div></div>`; }).join('')}</div>`
+        : '<div class="mut">Aucune LoRA d\'image tous publics chargée dans le catalogue.</div>'}
+      ${aide('Une LoRA est un petit complément du modèle d\'image (réalisme, peau, pose). Seules celles du catalogue de l\'atelier classées tous publics sont proposées ici. Sans choix enregistré, celles par défaut du temps 1 sont reprises. Le choix vaut pour les prochaines images, après « Enregistrer ». Pour en ajouter : <a href="/hub">hub</a> ; pour les classer : <a href="/atelier#/loras">Bibliothèque</a>.')}
       ${aide('En automatique, la semaine suivante se prépare à partir du jour choisi : environ ' + cout + ' par semaine, sous le plafond du jour. La mention est ajoutée au texte à copier.')}
       <div class="row"><button class="s p" data-a="regler">${ic('valider')}Enregistrer</button></div>
       <div class="acts" style="margin-top:10px">
@@ -101,6 +107,7 @@ const maj = async (chemin, corps, msg) => { E = await api(chemin, corps); if (ms
 const decider = etat => el => maj('/api/s/decider', {id: el.dataset.id, etat});
 const actions = {
   valide: decider('valide'), refuse: decider('refuse'), a_valider: decider('a_valider'), publie: decider('publie'),
+  loratog: el => { const t = el.closest('.lt'), on = t.classList.toggle('on'); $('.fo', t).hidden = !on; $('small', t).textContent = on ? 'Choisie (à enregistrer)' : 'Retirée (à enregistrer)'; },
   copier: el => copier(texte(E.posts.find(k => k.id === el.dataset.id))),
   refaire: el => confirm(`Refaire l'image ? Environ ${usd(E.cout_image)}, davantage si le pod de veille est arrêté.`) && maj('/api/s/refaire', {id: el.dataset.id}, 'Image demandée'),
   supprimer: el => confirm('Supprimer cette publication et ses images ?') && maj('/api/s/supprimer', {id: el.dataset.id}),
@@ -116,7 +123,7 @@ const actions = {
   }};
 function reglagesDe(el) {
   const p = el.closest('[data-perso]');
-  return {perso: p.dataset.perso, ...Object.fromEntries($$('[data-r]', p).map(i => [i.dataset.r, i.type === 'checkbox' ? i.checked : i.value.trim()]))};
+  return {perso: p.dataset.perso, loras: $$('.lt.on', p).map(x => `${x.dataset.lo}:${$('input', x).value || 1}`).join(', '), ...Object.fromEntries($$('[data-r]', p).map(i => [i.dataset.r, i.type === 'checkbox' ? i.checked : i.value.trim()]))};
 }
 function suivre() {
   clearTimeout(minuteur);
