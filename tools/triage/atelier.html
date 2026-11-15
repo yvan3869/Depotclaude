@@ -80,7 +80,7 @@ function noteHtml(n) {
   if (typeof x.ressemblance === 'number' && x.ressemblance < 0.6) plus.push(x.visages > 1 ? 'visage peu ressemblant (plusieurs visages)' : 'visage peu ressemblant');
   return `<div class="${x.score <= 4 ? 'err' : x.score <= 6 ? 'avt' : 'okc'}" style="margin-top:6px;font-size:13px" title="Note donnée par un modèle de vision qui compare l'image à sa description. À l'essai : rien n'est refait d'après elle.">Contrôle automatique (essai) : ${x.score}/10${plus.length ? ' · ' + plus.join(' · ') : ''}</div>`;
 }
-const VERDICTS = [['ok', 'Bonne'], ['tenue', 'Tenue fausse'], ['geste', 'Geste absent'], ['objet', 'Objet en trop'], ['visage', 'Visage'], ['corps', 'Corps'], ['decor', 'Décor'], ['cadrage', 'Cadrage']];
+const VERDICTS = [['ok', 'Bonne'], ['passable', 'Passable'], ['pose', 'Position moyenne'], ['ton', 'Pas dans le ton'], ['tenue', 'Tenue fausse'], ['geste', 'Geste absent'], ['objet', 'Objet en trop'], ['visage', 'Visage'], ['corps', 'Corps'], ['decor', 'Décor'], ['cadrage', 'Cadrage']];
 const QUOI = {1: 'Tous publics, pour les réseaux : elle donne envie de voir la suite. Le rédacteur IA peut l\'écrire, la relire et l\'analyser.',
   2: 'Suggestif poussé : lingerie, nu suggéré, rien d\'explicite. Offert ou réservé aux abonnés, c\'est le temps qui convertit. Le rédacteur IA peut l\'écrire, sauf les scènes qui portent des LoRA.',
   3: 'Nudité explicite, sans acte. Pour l\'abonnement ou un paiement bas. Ce temps est à votre main : le rédacteur IA ne l\'écrit pas, ne le relit pas et ne l\'analyse pas.',

@@ -145,7 +145,7 @@ RENDUS = ("net", "telephone", "main")
 # piece, meme tenue, pose proche), "direct" = chaque image creee a part (LoRA du visage et fiche de continuite)
 TIRAGES = ("ref", "direct")
 # Verdict du proprietaire sur une image : des cases, pas de texte (l'assistant corrige les reglages sans voir l'image)
-VERDICTS = ("ok", "tenue", "geste", "objet", "visage", "corps", "decor", "cadrage")
+VERDICTS = ("ok", "tenue", "geste", "objet", "visage", "corps", "decor", "cadrage", "passable", "pose", "ton")
 
 
 def _tirage(p, t):
