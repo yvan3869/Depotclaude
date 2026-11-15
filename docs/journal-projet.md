@@ -375,3 +375,12 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
   Mis en place le jour meme : `graines` au projet (un tirage par temps), repris par la premiere image creee a part
   de chaque scene ; « Autre image » garde un tirage propre a la scene. Format des plans inchange. Pas encore
   verifie sur une production reelle (aucune depense).
+- 15/11 : essai « replacer dans la vraie piece » (p0004, tous publics). Seconde passe Qwen-Image-Edit a deux images :
+  image 1 = image creee a part (pose, tenue), image 2 = reference du projet (ou la piece videe de son personnage).
+  Trois poses. Pose, tenue et visage gardes presque a l'identique ; la piece ne se rapproche vraiment de la
+  reference que sur une image sur trois (poignees, meubles), les deux autres sortent quasi inchangees. Defauts
+  ajoutes : tatouages inventes sur l'avant-bras (surtout avec la piece vide), peau plus rouge et plus lisse.
+  Limite de l'essai : les images creees a part avaient deja une cuisine tres proche de la reference (meme tirage,
+  meme description du lieu). Conclusion : pas branche dans l'atelier ; le tirage commun et un « lieu » precis
+  suffisent pour l'instant. Images dans data/work/girls-ai-essai-decor, planches p0004essai_decor_a/b/c dans le Tri.
+  Pod de 5 minutes, environ 0,06 $.
