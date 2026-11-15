@@ -641,3 +641,10 @@ modeles de retouche ne servent qu'a preparer (brouillon, tenue, lieu). Rien n'es
   7 au temps 4 (une autre personne a l'image partout : la methode ne pose qu'elle). Temps 1 lance par l'assistant
   (6 images, non regardees) ; temps 2 et 3 a lancer par le proprietaire depuis la page.
 - Depense : environ 0,50 $ ; total du jour 5,45 $ sur 7,50 environ. Disque : 32 Go sur 197.
+
+### 2026-11-15 (soir, suite) : comparaison, scenes a deux
+
+- Page de comparaison : rappel de ce que le scenariste a ecrit sous chaque scene ; moments et scenes choisis par de gros boutons.
+- p0005 moment 1 : 6 images, aucun echec (non regardees).
+- Scenes a deux (moment 4) : la nouvelle methode part de la photo du lieu, sans brouillon. Essai sur p0004 (scene 4 avec un homme ajoute le temps de l'essai, 8 images) : a 0,8 la piece tient, personnes petites et basses ; a 0,9 cadrage meilleur, piece changee. Reglage au choix dans la page.
+- Depense : environ 0,30 $ ; total du jour environ 5,80 $.

@@ -110,7 +110,7 @@ const CONSIGNES_SCENE = ['Plus sensuelle, toujours suggestive', 'Plus près de l
 
 // --- Comparaison des methodes : memes scenes, memes tirages, en deux rangees ---
 let C = null, cT = null;
-const CM = {t: null, x: [], l: '', ten: '', n: 2};
+const CM = {t: null, x: [], l: '', ten: '', n: 2, f: 0.8};
 async function vueComparer(pid) {
   C = await api('/api/a/comparer?id=' + encodeURIComponent(pid));
   rendreComparer();
@@ -146,7 +146,7 @@ function rendreComparer() {
       <label>Images par scène et par méthode${sel('n', [[1, '1'], [2, '2'], [3, '3']])}</label>
       <div class="row"><button class="p" data-a="cmplancer" ${ok && CM.l && !C.occupe && E.can_run ? '' : 'disabled'}>${ic('lancer')}Lancer la comparaison</button>
         <span class="mut">${C.occupe ? 'Un calcul est en cours : attendre sa fin.' : ok ? `${n} images, environ ${usd((C.pod ? 0.05 : 0.12) + n * 0.02)}, ${Math.round(2 + n * 1.6)} min.` : ''}</span></div>
-      ${CM.t.some(t => C.temps[t].liste.some(s => s.deux && !CM.x.includes(s.id))) ? '<div class="mut">Scènes « à deux » : la nouvelle méthode ne place pas les corps. L\'image part de la photo du lieu et les personnes sont dessinées d\'après le texte ; la tenue choisie ne joue pas.</div>' : ''}
+      ${CM.t.some(t => C.temps[t].liste.some(s => s.deux && !CM.x.includes(s.id))) ? '<div class="mut">Scènes « à deux » : la nouvelle méthode ne place pas les corps. L\'image part de la photo du lieu et les personnes sont dessinées d\'après le texte ; la tenue choisie ne joue pas.</div><label>Scènes à deux : liberté du dessin' + sel('f', [[0.8, 'La pièce tient, les personnes sont plus petites dans le cadre'], [0.9, 'Cadrage plus libre, la pièce change un peu']]) + '</label>' : ''}
       <div class="mut"><a class="lien" href="#/atelier/${esc(C.personnage)}">${ic('personnage')}Atelier du personnage</a> : lieux et tenues disponibles. Sans image retenue, la première image de la ligne sert.</div>
     </div>
     ${C.lancements.map(x => `<h2>Temps ${[].concat(x.temps).join(', ')} · ${esc(nom(C.lieux, x.lieu))}${x.tenue ? ' · ' + esc(nom(C.tenues, x.tenue)) : ''}</h2>
@@ -1038,7 +1038,7 @@ Object.assign(actions, {
   bphoto: el => { if (el.dataset.q === 'tenues' && A.occupe) return toast('Un calcul est en cours : attendre sa fin'); const i = document.createElement('input'); i.type = 'file'; i.accept = 'image/*'; i.onchange = () => i.files[0] && bEnvoi(i.files[0], el.dataset.q, el.dataset.cle).catch(e => toast(e.message)); i.click(); },
   cmtemps: el => { const t = el.dataset.t; CM.t = CM.t.includes(t) ? CM.t.filter(x => x !== t) : [...CM.t, t].sort(); rendreComparer(); },
   cmscene: el => { const s = el.dataset.s; CM.x = CM.x.includes(s) ? CM.x.filter(x => x !== s) : [...CM.x, s]; rendreComparer(); },
-  cmplancer: async () => { const r = await api('/api/a/comparer', {id: C.id, temps: CM.t.map(Number), scenes: CM.t.flatMap(t => C.temps[t].liste.map(s => s.id)).filter(s => !CM.x.includes(s)), lieu: CM.l, tenue: CM.ten, variantes: +CM.n}); toast(`Comparaison lancée : ${r.lance} images`, true); await vueComparer(C.id); },
+  cmplancer: async () => { const r = await api('/api/a/comparer', {id: C.id, temps: CM.t.map(Number), scenes: CM.t.flatMap(t => C.temps[t].liste.map(s => s.id)).filter(s => !CM.x.includes(s)), lieu: CM.l, tenue: CM.ten, variantes: +CM.n, force: +CM.f}); toast(`Comparaison lancée : ${r.lance} images`, true); await vueComparer(C.id); },
   bessayer: async () => { await api('/api/a/b/essayer', {slug: A.slug, tenue: AC.t, lieu: AC.l, pose: +AC.p}); toast('Essayage lancé', true); await bMaj(); },
   bjeter: async el => { if (!confirm('Retirer cette image ?')) return; bMaj(await api('/api/a/b/retirer', {slug: A.slug, image: el.dataset.n})); },
   bvisage: async () => { await api('/api/a/b/visage', {slug: A.slug}); toast('Portraits lancés', true); await bMaj(); },
