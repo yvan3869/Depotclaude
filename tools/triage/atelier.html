@@ -64,9 +64,9 @@
 </style></head><body>
 <header>
   <div class="l1"><a href="/">Studio</a><b>Production</b><span class="sp"></span><small id="sauve"></small><small id="redac"></small><small id="gpu"></small><button class="i s" id="baide" title="Afficher ou replier toutes les aides" aria-label="Afficher ou replier toutes les aides"></button></div>
+  <div class="chips" id="file" style="display:none;flex-wrap:wrap;align-items:center;font-size:13px;border-bottom:1px solid var(--line);padding-bottom:6px;margin-bottom:6px"></div>
   <div class="chips" id="persos"></div>
   <div class="chips" id="onglets" style="display:none"></div>
-  <div class="chips" id="file" style="display:none;flex-wrap:wrap;align-items:center"></div>
 </header>
 <main id="vue"></main>
 <script src="/ui.js"></script>
@@ -163,7 +163,7 @@ async function etat() {
     + `<span class="chip" data-h="#/persos">${ic('personnage')} Casting</span><span class="chip" data-h="#/loras">${ic('lora')} LoRA</span><span class="chip" data-h="#/schemas">${ic('info')} Schémas</span>`;
   $('#gpu').textContent = E.depense ? `GPU ${usd(E.depense.jour).replace(/\s*\$/, '')} / ${Math.round(E.depense.plafond)} $` : '';
   const fa = E.file || {attente: [], faits: []}, fr = fa.faits[0];
-  $('#file').innerHTML = (fa.attente.length ? `<b>${ic('horloge')}File d'attente</b>` + fa.attente.map((x, i) => `<span class="chip">${i + 1}. ${esc(x.nom)}<button class="i s" data-n="${x.n}" title="Retirer de la file" aria-label="Retirer de la file">${ic('fermer')}</button></span>`).join('') : '')
+  $('#file').innerHTML = (fa.attente.length ? `<span class="mut">${ic('horloge')}Calculs en attente, tous projets :</span>` + fa.attente.map((x, i) => `<span class="chip">${i + 1}. ${esc(x.nom)}<button class="i s" data-n="${x.n}" title="Retirer de la file" aria-label="Retirer de la file">${ic('fermer')}</button></span>`).join('') : '')
     + (fr && /^refus/.test(fr.resultat) ? `<span class="mut" style="color:var(--warn)">${esc(fr.nom)}, sorti de la file à ${esc(fr.quand)} : ${esc(fr.resultat)}</span>` : '');
   $('#file').style.display = $('#file').innerHTML ? 'flex' : 'none';
   $('#redac').innerHTML = E.redacteur ? '<span class="okc">Rédacteur IA</span>' : '<span style="color:var(--warn)">Rédacteur de secours</span>';
