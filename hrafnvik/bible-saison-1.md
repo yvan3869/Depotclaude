@@ -49,6 +49,31 @@ Issue des images d'ambiance fournies, transposée en rendu stylisé.
 - **Peau mouillée, vapeur, lueur du feu** : à conserver, c'est la signature sensuelle de la série (étuve, neige fondue, sueur près du foyer).
 - **Mise en scène** : pas de pose face caméra. Les personnages se regardent entre eux et font quelque chose ; le regard caméra est réservé aux vignettes promotionnelles.
 
+### Réglages retenus (15/11/2026)
+
+Décision du propriétaire après les essais de Sigrun, Ylva et Eirik. Ces réglages sont la référence pour toute nouvelle image de la série.
+
+- **Checkpoint** : Arthemy Comics Illustrious v8.0 (https://civitai.com/models/1273254), licence autorisant l'usage commercial des images.
+- **LoRA de style** : 2.5D Cel Shading Modeling Style v1.0 (https://civitai.com/models/1652997), **poids 0,4**. Cinq poids ont été comparés sur Sigrun (0 à 1,0) ; 0,4 donne le volume sans perdre le contour encré ni rajeunir le visage.
+- **Génération** : 832x1216, 28 pas, CFG 5,5, euler_ancestral / normal, clip skip 2.
+- **Chaîne** : image maîtresse brute, puis correction par édition, puis vues dérivées de l'image corrigée. Édition par Qwen-Image-Edit 2509 avec LoRA Lightning 8 pas (CFG 1, euler / simple, shift 3).
+- **Images de référence** : `sigrun/v3_sans_fumee/`, `ylva/`, `eirik/`. Les prompts et seeds exacts sont dans le `prompts.md` de chaque dossier.
+
+#### Acquis
+
+- Aucune vue ne peut passer pour une photo.
+- Volume, sueur et sensualité sont présents sur les images maîtresses et les portraits.
+- Les trois personnages sont lisiblement adultes.
+- Cheveux, bijoux, peintures de visage et tatouages tiennent d'une vue à l'autre.
+
+#### Défauts connus, à corriger avant la vidéo
+
+1. **Deux rendus différents dans une même planche.** Les images maîtresses et les portraits ont du volume et des reflets ; les vues en pied et les extérieurs, dérivées par édition, retombent dans un dessin 2D à plat. En vidéo, les plans larges et les gros plans ne sembleraient pas venir de la même série. C'est le défaut le plus important.
+2. **La suie se lit comme des taches.** Points réguliers sur les bras de Sigrun, éclaboussures en étoile sur le corset d'Ylva, gouttes sombres au sol. Cela ressemble à un motif ou à des taches de rousseur, pas à de la crasse.
+3. **Sigrun en extérieur** : cheveux plus courts et plus sombres que sur l'image maîtresse.
+4. **Eirik** : liseré blanc autour du manteau sur l'image maîtresse.
+5. **Palette d'intérieur** : orange et rouge très saturés, plus vifs que les ocres et bruns sourds prévus. À accepter ou à corriger, mais à décider une fois pour toutes.
+
 ### Planches de référence à produire en premier
 
 Une planche par personnage, habillé, avant toute scène :
