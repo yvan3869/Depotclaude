@@ -78,20 +78,21 @@ Les points où un scénario échoue le plus souvent à l'image :
 
 ## 4. Écrire, vérifier, livrer
 
-1. Copie `server/jobs/modele.yaml` vers `server/jobs/atelier/<nom>.yaml` et adapte. Un fichier par temps.
-   Noms conseillés : `<sujet>_t1.yaml`, `<sujet>_t2.yaml`, etc.
-2. Vidéo entière d'un coup : le fichier du temps 1 ne nomme pas de projet (il nomme `personnage` et `titre`) ;
-   ceux des temps 2 à 4 portent `projet_de: <sujet>_t1.yaml`. Suite d'un projet qui existe : `projet: pNNNN`.
-3. Vérifie **chaque fichier**, et recommence jusqu'à ce que tous disent « rien à corriger » :
+1. Copie `server/jobs/modele.yaml` vers `server/jobs/atelier/<sujet>.yaml` et adapte. **Une vidéo, un seul
+   fichier** : les quatre temps dedans, chaque plan avec son `temps` (1 à 4), dans l'ordre des temps. Le
+   propriétaire ne retouche rien : le fichier doit tout dire (fiche de continuité, textes, découpage de chaque plan).
+2. Vidéo nouvelle : pas de `projet` (le fichier nomme `personnage` et `titre`), la page ouvre le projet toute
+   seule. Suite d'un projet qui existe : `projet: pNNNN`.
+3. Vérifie le fichier, et recommence jusqu'à ce qu'il dise « rien à corriger » :
 
-       python3 tools/triage/verifier.py server/jobs/atelier/<sujet>_t1.yaml server/jobs/atelier/<sujet>_t2.yaml
+       python3 tools/triage/verifier.py server/jobs/atelier/<sujet>.yaml
 
    `REFUSE` et `PERIME` bloquent : corrige. `GRAVE` : corrige. Une `remarque` se corrige aussi ; si tu en
    laisses une parce que le propriétaire l'a voulu ainsi, écris pourquoi dans `note`.
-4. Annonce au propriétaire, en trois lignes : les fichiers déposés, le résultat du vérificateur, et ce qu'il
-   lui reste à faire (ouvrir l'Atelier, importer le temps 1 puis les suivants, lancer les images).
+4. Annonce au propriétaire, en trois lignes : le fichier déposé, le résultat du vérificateur, et ce qu'il
+   lui reste à faire (ouvrir l'Atelier : le projet y est déjà, il n'y a rien à importer ; lancer les images).
 5. Correction après coup : modifie le même fichier **sans changer les `name` des plans** (l'image déjà calculée
-   est gardée tant que `still` n'a pas changé), revérifie, redis-le.
+   est gardée tant que `still` n'a pas changé), revérifie, redis-le. La page reprend le fichier toute seule.
 
 ## 5. Apprendre des résultats
 

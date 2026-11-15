@@ -476,3 +476,10 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
 - 15/11, menage demande par le proprietaire : projets p0001, p0002 et p0003 supprimes (dossiers, dossiers de calcul
   `work/p000Xr*`, depots de plans qui les visaient), chaine en pause arretee. Reste p0004, projet d'essai tous publics.
   Gardes : le releve des depenses, la page Test, la Bibliotheque et les fiches de personnage.
+- 15/11, une video, un fichier. Le scenariste fournit tout : modele de plans `2026-11-15e`, les quatre temps dans le
+  meme fichier (chaque plan dit son `temps`, 30 plans au plus, 10 par temps). Plus de bouton « Importer » : la page
+  importe toute seule un fichier accepte, nouveau ou modifie, hors calcul en cours ; un fichier refuse n'ouvre rien et
+  reste affiche avec sa raison. Un plan retire du fichier quitte le projet ; l'image est gardee tant que `still` n'a
+  pas change. La page refuse d'enregistrer par-dessus un projet que le depot vient de mettre a jour (elle se recharge).
+  L'ancienne forme (un fichier par temps) reste lue, avec son bouton. Essais sur une copie des donnees : fichier
+  entier accepte, cinq refus, import, redepot. Aucune depense GPU.

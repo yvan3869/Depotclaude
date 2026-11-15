@@ -40,6 +40,7 @@ ETAPES = ("idee", "ecrit", "images", "clips", "monte", "valide")
 FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 TEMPS = {1: "accroche", 2: "montee", 3: "devoile", 4: "final"}
 V = 4            # version des donnees : 4 = quatre temps (l'ancien temps 3, le final, est devenu le temps 4)
+MODELE_UN = "2026-11-15e"  # premier modele de plans ou une video entiere tient dans un fichier, importe sans bouton
 MODELE_DEC = "2026-11-15d"  # premier modele de plans ou chaque plan dit son passage et sa camera
 MODELE_4T = "2026-11-14f"  # premier modele de plans a quatre temps : avant lui, "temps: 3" designait le final
 FORMATS = {"vertical": (1080, 1920), "carre": (1080, 1080), "paysage": (1920, 1080)}
@@ -297,6 +298,8 @@ class Atelier:
         elif c and c.get("etat") == "en cours":
             self.ch = {**c, "etat": "erreur", "erreur": "interface redémarrée pendant la chaîne : la relancer, elle ne recalcule que ce qui manque"}
         self._dep = (0, None)
+        self._echecs = {}   # depot -> (date du fichier, raison) : import automatique refuse, pas retente tant que le fichier ne change pas
+        self._alock = threading.Lock()  # un seul import automatique a la fois (voir auto())
 
     def _migrer(self):
         """Passage de trois a quatre temps (14/11/2026) : dans les donnees d'avant, le temps 3 etait le final. Il devient
@@ -664,6 +667,8 @@ class Atelier:
             pid = b.get("id")
             if pid:
                 old = self._raw(pid)
+                if "depots" in b and (b["depots"] or {}) != (old.get("depots") or {}):  # page ouverte avant un import automatique
+                    raise ValueError("Projet mis à jour par un nouveau dépôt du scénariste : la page se recharge.")
             else:
                 self.perso(b.get("personnage"))
                 nums = [int(d.name[1:]) for d in self.dj.iterdir() if re.fullmatch(r"p\d{4}", d.name)]
@@ -840,6 +845,7 @@ class Atelier:
         return sorted((f.name for f in self._pdir(pid).glob(pre + "*.mp4")), key=lambda n: int(n[len(pre):-4]))
 
     def projet(self, pid):
+        self.auto()
         p = self._raw(pid)
         pr = self.prises(pid)
         e = self._eff(p, pr)
@@ -892,6 +898,7 @@ class Atelier:
         return self._dep[1]
 
     def etat(self):
+        self.auto()
         return {"personnages": [{k: p.get(k) for k in ("slug", "nom", "statut", "age", "langue", "accroche")} | {"lora": bool((p.get("generation") or {}).get("lora"))}
                                 for p in self.persos().values()],
                 "projets": self.liste(), "depots": [x for x in self.depots() if not self._existe(x.get("projet"))], "fiches": self.fiches(), "redacteur": self.redacteur_actif(), "depense": self.depense(),
@@ -1265,21 +1272,33 @@ class Atelier:
         if not isinstance(j, dict) or not isinstance(j.get("atelier"), dict):
             raise ValueError('bloc "atelier" absent')
         a, d, shots = j["atelier"], j.get("defaults") or {}, j.get("shots")
-        if a.get("temps") not in (1, 2, 3, 4) or isinstance(a.get("temps"), bool):
-            raise ValueError('"atelier.temps" doit valoir 1, 2, 3 ou 4')
-        if a["temps"] == 3 and str(j.get("modele") or "") < MODELE_4T:  # plan ecrit avant les quatre temps : son temps 3 etait le final
+        # video entiere : pas de "atelier.temps", chaque plan dit le sien ("temps: 1" a 4), dans l'ordre
+        entier = "temps" not in a and str(j.get("modele") or "") >= MODELE_UN
+        if not entier and (a.get("temps") not in (1, 2, 3, 4) or isinstance(a.get("temps"), bool)):
+            raise ValueError('"atelier.temps" doit valoir 1, 2, 3 ou 4 (ou être absent : chaque plan dit alors son "temps")')
+        if not entier and a["temps"] == 3 and str(j.get("modele") or "") < MODELE_4T:  # plan ecrit avant les quatre temps : son temps 3 etait le final
             a = a | {"temps": 4}
-        if not isinstance(shots, list) or not 1 <= len(shots) <= 10:
-            raise ValueError("de 1 à 10 plans par fichier")
-        scenes, noms = [], set()
+        if not isinstance(shots, list) or not 1 <= len(shots) <= (30 if entier else 10):
+            raise ValueError("de 1 à 30 plans par fichier, 10 par temps" if entier else "de 1 à 10 plans par fichier")
+        scenes, noms, avant, premiers = [], set(), 0, set()
         for i, sh in enumerate(shots):
             nom = str(sh.get("name") or "") if isinstance(sh, dict) else ""
             if not re.fullmatch(r"[A-Za-z0-9_]{1,40}", nom) or nom in noms:
                 raise ValueError(f"plan {i + 1} : nom absent, invalide ou en double")
             noms.add(nom)
+            tp = sh.get("temps") if entier else a["temps"]
+            if tp not in (1, 2, 3, 4) or isinstance(tp, bool):
+                raise ValueError(f"plan {nom} : \"temps\" vaut 1, 2, 3 ou 4 (fichier sans \"atelier.temps\" : chaque plan dit le sien)")
+            if tp < avant:
+                raise ValueError(f"plan {nom} : les plans se suivent dans l'ordre des temps (1, puis 2, puis 3, puis 4)")
+            prem, avant = tp != avant, tp  # premier plan de son temps : chaque temps est une video a part
+            if prem:
+                premiers.add(nom)
+            if len([s for s in scenes if s["temps"] == tp]) >= 10:
+                raise ValueError(f"plan {nom} : 10 plans au plus par temps")
             if not _s(sh.get("still")):
                 raise ValueError(f"plan {nom} : \"still\" obligatoire")
-            if a["temps"] >= 2 and not (i and sh.get("raccord") == "continu") and not tenue_dite(sh["still"]):
+            if tp >= 2 and not (not prem and sh.get("raccord") == "continu") and not tenue_dite(sh["still"]):
                 raise ValueError(f"plan {nom} : dans les temps 2 à 4, \"still\" dit ce qu'elle porte ou ne porte plus à cet instant "
                                  "(\"wearing ...\", \"naked\"...) ; la tenue de la fiche de continuité ne vaut que pour le temps 1")
             if [k for k in ("steps", "image", "edit", "suite_de", "end_image") if sh.get(k)]:
@@ -1295,7 +1314,7 @@ class Atelier:
                 raise ValueError(f"plan {nom} : \"camera\" vaut fixe, {', '.join(CAMERAS[1:])}")
             # depuis le modele MODELE_DEC, le decoupage se dit : chaque plan qui arrive par une coupe nomme son passage et sa camera
             if str(j.get("modele") or "") >= MODELE_DEC and sh.get("raccord", "coupe") == "coupe":
-                if i and not sh.get("transition"):
+                if not prem and not sh.get("transition"):
                     raise ValueError(f"plan {nom} : dire comment on arrive sur ce plan, \"transition: coupe\" ou une autre valeur ({', '.join(TRANSITIONS)})")
                 if "camera" not in sh:
                     raise ValueError(f"plan {nom} : dire si la caméra bouge, \"camera: fixe\" ou un mouvement ({', '.join(CAMERAS[1:])})")
@@ -1307,7 +1326,7 @@ class Atelier:
             if sh.get("cran") not in (None, 1, 2, 3, 4, 5):
                 raise ValueError(f"plan {nom} : \"cran\" est un entier de 1 à 5")
             seed = sh.get("seed") or (int(d["seed"]) + (0 if d.get("same_seed") else i) if d.get("seed") else 0)
-            scenes.append({"titre": sh.get("titre") or nom, "role": sh.get("role"), "temps": a["temps"], "still": sh["still"], "motion": sh.get("motion"),
+            scenes.append({"titre": sh.get("titre") or nom, "role": sh.get("role"), "temps": tp, "still": sh["still"], "motion": sh.get("motion"),
                            "end_edit": sh.get("end_edit"), "texte": sh.get("texte"), "voix": sh.get("voix"), "son": sh.get("son"), "tattoos": sh.get("tattoos", True),
                            "loras": sh.get("loras", d.get("loras")), "seed": seed, "origine": f"{f.name}:{nom}",
                            "raccord": sh.get("raccord"), "libre": bool(sh.get("libre")), "cran": sh.get("cran"),
@@ -1315,28 +1334,30 @@ class Atelier:
                            **{k: pose.get(k) for k in POSE}, "contact": sh.get("contact"), "autres": sh.get("autres")})
         # textes de publication : seulement avec le temps 1, et seulement ceux qui sont remplis
         lim = {"pitch": 400, "ambiance": 300, "accroche": 120, "legende": 600, "cta": 120, "hashtags": 200}
-        textes = {k: _s(a.get(k), n) for k, n in lim.items() if a["temps"] == 1 and _s(a.get(k), n)}
+        lestemps = sorted({s["temps"] for s in scenes})
+        un = 1 in lestemps  # les textes, la fiche de continuite et la reference du projet voyagent avec le temps 1
+        textes = {k: _s(a.get(k), n) for k, n in lim.items() if un and _s(a.get(k), n)}
         if a.get("date_perso"):  # date du personnage (fictive) ; YAML peut la lire comme une date
             if not _date(a["date_perso"]):
                 raise ValueError('"atelier.date_perso" : date au format AAAA-MM-JJ')
-            if a["temps"] == 1:
+            if un:
                 textes["date_perso"] = _date(a["date_perso"])
-        if a["temps"] == 1 and _s(a.get("contexte"), 400):
+        if un and _s(a.get("contexte"), 400):
             textes["contexte"] = _s(a.get("contexte"), 400)
         # fiche de continuite et image de reference : au projet entier, donc portees par le depot du temps 1
         if a.get("continuite") is not None and not isinstance(a["continuite"], dict):
             raise ValueError(f'"atelier.continuite" : un bloc de champs ({", ".join(CONT)})')
-        if a["temps"] == 1 and any(_cont(a.get("continuite")).values()):
+        if un and any(_cont(a.get("continuite")).values()):
             textes["continuite"] = _cont(a["continuite"])
         ref = str(a.get("reference") or "")
-        if ref and ref not in [str(sh["name"]) for i, sh in enumerate(shots) if not (i and sh.get("raccord") == "continu")]:
-            raise ValueError('"atelier.reference" : nom d\'un plan de ce fichier qui a sa propre image (pas un plan continu)')
+        if ref and ref not in [str(sh["name"]) for sh in shots if (sh.get("temps") == 1 or not entier) and not (sh["name"] not in premiers and sh.get("raccord") == "continu")]:
+            raise ValueError('"atelier.reference" : nom d\'un plan ' + ("du temps 1 " if entier else "") + 'de ce fichier qui a sa propre image (pas un plan continu)')
         de = str(a.get("projet_de") or "")
-        if de and (a.get("projet") or a["temps"] == 1 or de == f.name or not re.fullmatch(r"[A-Za-z0-9_.-]{1,80}\.yaml", de)):
+        if de and (entier or a.get("projet") or a["temps"] == 1 or de == f.name or not re.fullmatch(r"[A-Za-z0-9_.-]{1,80}\.yaml", de)):
             raise ValueError('"atelier.projet_de" : nom du fichier du temps 1 de la même vidéo, pour un temps 2 à 4, sans "projet"')
-        return {"projet": str(a.get("projet") or ""), "projet_de": de, "temps": a["temps"], "personnage": str(a.get("personnage") or ""),
+        return {"projet": str(a.get("projet") or ""), "projet_de": de, "temps": lestemps[0], "lestemps": lestemps, "entier": entier, "personnage": str(a.get("personnage") or ""),
                 "titre": _s(a.get("titre"), 100), "note": _s(a.get("note"), 300), "modele": str(j.get("modele") or ""), "scenes": scenes,
-                "textes": textes, "reference": ref if a["temps"] == 1 else ""}
+                "textes": textes, "reference": ref if un else ""}
 
     def depots(self):
         import yaml
@@ -1353,11 +1374,17 @@ class Atelier:
                 if not re.fullmatch(r"[A-Za-z0-9_.-]{1,80}\.yaml", f.name):
                     raise ValueError("nom de fichier invalide (lettres, chiffres, _ . -)")
                 pl = self._plan(f)
-                x |= {k: pl[k] for k in ("projet", "temps", "personnage", "titre", "note")} | {"n": len(pl["scenes"]), "perime": bool(modele) and pl["modele"] != modele}
+                x |= {k: pl[k] for k in ("projet", "temps", "lestemps", "personnage", "titre", "note")} | {"n": len(pl["scenes"]), "auto": pl["modele"] >= MODELE_UN, "perime": bool(modele) and pl["modele"] != modele}
                 if not x["projet"]:  # depot sans projet : il appartient au projet qu'il a ouvert, ou a celui du fichier du temps 1 qu'il nomme
                     x["projet"] = self._rattache(f.name) or self._rattache(pl["projet_de"])
                 if pl["projet_de"] and not x["projet"]:
                     x["attente"] = pl["projet_de"]
+                elif not x["projet"] and pl["personnage"] not in self.persos():
+                    raise ValueError(f'"atelier.personnage" : « {pl["personnage"]} » inconnu (un dépôt sans projet nomme un personnage enregistré)')
+                elif not x["projet"] and 1 not in pl["lestemps"]:
+                    raise ValueError('temps 2 à 4 sans temps 1 : nommer le projet ("atelier.projet")')
+                if self._echecs.get(f.name, (0,))[0] == x["mtime"]:
+                    raise ValueError(self._echecs[f.name][1])
                 x["remarques"] = len(self._remarques(pl, x["projet"], lib))
                 if x["projet"] and not self._existe(x["projet"]):
                     x["erreur"] = f"projet {x['projet']} inconnu"
@@ -1374,11 +1401,15 @@ class Atelier:
     def _remarques(self, pl, pid, lib=None):
         """Remarques du controle des plans sur un depot lu par _plan (la fiche de continuite est celle du depot, sinon du projet)."""
         fiche = pl["textes"].get("continuite") or (self._raw(pid)["continuite"] if pid and self._existe(pid) else {})
-        t, pr = str(pl["temps"]), self._raw(pid) if pid and self._existe(pid) else {}
+        pr, out = self._raw(pid) if pid and self._existe(pid) else {}, []
         lp = pr.get("loras") or {}  # LoRA que le projet ajoutera a ces scenes : les siennes, celles du temps, celles par defaut au premier depot
-        base = _fusion(lp.get("0"), "" if t in (pr.get("lora_def") or []) else self._defauts().get(pl["temps"], ""), lp.get(t))
-        return controle({"continuite": fiche, "accroche": pl["textes"].get("accroche"), "scenes": [
-            {**s, "id": str(i), "loras": _fusion(base, _loras(s["loras"]))} for i, s in enumerate(pl["scenes"])]}, pl["temps"], lib or self._lib())
+        for tp in pl["lestemps"]:
+            t = str(tp)
+            base = _fusion(lp.get("0"), "" if t in (pr.get("lora_def") or []) else self._defauts().get(tp, ""), lp.get(t))
+            out += controle({"continuite": fiche, "accroche": pl["textes"].get("accroche"), "scenes": [
+                {**s, "id": str(i), "loras": _fusion(base, _loras(s["loras"]))} for i, s in enumerate(pl["scenes"]) if s["temps"] == tp]}, tp, lib or self._lib())
+        vus = set()  # une remarque sur le projet entier ne se repete pas a chaque temps
+        return [r for r in out if not ((k := (r.get("scene"), r["msg"])) in vus or vus.add(k))]
 
     def examen(self, f):
         """Tout ce que l'atelier dira d'un depot de plans, sans rien ecrire : refus (ValueError) ou liste de remarques."""
@@ -1399,15 +1430,35 @@ class Atelier:
             pl["textes"].setdefault("continuite", p1["textes"].get("continuite") or {})
         elif not pid and pl["personnage"] not in self.persos():
             raise ValueError(f'"atelier.personnage" : « {pl["personnage"]} » inconnu (un dépôt sans projet nomme un personnage enregistré)')
-        elif not pid and pl["temps"] != 1:
-            raise ValueError('temps 2 à 4 : nommer le projet ("atelier.projet") ou le fichier du temps 1 de la même vidéo ("atelier.projet_de")')
+        elif not pid and 1 not in pl["lestemps"]:
+            raise ValueError('temps 2 à 4 sans temps 1 : nommer le projet ("atelier.projet")')
         lib = self._lib()
         self._admises([{**s, "loras": _loras(s["loras"])} for s in pl["scenes"]])
         rem = self._remarques(pl, pid, lib)
         noms = {str(i): s["origine"].partition(":")[2] for i, s in enumerate(pl["scenes"])}
         modele = str(yaml.safe_load((self.dd.parent / "modele.yaml").read_text(encoding="utf-8"))["modele"])
-        return {"projet": pid, "attente": "" if pid else pl["projet_de"], "temps": pl["temps"], "plans": len(pl["scenes"]), "modele": modele, "perime": pl["modele"] != modele,
+        return {"projet": pid, "attente": "" if pid else pl["projet_de"], "temps": pl["temps"], "lestemps": pl["lestemps"], "plans": len(pl["scenes"]), "modele": modele, "perime": pl["modele"] != modele,
                 "remarques": [{"plan": noms.get(str(r.get("scene")), ""), "grave": bool(r.get("grave")), "msg": r["msg"]} for r in rem]}
+
+    def auto(self):
+        """Importe sans bouton les depots ecrits d'apres le modele en cours (MODELE_UN ou apres) : nouveaux, ou modifies
+        depuis leur import. Rien pendant un calcul ; un depot refuse n'ouvre rien ; un depot plus ancien garde son bouton."""
+        if time.time() - getattr(self, "_auto", 0) < 5 or not self._alock.acquire(blocking=False):
+            return
+        try:
+            self._auto = time.time()
+            if self.studio.running() or self.chaine_active() or self.montages:
+                return
+            for _ in (1, 2):  # second tour : les fichiers qui attendaient le projet ouvert par un autre
+                for x in reversed(self.depots()):
+                    if x.get("auto") and not x.get("erreur") and not x.get("importe") and not x.get("attente") and x["mtime"] < time.time() - 3:
+                        try:
+                            self.importer({"fichier": x["fichier"]})
+                        except Exception as e:
+                            self._echecs[x["fichier"]] = (x["mtime"], str(e)[:200])
+                            print(f"atelier : depot {x['fichier']} non importe : {str(e)[:200]}", flush=True)
+        finally:
+            self._alock.release()
 
     def _rattache(self, nom):
         """Projet ouvert par l'import d'un depot qui ne nommait pas de projet ("" si aucun)."""
@@ -1431,11 +1482,12 @@ class Atelier:
         with self.lock:
             p = self._raw(pid)
             old = {s["origine"]: s for s in p["scenes"] if s["origine"].startswith(f.name + ":")}
-            neuves, t = [], str(pl["temps"])
-            defaut = self._defauts().get(pl["temps"], "")
-            if defaut and t not in (p.get("lora_def") or []):  # premier depot de ce temps : ses LoRA par defaut se posent sur le projet
-                p["loras"] = {**(p.get("loras") or {}), t: _fusion(defaut, (p.get("loras") or {}).get(t))}
-                p["lora_def"] = [*(p.get("lora_def") or []), t]
+            neuves = []
+            for tp in pl["lestemps"]:
+                t, defaut = str(tp), self._defauts().get(tp, "")
+                if defaut and t not in (p.get("lora_def") or []):  # premier depot de ce temps : ses LoRA par defaut se posent sur le projet
+                    p["loras"] = {**(p.get("loras") or {}), t: _fusion(defaut, (p.get("loras") or {}).get(t))}
+                    p["lora_def"] = [*(p.get("lora_def") or []), t]
             for d in pl["scenes"]:
                 o = old.get(d["origine"]) or {}
                 if d["loras"] is None:  # le plan ne dit rien des LoRA : celles deja posees sur la scene (celles du temps sont au projet)
@@ -1453,7 +1505,7 @@ class Atelier:
                 p["reference"] = next(s["id"] for s in neuves if s["origine"] == f"{f.name}:{pl['reference']}")
             elif p["reference"] not in [s["id"] for s in p["scenes"]]:
                 p["reference"] = ""
-            if pl["temps"] == 1 and not p["brief"]:  # l'idee de depart d'un projet depose est son pitch
+            if 1 in pl["lestemps"] and not p["brief"]:  # l'idee de depart d'un projet depose est son pitch
                 p["brief"] = p["pitch"]
             p.setdefault("depots", {})[f.name] = int(f.stat().st_mtime)
             p["modifie"] = time.strftime("%Y-%m-%d %H:%M")

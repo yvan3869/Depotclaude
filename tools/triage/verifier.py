@@ -3,7 +3,7 @@
 personnage (server/jobs/atelier/personnages/<slug>.yaml). Dit exactement ce que la page Atelier en dira : refus,
 remarques du controle des plans, modele perime. Lecture seule, sans GPU ni IA, sans rien enregistrer.
 
-    python3 tools/triage/verifier.py server/jobs/atelier/mavideo_t1.yaml [autre.yaml ...]
+    python3 tools/triage/verifier.py server/jobs/atelier/mavideo.yaml [autre.yaml ...]
     python3 tools/triage/verifier.py --etat      # modeles en cours, personnages, projets
     python3 tools/triage/verifier.py --notes pNNNN   # ce que le controle automatique et le proprietaire ont trouve, par scene
 
@@ -92,7 +92,7 @@ def verifier(a, f):
             rem, ref = [{"plan": "", "grave": False, "msg": m} for m in rem], "server/jobs/personnage.modele.yaml"
         elif f.parent.resolve() == a.dd.resolve():
             x = a.examen(f)
-            print(f"  {x['plans']} plan(s) pour le temps {x['temps']}, " + (f"projet {x['projet']}" if x["projet"] else f"projet qu'ouvrira {x['attente']}" if x["attente"] else "nouveau projet"))
+            print(f"  {x['plans']} plan(s) pour " + (f"les temps {', '.join(map(str, x['lestemps']))}, " if len(x['lestemps']) > 1 else f"le temps {x['temps']}, ") + (f"projet {x['projet']}" if x["projet"] else f"projet qu'ouvrira {x['attente']}" if x["attente"] else "nouveau projet"))
             rem, perime, ref = x["remarques"], x["perime"], "server/jobs/modele.yaml"
         else:
             print("  REFUSE : un depot se place dans server/jobs/atelier/ (plans) ou server/jobs/atelier/personnages/ (fiche)")

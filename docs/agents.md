@@ -72,7 +72,8 @@ Ne pas reprendre un ancien fichier sans relire son `temps`.
 ceux que le proprietaire lui demande. Sans consigne, il ecrit les temps 3 et 4 et laisse les temps 1 et 2
 au redacteur de l'atelier. Le redacteur de l'atelier, lui, n'ecrit, ne relit et n'analyse jamais les temps 3
 et 4, ni une scene qui porte une LoRA reservee (categorie nu, porno ou non classee). Dans tous les
-cas l'agent depose ; le proprietaire importe, lance le calcul depuis la page, choisit les prises et monte.
+cas l'agent depose un seul fichier par video ; la page l'importe toute seule, et le proprietaire lance le calcul
+depuis la page, choisit les prises et monte.
 
 Le temps 1 porte en plus les textes de publication : `pitch` (resume en francais), `accroche`
 (texte a l'ecran de la premiere seconde), `legende` (avec l'appel a l'action et la mention que le
@@ -305,34 +306,34 @@ y placer un geste ni un texte important. Elle est remplacee par une coupe si l'u
        modele: "<date du modele en cours>"
        name: p0001_final
        atelier:
-         projet: p0001        # projet vise ; "" ou absent : la page cree un nouveau projet
-         # projet_de: mavideo_t1.yaml   # temps 2 a 4 d'une video nouvelle, a la place de "projet"
-         temps: 3             # 1, 2, 3 ou 4 (voir "Un projet en quatre temps")
+         projet: ""           # "" ou absent : nouvelle video, la page ouvre son projet ; pNNNN : projet existant
          personnage: lea      # seulement pour un nouveau projet
          titre: ""            # seulement pour un nouveau projet
          note: "une ligne pour le proprietaire"
-         # avec temps: 1 seulement, facultatifs (un champ vide garde celui du projet) :
+         # pas de "temps" ici : chaque plan dit le sien
+         # facultatifs, lus si le fichier porte des plans du temps 1 (un champ vide garde celui du projet) :
          pitch: ""
          accroche: ""
          legende: ""
          cta: ""
          hashtags: ""
          ambiance: ""               # fond sonore du lieu, une phrase en anglais, sans musique ni voix
-         # avec temps: 1 seulement, facultatifs (absents : ceux du projet sont gardes) :
+         # facultatifs (absents : ceux du projet sont gardes) :
          date_perso: "2026-12-19"   # date du personnage, fictive, entre guillemets
          contexte: ""               # contexte du moment, une ligne en francais
-         continuite:                # avec temps: 1 seulement ; voir "Continuite et raccords"
+         continuite:                # ecrite une fois pour les quatre temps ; voir "Continuite et raccords"
            lieu: "in ..."
            tenue: "wearing ..."
            cheveux: ""
            lumiere: "..."
            pdv: "..."
-         reference: plan01          # avec temps: 1 seulement : nom d'un plan de ce fichier
+         reference: plan01          # nom d'un plan du temps 1 de ce fichier
        defaults:
          seed: 100
          # loras: [nom]       # noms du catalogue ; s'ajoutent aux LoRA par defaut du temps, posees sur le projet
        shots:
          - name: plan01       # unique dans le fichier, lettres, chiffres et _
+           temps: 1           # obligatoire : 1, 2, 3 ou 4 (voir "Un projet en quatre temps") ; plans dans l'ordre des temps
            titre: "..."       # nom de la scene dans la page (facultatif)
            still: "..."       # obligatoire
            motion: "She ..."  # facultatif : sans lui, la scene reste une image fixe
@@ -349,24 +350,27 @@ y placer un geste ni un texte important. Elle est remplacee par une coupe si l'u
            autres: ""         # facultatif : les autres personnes visibles a l'image ; vide quand elle est seule
 
    Champs repris par plan : `name`, `still`, `motion`, `end_edit`, `tattoos`, `loras`, `seed`,
-   `titre`, `texte`, `voix`, `son`, `role`, `raccord`, `transition`, `camera`, `libre`, `cran`, `pose`, `contact`, `autres`. De 1 a 10 plans par fichier. `steps`, `image`,
+   `temps`, `titre`, `texte`, `voix`, `son`, `role`, `raccord`, `transition`, `camera`, `libre`, `cran`, `pose`, `contact`, `autres`. 30 plans au plus par fichier, 10 par temps. `steps`, `image`,
    `edit`, `suite_de`, `end_image` et `character` ne sont pas repris (un depot qui en porte est refuse) ; `body` et `dest` sont inutiles (le temps et la fiche du personnage en
-   tiennent lieu). Un fichier par projet et par temps.
-   Video entiere : quatre fichiers, deposes ensemble (modele `2026-11-15a`). Celui du temps 1 ne nomme pas de
-   `projet` (il porte `personnage` et `titre`) ; ceux des temps 2, 3 et 4 portent `projet_de: <fichier du temps 1>`
-   a la place de `projet`. Le proprietaire importe le temps 1 depuis l'accueil de l'atelier : les autres fichiers
-   apparaissent alors dans la page du projet cree, prets a importer. Tant que le temps 1 n'est pas importe, ils
-   restent a l'accueil avec la mention "suite de ...". Ne jamais deviner un numero de projet.
-   Date du personnage : pour un nouveau projet, la mettre dans le fichier du temps 1 (celle donnee par
+   tiennent lieu).
+   **Une video, un fichier** (modele `2026-11-15e`) : les quatre temps, ou ceux qui sont demandes, dans le meme
+   fichier. Chaque plan dit son `temps` et les plans se suivent dans l'ordre des temps ; chaque temps est une video a
+   part, donc son premier plan n'a pas de `transition` et un raccord ne traverse pas deux temps. Une video nouvelle ne
+   nomme pas de `projet` (elle porte `personnage` et `titre`) : la page ouvre le projet. Ne jamais deviner un numero
+   de projet. L'ancienne forme (un fichier par temps, avec `atelier.temps` et `projet_de`) reste lue, mais ne
+   s'importe pas toute seule : ne plus l'ecrire.
+   Date du personnage : pour un nouveau projet, la mettre dans le fichier (celle donnee par
    le proprietaire) ; sans elle, la page prend le jour de l'import. Pour un projet existant, ne pas la
    remettre : celle du projet fait foi. Une date mal formee bloque le depot.
-3. **Ne pas lancer le pilote sur ce fichier.** Il apparait dans la page du projet (ou a l'accueil de
-   l'atelier s'il ne vise aucun projet), avec son erreur s'il est mal forme (bloc `atelier` absent,
-   `temps` invalide, nom en double, `still` manquant, date mal formee, modele perime). Le proprietaire appuie sur
-   "Importer dans le projet" : les plans deviennent des scenes du temps indique.
-4. **Corriger** : modifier le meme fichier, sans changer les `name`. La page signale le changement
-   et le proprietaire reimporte ; les scenes sont remplacees une a une, et l'image deja calculee est
-   gardee tant que `still` n'a pas change. Un plan retire du fichier reste dans le projet.
+3. **Ne pas lancer le pilote sur ce fichier.** Un fichier accepte est importe par la page toute seule, sans bouton,
+   des que le proprietaire l'ouvre et qu'aucun calcul ne tourne : les plans deviennent les scenes de leur temps. Un
+   fichier refuse n'ouvre rien : il reste affiche a l'accueil de l'atelier avec sa raison (bloc `atelier` absent,
+   `temps` invalide, nom en double, `still` manquant, decoupage non dit, date mal formee). Le verificateur dit la meme
+   chose avant : ne jamais annoncer un fichier qu'il refuse.
+4. **Corriger** : modifier le meme fichier, sans changer les `name`. La page reprend le fichier toute seule ; les
+   scenes sont remplacees une a une, et l'image deja calculee est gardee tant que `still` n'a pas change. Un plan
+   retire du fichier quitte le projet. Ce que le proprietaire regle dans la page et que le fichier ne dit pas reste
+   en place (ses LoRA, ses prises choisies).
    Les textes de publication remplis dans le fichier remplacent ceux du projet a chaque import.
 
 ## Pose decomposee et retour du controle
@@ -398,8 +402,7 @@ GPU ni IA, lecture seule) :
 Il dit ce que la page dira : `REFUSE` (le depot ne sera pas importable), `PERIME` (la ligne `modele` n'est pas
 celle du modele en cours), `GRAVE` et `remarque` (controle des plans, avec le nom du plan), ou "rien a corriger".
 Code de sortie : 0 rien a corriger, 1 des remarques restent, 2 refuse ou perime. Corriger et relancer jusqu'a 0 ;
-une remarque laissee expres s'explique dans `note`. Pour un temps 2 a 4 depose avec `projet_de`, le controle
-prend la fiche de continuite du fichier du temps 1.
+une remarque laissee expres s'explique dans `note`. Le controle des plans passe sur chaque temps du fichier.
 
 ## Deposer une fiche de personnage
 L'agent peut aussi creer un personnage. Il copie `server/jobs/personnage.modele.yaml` (seule reference du

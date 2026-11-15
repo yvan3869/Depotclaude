@@ -40,24 +40,27 @@
 #                tout plan en raccord "coupe", avec "coupe" et "fixe" pour dire qu'il ne se passe rien. Nouvelles
 #                transitions : fondu_lent, filage_gauche, filage_haut, filage_bas, glisse, glisse_gauche, dezoom.
 #                Nouvelles cameras : haut, bas, avance_vif, recul_vif.
+#   2026-11-15e  UNE VIDEO, UN FICHIER : le bloc "atelier" n'ecrit plus "temps" ; chaque plan dit le sien ("temps: 1" a 4)
+#                et les plans se suivent dans l'ordre des temps. 30 plans au plus, 10 par temps. Le fichier s'importe
+#                tout seul dans la page (plus de bouton) ; redepose, il met le projet a jour. "projet_de" ne sert plus.
+#                L'ancienne forme (un fichier par temps, avec "atelier.temps") reste lue.
 
-modele: "2026-11-15d"
+modele: "2026-11-15e"
 name: monlot                 # prefixe des fichiers produits (lettres, chiffres, _), unique par lancement
 
 # --- Facultatif : plans deposes dans l'atelier (docs/agents.md, "Deposer des plans") --------------
 # Uniquement pour un fichier place dans server/jobs/atelier/. Le pilote ignore ce bloc ; c'est la
-# page Atelier qui le lit quand le proprietaire importe le fichier. Dans ce cas : 1 a 10 plans,
-# "still" obligatoire dans chacun, pas de "character", ni de "steps", "image", "edit", "suite_de",
+# page Atelier qui le lit, et qui importe le fichier toute seule des qu'il est accepte.
+# UN FICHIER PAR VIDEO : les quatre temps dans le meme fichier, chaque plan avec son "temps", dans l'ordre.
+# 30 plans au plus, 10 par temps, "still" obligatoire dans chacun, pas de "character", ni de "steps", "image", "edit", "suite_de",
 # "end_image" (les raccords se demandent par "raccord", l'image de reference par "reference").
 # atelier:
-#   projet: p0001            # projet auquel ajouter les plans ; "" ou absent : nouveau projet
-#   projet_de: ""            # temps 2 a 4 d'une video nouvelle, a la place de "projet" : nom du fichier du temps 1 de la
-#                            # meme video ("mavideo_t1.yaml"). Le depot ira dans le projet ouvert par l'import de ce fichier.
-#   temps: 3                 # 1 accroche tous publics, 2 montee suggestive, 3 devoile (nudite, sans acte), 4 final prive
+#   projet: ""               # "" ou absent : nouvelle video, la page ouvre son projet. pNNNN : plans a verser dans ce projet.
+#                            # Pas de "temps" ici : chaque plan dit le sien.
 #   personnage: lea          # seulement pour un nouveau projet (fiche de persona/personnages/)
 #   titre: ""                # seulement pour un nouveau projet
 #   note: ""                 # une ligne pour le proprietaire, affichee dans la page
-#   # Textes de publication, lus seulement avec temps: 1. Un champ vide ou absent garde celui du projet.
+#   # Textes de publication (lus si le fichier porte des plans du temps 1). Un champ vide ou absent garde celui du projet.
 #   pitch: ""                # resume de la video en une ou deux phrases, en francais
 #   accroche: ""             # texte a l'ecran de la premiere seconde, langue du personnage, sans emoji
 #   legende: ""              # legende de la publication, avec l'appel a l'action
@@ -66,18 +69,18 @@ name: monlot                 # prefixe des fichiers produits (lettres, chiffres,
 #   ambiance: ""             # fond sonore du lieu pour toute la video, une phrase en anglais, sans musique ni voix :
 #                            # la piece et deux ou trois sons precis ("Quiet kitchen room tone, soft hum of a fridge,
 #                            # faint birds through an open window"). Fabrique depuis la page (etape Montage, Son).
-#   # Moment vecu par le personnage, lu seulement avec temps: 1. Absent : celui du projet est garde.
+#   # Moment vecu par le personnage. Absent : celui du projet est garde.
 #   date_perso: "2026-12-19" # date FICTIVE, entre guillemets, AAAA-MM-JJ : le jour ou le personnage vit la scene.
 #                            # Ce n'est ni la date d'ecriture, ni celle du calcul, ni celle du depot.
 #   contexte: ""             # contexte du moment, une ligne en francais (meteo, fete proche, ce qu'elle vit)
-#   # Continuite du projet, lue seulement avec temps: 1 (elle vaut pour les quatre temps). Absente : celle du projet.
+#   # Continuite du projet : ecrite une fois, elle vaut pour les quatre temps. Absente : celle du projet.
 #   continuite:              # ce qui ne change pas d'une image a l'autre ; en anglais ; ajoute a la fin de chaque "still"
 #     lieu: "in a small Parisian bathroom with white tiles and a round mirror"
 #     tenue: "wearing a white ribbed tank top and grey cotton shorts"
 #     cheveux: "hair in a loose bun"        # coiffure du jour, ou ""
 #     lumiere: "soft morning window light"
 #     pdv: "shot at eye level on a phone"   # point de vue : la vue, jamais l'appareil comme un objet pose
-#   reference: plan01        # nom d'un plan de ce fichier : les autres images du projet en sont tirees par retouche
+#   reference: plan01        # nom d'un plan du temps 1 de ce fichier : les autres images du projet en sont tirees par retouche
 
 # --- Facultatif : autre personnage que celui de persona/production.yaml --------------------------
 # Un champ absent garde la valeur de production.yaml. Bloc a supprimer pour Lea.
@@ -107,7 +110,10 @@ shots:
   - name: img01
     still: "cadrage, lieu, tenue, pose, expression, lumiere : une phrase dense en anglais"
     tattoos: true            # false si la tenue couvre epaules et poitrine (pull, peignoir ferme)
-    # Lus par l'atelier seulement (ignores par le pilote), tous facultatifs :
+    # Lus par l'atelier seulement (ignores par le pilote) :
+    # temps: 1               # OBLIGATOIRE dans un fichier depose : 1 accroche tous publics, 2 montee suggestive,
+    #                        # 3 devoile (nudite, sans acte), 4 final prive. Les plans se suivent dans l'ordre des temps ;
+    #                        # chaque temps est une video a part (son premier plan n'a pas de "transition").
     # titre: "Regard"        # nom de la scene dans la page
     # texte: "Don't blink."  # texte incruste au montage
     # voix: ""               # voix off (pas encore produite)

@@ -98,8 +98,8 @@ const QUOI = {1: 'Tous publics, pour les réseaux : elle donne envie de voir la 
   4: 'Explicite, avec actes. Vendu à l\'unité. Ce temps est à votre main : le rédacteur IA ne l\'écrit pas, ne le relit pas et ne l\'analyse pas.'};
 const CONSIGNES_T2 = ['Plus lente, plus intime', 'Plus près de la caméra', 'Tenue plus défaite, toujours suggestif', 'Fin qui annonce mieux la suite payante'];
 const depotHtml = x => `<div class="var"><b>${esc(x.titre || x.fichier)}</b> <span class="mut">${esc(x.fichier)}, ${esc(x.date)}</span>
-  ${x.erreur ? `<div class="err">Refusé : ${esc(x.erreur)}</div>` : `<div class="mut">${x.n} plan(s) pour le temps ${x.temps}${x.projet || x.attente ? '' : ', nouveau projet'}${x.perime ? ' ; écrit d\'après un modèle périmé' : ''}${x.remarques ? ` ; ${x.remarques} remarque(s) au contrôle des plans` : ''}${x.note ? ' ; ' + esc(x.note) : ''}</div>
-  <div class="row" style="margin-top:6px">${x.importe ? '<span class="okc">Importé</span>' : x.attente ? `<span class="mut">Suite de « ${esc(x.attente)} » : importez d'abord ce fichier, celui-ci ira dans son projet.</span>` : `<button class="p s" data-a="importer" data-n="${esc(x.fichier)}">${ic('importer')}${x.change ? 'Réimporter (fichier modifié)' : 'Importer dans le projet'}</button>`}</div>`}</div>`;
+  ${x.erreur ? `<div class="err">Refusé : ${esc(x.erreur)}</div><div class="mut">Rien n'est importé tant que le scénariste n'a pas corrigé son fichier.</div>` : `<div class="mut">${x.n} plan(s) pour ${x.lestemps.length > 1 ? 'les temps ' + x.lestemps.join(', ') : 'le temps ' + x.temps}${x.projet || x.attente ? '' : ', nouveau projet'}${x.perime ? ' ; écrit d\'après un modèle périmé' : ''}${x.remarques ? ` ; ${x.remarques} remarque(s) au contrôle des plans` : ''}${x.note ? ' ; ' + esc(x.note) : ''}</div>
+  <div class="row" style="margin-top:6px">${x.importe ? '<span class="okc">Importé</span>' : x.attente ? `<span class="mut">Suite de « ${esc(x.attente)} » : ce fichier ira dans le projet que l'autre ouvrira.</span>` : x.auto ? '<span class="mut">Import automatique dès qu\'aucun calcul ne tourne : recharger la page.</span>' : `<button class="p s" data-a="importer" data-n="${esc(x.fichier)}">${ic('importer')}${x.change ? 'Réimporter (fichier modifié)' : 'Importer'}</button><span class="mut">Fichier d'un ancien modèle : il ne s'importe pas tout seul.</span>`}</div>`}</div>`;
 const CONSIGNES = ['Plus aguicheur, plus de tension', 'Accroche plus forte dès la première seconde', 'Coupe plus frustrante à la fin', 'Plus drôle, plus d\'autodérision', 'Autre lieu, autre tenue', 'Plus court'];
 const CONSIGNES_SCENE = ['Plus sensuelle, toujours suggestive', 'Plus près de la caméra', 'Geste plus simple et plus lent', 'Texte à l\'écran plus percutant', 'Autre tenue'];
 
@@ -160,7 +160,7 @@ function vueProjets() {
     ${p.lora ? '' : '<p class="mut">Ce personnage n\'a pas de LoRA : son visage variera d\'une image à l\'autre.</p>'}
     <div id="idees"></div>
     ${(E.fiches || []).some(x => !x.fait) ? `<div class="panel"><div class="row"><span>Votre agent a déposé ${E.fiches.filter(x => !x.fait).length} fiche(s) de personnage à relire.</span><span class="sp"></span><button class="p s" onclick="location.hash='#/persos'">${ic('importer')}Voir les fiches</button></div></div>` : ''}
-    ${E.depots.length ? `<h2>Plans déposés par l'agent <small>sans projet</small></h2><div class="panel">${E.depots.map(depotHtml).join('')}</div>` : ''}
+    ${E.depots.length ? `<h2>Plans déposés par votre scénariste <small>en attente ou refusés</small></h2><div class="panel">${E.depots.map(depotHtml).join('')}</div>` : ''}
     <h2>Projets <small>${liste.length}, par date du personnage</small></h2>
     <div class="grille">${liste.map(x => `<a class="card" href="#/p/${x.id}">
       <div class="th" ${x.vignette ? `style="background-image:url('/afile/${x.id}/${esc(x.vignette)}')"` : ''}></div>
@@ -224,7 +224,8 @@ function planifier() { $('#sauve').textContent = '...'; clearTimeout(tSave); tSa
 async function sauver() {
   if (!P || !tSave) return;
   clearTimeout(tSave); tSave = null;
-  const r = await api('/api/a/projet', P);
+  let r;
+  try { r = await api('/api/a/projet', P); } catch (e) { if (/nouveau dépôt/.test(e.message)) { toast(e.message, false); return recharger(); } throw e; }
   $('#sauve').textContent = 'enregistré';
   if (r.controle && D) { D.controle = r.controle; majDyn(); }
 }
@@ -284,7 +285,7 @@ function coteMaj() {
 }
 function rendreProjet() {
   const p = perso() || {nom: P.personnage}, vide = !P.scenes.some(s => s.temps === 1);
-  const SC = P.scenes.filter(s => s.temps === T), dep = D.depots.filter(x => x.temps === T || x.erreur);
+  const SC = P.scenes.filter(s => s.temps === T), dep = D.depots.filter(x => (x.lestemps || []).includes(T) || x.erreur);
   const LT = E.bibliotheque.loras.filter(x => x.temps_min <= T);  // LoRA que la categorie admet a ce temps
   const L0 = LP('0').filter(y => ((E.bibliotheque.loras.find(x => x.name === y.n) || {}).temps_min || 1) <= T).length;
   const occSon = D.son.etat === 'en cours' || D.prod.etat === 'en cours' || D.chaine.etat === 'en cours';
@@ -313,7 +314,7 @@ function rendreProjet() {
         <div class="row"><label class="g">Scènes<select data-k="nb2">${[2, 3, 4, 5, 6].map(n => `<option ${n === P.nb2 ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
           <button class="p" data-a="ecrire2" ${vide || !E.redacteur ? 'disabled' : ''}>${ic('ecrire')}${SC.length ? 'Réécrire' : 'Écrire'}</button></div>
         ${vide ? '<div class="mut" style="margin-top:6px">Écrire d\'abord le temps 1.</div>' : E.redacteur ? '' : '<div class="mut" style="margin-top:6px">Rédacteur IA arrêté : ajouter les scènes à la main.</div>'}` : ''}
-      ${T > 2 ? '<div class="mut">Temps à votre main : ajouter les scènes ci-dessous, ou importer un plan déposé par votre agent.</div><div class="aide">Les plans se déposent dans server/jobs/atelier/. Le rédacteur IA n\'écrit pas ce temps, ne le relit pas et ne l\'analyse pas.</div>' : ''}
+      ${T > 2 ? '<div class="mut">Les scènes de ce temps viennent du fichier déposé par votre scénariste ; elles arrivent toutes seules.</div><div class="aide">Le scénariste dépose un seul fichier par vidéo dans server/jobs/atelier/ ; un fichier corrigé met le projet à jour. Le rédacteur IA n\'écrit pas ce temps, ne le relit pas et ne l\'analyse pas.</div>' : ''}
       ${dep.length ? `<div class="gt">Plans déposés</div>${dep.map(depotHtml).join('')}` : ''}
       ${lorasBloc(String(T), `${ic('lora')} LoRA de ce temps`, LT)}
       ${P.reference ? `<label>${ic('image')}Images de ce temps<select data-tir="${T}">${opt([['ref', 'Tirées de la référence'], ['direct', 'Créées à part']], TIR(T))}</select>
