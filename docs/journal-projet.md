@@ -502,3 +502,5 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
   plans) ; decision du proprietaire. Les limites du profil public (`persona/bible.yaml`) sont inchangees.
 - 15/11, profil public de Lea : « contenu avec d'autres personnes » retire de la liste de ses refus (`persona/bible.yaml`,
   `profile_texts.md`, `profile_texts_en.md`) ; decision du proprietaire. Un profil deja publie est a corriger a la main.
+- 15/11, LoRA par defaut posees a la demande du proprietaire, d'apres son choix sur p0005 : style (realisme, cadrage)
+  aux quatre temps, mouvement au temps 1, nu au temps 3, porno image et clip au temps 4. Aucune depense GPU.
