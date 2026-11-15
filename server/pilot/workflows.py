@@ -95,6 +95,22 @@ def lieu_depart(g, lieu, w, h, denoise=0.8):
     return g
 
 
+def finition(g, w, h, facteur=1.5, denoise=0.3, steps=6):
+    """Seconde passe d'un graphe de still_zimage : l'image finie est agrandie, puis redessinee legerement a cette taille
+    (meme texte, memes LoRA, sans pose imposee : la composition ne bouge plus). La peau, les yeux et les mains gagnent en
+    detail, surtout quand le personnage est petit dans le cadre. A appeler en dernier, apres la pose ou le decor."""
+    W, H = round(w * facteur / 16) * 16, round(h * facteur / 16) * 16
+    g["fs"] = {"class_type": "ImageScale", "inputs": {"image": g["save"]["inputs"]["images"], "upscale_method": "lanczos",
+                                                      "width": W, "height": H, "crop": "center"}}
+    g["fe"] = {"class_type": "VAEEncode", "inputs": {"pixels": ["fs", 0], "vae": ["vae", 0]}}
+    g["fk"] = {"class_type": "KSampler", "inputs": {
+        "model": ["shift", 0], "seed": g["ks"]["inputs"]["seed"], "steps": steps, "cfg": 1.0, "sampler_name": "res_multistep",
+        "scheduler": "simple", "positive": ["pos", 0], "negative": ["neg", 0], "latent_image": ["fe", 0], "denoise": denoise}}
+    g["fd"] = {"class_type": "VAEDecode", "inputs": {"samples": ["fk", 0], "vae": ["vae", 0]}}
+    g["save"]["inputs"]["images"] = ["fd", 0]
+    return g
+
+
 def imposer_pose(g, m, pose_name, force=0.9):
     """Ajoute a un graphe de still_zimage une pose imposee : le dessin d'un squelette (image deja deposee) guide la
     position du corps et le cadrage ; le visage, la tenue et le lieu restent ceux du texte et de la LoRA."""

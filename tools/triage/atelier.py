@@ -322,6 +322,10 @@ class Atelier:
         elif c and c.get("etat") == "en cours":
             self.ch = {**c, "etat": "erreur", "erreur": "interface redémarrée pendant la chaîne : la relancer, elle ne recalcule que ce qui manque"}
         self._dep = (0, None)
+        self.file = [x for x in (_load(data / "file_attente.json") or []) if isinstance(x, dict) and x.get("path")]  # lancements en attente
+        self.file_faits = []  # les cinq derniers lancements sortis de la file, avec leur resultat
+        self.fverrou = threading.Lock()
+        threading.Thread(target=self._file_veille, daemon=True).start()
         self._echecs = {}   # depot -> (date du fichier, raison) : import automatique refuse, pas retente tant que le fichier ne change pas
         self._alock = threading.Lock()  # un seul import automatique a la fois (voir auto())
 
@@ -965,12 +969,81 @@ class Atelier:
                 self._dep = (time.time(), None)
         return self._dep[1]
 
+    # --- File d'attente ---------------------------------------------------------------------------
+    # Un lancement refuse parce qu'un calcul tourne est garde tel quel (adresse et corps de la demande) et rejoue a la
+    # fin du calcul : le pod, garde en veille dix minutes, sert d'un lancement a l'autre sans redemarrer.
+    OCCUPE = ("un calcul est déjà en cours", "une chaîne de production est en cours", "une chaîne est déjà en cours")
+    FILE_MAX = 12
+
+    def _file_ecrire(self):
+        (self.dj.parent / "file_attente.json").write_text(json.dumps(self.file, ensure_ascii=False), encoding="utf-8")
+
+    @staticmethod
+    def _file_nom(path, b):
+        q = {"/api/a/produire": {"images": "Images", "clips": "Clips"}.get(b.get("quoi"), "Production"), "/api/a/comparer": "Comparaison",
+             "/api/a/son": "Sons", "/api/a/chaine": "Chaîne", "/api/a/b/creer": "Images de la bibliothèque", "/api/a/b/planches": "Planches",
+             "/api/a/b/visage": "Portraits", "/api/a/b/entrainer": "Entraînement de la LoRA", "/api/a/b/essayer": "Essai de la LoRA"}.get(path)
+        return f"{q or 'Calcul'} ({b.get('id') or b.get('slug') or ''})"
+
+    def _file_ajout(self, path, b, e):
+        """Met en file un lancement refuse pour cause de calcul en cours ; toute autre erreur est rendue telle quelle."""
+        if not str(e).startswith(self.OCCUPE) or b.get("essai") or len(json.dumps(b)) > 20000:
+            raise e
+        with self.fverrou:
+            if any(x["path"] == path and x["b"] == b for x in self.file):
+                raise ValueError("Déjà dans la file d'attente : partira tout seul à la fin du calcul en cours")
+            if len(self.file) >= self.FILE_MAX:
+                raise ValueError(f"file d'attente pleine ({self.FILE_MAX} lancements) : attendre ou en retirer")
+            n = max([x["n"] for x in self.file] or [0]) + 1
+            self.file.append({"n": n, "path": path, "b": b, "nom": self._file_nom(path, b), "quand": time.strftime("%H:%M")})
+            self._file_ecrire()
+            rang = len(self.file)
+        raise ValueError(f"Mis en file d'attente (rang {rang}) : partira tout seul à la fin du calcul en cours")
+
+    def file_retirer(self, b):
+        with self.fverrou:
+            self.file = [x for x in self.file if x["n"] != b.get("n")]
+            self._file_ecrire()
+        return {"file": self.file_vue()}
+
+    def file_vue(self):
+        return {"attente": [{k: x[k] for k in ("n", "nom", "quand")} for x in self.file], "faits": self.file_faits}
+
+    def _file_veille(self):
+        libre = 0
+        while True:
+            time.sleep(5)
+            try:
+                if not self.file:
+                    libre = 0
+                    continue
+                libre = 0 if self.studio.running() or self.chaine_active() else libre + 1
+                if libre < 2:  # libre deux fois de suite : un calcul qui enchaine deux etapes n'est pas coupe
+                    continue
+                libre = 0
+                with self.fverrou:
+                    x = self.file.pop(0)
+                    self._file_ecrire()
+                try:
+                    self._post(x["path"], x["b"])
+                    res = "lancé"
+                except Exception as e:
+                    if str(e).startswith(self.OCCUPE):
+                        with self.fverrou:
+                            self.file.insert(0, x)
+                            self._file_ecrire()
+                        continue
+                    res = "refusé : " + str(e)[:200]
+                self.file_faits = ([{"nom": x["nom"], "quand": time.strftime("%H:%M"), "resultat": res}] + self.file_faits)[:5]
+            except Exception:
+                pass
+
     def etat(self):
         self.auto()
         return {"personnages": [{k: p.get(k) for k in ("slug", "nom", "statut", "age", "langue", "accroche")} | {"lora": bool((p.get("generation") or {}).get("lora"))}
                                 for p in self.persos().values()],
                 "projets": self.liste(), "depots": [x for x in self.depots() if not self._existe(x.get("projet"))], "fiches": self.fiches(), "redacteur": self.redacteur_actif(), "depense": self.depense(),
-                "occupe": self.studio.running(), "can_run": self.studio.can_run(),
+                "occupe": self.studio.running(), "can_run": self.studio.can_run(), "file": self.file_vue(),
                 "bibliotheque": self.bibliotheque(),
                 "musiques": sorted(f.name for f in self.da.iterdir() if f.suffix.lower() in (".mp3", ".m4a", ".wav", ".ogg"))}
 
@@ -2230,6 +2303,14 @@ class Atelier:
         return None
 
     def post(self, path, b):
+        if path == "/api/a/file/retirer":
+            return self.file_retirer(b)
+        try:
+            return self._post(path, b)
+        except ValueError as e:
+            self._file_ajout(path, b, e)
+
+    def _post(self, path, b):
         if path.startswith("/api/a/b/"):
             return self.biblio.post(path, b)
         if path == "/api/a/personnage":

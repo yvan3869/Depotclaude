@@ -69,7 +69,10 @@ document.body.insertAdjacentHTML('beforeend', `<div id="busy"><div><b id="busyt"
 async function api(path, body) {
   const r = await fetch(path, body ? {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)} : {});
   const j = await r.json().catch(() => ({ok: false, error: 'réponse illisible (' + r.status + ')'}));
-  if (!j.ok) throw new Error(j.error || 'erreur');
+  if (!j.ok) {
+    if (/file d'attente/.test(j.error || '') && typeof etat === 'function') setTimeout(() => etat().catch(() => {}), 300);  // la file affichee suit
+    throw new Error(j.error || 'erreur');
+  }
   return j;
 }
 function toast(msg, ok) {

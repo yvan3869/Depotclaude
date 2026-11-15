@@ -66,6 +66,7 @@
   <div class="l1"><a href="/">Studio</a><b>Production</b><span class="sp"></span><small id="sauve"></small><small id="redac"></small><small id="gpu"></small><button class="i s" id="baide" title="Afficher ou replier toutes les aides" aria-label="Afficher ou replier toutes les aides"></button></div>
   <div class="chips" id="persos"></div>
   <div class="chips" id="onglets" style="display:none"></div>
+  <div class="chips" id="file" style="display:none;flex-wrap:wrap;align-items:center"></div>
 </header>
 <main id="vue"></main>
 <script src="/ui.js"></script>
@@ -144,8 +145,8 @@ function rendreComparer() {
       <label>Lieu${C.lieux.length ? sel('l', C.lieux.map(x => [x.en, x.fr || x.en])) : '<div class="mut">Aucun lieu du personnage n\'a d\'image : en créer dans son atelier.</div>'}</label>
       <label>Tenue${sel('ten', [['', T1 ? 'Celle de la fiche de continuité' : CM.t.includes('1') ? 'Fiche de continuité au temps 1, aucune ensuite' : 'Aucune : dite par le texte'], ...(CM.t.includes('1') ? [['aucune', 'Aucune : dite par le texte']] : []), ...C.tenues.map(x => [x.en, x.fr || x.en])])}</label>
       <label>Images par scène et par méthode${sel('n', [[1, '1'], [2, '2'], [3, '3']])}</label>
-      <div class="row"><button class="p" data-a="cmplancer" ${ok && CM.l && !C.occupe && E.can_run ? '' : 'disabled'}>${ic('lancer')}Lancer la comparaison</button>
-        <span class="mut">${C.occupe ? 'Un calcul est en cours : attendre sa fin.' : ok ? `${n} images, environ ${usd((C.pod ? 0.05 : 0.12) + n * 0.02)}, ${Math.round(2 + n * 1.6)} min.` : ''}</span></div>
+      <div class="row"><button class="p" data-a="cmplancer" ${ok && CM.l && E.can_run ? '' : 'disabled'}>${ic('lancer')}Lancer la comparaison</button>
+        <span class="mut">${ok ? (C.occupe ? 'Un calcul est en cours : la comparaison attendra son tour. ' : '') + `${n} images, environ ${usd((C.pod ? 0.05 : 0.12) + n * 0.02)}, ${Math.round(2 + n * 1.6)} min.` : ''}</span></div>
       ${CM.t.some(t => C.temps[t].liste.some(s => s.deux && !CM.x.includes(s.id))) ? '<div class="mut">Scènes « à deux » : la nouvelle méthode ne place pas les corps. L\'image part de la photo du lieu et les personnes sont dessinées d\'après le texte ; la tenue choisie ne joue pas.</div><label>Scènes à deux : liberté du dessin' + sel('f', [[0.8, 'La pièce tient, les personnes sont plus petites dans le cadre'], [0.9, 'Cadrage plus libre, la pièce change un peu']]) + '</label>' : ''}
       <div class="mut"><a class="lien" href="#/atelier/${esc(C.personnage)}">${ic('personnage')}Atelier du personnage</a> : lieux et tenues disponibles. Sans image retenue, la première image de la ligne sert.</div>
     </div>
@@ -161,8 +162,16 @@ async function etat() {
   $('#persos').innerHTML = actifs.map(p => `<span class="chip ${p.slug === cur ? 'on' : ''}" data-slug="${esc(p.slug)}">${esc(p.nom)}</span>`).join('')
     + `<span class="chip" data-h="#/persos">${ic('personnage')} Casting</span><span class="chip" data-h="#/loras">${ic('lora')} LoRA</span>`;
   $('#gpu').textContent = E.depense ? `GPU ${usd(E.depense.jour)} / ${usd(E.depense.plafond)}` : '';
+  const fa = E.file || {attente: [], faits: []}, fr = fa.faits[0];
+  $('#file').innerHTML = (fa.attente.length ? `<b>${ic('horloge')}File d'attente</b>` + fa.attente.map((x, i) => `<span class="chip">${i + 1}. ${esc(x.nom)} <small>${esc(x.quand)}</small><button class="i s" data-n="${x.n}" title="Retirer de la file" aria-label="Retirer de la file">${ic('fermer')}</button></span>`).join('') : '')
+    + (fr && /^refus/.test(fr.resultat) ? `<span class="mut" style="color:var(--warn)">${esc(fr.nom)}, sorti de la file à ${esc(fr.quand)} : ${esc(fr.resultat)}</span>` : '');
+  $('#file').style.display = $('#file').innerHTML ? 'flex' : 'none';
   $('#redac').innerHTML = E.redacteur ? '<span class="okc">Rédacteur IA</span>' : '<span style="color:var(--warn)">Rédacteur de secours</span>';
 }
+$('#file').onclick = e => {
+  const b = e.target.closest('button[data-n]');
+  if (b) api('/api/a/file/retirer', {n: +b.dataset.n}).then(etat).catch(x => toast(x.message));
+};
 $('#persos').onclick = e => {
   const c = e.target.closest('.chip'); if (!c) return;
   if (c.dataset.h) return location.hash = c.dataset.h;
@@ -949,7 +958,7 @@ function aAjout(q) {
     <div class="row"><button class="p" data-a="bajouter" data-q="${q}">${ic('ajouter')}Ajouter à la fiche</button></div></div>`;
 }
 function rendreAtelier() {
-  const j = A.job, enc = j && j.etat === 'en cours', pris = A.occupe, manq = k => A[k].filter(x => !x.images.length).length;
+  const j = A.job, enc = j && j.etat === 'en cours', pris = false, manq = k => A[k].filter(x => !x.images.length).length;
   const etapes = [['Fiche', true], ['Lieux', A.lieux.some(x => x.choix)], ['Garde-robe', A.tenues.some(x => x.choix)], ['Planches', A.planches.filter(x => x.garde).length >= 10], ['LoRA', A.lora]];
   const proch = etapes.findIndex(x => !x[1]);
   let corps = '';
@@ -1024,7 +1033,7 @@ Object.assign(actions, {
   bonglet: el => { AO = el.dataset.o; history.replaceState(null, '', `#/atelier/${A.slug}/${AO}`); rendreAtelier(); },
   bchoix: async el => bMaj(await api('/api/a/b/choix', {slug: A.slug, image: el.dataset.n})),
   bcreer: async el => { await api('/api/a/b/creer', {slug: A.slug, quoi: el.dataset.q}); toast('Images lancées', true); await bMaj(); },
-  bautres: async el => { if (A.occupe) return toast('Un calcul est en cours : attendre sa fin'); if (!confirm(`Créer deux autres images de cette ligne, environ ${acout(2)} ?`)) return; await api('/api/a/b/creer', {slug: A.slug, quoi: el.dataset.q, cles: [el.dataset.cle]}); toast('Images lancées', true); await bMaj(); },
+  bautres: async el => { if (!confirm(`Créer deux autres images de cette ligne, environ ${acout(2)} ?`)) return; await api('/api/a/b/creer', {slug: A.slug, quoi: el.dataset.q, cles: [el.dataset.cle]}); toast('Images lancées', true); await bMaj(); },
   bretirer: async el => { if (!confirm('Retirer cette ligne de la fiche du personnage ? Ses images sont mises de côté.')) return; bMaj(await api('/api/a/b/retirer', {slug: A.slug, quoi: el.dataset.q, cle: el.dataset.cle})); },
   bdecrire: el => { const c = $('#bphrase').value.trim(); if (!c) return toast('Décrire en une phrase'); ecrire({kind: 'biblio', personnage: A.slug, quoi: el.dataset.q, consigne: c}, r => { $('#bfr').value = r.resultat.fr || ''; $('#ben').value = r.resultat.en || ''; toast('Ligne prête : relire puis ajouter', true); }, 'Rédaction de la ligne'); },
   bajouter: async el => {

@@ -569,3 +569,8 @@ pilote : ne pas le repeter, ni decrire les tatouages (le LoRA les porte ; les de
 - Rapport : `server/data/work/<name>/report.json`. Registre des depenses : `server/data/depenses.jsonl`.
 - Reperes (RTX PRO 4500, 0,72 $/h) : demarrage du pod ~1 a 5 min ; image ~9 s ; 20 images
   coute ~0,05 $. Clip 5 s en 480p ~0,035 $ (RTX 4090).
+
+## File d'attente des calculs et finition des images (15/11/2026)
+
+- **File d'attente.** Un seul calcul tourne a la fois. Un lancement demande pendant qu'un calcul tourne (images, clips, sons, chaine, comparaison, planches, bibliotheque, entrainement) n'est plus refuse : il est mis en file (`data/file_attente.json`, 12 au plus) et part tout seul a la fin du calcul en cours, dans l'ordre. Le pod reste en veille dix minutes : les lancements de la file se suivent sur le meme pod. La file s'affiche en haut de la Production, chaque ligne peut etre retiree. Un lancement refuse a sa sortie de file (devis au-dessus du plafond, par exemple) est signale au meme endroit. Les envois de photos ne passent pas par la file.
+- **Finition.** Reglage `finition` de `persona/production.yaml` (ou `defaults.finition` d'un plan) : chaque image Z-Image est agrandie une fois et demie puis redessinee legerement a cette taille (`workflows.finition`), avec le meme texte et les memes LoRA. Les images creees par retouche (tirage « ref ») ne sont pas concernees.

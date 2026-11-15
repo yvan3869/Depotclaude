@@ -222,7 +222,7 @@ def cmd_run(a):
     # de production.yaml. Un champ absent garde la valeur de production.yaml.
     infra, models, char = cfg["infra"], cfg["models"], {**cfg["character"], **(job.get("character") or {})}
     d = {**{"still_size": [720, 1280], "clip_size": [480, 832], "mode": "natural", "smooth": True, "grain": True,
-            "seed": 1}, **job.get("defaults", {})}
+            "seed": 1, "finition": bool(cfg.get("finition"))}, **job.get("defaults", {})}
     data = Path(a.data)
     work = data / "work" / job["name"]
     inbox = Path(a.out) if getattr(a, "out", None) else data / "inbox"
@@ -330,6 +330,9 @@ def cmd_run(a):
                             lieux[s["lieu_depart"]] = c.upload(f"ga_lieu{len(lieux)}.png", (f if f.is_absolute() else data / f).read_bytes())
                         workflows.lieu_depart(graph, lieux[s["lieu_depart"]], *s["still_size"], float(s.get("lieu_force") or 0.8))
                         entry["lieu_depart"] = True
+                    if s.get("finition"):  # seconde passe en plus grand : detail de la peau, des yeux, des mains
+                        workflows.finition(graph, *s["still_size"])
+                        entry["finition"] = True
                 else:
                     prompt = f"{char['prefix']}{s['still']}{char.get('still_suffix', '')}"
                     graph = workflows.still(models, char, prompt, *s["still_size"], seed, f"ga_{name}")
