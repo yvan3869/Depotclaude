@@ -400,9 +400,13 @@ class Biblio:
         ou = ("in the place shown in image 3. The place is exactly the one of image 3: same walls, same furniture, same floor, same light"
               if lieu else "in front of a plain light grey wall, soft studio light")
         deja = {int(i.rsplit("_", 1)[1][:-4]) for i in x["portees"]}
+        # des sous-vetements : sans le dire, le modele garde les habits de l'image 1 ou en invente (un survetement noir pour un ensemble noir)
+        porte = (f"who has taken off all the clothes she wears in image 1 and now wears only the underwear set shown in image 2 ({x['en']}), "
+                 "nothing over it: bare shoulders, bare arms, bare stomach, bare legs, no t-shirt, no trousers, no jacket"
+                 if x["genre"] == "dessous" else "dressed only with the clothes shown in image 2")
         for s in [s for s in range(1, 200) if s not in deja][:2]:
             taches.append({"sortie": f"p_{x['cle']}_{s}", "ref": str(elle), "refs": refs, "seed": 600 + 17 * s, "taille": [720, 1280],
-                           "prompt": f"The woman from image 1, same face, same hair, same body, dressed only with the clothes shown in image 2, {ou}. "
+                           "prompt": f"The woman from image 1, same face, same hair, same body, {porte}, {ou}. "
                                      f"New photo of her: {pose}. Only one woman in the picture. Natural smartphone photo."})
         self._lancer(slug, "essayage", {"taches": taches}, len(taches))
         return {"lance": len(taches)}
