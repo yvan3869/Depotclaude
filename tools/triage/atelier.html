@@ -684,7 +684,7 @@ function vueLoras() {
       <div class="aide">Relevé au démarrage de chaque calcul d'images et après chaque « pilot lora add ». Sans inventaire, la présence d'un fichier ne peut pas être vérifiée avant de lancer.</div></div>
     <h2 id="ldef">LoRA par défaut de chaque temps</h2>
     <div class="panel"><div class="mut">Posées d'office dans « LoRA de ce temps » de tout nouveau projet, et d'un projet existant au premier plan déposé pour ce temps. Elles se retirent ensuite dans le projet, comme les autres.</div>
-      <div class="aide">Une LoRA d'image agit sur les images, une LoRA de clip sur le mouvement de la vidéo. Le contrôle des plans signale un temps 4 sans LoRA porno d'image ou de clip, et un temps 3 sans LoRA de nu.</div>
+      <div class="aide">Une LoRA d'image agit sur les images, une LoRA de clip sur le mouvement de la vidéo. Le contrôle des plans signale un temps 4 sans LoRA porno d'image ou de clip, et un temps 3 sans LoRA de nu d'image.</div>
       ${NT.map(t => `<div class="gt">${t}. ${TEMPS[t][0]} <small>${TEMPS[t][1]}</small></div><div class="row haut">${[['zimage', 'Image'], ['wan22', 'Clip']].map(([fam, lab]) => {
         const adm = B.loras.filter(x => x.famille === fam && x.temps_min <= t), d = ((B.defauts || {})[t] || '').split(', ').filter(Boolean).map(x => x.split(':')[0]), sel = adm.find(x => d.includes(x.name));
         return `<label style="flex:1;min-width:140px">${lab}<select data-d="${t}"><option value="">Aucune</option>${adm.map(x => `<option value="${esc(x.name)}"${x === sel ? ' selected' : ''}>${esc(x.label)} (${esc(B.categories[x.cat].label)})</option>`).join('')}</select></label>`; }).join('')}</div>`).join('')}

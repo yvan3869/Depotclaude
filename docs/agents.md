@@ -237,7 +237,7 @@ Les LoRA supplementaires (hors LoRA du personnage) se gerent dans la page `/atel
   projet, et d'un projet existant au premier depot de ce temps (`lora_def` du projet note les temps deja servis) ; il
   les retire ensuite s'il veut. Elles valent pour toutes les scenes du temps : le `loras` d'un plan s'y **ajoute**, et
   `loras: []` ne les retire pas. Le scenariste n'a donc rien a ecrire pour elles. Le controle des plans signale un
-  temps 4 sans LoRA porno d'image ou de clip (grave, sans bloquer le calcul) et un temps 3 sans LoRA de nu.
+  temps 4 sans LoRA porno d'image ou de clip (grave, sans bloquer le calcul) et un temps 3 sans LoRA de nu d'image (rien n'est demande pour le clip au temps 3).
 - **LoRA du projet et d'un temps** (`loras` au projet : `"0"` = tout le projet, `"1"` a `"4"` = un temps ; choisies
   par le proprietaire dans la section LoRA de la page, ce n'est pas un champ de plan). Au calcul (images et clips),
   une scene recoit celles du projet, puis de son temps, puis les siennes ; pour un meme nom la derniere force

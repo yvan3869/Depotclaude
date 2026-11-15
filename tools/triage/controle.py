@@ -57,9 +57,9 @@ def controle(p, temps, lib=None):
 
     if not sc:
         return out
-    if temps >= 3 and lib and lib.get("fiche"):  # temps 3 : une LoRA de nu ; temps 4 : une LoRA porno ; pour l'image et pour le clip
+    if temps >= 3 and lib and lib.get("fiche"):  # temps 3 : une LoRA de nu d'image ; temps 4 : une LoRA porno d'image et une de clip
         cats, mot = (("porno", "autre"), "porno") if temps == 4 else (("nu", "autre"), "de nu")
-        for fam, quoi in (("zimage", "d'image"), ("wan22", "de clip (vidéo)")):
+        for fam, quoi in (("zimage", "d'image"), ("wan22", "de clip (vidéo)"))[:1 if temps == 3 else 2]:
             sans = [s for s in sc if not any(lib["fiche"].get(n, ("", ""))[0] in cats and lib["fiche"][n][1] == fam for n in _noms(s.get("loras")))]
             if sans:
                 r(f"Temps {temps} : {len(sans)} scène(s) sur {len(sc)} sans LoRA {mot} {quoi}. En choisir une dans « LoRA de ce temps », "

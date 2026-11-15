@@ -455,3 +455,5 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
 - 15/11, les deux LoRA inscrites dans `persona/production.yaml` passent dans `server/data/lora_catalog.yaml` (memes
   valeurs, licence recopiee dans leur note) : le proprietaire peut maintenant les corriger et les retirer depuis la
   Bibliotheque comme les autres. `lora_catalog` du depot reste vide.
+- 15/11, alerte des LoRA : au temps 3, plus de remarque pour le clip (aucune LoRA de nu de clip n'existe, la remarque
+  ne pouvait pas disparaitre) ; seule l'image est verifiee. Temps 4 inchange.
