@@ -232,10 +232,12 @@ Les LoRA supplementaires (hors LoRA du personnage) se gerent dans la page `/atel
 - **LoRA video** : une LoRA de la famille Wan 2.2 (`famille: wan22` au catalogue) nommee dans `loras` s'applique au clip
   du plan, pas a son image. Les autres s'appliquent a l'image ; une image qui porte une LoRA d'image est tiree
   directement, sans retouche depuis l'image de reference.
-- **LoRA par defaut d'un temps** : le proprietaire en fixe pour chaque temps. Un plan depose **sans** champ
-  `loras` (ni dans le plan ni dans `defaults`) les recoit a l'import ; `loras: []` veut dire aucune ; une liste
-  ecrite est prise telle quelle. A un nouvel import, une scene deja importee garde les LoRA que le proprietaire
-  lui a posees dans la page tant que le plan n'en dit rien.
+- **LoRA par defaut d'un temps** (modele `2026-11-15c`) : le proprietaire en fixe pour chaque temps dans la
+  Bibliotheque de LoRA (une d'image, une de clip). Elles sont posees dans les « LoRA de ce temps » de tout nouveau
+  projet, et d'un projet existant au premier depot de ce temps (`lora_def` du projet note les temps deja servis) ; il
+  les retire ensuite s'il veut. Elles valent pour toutes les scenes du temps : le `loras` d'un plan s'y **ajoute**, et
+  `loras: []` ne les retire pas. Le scenariste n'a donc rien a ecrire pour elles. Le controle des plans signale un
+  temps 4 sans LoRA porno d'image ou de clip (grave, sans bloquer le calcul) et un temps 3 sans LoRA de nu.
 - **LoRA du projet et d'un temps** (`loras` au projet : `"0"` = tout le projet, `"1"` a `"4"` = un temps ; choisies
   par le proprietaire dans la section LoRA de la page, ce n'est pas un champ de plan). Au calcul (images et clips),
   une scene recoit celles du projet, puis de son temps, puis les siennes ; pour un meme nom la derniere force
@@ -310,7 +312,7 @@ y placer un geste ni un texte important. Elle est remplacee par une coupe si l'u
          reference: plan01          # avec temps: 1 seulement : nom d'un plan de ce fichier
        defaults:
          seed: 100
-         # loras: [nom]       # noms du catalogue ; ligne absente : LoRA par defaut du temps ; [] : aucune
+         # loras: [nom]       # noms du catalogue ; s'ajoutent aux LoRA par defaut du temps, posees sur le projet
        shots:
          - name: plan01       # unique dans le fichier, lettres, chiffres et _
            titre: "..."       # nom de la scene dans la page (facultatif)

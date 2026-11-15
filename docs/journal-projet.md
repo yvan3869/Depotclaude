@@ -441,3 +441,11 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
   proprietaire, sans texte libre). Limite : les champs aident a verifier, ils ne forcent pas le modele d'image ;
   seuils (0,35 et 0,6) a caler sur les verdicts.
 
+- 15/11, pose decomposee, essai reel du controle champ par champ sur p0004 (24 images, 0,09 $, 7,8 min) : chaque champ
+  faux expres (regard, mains, autre personne) sort a 0,0 sur toutes les images ; les champs vrais sortent entre 0,5 et
+  0,99 (un seul a 0,15 sur une image). Les seuils 0,35 et 0,6 separent bien. Champs d'essai retires. Depense du jour
+  apres l'essai : 1,90 $ sur 7,50 $.
+- 15/11, LoRA par defaut des temps (modele `2026-11-15c`), a la demande du proprietaire : formulaire dans la
+  Bibliotheque de LoRA (une LoRA d'image et une de clip par temps), posees sur le projet a sa creation ou au premier
+  depot du temps, retirables ; alerte du controle des plans pour un temps 4 sans LoRA porno d'image ou de clip (grave,
+  non bloquante) et un temps 3 sans LoRA de nu. Le choix des LoRA reste au proprietaire.

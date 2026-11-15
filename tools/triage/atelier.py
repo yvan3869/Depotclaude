@@ -375,6 +375,7 @@ class Atelier:
         cat = {k: str(v.get("file") or k) for k, v in brut.items()}
         vol = _load(self.data / "lora_volume.json", {})
         return {"tmin": {k: (temps_min(v.get("cat")), CATS.get(v.get("cat") or "autre", CATS["autre"])[0]) for k, v in brut.items()},
+                "fiche": {k: (v.get("cat") if v.get("cat") in CATS else "autre", v.get("famille") if v.get("famille") in FAMILLES else "zimage") for k, v in brut.items()},
                 "bas": {k: str(v["file_low"]) for k, v in brut.items() if v.get("file_low")}, "cat": cat, "volume": set(vol["fichiers"]) if isinstance(vol.get("fichiers"), list) else None, "date": vol.get("date", "")}
 
     def _ctl(self, p, t):
@@ -443,8 +444,9 @@ class Atelier:
         return self.bibliotheque()
 
     def save_defauts(self, b):
-        """LoRA par defaut de chaque temps : posees sur les scenes ajoutees a la main ou importees sans "loras".
-        Une LoRA n'est admise qu'a partir du temps de sa categorie."""
+        """LoRA par defaut de chaque temps : posees dans les "LoRA de ce temps" de tout nouveau projet, et d'un projet
+        existant au premier depot de ce temps ; le proprietaire les retire ensuite s'il veut. Une LoRA n'est admise qu'a
+        partir du temps de sa categorie."""
         lib, out = self._lib(), {}
         for t in TEMPS:
             txt = _loras((b.get("defauts") or {}).get(str(t)))
@@ -656,8 +658,10 @@ class Atelier:
                 nums = [int(d.name[1:]) for d in self.dj.iterdir() if re.fullmatch(r"p\d{4}", d.name)]
                 pid = f"p{max(nums, default=0) + 1:04d}"
                 (self.dj / pid / "media").mkdir(parents=True)
+                defauts = {str(t): v for t, v in self._defauts().items() if v}  # LoRA par defaut de chaque temps, retirables ensuite
                 old = {"id": pid, "personnage": b["personnage"], "cree": time.strftime("%Y-%m-%d %H:%M"), "next": 1,
-                       "date_perso": time.strftime("%Y-%m-%d")}
+                       "date_perso": time.strftime("%Y-%m-%d"), "loras": {**defauts, **(b.get("loras") or {})}, "lora_def": sorted(defauts)}
+                b = {k: v for k, v in b.items() if k != "loras"}
             m = b.get("montage") or old.get("montage") or {}
             p = {"id": pid, "v": V, "personnage": old["personnage"], "cree": old.get("cree"), "modifie": time.strftime("%Y-%m-%d %H:%M"),
                  "next": int(old.get("next") or 1), "titre": _s(b.get("titre", old.get("titre")), 100) or "Sans titre",
@@ -681,6 +685,7 @@ class Atelier:
                              "style": m.get("style") if m.get("style") in STYLES else "doux"}}
             # LoRA du projet : "0" = tout le projet, "1" a "4" = un temps ; s'ajoutent a celles d'une scene (_loras_scene)
             p["loras"] = {k: _loras((b.get("loras", old.get("loras")) or {}).get(k)) for k in ("0", "1", "2", "3", "4")}
+            p["lora_def"] = [t for t in old.get("lora_def") or [] if t in ("1", "2", "3", "4")]  # temps qui ont deja recu leurs LoRA par defaut
             p["tirage"] = {str(k): _tirage({"tirage": b.get("tirage", old.get("tirage"))}, k) for k in TEMPS}
             p["graines"] = {str(k): int(v) for k, v in (old.get("graines") or {}).items()}  # tirage commun d'un temps (images creees a part)
             p["scenes"] = [self._scene(s, p) for s in (b["scenes"] if "scenes" in b else old.get("scenes") or [])][:30]
@@ -1350,8 +1355,11 @@ class Atelier:
     def _remarques(self, pl, pid, lib=None):
         """Remarques du controle des plans sur un depot lu par _plan (la fiche de continuite est celle du depot, sinon du projet)."""
         fiche = pl["textes"].get("continuite") or (self._raw(pid)["continuite"] if pid and self._existe(pid) else {})
+        t, pr = str(pl["temps"]), self._raw(pid) if pid and self._existe(pid) else {}
+        lp = pr.get("loras") or {}  # LoRA que le projet ajoutera a ces scenes : les siennes, celles du temps, celles par defaut au premier depot
+        base = _fusion(lp.get("0"), "" if t in (pr.get("lora_def") or []) else self._defauts().get(pl["temps"], ""), lp.get(t))
         return controle({"continuite": fiche, "accroche": pl["textes"].get("accroche"), "scenes": [
-            {**s, "id": str(i), "loras": _loras(s["loras"])} for i, s in enumerate(pl["scenes"])]}, pl["temps"], lib or self._lib())
+            {**s, "id": str(i), "loras": _fusion(base, _loras(s["loras"]))} for i, s in enumerate(pl["scenes"])]}, pl["temps"], lib or self._lib())
 
     def examen(self, f):
         """Tout ce que l'atelier dira d'un depot de plans, sans rien ecrire : refus (ValueError) ou liste de remarques."""
@@ -1404,11 +1412,15 @@ class Atelier:
         with self.lock:
             p = self._raw(pid)
             old = {s["origine"]: s for s in p["scenes"] if s["origine"].startswith(f.name + ":")}
-            neuves, defaut = [], self._defauts().get(pl["temps"], "")
+            neuves, t = [], str(pl["temps"])
+            defaut = self._defauts().get(pl["temps"], "")
+            if defaut and t not in (p.get("lora_def") or []):  # premier depot de ce temps : ses LoRA par defaut se posent sur le projet
+                p["loras"] = {**(p.get("loras") or {}), t: _fusion(defaut, (p.get("loras") or {}).get(t))}
+                p["lora_def"] = [*(p.get("lora_def") or []), t]
             for d in pl["scenes"]:
                 o = old.get(d["origine"]) or {}
-                if d["loras"] is None:  # le plan ne dit rien des LoRA : celles deja posees sur la scene, sinon celles du temps
-                    d = d | {"loras": o["loras"] if o else defaut}
+                if d["loras"] is None:  # le plan ne dit rien des LoRA : celles deja posees sur la scene (celles du temps sont au projet)
+                    d = d | {"loras": o["loras"] if o else ""}
                 garde = ("id", "seed", "image", "clip", "debut", "duree") if o and o["still"] == _s(d["still"], 1200) else ("id",) if o else ()
                 neuves.append(self._scene({**d, **{k: o[k] for k in garde}, "seed": (o.get("seed") if "seed" in garde else 0) or d["seed"],
                                            "id": o.get("id")}, p))

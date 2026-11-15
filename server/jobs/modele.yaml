@@ -33,8 +33,11 @@
 #   2026-11-15b  champs de plan pose, contact et autres (atelier), facultatifs : la pose decomposee. Chaque champ rempli
 #                est ajoute a la description (la pose en tete, "autres" a la fin) et verifie a part sur l'image par le controle automatique.
 #                "autres" : les autres personnes VISIBLES a l'image ; vide quand elle est seule (le cas courant).
+#   2026-11-15c  LoRA par defaut d'un temps : posees sur le projet ("LoRA de ce temps"), plus sur chaque scene. Elles
+#                s'appliquent a toutes les scenes du temps, y compris a un plan qui ecrit "loras: []" ou sa propre liste
+#                (qui s'y ajoute). Le controle des plans signale un temps 4 sans LoRA porno d'image ou de clip.
 
-modele: "2026-11-15b"
+modele: "2026-11-15c"
 name: monlot                 # prefixe des fichiers produits (lettres, chiffres, _), unique par lancement
 
 # --- Facultatif : plans deposes dans l'atelier (docs/agents.md, "Deposer des plans") --------------
@@ -90,7 +93,7 @@ defaults:
   same_seed: false           # true : meme tirage pour tous les plans (comparaisons)
   char_strength: 1.4         # force du LoRA du personnage (1,2 a 1,4 ; en dessous, l'identite faiblit)
   loras: []                  # LoRA supplementaires : [nom] ou [{name: nom, strength: 0.6}] ; voir "pilot lora list". Image ou video (clip).
-                             # Plan depose dans l'atelier : retirer la ligne pour recevoir les LoRA par defaut du temps.
+                             # Plan depose dans l'atelier : les LoRA par defaut du temps s'y ajoutent d'office (reglees par le proprietaire).
   mode: natural              # rendu du clip : natural (qualite) ou fast (4 pas, essais de mouvement)
   smooth: true               # interpolation a 32 images/s
   grain: true                # leger grain, moins "image de synthese"

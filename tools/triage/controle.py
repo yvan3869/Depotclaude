@@ -47,7 +47,7 @@ def _noms(txt):
 
 def controle(p, temps, lib=None):
     """Remarques sur les scenes d'un temps du projet p (dictionnaire tel qu'enregistre).
-    `lib` : {"cat": {nom du catalogue: fichier}, "volume": fichiers du volume ou None, "date": date de l'inventaire}."""
+    `lib` : {"cat": {nom du catalogue: fichier}, "fiche": {nom: (categorie, famille)}, "volume": fichiers du volume ou None, "date": date de l'inventaire}."""
     sc = [s for s in p.get("scenes") or [] if s.get("temps", 1) == temps]
     c = p.get("continuite") or {}
     out = []
@@ -57,6 +57,13 @@ def controle(p, temps, lib=None):
 
     if not sc:
         return out
+    if temps >= 3 and lib and lib.get("fiche"):  # temps 3 : une LoRA de nu ; temps 4 : une LoRA porno ; pour l'image et pour le clip
+        cats, mot = (("porno", "autre"), "porno") if temps == 4 else (("nu", "autre"), "de nu")
+        for fam, quoi in (("zimage", "d'image"), ("wan22", "de clip (vidéo)")):
+            sans = [s for s in sc if not any(lib["fiche"].get(n, ("", ""))[0] in cats and lib["fiche"][n][1] == fam for n in _noms(s.get("loras")))]
+            if sans:
+                r(f"Temps {temps} : {len(sans)} scène(s) sur {len(sc)} sans LoRA {mot} {quoi}. En choisir une dans « LoRA de ce temps », "
+                  "ou fixer celle par défaut dans la Bibliothèque de LoRA.", grave=temps == 4)
     normales = [s for s in sc if not s.get("libre")]
     if len(normales) > 1:
         vides = [lab for k, lab in (("lieu", "lieu"), ("tenue", "tenue")) if not c.get(k) and not (k == "tenue" and temps >= 2)]
