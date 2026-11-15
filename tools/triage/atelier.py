@@ -1540,7 +1540,7 @@ class Atelier:
 
     def importer(self, b):
         """Verse les plans d'un fichier depose dans les scenes d'un temps du projet. Un nouvel import du meme
-        fichier met a jour ses scenes (reperees par leur origine) en gardant leurs images tant que "still" est inchange."""
+        fichier met a jour ses scenes (reperees par leur origine) en gardant leurs prises retenues, texte change ou non."""
         f = self.dd / str(b.get("fichier"))
         if f.parent != self.dd or not f.is_file() or not re.fullmatch(r"[A-Za-z0-9_.-]{1,80}\.yaml", f.name):
             raise ValueError("fichier inconnu")
@@ -1563,7 +1563,9 @@ class Atelier:
                 o = old.get(d["origine"]) or {}
                 if d["loras"] is None:  # le plan ne dit rien des LoRA : celles deja posees sur la scene (celles du temps sont au projet)
                     d = d | {"loras": o["loras"] if o else ""}
-                garde = ("id", "seed", "image", "clip", "debut", "duree") if o and o["still"] == _s(d["still"], 1200) else ("id",) if o else ()
+                # une scene deja faite garde sa prise retenue et sa coupe meme si son texte change (script reecrit a un
+                # nouveau modele) : rien n'est refait sans demande, le nouveau texte sert a la prochaine prise
+                garde = ("id", "seed", "image", "clip", "debut", "duree") if o else ()
                 neuves.append(self._scene({**d, **{k: o[k] for k in garde}, "seed": (o.get("seed") if "seed" in garde else 0) or d["seed"],
                                            "id": o.get("id")}, p))
             self._admises(neuves)

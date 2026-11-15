@@ -396,7 +396,7 @@ y placer un geste ni un texte important. Elle est remplacee par une coupe si l'u
    `temps` invalide, nom en double, `still` manquant, decoupage non dit, pose incomplete, date mal formee). Le verificateur dit la meme
    chose avant : ne jamais annoncer un fichier qu'il refuse.
 4. **Corriger** : modifier le meme fichier, sans changer les `name`. La page reprend le fichier toute seule ; les
-   scenes sont remplacees une a une, et l'image deja calculee est gardee tant que `still` n'a pas change. Un plan
+   scenes sont remplacees une a une, et la prise retenue d'une scene deja faite est gardee meme si son texte change (rien n'est refait sans demande ; le nouveau texte sert a la prochaine prise). Un plan
    retire du fichier quitte le projet. Ce que le proprietaire regle dans la page et que le fichier ne dit pas reste
    en place (ses LoRA, ses prises choisies).
    Les textes de publication remplis dans le fichier remplacent ceux du projet a chaque import.

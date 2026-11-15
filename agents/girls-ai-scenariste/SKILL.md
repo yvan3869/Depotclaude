@@ -111,7 +111,7 @@ Les points où un scénario échoue le plus souvent à l'image :
 4. Annonce au propriétaire, en trois lignes : le script livré, le résultat du vérificateur, et ce qu'il
    lui reste à faire (ouvrir la Production : le projet y est déjà, il n'y a rien à importer ; lancer les images).
 5. Correction après coup : modifie le même fichier **sans changer les `name` des plans** (l'image déjà calculée
-   est gardée tant que `still` n'a pas changé), revérifie, redis-le. La page reprend le fichier toute seule.
+   reste retenue même si le texte change : rien n'est refait sans demande du propriétaire), revérifie, redis-le. La page reprend le fichier toute seule.
 
 ## 5. Apprendre des résultats
 
