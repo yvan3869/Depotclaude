@@ -205,6 +205,9 @@ const SCH = {
           ['Non', [['f', 'Pose imposée', 'Voir la branche suivante.']]]]]]],
         ['Pose imposée (par défaut aux moments 3 et 4)', [
           ['e', 'Brouillon', 'Une image neutre du personnage est retouchée pour prendre la pose écrite. Un seul brouillon par scène.'],
+          ['q', 'Le brouillon rend bien la pose écrite ?', [
+            ['Oui', [['e', 'Il sert tel quel', 'Le contrôleur l\'a relu point par point : cadrage, angle, position, appui, bassin, genoux, mains.']]],
+            ['Non', [['e', 'Il est refait une fois', 'Les points manqués sont redits en tête. Le meilleur des deux brouillons sert. Les trois images ne sont pas tirées d\'une pose fausse.']]]]],
           ['e', 'Squelette', 'La position du corps est relevée sur le brouillon.'],
           ['f', 'Image créée sur le squelette', 'La pose et le cadrage sont tenus. Le lieu et la tenue viennent du texte.']]],
         ['Lieu et tenue de la bibliothèque', [['q', 'Le lieu a une image retenue dans l\'atelier du personnage ?', [
@@ -223,8 +226,11 @@ const SCH = {
     ['q', 'Une des trois images est assez bonne ?', [
       ['Oui (note libre au-dessus de 4, ou note calculée d\'au moins 7)', [['e', 'La mieux notée est proposée', '']]],
       ['Non', [['q', 'La scène a déjà été refaite deux fois ?', [
-        ['Non', [['e', 'La scène est refaite seule', 'Les points de pose manqués sont redits en tête du texte. Retour au contrôle.']]],
+        ['Non', [['e', 'La scène est refaite seule', 'Tout ce qui a manqué sur la meilleure image est redit en tête du texte : les points de pose, le lieu, la tenue. Retour au contrôle.']]],
         ['Oui', [['e', 'La mieux notée est proposée quand même', 'Avec ses alertes.']]]]]]]]],
+    ['q', 'Le visage est petit dans l\'image (plan large, en pied) ?', [
+      ['Oui', [['e', 'Le visage est repris seul', 'Un carré autour du visage est agrandi, redessiné avec la LoRA du personnage, puis recollé à sa place. Le reste de l\'image ne change pas.']]],
+      ['Non', [['e', 'Image gardée telle quelle', '']]]]],
     ['f', 'Vous choisissez la prise', 'Les trois images restent visibles avec leurs notes. « Autre image » en tire une nouvelle pour cette scène seulement. Aucun clip n\'est fait sans une prise choisie ; en chaîne, la production se met en pause ici.']]},
   video: {titre: 'Vidéo', intro: 'À venir : le schéma de fabrication des clips et du montage.', arbre: []},
   son: {titre: 'Son', intro: 'À venir : le schéma de fabrication de l\'ambiance, des bruits et de la musique.', arbre: []}};
@@ -1050,7 +1056,7 @@ function rendreAtelier() {
         <div class="row" style="margin-top:6px"><button class="${A.visage.choix ? '' : 'p'}" data-a="bvisage" ${pris ? 'disabled' : ''}>${ic('image')}${A.visage.images.length ? 'Quatre autres portraits' : 'Créer quatre portraits'}</button><span class="mut">environ ${acout(4)}</span></div></div>`)
       + `<h2>Nouvelle série de planches</h2><div class="panel"><div class="mut">Une planche est une photo d'elle. Une série varie les cadrages (visage, buste, en pied), les poses et les fonds : c'est ce qu'il faut pour entraîner sa LoRA (le petit modèle qui tient son visage et son corps). Il en faut 20 à 40 gardées.</div>
         <div class="row haut"><div style="width:110px"><label>Nombre<select id="bn"><option>12</option><option selected>24</option><option>36</option></select></label></div>
-          <div class="g"><label>Tenue de la série (anglais, facultatif)<input id="btenue" placeholder="wearing ...">${aide('Vide : les tenues de sa garde-robe à tour de rôle. Rempli : ce texte est repris tel quel dans chaque planche de la série, à votre main.')}</label></div></div>
+          <div class="g"><label>Tenue de la série (anglais, facultatif)<input id="btenue" placeholder="wearing ...">${aide('Vide : les tenues de sa garde-robe à tour de rôle. Rempli : ce texte est repris tel quel dans chaque planche de la série, à votre main, sans rien ajouter devant. Pour un vêtement, commencer par « wearing ».')}</label></div></div>
         <label class="c"><input type="checkbox" id="bnsfw"><span>Série pour adultes</span>${aide('Ajoute le mot nsfw à chaque planche. Le texte de la tenue et les LoRA ci-dessous restent à votre main.')}</label>
         ${A.lora && B.loras.some(x => x.famille !== 'wan22') ? `<details class="pli"><summary>LoRA en plus pour cette série</summary><div class="tuiles">${B.loras.filter(x => x.famille !== 'wan22').map(x => `<label class="c"><input type="checkbox" data-bl="${esc(x.name)}"><span>${esc(x.label)}</span></label>`).join('')}</div></details>` : ''}
         <div class="row" style="margin-top:6px"><button class="p" data-a="bplanches" ${pris || (!A.lora && !A.visage.choix) ? 'disabled' : ''}>${ic('planche')}Créer la série</button><span class="mut" id="bcout">${A.lora || A.visage.choix ? 'environ ' + acout(24) : 'Retenir d\'abord un portrait.'}</span></div></div>`
@@ -1117,7 +1123,7 @@ Object.assign(actions, {
   bplanches: async () => {
     const n = +$('#bn').value, tenue = $('#btenue').value.trim();
     if (!confirm(`Créer ${n} planches, environ ${acout(n)} ?`)) return;
-    await api('/api/a/b/planches', {slug: A.slug, n, tenue: tenue && !/^wearing /i.test(tenue) ? 'wearing ' + tenue : tenue, nsfw: $('#bnsfw').checked, loras: $$('[data-bl]:checked', vue).map(x => x.dataset.bl)});
+    await api('/api/a/b/planches', {slug: A.slug, n, tenue, nsfw: $('#bnsfw').checked, loras: $$('[data-bl]:checked', vue).map(x => x.dataset.bl)});
     toast('Série lancée', true); await bMaj();
   },
   bgarde: async el => { const x = A.planches.find(y => y.nom === el.dataset.n); x.garde = !x.garde; el.classList.toggle('on', x.garde); await api('/api/a/b/garde', {slug: A.slug, image: x.nom, garde: x.garde}); },
