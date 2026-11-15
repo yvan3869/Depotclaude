@@ -295,13 +295,14 @@ function coteMaj() {
   $$('.rail button', a).forEach(b => b.classList.toggle('on', vu && b.dataset.c === COTE.c));
   $$('.cpan', a).forEach(x => x.classList.toggle('on', x.dataset.c === COTE.c));
 }
-function tenueTemps() {  // tirage « bibliotheque » : la tenue de la garde-robe posee dans le brouillon de ce temps, au choix
-  const g = GR[P.personnage], v = (P.tenues || {})[T] || '';
-  if (!g) { if (g !== null) { GR[P.personnage] = null; api('/api/a/b?slug=' + encodeURIComponent(P.personnage)).then(r => { GR[P.personnage] = r.tenues.filter(x => x.choix); rendreProjet(); }).catch(() => {}); } return ''; }
-  const l = [['', T === 1 ? 'Celle de la fiche de continuité' : 'Aucune : dite par le texte'], ...(T === 1 ? [['aucune', 'Aucune : dite par le texte']] : []), ...g.map(x => [x.en, x.fr || x.en])];
-  if (v && !l.some(x => x[0] === v)) l.push([v, v]);
-  return `<label>${ic('personnage')}Tenue de la garde-robe<select data-ten="${T}">${l.map(([k, lab]) => `<option value="${esc(k)}" ${k === v ? 'selected' : ''}>${esc(lab)}</option>`).join('')}</select>
-    ${aide('L\'image de cette tenue (atelier du personnage, garde-robe) est posée dans le brouillon de chaque scène de ce temps. Seules les tenues qui ont une image retenue sont proposées. La description de la scène dit toujours comment elle est portée (ouverte, glissée, retirée).')}</label>`;
+function tenueTemps() {  // tirage « bibliotheque » : le lieu et la tenue du personnage poses dans le brouillon de ce temps, au choix
+  const g = GR[P.personnage];
+  if (!g) { if (g !== null) { GR[P.personnage] = null; api('/api/a/b?slug=' + encodeURIComponent(P.personnage)).then(r => { GR[P.personnage] = {l: r.lieux.filter(x => x.choix), t: r.tenues.filter(x => x.choix)}; rendreProjet(); }).catch(() => {}); } return ''; }
+  const sel = (d, v, l) => `<select data-${d}="${T}">${(v && !l.some(x => x[0] === v) ? [...l, [v, v]] : l).map(([k, lab]) => `<option value="${esc(k)}" ${k === v ? 'selected' : ''}>${esc(lab)}</option>`).join('')}</select>`;
+  return `<label>${ic('epingle')}Lieu de la bibliothèque${sel('dec', (P.decors || {})[T] || '', [['', 'Celui de la fiche de continuité'], ...g.l.map(x => [x.en, x.fr || x.en])])}
+    ${aide('L\'image retenue de ce lieu (atelier du personnage, onglet Lieux) sert de pièce à toutes les scènes de ce temps, et sa description remplace le lieu de la fiche de continuité. Seuls les lieux qui ont une image retenue sont proposés. « Celui de la fiche de continuité » ne marche que si ce lieu est, mot pour mot, un lieu du personnage.')}</label>
+    <label>${ic('personnage')}Tenue de la garde-robe${sel('ten', (P.tenues || {})[T] || '', [['', T === 1 ? 'Celle de la fiche de continuité' : 'Aucune : dite par le texte'], ...(T === 1 ? [['aucune', 'Aucune : dite par le texte']] : []), ...g.t.map(x => [x.en, x.fr || x.en])])}
+    ${aide('L\'image de cette tenue (atelier du personnage, onglet Garde-robe) est posée dans le brouillon de chaque scène de ce temps. Seules les tenues qui ont une image retenue sont proposées. La description de la scène dit toujours comment elle est portée (ouverte, glissée, retirée).')}</label>`;
 }
 function rendreProjet() {
   const p = perso() || {nom: P.personnage}, vide = !P.scenes.some(s => s.temps === 1);
@@ -718,6 +719,7 @@ vue.addEventListener('input', e => {
   if (t.dataset.ch) { CH[t.dataset.ch] = t.type === 'checkbox' ? t.checked : t.value; delete sig.prod; return majDyn(); }
   if (t.dataset.lf && P) { P.loras = {...(P.loras || {}), [t.dataset.lf]: LP(t.dataset.lf).map(x => x.n === t.dataset.n ? `${x.n}:${t.value}` : x.f ? `${x.n}:${x.f}` : x.n).join(', ')}; return planifier(); }
   if (t.dataset.tir && P) { P.tirage = {...(P.tirage || {}), [t.dataset.tir]: t.value}; return essai(structure)(() => {}); }
+  if (t.dataset.dec && P) { P.decors = {...(P.decors || {}), [t.dataset.dec]: t.value}; return essai(structure)(() => {}); }
   if (t.dataset.ten && P) { P.tenues = {...(P.tenues || {}), [t.dataset.ten]: t.value}; return essai(structure)(() => {}); }
   if (!k || !P) return;
   const v = t.type === 'checkbox' ? t.checked : t.type === 'number' || k === 'nb_scenes' || k === 'nb2' || k === 'cran' || k === 'cible' ? +t.value : t.value;

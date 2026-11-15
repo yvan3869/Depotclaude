@@ -731,6 +731,9 @@ class Atelier:
             # Tenue de la garde-robe par temps (tirage "decor") : "" = celle de la fiche de continuite au temps 1, aucune ensuite ;
             # "aucune" = dite par le texte seul ; sinon la ligne d'une tenue du personnage (le proprietaire choisit, a tous les temps)
             p["tenues"] = {str(k): str((b.get("tenues", old.get("tenues")) or {}).get(str(k)) or "")[:400] for k in TEMPS}
+            # Lieu de la bibliotheque par temps : "" = celui de la fiche de continuite ; sinon la ligne d'un lieu du personnage,
+            # qui remplace alors le lieu de la fiche dans la description envoyee au modele d'image
+            p["decors"] = {str(k): str((b.get("decors", old.get("decors")) or {}).get(str(k)) or "")[:400] for k in TEMPS}
             p["graines"] = {str(k): int(v) for k, v in (old.get("graines") or {}).items()}  # tirage commun d'un temps (images creees a part)
             p["scenes"] = [self._scene(s, p) for s in (b["scenes"] if "scenes" in b else old.get("scenes") or [])][:30]
             ref = b.get("reference", old.get("reference"))
@@ -1621,7 +1624,10 @@ class Atelier:
         (decrite en entier, elle elargit le cadre) des que la scene dit elle-meme ce qu'on en voit."""
         t2, sans = s["temps"] >= 2, {"pdv"} if s.get("angle") else set()
         sans |= {"tenue"} if t2 or (_gros_plan(s) and tenue_dite(s["still"])) else set()
-        c = [] if s["libre"] else [v.strip(" .,") for k, v in (p.get("continuite") or {}).items() if v and k not in sans]
+        cont = dict(p.get("continuite") or {})
+        if _tirage(p, s["temps"]) == "decor" and (p.get("decors") or {}).get(str(s["temps"])):  # lieu choisi dans la bibliotheque
+            cont["lieu"] = p["decors"][str(s["temps"])]
+        c = [] if s["libre"] else [v.strip(" .,") for k, v in cont.items() if v and k not in sans]
         if s.get("autres"):  # apres elle et sa fiche : la premiere personne decrite reste le sujet
             c.append("also in the frame: " + s["autres"].strip(" .,"))
         if t2 and not re.search(r"\bnsfw\b", s["still"], re.I):
@@ -1656,7 +1662,8 @@ class Atelier:
         proprietaire, pour une tenue de sa garde-robe (par defaut : celle de la fiche de continuite au temps 1, aucune aux
         temps suivants ou la tenue se defait et reste dite par le texte). Sans image du lieu, la scene reste en pose imposee."""
         c = p.get("continuite") or {}
-        lieu = self.biblio.image(p["personnage"], "l", c.get("lieu")) if c.get("lieu") else None
+        ligne = (p.get("decors") or {}).get(str(s["temps"])) or c.get("lieu")
+        lieu = self.biblio.image(p["personnage"], "l", ligne) if ligne else None
         if not lieu:
             return {}
         v = (p.get("tenues") or {}).get(str(s["temps"])) or ""

@@ -284,7 +284,7 @@ class Biblio:
             deja = {int(i.rsplit("_", 1)[1][:-4]) for i in x["images"]}
             for s in [s for s in range(1, 60) if s not in deja][:n]:
                 if q == "l":
-                    pr = f"real estate listing photo, vertical wide shot, eye-level, empty deserted place, {_sans_elle(x['en'])}, natural light"
+                    pr = f"vertical wide shot, eye-level, photo of an empty deserted place, {_sans_elle(x['en'])}, natural light, smartphone photo"
                 else:
                     pr = f"product photo, flat lay on a plain white background, {re.sub(r'^wearing ', '', x['en'])} laid flat, nothing else, no person, no mannequin"
                 taches.append({"sortie": f"{q}_{x['cle']}_{s}", "prompt": pr, "seed": 7 * s + int(x["cle"][:4], 16), "taille": [720, 1280], "lora": False})
