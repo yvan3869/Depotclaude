@@ -194,8 +194,11 @@ Trois outils evitent qu'une video change de piece, de tenue ou de personne d'une
   Quatrieme valeur, `decor` (lieu et tenue de la bibliotheque) : pose imposee, et en plus le brouillon est fabrique
   dans l'image retenue du lieu (atelier du personnage, voir plus bas), avec l'image d'une tenue de la garde-robe si le proprietaire en choisit une pour ce temps (a tous les temps ; au temps 1, celle de la fiche de continuite par defaut) ; dans
   l'image finale seule la zone du personnage est refaite (champs de pilote `decor` et `tenue_image`, poses par la
-  Production) : la piece reste identique au pixel d'une scene a l'autre. Il faut que le lieu de la fiche de continuite
-  soit un lieu de la fiche du personnage qui a son image ; sinon la scene est faite en `pose`. Aux temps 2 a 4 la
+  Production). Le lieu se choisit de meme a chaque temps parmi les lieux du personnage qui ont une image retenue
+  (champ `decors` du projet, par temps ; vide = lieu de la fiche de continuite, qui doit alors etre mot pour mot un
+  lieu de la fiche du personnage) ; la description du lieu choisi remplace celle de la fiche de continuite. Sans
+  image de lieu, la scene est faite en `pose`. Constate le 15/11/2026 : la piece est la meme entre les trois images
+  d'une scene, de la meme famille mais rearrangee d'une scene a l'autre (le brouillon la recompose). Aux temps 2 a 4 la
   tenue reste dite par le texte (elle se defait). Limite connue : l'image finale garde les vetements du brouillon.
   Jamais par defaut : le proprietaire le choisit par temps.
 - **Raccord** (`raccord`, par plan, par rapport au plan precedent du meme temps) :

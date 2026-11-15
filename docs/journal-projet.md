@@ -604,3 +604,22 @@ modeles de retouche ne servent qu'a preparer (brouillon, tenue, lieu). Rien n'es
   Limite a faire juger par le proprietaire aux temps 3 et 4 : a 0,6 ou 0,8 l'image finale garde beaucoup du
   brouillon, donc aussi ses vetements ; un etat de tenue absent du brouillon risque de ne pas apparaitre.
 - Depense : pod de 13,6 min, environ 0,20 $ ; total du jour 4,32 $ sur 7,50. Disque : 32 Go sur 197.
+
+## 2026-11-15 (fin) : atelier du personnage, essai complet sur Lea
+
+- **Outil**. Page `/atelier#/atelier/<personnage>` : Lieux, Garde-robe, Corps (planches), LoRA. Lieux et tenues
+  crees par description ; ceux de la fiche de Lea sont repris sans rien reconstruire. Dans la Production, tirage
+  « lieu et tenue de la bibliotheque » avec choix du lieu et de la tenue a chacun des quatre temps.
+- **Lieux** : 7 lignes, 14 images (5 s par image). 3 images montraient une personne (lignes avec « her ») : les
+  mentions du personnage sont retirees de la description, images refaites, plus personne. Formule « annonce
+  immobiliere » ecartee (pieces nues, un bandeau de texte).
+- **Tenues** : 7 lignes, 2 images chacune, vetements a plat sur fond blanc, tres bons.
+- **Tirage sur p0004** (temps 1, cuisine + pull) : pull tenu ; cuisine identique entre les 3 images d'une scene,
+  de la meme famille mais rearrangee d'une scene a l'autre. Controle : 2 scenes notees, aucune a refaire.
+- **Planches** : 12 images habillees (cadrages, fonds et tenues varies), legendes enregistrees, toutes gardees.
+- **Entrainement de preuve** : `girls-ai-lea-v1`, 12 planches, 8 passages (96 pas), 7 min sur une 5090, 0,19 $, pod
+  supprime ; 6 images d'essai aux forces 1,0 / 1,3 / 1,6. LoRA faible (trop peu de passages) : preuve de la chaine,
+  non adoptee. Un fichier de ce nom ajoute sur le volume RunPod.
+- Reste : la mesure de place du volume affichee par l'entrainement est fausse (« 396536 Go ») ; planches nues,
+  sous-vetements portes et temps 3-4 : lances et juges par le proprietaire.
+- Depense de l'ensemble : environ 0,65 $ ; total du jour 4,98 $ sur 7,50. Disque : 32 Go sur 197.
