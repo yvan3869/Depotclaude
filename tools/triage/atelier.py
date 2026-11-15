@@ -1899,7 +1899,8 @@ class Atelier:
                         "scenes": [{"id": sid, "a": noms(sid, "a"), "b": noms(sid, "b"),
                                     "idee": (m.get("idees") or {}).get(sid) or ici_idees.get(sid) or {}} for sid in m.get("scenes") or []]})
         return {"id": pid, "titre": p["titre"], "personnage": p["personnage"], "occupe": self.studio.running(), "pod": bool(self.studio.pod()),
-                "temps": {t: {"scenes": sum(s["temps"] == t for s in p["scenes"]), "ok": len(self._comparables(p, t))}
+                "temps": {t: {"scenes": sum(s["temps"] == t for s in p["scenes"]), "ok": len(self._comparables(p, t)),
+                              "liste": [{"id": s["id"], "titre": s.get("titre") or ""} for s in self._comparables(p, t)]}
                           for t in sorted({s["temps"] for s in p["scenes"]})},
                 "lieux": [{"en": x["en"], "fr": x["fr"]} for x in v["lieux"] if x["images"]],
                 "tenues": [{"en": x["en"], "fr": x["fr"]} for x in v["tenues"] if x["images"]],

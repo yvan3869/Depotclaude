@@ -19,6 +19,7 @@
   .lch .chip { white-space:normal; text-align:left; height:auto; max-width:100%; }
   .bgal { display:flex; gap:6px; overflow-x:auto; margin:6px 0 4px; } .bgal img { width:108px; aspect-ratio:9/16; object-fit:cover; border-radius:6px; border:3px solid transparent; flex:none; cursor:pointer; background:var(--fond); }
   .bgal.cm img { width:min(42vw,220px); }
+  .chips.cmc { flex-wrap:wrap; margin:4px 0 0; } .chips.cmc .chip { padding:8px 14px; } .chips.cmc .chip:not(.on) { opacity:.55; } .chips.cmc .chip:disabled { opacity:.3; }
   .cmid { margin:6px 0; padding:8px 10px; border-left:3px solid var(--line, #444); font-size:13px; line-height:1.4; display:grid; gap:4px; }
   .bgal img.on { border-color:var(--acc); } .bgal.pl { flex-wrap:wrap; overflow:visible; } .bgal.pl img { width:92px; opacity:.55; } .bgal.pl img.on { opacity:1; }
   .vd { display:flex; flex-wrap:wrap; gap:5px; margin-top:4px; }
@@ -109,7 +110,7 @@ const CONSIGNES_SCENE = ['Plus sensuelle, toujours suggestive', 'Plus près de l
 
 // --- Comparaison des methodes : memes scenes, memes tirages, en deux rangees ---
 let C = null, cT = null;
-const CM = {t: null, l: '', ten: '', n: 2};
+const CM = {t: null, x: [], l: '', ten: '', n: 2};
 async function vueComparer(pid) {
   C = await api('/api/a/comparer?id=' + encodeURIComponent(pid));
   rendreComparer();
@@ -124,7 +125,7 @@ function rendreComparer() {
   if (!CM.t) CM.t = ts.filter(t => C.temps[t].ok).slice(0, 1);
   CM.t = CM.t.filter(t => ts.includes(t));
   if (!C.lieux.some(x => x.en === CM.l)) CM.l = (C.lieux.find(x => x.en === C.lieu_fiche) || C.lieux[0] || {}).en || '';
-  const ok = CM.t.reduce((a, t) => a + C.temps[t].ok, 0), n = 2 * CM.n * ok, T1 = CM.t.length === 1 && +CM.t[0] === 1;
+  const ok = CM.t.reduce((a, t) => a + C.temps[t].liste.filter(s => !CM.x.includes(s.id)).length, 0), n = 2 * CM.n * ok, T1 = CM.t.length === 1 && +CM.t[0] === 1;
   const sel = (k, l) => `<select data-cm="${k}">${l.map(([v, lab]) => `<option value="${esc(v)}" ${String(v) === String(CM[k]) ? 'selected' : ''}>${esc(lab)}</option>`).join('')}</select>`;
   const nom = (l, en) => (l.find(x => x.en === en) || {}).fr || en;
   const rang = (titre, l) => `<div class="mut" style="margin-top:6px"><b>${titre}</b></div>${l.length ? `<div class="bgal cm">${l.map(f => `<a href="${u(f)}" target="_blank"><img loading="lazy" src="${u(f)}" alt=""></a>`).join('')}</div>` : '<div class="mut">Pas encore d\'image.</div>'}`;
@@ -135,7 +136,10 @@ function rendreComparer() {
     <p class="mut">Les mêmes scènes sont fabriquées deux fois, avec le même tirage au sort et les mêmes LoRA. En haut, la méthode actuelle : le lieu et la tenue viennent du texte. En bas, la nouvelle : le lieu et la tenue viennent des images de l'atelier du personnage. Rien ne change dans le projet : ces images restent sur cette page.</p>
     <div class="panel">
       <div class="mut">Temps à comparer</div>
-      ${ts.map(t => `<label class="row" style="gap:8px"><input type="checkbox" data-cmt="${t}" style="width:auto" ${CM.t.includes(t) ? 'checked' : ''} ${C.temps[t].ok ? '' : 'disabled'}><span>${t}. ${TEMPS[t][0]} : ${C.temps[t].ok} scène(s) comparable(s) sur ${C.temps[t].scenes}</span></label>`).join('')}
+      <div class="mut">Moments à comparer : toucher pour choisir</div>
+      <div class="chips cmc">${ts.map(t => `<button class="chip ${CM.t.includes(t) ? 'on' : ''}" data-a="cmtemps" data-t="${t}" ${C.temps[t].ok ? '' : 'disabled'}>${t}. ${TEMPS[t][0]} <small>${C.temps[t].ok} sur ${C.temps[t].scenes}</small></button>`).join('')}</div>
+      ${CM.t.map(t => `<div class="mut" style="margin-top:6px">Scènes du moment ${t} : toucher pour retirer ou remettre</div>
+      <div class="chips cmc">${C.temps[t].liste.map(s => `<button class="chip ${CM.x.includes(s.id) ? '' : 'on'}" data-a="cmscene" data-s="${s.id}">${esc(s.id.slice(1))}${s.titre ? ' · ' + esc(s.titre) : ''}</button>`).join('')}</div>`).join('')}
       ${ts.every(t => C.temps[t].ok) ? '' : '<div class="mut" style="color:var(--warn)">Un temps à 0 ne peut pas être comparé. La nouvelle méthode ne s\'applique ni aux gros plans, ni aux scènes libres, ni aux scènes où une autre personne est à l\'image.</div>'}
       <label>Lieu${C.lieux.length ? sel('l', C.lieux.map(x => [x.en, x.fr || x.en])) : '<div class="mut">Aucun lieu du personnage n\'a d\'image : en créer dans son atelier.</div>'}</label>
       <label>Tenue${sel('ten', [['', T1 ? 'Celle de la fiche de continuité' : CM.t.includes('1') ? 'Fiche de continuité au temps 1, aucune ensuite' : 'Aucune : dite par le texte'], ...(CM.t.includes('1') ? [['aucune', 'Aucune : dite par le texte']] : []), ...C.tenues.map(x => [x.en, x.fr || x.en])])}</label>
@@ -1031,7 +1035,9 @@ Object.assign(actions, {
     bMaj(r);
   },
   bphoto: el => { if (el.dataset.q === 'tenues' && A.occupe) return toast('Un calcul est en cours : attendre sa fin'); const i = document.createElement('input'); i.type = 'file'; i.accept = 'image/*'; i.onchange = () => i.files[0] && bEnvoi(i.files[0], el.dataset.q, el.dataset.cle).catch(e => toast(e.message)); i.click(); },
-  cmplancer: async () => { const r = await api('/api/a/comparer', {id: C.id, temps: CM.t.map(Number), lieu: CM.l, tenue: CM.ten, variantes: +CM.n}); toast(`Comparaison lancée : ${r.lance} images`, true); await vueComparer(C.id); },
+  cmtemps: el => { const t = el.dataset.t; CM.t = CM.t.includes(t) ? CM.t.filter(x => x !== t) : [...CM.t, t].sort(); rendreComparer(); },
+  cmscene: el => { const s = el.dataset.s; CM.x = CM.x.includes(s) ? CM.x.filter(x => x !== s) : [...CM.x, s]; rendreComparer(); },
+  cmplancer: async () => { const r = await api('/api/a/comparer', {id: C.id, temps: CM.t.map(Number), scenes: CM.t.flatMap(t => C.temps[t].liste.map(s => s.id)).filter(s => !CM.x.includes(s)), lieu: CM.l, tenue: CM.ten, variantes: +CM.n}); toast(`Comparaison lancée : ${r.lance} images`, true); await vueComparer(C.id); },
   bessayer: async () => { await api('/api/a/b/essayer', {slug: A.slug, tenue: AC.t, lieu: AC.l, pose: +AC.p}); toast('Essayage lancé', true); await bMaj(); },
   bjeter: async el => { if (!confirm('Retirer cette image ?')) return; bMaj(await api('/api/a/b/retirer', {slug: A.slug, image: el.dataset.n})); },
   bvisage: async () => { await api('/api/a/b/visage', {slug: A.slug}); toast('Portraits lancés', true); await bMaj(); },
