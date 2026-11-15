@@ -648,3 +648,12 @@ modeles de retouche ne servent qu'a preparer (brouillon, tenue, lieu). Rien n'es
 - p0005 moment 1 : 6 images, aucun echec (non regardees).
 - Scenes a deux (moment 4) : la nouvelle methode part de la photo du lieu, sans brouillon. Essai sur p0004 (scene 4 avec un homme ajoute le temps de l'essai, 8 images) : a 0,8 la piece tient, personnes petites et basses ; a 0,9 cadrage meilleur, piece changee. Reglage au choix dans la page.
 - Depense : environ 0,30 $ ; total du jour environ 5,80 $.
+
+## 2026-11-15 (soir, fin) : comparaison sur six poses, plafond a 20 $
+
+- Plafond GPU du jour porte a 20 $ a la demande du proprietaire (`persona/production.yaml`), pour les essais de l'atelier.
+- Essai p0004 (tous publics), 6 poses, 2 images par methode, 24 images, 0 echec : cuisine + pull (en pied, assise de profil, de dos), studio de pilates + ensemble de sport (en tailleur, a plat ventre, a genoux bras leves). Planches : `data/inbox/p0004essai_comparaison_cuisine.png` et `_studio.png`.
+- Constat : la pose est tenue par les deux methodes. Nouvelle methode : la piece est la meme d'une image a l'autre (studio : 6 sur 6 ; cuisine : meme piece, angle qui varie), mais le personnage est petit dans le cadre (plan large impose par la photo du lieu), le visage perd en detail, et un vetement non demande apparait (jean sous le pull, la ou l'ancienne laisse les jambes nues) ; le tapis change de couleur. Ancienne methode : cadrage serre et flatteur, piece reinventee a chaque image.
+- Avis : garder l'ancienne par defaut ; la nouvelle pour les plans larges ou la piece doit etre reconnue. A faire pour la rendre utile en plan serre : photos du lieu de plus pres (ou recadrage de la photo autour du personnage).
+- Depense : environ 0,35 $ ; total du jour 6,15 $ sur 20.
+- Demande notee : file d'attente des calculs (enchainer sur un meme pod).
