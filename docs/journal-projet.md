@@ -640,4 +640,4 @@ modeles de retouche ne servent qu'a preparer (brouillon, tenue, lieu). Rien n'es
 - **p0005** : comparables 1 scene sur 3 au temps 1 (deux scenes libres), 4 sur 5 au temps 2, 6 sur 6 au temps 3, 0 sur
   7 au temps 4 (une autre personne a l'image partout : la methode ne pose qu'elle). Temps 1 lance par l'assistant
   (6 images, non regardees) ; temps 2 et 3 a lancer par le proprietaire depuis la page.
-- Depense : environ 0,50 $ ; total du jour 5,45 $ sur 7,50 environ. Disque : voir releve suivant.
+- Depense : environ 0,50 $ ; total du jour 5,45 $ sur 7,50 environ. Disque : 32 Go sur 197.
