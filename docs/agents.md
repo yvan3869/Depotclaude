@@ -158,6 +158,9 @@ Trois outils evitent qu'une video change de piece, de tenue ou de personne d'une
   a part (LoRA du visage, description et fiche de continuite). Par defaut `ref` aux temps 1 et 2, `direct` aux temps
   3 et 4 : une retouche garde trop la tenue et la pose de la reference pour un temps ou elle se deshabille. En tirage
   `direct`, le `still` doit donc dire le lieu en plus de la tenue si la fiche ne suffit pas.
+  Les images creees a part d'un meme temps partent du meme tirage (`graines`, au projet, un nombre par temps, fixe
+  a la premiere image du temps) : le decor bouge moins d'une scene a l'autre. « Autre image » tire un nouveau nombre
+  pour la scene concernee seulement.
 - **Raccord** (`raccord`, par plan, par rapport au plan precedent du meme temps) :
   - `coupe` (defaut) : le plan a sa propre image, le montage coupe. Pour un changement de cadrage ou d'angle.
   - `continu` : le plan n'a pas d'image propre. Son clip demarre sur la derniere image du clip precedent et

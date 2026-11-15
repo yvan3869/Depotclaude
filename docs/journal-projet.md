@@ -372,4 +372,6 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
   l'autre. Retouche de la reference (Qwen) : pose et tenue justes, vraie piece gardee, visage un peu moins fidele,
   pas de LoRA. Conclusion : ne pas partir de l'image precedente ; garder « creee a part » aux temps 3 et 4, avec un
   tirage commun aux scenes d'un temps. Images dans data/work/girls-ai-essai-i2i. Pod de 5 minutes, environ 0,06 $.
-
+  Mis en place le jour meme : `graines` au projet (un tirage par temps), repris par la premiere image creee a part
+  de chaque scene ; « Autre image » garde un tirage propre a la scene. Format des plans inchange. Pas encore
+  verifie sur une production reelle (aucune depense).
