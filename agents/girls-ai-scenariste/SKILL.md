@@ -59,6 +59,12 @@ Les points où un scénario échoue le plus souvent à l'image :
 
 - **Une image, un instant.** Un `still` décrit ce qu'on voit à la première image du plan : cadrage, pose,
   expression, mains, regard. Pas une action, pas une suite, pas une intention.
+- **Sans précision, elle pose de face.** Le modèle d'image revient toujours à la même photo : une femme de face,
+  debout ou à genoux, qui regarde l'objectif, cadrée à la taille. Tout ce qui s'en écarte s'écrit en tête du `still`,
+  en toutes lettres : l'angle (`from a three-quarter side angle`), la position des jambes (`sits cross-legged`, pas
+  seulement `sits`), la tête et le regard (`head turned to the left, eyes looking away toward the window, not looking
+  at the camera`). Un gros plan s'écrit `extreme close-up portrait, her face fills the frame, cropped just below the
+  collarbones` : `close-up` seul donne un cadrage à la taille. Constaté le 15/11/2026 sur trois essais.
 - **Un geste par plan.** Un clip dure 5 secondes. `motion` contient un seul geste, simple et lent, qui part de
   la pose du `still`. Le geste suivant est un autre plan (raccord `continu` s'il reste dans le même cadre).
 - **Le décor tient par la répétition mot pour mot.** Le lieu est écrit une fois, dans la fiche de continuité,

@@ -504,3 +504,10 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
   `profile_texts.md`, `profile_texts_en.md`) ; decision du proprietaire. Un profil deja publie est a corriger a la main.
 - 15/11, LoRA par defaut posees a la demande du proprietaire, d'apres son choix sur p0005 : style (realisme, cadrage)
   aux quatre temps, mouvement au temps 1, nu au temps 3, porno image et clip au temps 4. Aucune depense GPU.
+- 15/11, p0005 temps 1 (chaine du proprietaire, images) : scenes 2 et 3 refusees par le controleur apres deux relances
+  (pose et cadrage). Trois essais sur ces deux scenes : ni la LoRA de pose, ni la phrase de cadrage de la fiche, ni la
+  force de la LoRA du visage (1,4, 1,0, 0,8), ni la LoRA de realisme ne changent l'image ; a 0,8 les tatouages
+  disparaissent. Seule la redaction change tout : angle, jambes, tete et regard ecrits en tete, gros plan ecrit
+  « extreme close-up portrait, her face fills the frame ». Regle ajoutee au SKILL du scenariste. Dans la page, les
+  LoRA du projet et du temps se coupent d'un toucher sur une scene (`nom:0`). Depense GPU du jour : 2,96 $ sur 7,50 $
+  (chaine 0,45 $ environ, essais 0,60 $ environ).
