@@ -268,6 +268,7 @@ class Atelier:
         self.data, self.repo, self.studio = data, repo, studio
         self.dp, self.dj, self.de, self.da = data / "personnages", data / "projets", data / "ecriture", data / "audio"
         self.dd = repo / "server" / "jobs" / "atelier"  # plans deposes par l'agent du proprietaire (lecture seule ici)
+        self.df = self.dd / "personnages"  # fiches de personnage deposees par l'agent (lecture seule ici)
         for d in (self.dp, self.dj, self.de, self.da):
             d.mkdir(parents=True, exist_ok=True)
         os.chmod(self.de, 0o777)  # le redacteur tourne sur le serveur sous un autre compte que le conteneur
@@ -469,7 +470,7 @@ class Atelier:
             raise ValueError("personnage inconnu")
         return p
 
-    def save_perso(self, b):
+    def _norme_perso(self, b):
         slug = re.sub(r"[^a-z0-9_]+", "_", str(b.get("slug") or b.get("nom") or "").lower()).strip("_")[:24]
         if not slug or not _s(b.get("nom")):
             raise ValueError("nom du personnage obligatoire")
@@ -492,8 +493,99 @@ class Atelier:
              "generation": {"zimage_prefix": (prefix + " ") if prefix else "", "lora": _s(gen.get("lora"), 120),
                             "lora_strength": float(gen.get("lora_strength") or 1.0), "corps": _s(gen.get("corps"), 600),
                             "suffixe": _s(gen.get("suffixe"), 400), "note": _s(gen.get("note"), 400)}}
-        _dump(self.dp / f"{slug}.json", p)
         return p
+
+    def save_perso(self, b):
+        p = self._norme_perso(b)
+        _dump(self.dp / f"{p['slug']}.json", p)
+        return p
+
+    def _fiche_deposee(self, f):
+        """Lit une fiche de personnage deposee (format de server/jobs/personnage.modele.yaml) : la fiche mise en forme
+        et les remarques. Leve ValueError si elle est refusee. Rien n'est enregistre."""
+        import yaml
+        if not re.fullmatch(r"[a-z0-9_]{1,24}\.yaml", f.name):
+            raise ValueError("nom de fichier invalide (minuscules, chiffres, _ ; 24 caractères au plus)")
+        if f.stat().st_size > 100_000:
+            raise ValueError("fichier trop gros")
+        j = yaml.safe_load(f.read_text(encoding="utf-8"))
+        if not isinstance(j, dict):
+            raise ValueError("fiche illisible")
+        for k in ("fiche", "ecriture", "generation"):
+            if j.get(k) is not None and not isinstance(j[k], dict):
+                raise ValueError(f'"{k}" : un bloc de champs')
+        for k in ("lieux", "tenues"):
+            if j.get(k) is not None and not (isinstance(j[k], list) and all(isinstance(x, str) for x in j[k])):
+                raise ValueError(f'"{k}" : une liste de lignes "français | anglais"')
+        p = self._norme_perso({**j, "slug": f.stem, "statut": "actif"})
+        rem, ascii_ = [], lambda x: all(ord(c) < 128 for c in x)
+        connus = {"modele", "nom", "age", "langue", "accroche", "fiche", "lieux", "tenues", "ecriture", "generation"}
+        for k in sorted(set(j) - connus):
+            rem.append(f'champ "{k}" inconnu : il est ignoré')
+        for grp in ("fiche", "ecriture", "generation"):
+            for k in sorted(set(j.get(grp) or {}) - set(p[grp])):
+                rem.append(f'champ "{grp}.{k}" inconnu : il est ignoré')
+        if p["langue"] not in ("en", "fr"):
+            rem.append('"langue" vaut en ou fr')
+        if not p["accroche"]:
+            rem.append('"accroche" vide : la phrase qui la résume')
+        for k in p["fiche"]:
+            if len(p["fiche"][k]) < 40:
+                rem.append(f'"fiche.{k}" vide ou trop court pour guider l\'écriture')
+        for k in ("lieux", "tenues"):
+            if len(p[k]) < 4:
+                rem.append(f'"{k}" : en donner 4 au moins, le scénariste pioche dedans')
+            for x in p[k]:
+                fr, sep, en = x.partition(" | ")
+                if not sep or not fr.strip() or not en.strip():
+                    rem.append(f'"{k}" : « {x[:40]} » n\'a pas la forme "français | anglais"')
+                elif not ascii_(en):
+                    rem.append(f'"{k}" : la partie anglaise de « {x[:40]} » contient des accents, elle doit être en anglais')
+        for k in ("ton", "cta", "plateforme", "interdits"):
+            if not p["ecriture"][k]:
+                rem.append(f'"ecriture.{k}" vide')
+        g = p["generation"]
+        if not g["zimage_prefix"].strip():
+            rem.append('"generation.zimage_prefix" vide : âge, cheveux, yeux en anglais, repris devant chaque image')
+        for k in ("zimage_prefix", "corps", "suffixe"):
+            if not ascii_(g[k]):
+                rem.append(f'"generation.{k}" contient des accents : ce champ part dans les images, il doit être en anglais')
+        if re.search(r"\b(\d{1,2})[- ]?(year|yo|y\.o)", g["zimage_prefix"], re.I) and str(p["age"]) not in g["zimage_prefix"]:
+            rem.append(f'"generation.zimage_prefix" donne un âge différent de "age" ({p["age"]})')
+        if g["lora"] and not (self.repo / "persona" / "personnages" / f"{p['slug']}.json").is_file() and not (self.dp / f"{p['slug']}.json").is_file():
+            rem.append('"generation.lora" rempli pour un personnage nouveau : le laisser vide tant que la LoRA du visage n\'est pas entraînée')
+        return p, rem
+
+    def fiches(self):
+        """Fiches de personnage deposees par l'agent, la plus recente d'abord."""
+        import yaml
+        if not self.df.is_dir():
+            return []
+        try:
+            modele = str(yaml.safe_load((self.dd.parent / "personnage.modele.yaml").read_text(encoding="utf-8"))["modele"])
+        except Exception:
+            modele = ""
+        connus, out = self.persos(), []
+        for f in sorted(self.df.glob("*.yaml"), key=lambda f: f.stat().st_mtime, reverse=True)[:40]:
+            x = {"fichier": f.name, "date": time.strftime("%d/%m %H:%M", time.localtime(f.stat().st_mtime))}
+            try:
+                p, rem = self._fiche_deposee(f)
+                brut = yaml.safe_load(f.read_text(encoding="utf-8"))
+                dest = self.dp / f"{p['slug']}.json"
+                x |= {"nom": p["nom"], "age": p["age"], "accroche": p["accroche"], "remarques": rem, "existe": p["slug"] in connus,
+                      "perime": bool(modele) and str(brut.get("modele") or "") != modele,
+                      "fait": dest.is_file() and dest.stat().st_mtime >= f.stat().st_mtime}
+            except Exception as e:
+                x["erreur"] = str(e)[:200]
+            out.append(x)
+        return out
+
+    def fiche_deposee(self, nom):
+        f = self.df / str(nom)
+        if f.parent != self.df or not f.is_file():
+            raise ValueError("fiche inconnue")
+        p, rem = self._fiche_deposee(f)
+        return {"personnage": p, "remarques": rem, "existe": p["slug"] in self.persos()}
 
     def char_override(self, p):
         """Reglages du personnage a poser sur ceux de production.yaml dans un fichier de plans."""
@@ -761,7 +853,7 @@ class Atelier:
     def etat(self):
         return {"personnages": [{k: p.get(k) for k in ("slug", "nom", "statut", "age", "langue", "accroche")} | {"lora": bool((p.get("generation") or {}).get("lora"))}
                                 for p in self.persos().values()],
-                "projets": self.liste(), "depots": [x for x in self.depots() if not self._existe(x.get("projet"))], "redacteur": self.redacteur_actif(), "depense": self.depense(),
+                "projets": self.liste(), "depots": [x for x in self.depots() if not self._existe(x.get("projet"))], "fiches": self.fiches(), "redacteur": self.redacteur_actif(), "depense": self.depense(),
                 "occupe": self.studio.running(), "can_run": self.studio.can_run(),
                 "bibliotheque": self.bibliotheque(),
                 "musiques": sorted(f.name for f in self.da.iterdir() if f.suffix.lower() in (".mp3", ".m4a", ".wav", ".ogg"))}
@@ -1184,7 +1276,10 @@ class Atelier:
         ref = str(a.get("reference") or "")
         if ref and ref not in [str(sh["name"]) for i, sh in enumerate(shots) if not (i and sh.get("raccord") == "continu")]:
             raise ValueError('"atelier.reference" : nom d\'un plan de ce fichier qui a sa propre image (pas un plan continu)')
-        return {"projet": str(a.get("projet") or ""), "temps": a["temps"], "personnage": str(a.get("personnage") or ""),
+        de = str(a.get("projet_de") or "")
+        if de and (a.get("projet") or a["temps"] == 1 or de == f.name or not re.fullmatch(r"[A-Za-z0-9_.-]{1,80}\.yaml", de)):
+            raise ValueError('"atelier.projet_de" : nom du fichier du temps 1 de la même vidéo, pour un temps 2 à 4, sans "projet"')
+        return {"projet": str(a.get("projet") or ""), "projet_de": de, "temps": a["temps"], "personnage": str(a.get("personnage") or ""),
                 "titre": _s(a.get("titre"), 100), "note": _s(a.get("note"), 300), "modele": str(j.get("modele") or ""), "scenes": scenes,
                 "textes": textes, "reference": ref if a["temps"] == 1 else ""}
 
@@ -1204,11 +1299,11 @@ class Atelier:
                     raise ValueError("nom de fichier invalide (lettres, chiffres, _ . -)")
                 pl = self._plan(f)
                 x |= {k: pl[k] for k in ("projet", "temps", "personnage", "titre", "note")} | {"n": len(pl["scenes"]), "perime": bool(modele) and pl["modele"] != modele}
-                if not x["projet"]:  # depot sans projet deja importe : il appartient au projet qu'il a ouvert
-                    x["projet"] = self._rattache(f.name)
-                fiche = pl["textes"].get("continuite") or (self._raw(x["projet"])["continuite"] if x["projet"] and self._existe(x["projet"]) else {})
-                x["remarques"] = len(controle({"continuite": fiche, "accroche": pl["textes"].get("accroche"), "scenes": [
-                    {**s, "id": str(i), "loras": _loras(s["loras"])} for i, s in enumerate(pl["scenes"])]}, pl["temps"], lib))
+                if not x["projet"]:  # depot sans projet : il appartient au projet qu'il a ouvert, ou a celui du fichier du temps 1 qu'il nomme
+                    x["projet"] = self._rattache(f.name) or self._rattache(pl["projet_de"])
+                if pl["projet_de"] and not x["projet"]:
+                    x["attente"] = pl["projet_de"]
+                x["remarques"] = len(self._remarques(pl, x["projet"], lib))
                 if x["projet"] and not self._existe(x["projet"]):
                     x["erreur"] = f"projet {x['projet']} inconnu"
                 elif x["projet"]:
@@ -1221,9 +1316,44 @@ class Atelier:
             out.append(x)
         return out
 
+    def _remarques(self, pl, pid, lib=None):
+        """Remarques du controle des plans sur un depot lu par _plan (la fiche de continuite est celle du depot, sinon du projet)."""
+        fiche = pl["textes"].get("continuite") or (self._raw(pid)["continuite"] if pid and self._existe(pid) else {})
+        return controle({"continuite": fiche, "accroche": pl["textes"].get("accroche"), "scenes": [
+            {**s, "id": str(i), "loras": _loras(s["loras"])} for i, s in enumerate(pl["scenes"])]}, pl["temps"], lib or self._lib())
+
+    def examen(self, f):
+        """Tout ce que l'atelier dira d'un depot de plans, sans rien ecrire : refus (ValueError) ou liste de remarques."""
+        import yaml
+        if not re.fullmatch(r"[A-Za-z0-9_.-]{1,80}\.yaml", f.name):
+            raise ValueError("nom de fichier invalide (lettres, chiffres, _ . -)")
+        pl = self._plan(f)
+        pid = pl["projet"] or self._rattache(f.name) or self._rattache(pl["projet_de"])
+        if pid and not self._existe(pid):
+            raise ValueError(f"projet {pid} inconnu")
+        if not pid and pl["projet_de"]:  # video entiere deposee d'un coup : la fiche de continuite est celle du fichier du temps 1
+            t1 = self.dd / pl["projet_de"]
+            if not t1.is_file():
+                raise ValueError(f'"atelier.projet_de" : « {pl["projet_de"]} » absent de server/jobs/atelier/')
+            p1 = self._plan(t1)
+            if p1["temps"] != 1 or p1["projet"]:
+                raise ValueError(f'"atelier.projet_de" : « {pl["projet_de"]} » doit être un dépôt du temps 1 sans "projet"')
+            pl["textes"].setdefault("continuite", p1["textes"].get("continuite") or {})
+        elif not pid and pl["personnage"] not in self.persos():
+            raise ValueError(f'"atelier.personnage" : « {pl["personnage"]} » inconnu (un dépôt sans projet nomme un personnage enregistré)')
+        elif not pid and pl["temps"] != 1:
+            raise ValueError('temps 2 à 4 : nommer le projet ("atelier.projet") ou le fichier du temps 1 de la même vidéo ("atelier.projet_de")')
+        lib = self._lib()
+        self._admises([{**s, "loras": _loras(s["loras"])} for s in pl["scenes"]])
+        rem = self._remarques(pl, pid, lib)
+        noms = {str(i): s["origine"].partition(":")[2] for i, s in enumerate(pl["scenes"])}
+        modele = str(yaml.safe_load((self.dd.parent / "modele.yaml").read_text(encoding="utf-8"))["modele"])
+        return {"projet": pid, "attente": "" if pid else pl["projet_de"], "temps": pl["temps"], "plans": len(pl["scenes"]), "modele": modele, "perime": pl["modele"] != modele,
+                "remarques": [{"plan": noms.get(str(r.get("scene")), ""), "grave": bool(r.get("grave")), "msg": r["msg"]} for r in rem]}
+
     def _rattache(self, nom):
         """Projet ouvert par l'import d'un depot qui ne nommait pas de projet ("" si aucun)."""
-        for d in sorted(self.dj.glob("p*/projet.json"), reverse=True):
+        for d in [] if not nom else sorted(self.dj.glob("p*/projet.json"), reverse=True):
             if nom in (_load(d, {}).get("depots") or {}):
                 return d.parent.name
         return ""
@@ -1235,7 +1365,9 @@ class Atelier:
         if f.parent != self.dd or not f.is_file() or not re.fullmatch(r"[A-Za-z0-9_.-]{1,80}\.yaml", f.name):
             raise ValueError("fichier inconnu")
         pl = self._plan(f)
-        pid = pl["projet"] or self._rattache(f.name)
+        pid = pl["projet"] or self._rattache(f.name) or self._rattache(pl["projet_de"])
+        if not pid and pl["projet_de"]:
+            raise ValueError(f"importer d'abord « {pl['projet_de']} » (le temps 1 de cette vidéo) : ce fichier ira dans son projet")
         if not pid:  # depot sans projet : en ouvrir un
             pid = self.save_projet({"personnage": pl["personnage"] or b.get("personnage"), "titre": pl["titre"] or f.stem})["id"]
         with self.lock:
@@ -1720,6 +1852,8 @@ class Atelier:
             return self.etat()
         if path == "/api/a/personnage":
             return self.perso(g("slug"))
+        if path == "/api/a/fiche":
+            return self.fiche_deposee(g("f"))
         if path == "/api/a/projet":
             return self.projet(g("id"))
         if path == "/api/a/ecrire":

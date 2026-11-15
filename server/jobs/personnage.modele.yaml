@@ -1,0 +1,63 @@
+# MODELE DE FICHE DE PERSONNAGE : reference en cours de validite.
+# Une fiche s'ecrit en copiant ce fichier dans server/jobs/atelier/personnages/<nom_court>.yaml
+# (nom court : minuscules, chiffres, _ ; 24 caracteres au plus ; c'est lui qui nomme le personnage dans les plans,
+# champ "atelier.personnage"). Elle apparait dans la page Atelier, Personnages, "Fiches deposees par votre agent" :
+# le proprietaire l'ouvre, la relit, la corrige et l'enregistre. Rien n'est enregistre sans lui.
+# Avant de l'annoncer : python3 tools/triage/verifier.py server/jobs/atelier/personnages/<nom_court>.yaml
+#
+# REGLES (docs/compliance.md) : personnage FICTIF, ADULTE (21 ans au moins, et qui les parait), sans ressemblance
+# avec une personne reelle (ni nom, ni visage, ni "ressemble a ..."), presente comme cree par IA.
+#
+# Qui lit quoi :
+#   - "fiche", "ecriture", "accroche" : lus par le scenariste a chaque idee, scenario et texte. En francais.
+#   - "lieux", "tenues" : le scenariste y pioche la fiche de continuite. Forme "francais | anglais" : la partie
+#     francaise sert a choisir, la partie anglaise part telle quelle dans la description des images.
+#   - "generation" : colle dans chaque description d'image. En anglais, sans accent.
+#
+# Historique
+#   2026-11-15   premiere version.
+
+modele: "2026-11-15"
+nom: "Prenom Nom"            # invente ; verifier qu'il n'est pas celui d'une personne connue
+age: 27                      # 21 au moins
+langue: en                   # langue de ses publications : en ou fr
+accroche: ""                 # la phrase qui la resume, en francais (200 caracteres au plus)
+
+fiche:                       # chaque champ : 2 a 6 phrases en francais, 1500 caracteres au plus
+  identite: ""               # metier, ville, situation, d'ou elle vient
+  apparence: ""              # ce qu'on voit d'elle : taille, silhouette, cheveux, yeux, peau, signes distinctifs, style
+  voix: ""                   # comment elle parle et ecrit : registre, tics de langage, mots a elle
+  personnalite: ""           # caractere, humour, defauts, contradictions (un defaut vrai rend le personnage credible)
+  seduction: ""              # sa maniere a elle de seduire : ce qu'elle fait, ce qu'elle ne fait jamais
+  univers: ""                # routine, lieux de vie, objets, fil rouge qui revient d'une video a l'autre
+  limites: ""                # ce qu'elle refuse, ce qui ne colle pas au personnage
+
+lieux:                       # 4 a 8 lieux ou elle peut etre filmee, "francais | anglais"
+  - "sa cuisine, plan de travail en bois | in her small kitchen with a wooden counter and white tiles"
+  # La partie anglaise commence par "in" / "on" / "at", decrit 3 ou 4 elements fixes du decor (murs, sol, meuble,
+  # fenetre) et rien qui bouge. Elle sera repetee mot pour mot d'une image a l'autre : c'est ce qui tient le decor.
+
+tenues:                      # 4 a 8 tenues, "francais | anglais"
+  - "robe d'ete | a light summer dress with thin straps"
+  # La partie anglaise : le vetement, sa couleur, sa matiere, sa coupe ; sans "wearing" devant.
+
+ecriture:
+  ton: ""                    # comment elle ecrit ses accroches et legendes (400 caracteres au plus)
+  cta: ""                    # appel a l'action habituel du carton de fin, dans sa langue
+  plateforme: "Fanvue"       # ou se trouve la suite payante
+  hashtags: ""               # mots-diese proposes a chaque publication
+  interdits: ""              # a ne jamais ecrire ou montrer
+
+generation:
+  zimage_prefix: "a 27 year old woman with long dark hair and brown eyes,"
+  #   Debut de CHAQUE description d'image : age (le meme que "age"), cheveux (longueur, couleur, texture), yeux,
+  #   peau, un ou deux traits du visage. Court (une ligne), que du permanent : ni tenue, ni lieu, ni expression.
+  #   Quand la LoRA du visage sera entrainee, le proprietaire y ajoutera son mot declencheur.
+  lora: ""                   # fichier de la LoRA du visage : LAISSER VIDE (entrainement fait par le proprietaire, ~2 $).
+                             # Sans elle le visage change d'une image a l'autre : la fiche sert d'abord aux images
+                             # d'entrainement, puis aux videos.
+  lora_strength: 1.0
+  corps: ""                  # silhouette en anglais, ajoutee a chaque image (600 caracteres au plus)
+  suffixe: ""                # vide : reglage commun a tous les personnages (qualite, grain, objectif)
+  note: ""                   # pour le scenariste : ce que la LoRA du visage porte deja (tatouages, piercing), a ne
+                             # pas redecrire dans les plans. Vide tant qu'il n'y a pas de LoRA.

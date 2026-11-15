@@ -4,3 +4,4 @@ plan.json
 __pycache__/
 .claude/settings.local.json
 server/jobs/atelier/*.yaml
+server/jobs/atelier/personnages/*.yaml

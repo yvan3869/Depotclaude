@@ -28,8 +28,10 @@
 #                au montage. Ne plus ecrire de mouvement de camera dans "motion".
 #   2026-11-14j  bloc "atelier" : ambiance (fond sonore du lieu, une phrase en anglais), avec le temps 1.
 #   2026-11-14k  champ de plan son (atelier) : bruit du geste, une phrase en anglais, cale au montage sur le geste.
+#   2026-11-15a  bloc "atelier" : projet_de (temps 2 a 4 d'une video entiere deposee d'un coup : nom du fichier du
+#                temps 1, le depot ira dans le projet que ce fichier ouvre ; plus besoin d'attendre le numero du projet).
 
-modele: "2026-11-14k"
+modele: "2026-11-15a"
 name: monlot                 # prefixe des fichiers produits (lettres, chiffres, _), unique par lancement
 
 # --- Facultatif : plans deposes dans l'atelier (docs/agents.md, "Deposer des plans") --------------
@@ -39,6 +41,8 @@ name: monlot                 # prefixe des fichiers produits (lettres, chiffres,
 # "end_image" (les raccords se demandent par "raccord", l'image de reference par "reference").
 # atelier:
 #   projet: p0001            # projet auquel ajouter les plans ; "" ou absent : nouveau projet
+#   projet_de: ""            # temps 2 a 4 d'une video nouvelle, a la place de "projet" : nom du fichier du temps 1 de la
+#                            # meme video ("mavideo_t1.yaml"). Le depot ira dans le projet ouvert par l'import de ce fichier.
 #   temps: 3                 # 1 accroche tous publics, 2 montee suggestive, 3 devoile (nudite, sans acte), 4 final prive
 #   personnage: lea          # seulement pour un nouveau projet (fiche de persona/personnages/)
 #   titre: ""                # seulement pour un nouveau projet

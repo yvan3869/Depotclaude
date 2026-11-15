@@ -1,4 +1,4 @@
-# Piloter la generation depuis un autre agent (14/11/2026, revu le 14/11 : quatre temps, bibliotheque de LoRA, depot dans l'atelier, date du personnage, continuite et raccords)
+# Piloter la generation depuis un autre agent (14/11/2026, revu le 15/11 : verificateur, video entiere deposee d'un coup, fiches de personnage, skills)
 
 Fiche destinee a un agent installe sur le serveur Oracle (par exemple OpenClaw) et configure par le
 proprietaire. L'agent ecrit des fichiers de plans. Il les depose dans l'Atelier, ou le proprietaire
@@ -45,6 +45,7 @@ Ne pas dire "sequence" ni "phase" pour un temps, ni "lot" pour un projet.
   "wearing ...", "naked", "topless" ou nommer le vetement. Seul un plan en raccord `continu` en est dispense. Ne pas ecrire "nsfw" : l'atelier l'ajoute a chaque `still` de ces temps.
 - Un seul lancement a la fois. Ne jamais redemarrer le conteneur `triage`.
 - Ne rien modifier hors de `server/jobs/` (fichiers de plans de l'agent, dont `server/jobs/atelier/`).
+- Verifier chaque depot avant de l'annoncer : `python3 tools/triage/verifier.py <fichier>` (voir "Verifier un depot").
   Le reste du depot et `server/data/` se lisent, ils ne s'ecrivent pas.
 
 ## Un projet en quatre temps
@@ -285,6 +286,7 @@ y placer un geste ni un texte important. Elle est remplacee par une coupe si l'u
        name: p0001_final
        atelier:
          projet: p0001        # projet vise ; "" ou absent : la page cree un nouveau projet
+         # projet_de: mavideo_t1.yaml   # temps 2 a 4 d'une video nouvelle, a la place de "projet"
          temps: 3             # 1, 2, 3 ou 4 (voir "Un projet en quatre temps")
          personnage: lea      # seulement pour un nouveau projet
          titre: ""            # seulement pour un nouveau projet
@@ -324,9 +326,11 @@ y placer un geste ni un texte important. Elle est remplacee par une coupe si l'u
    `titre`, `texte`, `voix`, `son`, `role`, `raccord`, `transition`, `camera`, `libre`, `cran`. De 1 a 10 plans par fichier. `steps`, `image`,
    `edit`, `suite_de`, `end_image` et `character` ne sont pas repris (un depot qui en porte est refuse) ; `body` et `dest` sont inutiles (le temps et la fiche du personnage en
    tiennent lieu). Un fichier par projet et par temps.
-   Video entiere : quatre fichiers. Deposer d'abord celui du temps 1 sans `projet` (avec `personnage`
-   et `titre`) ; une fois importe, le proprietaire donne le numero du projet cree, a reporter dans
-   `projet` pour les fichiers des temps 2, 3 et 4. Ne pas deviner ce numero.
+   Video entiere : quatre fichiers, deposes ensemble (modele `2026-11-15a`). Celui du temps 1 ne nomme pas de
+   `projet` (il porte `personnage` et `titre`) ; ceux des temps 2, 3 et 4 portent `projet_de: <fichier du temps 1>`
+   a la place de `projet`. Le proprietaire importe le temps 1 depuis l'accueil de l'atelier : les autres fichiers
+   apparaissent alors dans la page du projet cree, prets a importer. Tant que le temps 1 n'est pas importe, ils
+   restent a l'accueil avec la mention "suite de ...". Ne jamais deviner un numero de projet.
    Date du personnage : pour un nouveau projet, la mettre dans le fichier du temps 1 (celle donnee par
    le proprietaire) ; sans elle, la page prend le jour de l'import. Pour un projet existant, ne pas la
    remettre : celle du projet fait foi. Une date mal formee bloque le depot.
@@ -338,6 +342,35 @@ y placer un geste ni un texte important. Elle est remplacee par une coupe si l'u
    et le proprietaire reimporte ; les scenes sont remplacees une a une, et l'image deja calculee est
    gardee tant que `still` n'a pas change. Un plan retire du fichier reste dans le projet.
    Les textes de publication remplis dans le fichier remplacent ceux du projet a chaque import.
+
+## Verifier un depot
+Avant d'annoncer un fichier au proprietaire, le passer au verificateur (sur le serveur, compte `debian`, sans
+GPU ni IA, lecture seule) :
+
+    cd /home/debian/Depotclaude
+    python3 tools/triage/verifier.py server/jobs/atelier/<nom>.yaml [autre.yaml ...]
+    python3 tools/triage/verifier.py --etat    # modeles en cours, personnages, projets
+
+Il dit ce que la page dira : `REFUSE` (le depot ne sera pas importable), `PERIME` (la ligne `modele` n'est pas
+celle du modele en cours), `GRAVE` et `remarque` (controle des plans, avec le nom du plan), ou "rien a corriger".
+Code de sortie : 0 rien a corriger, 1 des remarques restent, 2 refuse ou perime. Corriger et relancer jusqu'a 0 ;
+une remarque laissee expres s'explique dans `note`. Pour un temps 2 a 4 depose avec `projet_de`, le controle
+prend la fiche de continuite du fichier du temps 1.
+
+## Deposer une fiche de personnage
+L'agent peut aussi creer un personnage. Il copie `server/jobs/personnage.modele.yaml` (seule reference du
+format, avec sa ligne `modele` et son historique) vers `server/jobs/atelier/personnages/<nom_court>.yaml`, le
+remplit et le verifie avec le meme outil. La fiche apparait dans la page Atelier, Personnages, sous "Fiches
+deposees par votre agent" (et un rappel a l'accueil) : le proprietaire l'ouvre dans le formulaire du personnage,
+la corrige et l'enregistre. Rien n'entre en service sans lui ; une fiche de moins de 21 ans est refusee.
+`generation.lora` reste vide : la LoRA du visage est entrainee par le proprietaire, et sans elle le visage change
+d'une image a l'autre. Le nom court du fichier est celui qu'on ecrit ensuite dans `atelier.personnage`.
+
+## Skills de l'agent
+`agents/girls-ai-scenariste/SKILL.md` et `agents/girls-ai-casting/SKILL.md` : deux skills a installer dans
+l'agent du proprietaire (par un lien vers ces dossiers). Ils ne contiennent pas le format : ils imposent de
+relire a chaque seance ce document, `server/jobs/modele.yaml` et `server/jobs/personnage.modele.yaml`, puis de
+verifier avant de livrer. Une evolution du format se fait donc ici et dans les modeles, pas dans les skills.
 
 Les fichiers de `server/jobs/atelier/` ne sont pas suivis par git. Le lancement direct du pilote
 (ci-dessous) reste possible pour des essais hors atelier : ces images vont dans le Tri, pas dans un projet.

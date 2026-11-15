@@ -384,3 +384,11 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
   meme description du lieu). Conclusion : pas branche dans l'atelier ; le tirage commun et un « lieu » precis
   suffisent pour l'instant. Images dans data/work/girls-ai-essai-decor, planches p0004essai_decor_a/b/c dans le Tri.
   Pod de 5 minutes, environ 0,06 $.
+- 15/11 : scenariste et casting confies a l'agent du proprietaire (OpenClaw). Mis en place, sans depense GPU :
+  `tools/triage/verifier.py` (l'agent verifie lui-meme ses depots : refus, modele perime, remarques du controle des
+  plans, code de sortie) ; modele de plan `2026-11-15a` (`atelier.projet_de` : les quatre temps d'une video se deposent
+  ensemble, les temps 2 a 4 suivent le projet ouvert par le fichier du temps 1) ; depot de fiches de personnage
+  (`server/jobs/personnage.modele.yaml`, `server/jobs/atelier/personnages/`, section "Fiches deposees par votre agent"
+  de la page Personnages, enregistrement par le proprietaire seulement) ; deux skills dans `agents/`
+  (`girls-ai-scenariste`, `girls-ai-casting`), courts, qui renvoient aux regles du depot pour suivre les changements
+  de format. Rien n'est ecrit dans la configuration d'OpenClaw : le proprietaire demande l'installation a son agent.

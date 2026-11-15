@@ -73,8 +73,8 @@ const QUOI = {1: 'Tous publics, pour les réseaux : elle donne envie de voir la 
   4: 'Explicite, avec actes. Vendu à l\'unité. Ce temps est à votre main : le rédacteur IA ne l\'écrit pas, ne le relit pas et ne l\'analyse pas.'};
 const CONSIGNES_T2 = ['Plus lente, plus intime', 'Plus près de la caméra', 'Tenue plus défaite, toujours suggestif', 'Fin qui annonce mieux la suite payante'];
 const depotHtml = x => `<div class="var"><b>${esc(x.titre || x.fichier)}</b> <span class="mut">${esc(x.fichier)}, ${esc(x.date)}</span>
-  ${x.erreur ? `<div class="err">Refusé : ${esc(x.erreur)}</div>` : `<div class="mut">${x.n} plan(s) pour le temps ${x.temps}${x.projet ? '' : ', nouveau projet'}${x.perime ? ' ; écrit d\'après un modèle périmé' : ''}${x.remarques ? ` ; ${x.remarques} remarque(s) au contrôle des plans` : ''}${x.note ? ' ; ' + esc(x.note) : ''}</div>
-  <div class="row" style="margin-top:6px">${x.importe ? '<span class="okc">Importé</span>' : `<button class="p s" data-a="importer" data-n="${esc(x.fichier)}">${ic('importer')}${x.change ? 'Réimporter (fichier modifié)' : 'Importer dans le projet'}</button>`}</div>`}</div>`;
+  ${x.erreur ? `<div class="err">Refusé : ${esc(x.erreur)}</div>` : `<div class="mut">${x.n} plan(s) pour le temps ${x.temps}${x.projet || x.attente ? '' : ', nouveau projet'}${x.perime ? ' ; écrit d\'après un modèle périmé' : ''}${x.remarques ? ` ; ${x.remarques} remarque(s) au contrôle des plans` : ''}${x.note ? ' ; ' + esc(x.note) : ''}</div>
+  <div class="row" style="margin-top:6px">${x.importe ? '<span class="okc">Importé</span>' : x.attente ? `<span class="mut">Suite de « ${esc(x.attente)} » : importez d'abord ce fichier, celui-ci ira dans son projet.</span>` : `<button class="p s" data-a="importer" data-n="${esc(x.fichier)}">${ic('importer')}${x.change ? 'Réimporter (fichier modifié)' : 'Importer dans le projet'}</button>`}</div>`}</div>`;
 const CONSIGNES = ['Plus aguicheur, plus de tension', 'Accroche plus forte dès la première seconde', 'Coupe plus frustrante à la fin', 'Plus drôle, plus d\'autodérision', 'Autre lieu, autre tenue', 'Plus court'];
 const CONSIGNES_SCENE = ['Plus sensuelle, toujours suggestive', 'Plus près de la caméra', 'Geste plus simple et plus lent', 'Texte à l\'écran plus percutant', 'Autre tenue'];
 
@@ -116,6 +116,7 @@ async function route() {
     else if (h[0] === 'persos') vuePersos();
     else if (h[0] === 'loras') vueLoras();
     else if (h[0] === 'perso') await vuePerso(h[1] || '');
+    else if (h[0] === 'fiche') await vuePerso('', h[1] || '');
     else vueProjets();
   } catch (e) { vue.innerHTML = `<p class="err">${esc(e.message)}</p><p><a href="#/">Retour</a></p>`; }
   window.scrollTo(0, 0);
@@ -133,6 +134,7 @@ function vueProjets() {
       <span class="sp"></span><a href="#/perso/${esc(cur)}">Fiche de ${esc(p.nom.split(' ')[0])}</a></div>
     ${p.lora ? '' : '<p class="mut">Ce personnage n\'a pas de LoRA : son visage variera d\'une image à l\'autre.</p>'}
     <div id="idees"></div>
+    ${(E.fiches || []).some(x => !x.fait) ? `<div class="panel"><div class="row"><span>Votre agent a déposé ${E.fiches.filter(x => !x.fait).length} fiche(s) de personnage à relire.</span><span class="sp"></span><button class="p s" onclick="location.hash='#/persos'">${ic('importer')}Voir les fiches</button></div></div>` : ''}
     ${E.depots.length ? `<h2>Plans déposés par l'agent <small>sans projet</small></h2><div class="panel">${E.depots.map(depotHtml).join('')}</div>` : ''}
     <h2>Projets <small>${liste.length}, par date du personnage</small></h2>
     ${liste.map(x => `<a class="card" href="#/p/${x.id}">
@@ -695,20 +697,26 @@ async function defautsSauver() {
 function vuePersos() {
   vue.innerHTML = `<div class="row tete"><a class="lien" href="#/">${ic('retour')}Retour aux projets</a><span class="sp"></span><button class="p" onclick="location.hash='#/perso'">${ic('ajouter')}Nouveau personnage</button></div>
     <h2>Personnages</h2>` + E.personnages.map(p => `<a class="card" href="#/perso/${esc(p.slug)}"><div><b>${esc(p.nom)}${p.statut === 'archive' ? ' (archivé)' : ''}</b>
-      <span class="mut">${esc(p.accroche)}</span><span class="mut">${p.age} ans, publie en ${esc(p.langue)}, ${p.lora ? 'LoRA en place' : 'sans LoRA'}, ${E.projets.filter(x => x.personnage === p.slug).length} vidéo(s)</span></div></a>`).join('');
+      <span class="mut">${esc(p.accroche)}</span><span class="mut">${p.age} ans, publie en ${esc(p.langue)}, ${p.lora ? 'LoRA en place' : 'sans LoRA'}, ${E.projets.filter(x => x.personnage === p.slug).length} vidéo(s)</span></div></a>`).join('')
+    + ((E.fiches || []).some(x => !x.fait) ? `<h2>Fiches déposées par votre agent <small>à relire puis enregistrer</small></h2><div class="panel">${E.fiches.filter(x => !x.fait).map(x => `<div class="var"><b>${esc(x.nom || x.fichier)}</b> <span class="mut">${esc(x.fichier)}, ${esc(x.date)}</span>
+      ${x.erreur ? `<div class="err">Refusée : ${esc(x.erreur)}</div>` : `<div class="mut">${x.age} ans${x.accroche ? ' ; ' + esc(x.accroche) : ''}${x.perime ? ' ; écrite d\'après un modèle périmé' : ''}${x.remarques.length ? ` ; ${x.remarques.length} remarque(s)` : ''}${x.existe ? ' ; remplacera la fiche du même nom' : ''}</div>
+      <div class="row" style="margin-top:6px"><button class="p s" onclick="location.hash='#/fiche/${esc(x.fichier)}'">${ic('importer')}Ouvrir la fiche</button></div>`}</div>`).join('')}</div>` : '');
 }
 const FICHE = [['identite', 'Identité (métier, ville, situation)'], ['apparence', 'Apparence'], ['voix', 'Voix, tics de langage'], ['personnalite', 'Personnalité, défauts'],
   ['seduction', 'Manière de séduire'], ['univers', 'Univers, routine, fil rouge'], ['limites', 'Limites']];
-async function vuePerso(slug) {
-  const p = slug ? await api('/api/a/personnage?slug=' + encodeURIComponent(slug)) : {nom: '', age: '', langue: 'en', fiche: {}, lieux: [], tenues: [], ecriture: {plateforme: 'Fanvue'}, generation: {lora_strength: 1}};
+async function vuePerso(slug, depot) {
+  const dep = depot ? await api('/api/a/fiche?f=' + encodeURIComponent(depot)) : null;
+  const p = slug ? await api('/api/a/personnage?slug=' + encodeURIComponent(slug)) : dep ? dep.personnage : {nom: '', age: '', langue: 'en', fiche: {}, lieux: [], tenues: [], ecriture: {plateforme: 'Fanvue'}, generation: {lora_strength: 1}};
   const i = (k, lab, v, o = {}) => `<label>${lab}${o.area ? `<textarea data-p="${k}" rows="${o.rows || 2}" placeholder="${esc(o.ph || '')}">${esc(v)}</textarea>`
     : `<input data-p="${k}" type="${o.type || 'text'}" ${o.step ? `step="${o.step}"` : ''} value="${esc(v)}" placeholder="${esc(o.ph || '')}">`}${aide(o.aide)}</label>`;
   const g = p.generation || {}, w = p.ecriture || {};
   vue.innerHTML = `<div class="row tete"><a class="lien" href="#/persos">${ic('retour')}Personnages</a></div>
-    <h2>${slug ? esc(p.nom) : 'Nouveau personnage'}</h2>
-    ${slug ? '' : `<div class="panel"><label>Concept, en une ou deux phrases<textarea id="concept" rows="2" placeholder="Une barmaid de nuit à Marseille, brune, tatouée, grande gueule et tendre"></textarea></label>
+    <h2>${slug ? esc(p.nom) : dep ? 'Fiche déposée : ' + esc(p.nom) : 'Nouveau personnage'}</h2>
+    ${dep ? `<div class="panel"><div class="mut">Fiche écrite par votre agent (${esc(depot)}). Rien n'est enregistré tant que vous n'appuyez pas sur Enregistrer, en bas.${dep.existe ? ' <b>Elle remplacera la fiche du personnage du même nom.</b>' : ''}</div>
+      ${dep.remarques.length ? `<div class="err" style="margin-top:6px">${dep.remarques.map(esc).join('<br>')}</div>` : ''}</div>` : ''}
+    ${slug || dep ? '' : `<div class="panel"><label>Concept, en une ou deux phrases<textarea id="concept" rows="2" placeholder="Une barmaid de nuit à Marseille, brune, tatouée, grande gueule et tendre"></textarea></label>
       <div class="row"><button class="p" data-a="persoia" ${E.redacteur ? '' : 'disabled'}>${ic('ecrire')}Rédiger la fiche avec l'IA</button><span class="mut">${E.redacteur ? 'La fiche reste modifiable avant enregistrement.' : 'Rédacteur IA arrêté : remplir la fiche à la main.'}</span></div></div>`}
-    <div class="panel"><input type="hidden" data-p="slug" value="${esc(slug)}">
+    <div class="panel"><input type="hidden" data-p="slug" value="${esc(dep ? p.slug : slug)}">
       <div class="mut">Ce que le rédacteur IA sait d'elle : il s'en sert pour chaque idée, chaque scénario et chaque texte.</div>
       <div class="row"><div class="g">${i('nom', 'Nom', p.nom)}</div><div style="width:84px">${i('age', 'Âge (21 au moins)', p.age, {type: 'number'})}</div>
         <div style="width:110px"><label>Publie en<select data-p="langue"><option value="en" ${p.langue === 'en' ? 'selected' : ''}>anglais</option><option value="fr" ${p.langue === 'fr' ? 'selected' : ''}>français</option></select></label></div></div>
