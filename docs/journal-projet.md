@@ -511,3 +511,7 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
   « extreme close-up portrait, her face fills the frame ». Regle ajoutee au SKILL du scenariste. Dans la page, les
   LoRA du projet et du temps se coupent d'un toucher sur une scene (`nom:0`). Depense GPU du jour : 2,96 $ sur 7,50 $
   (chaine 0,45 $ environ, essais 0,60 $ environ).
+- 15/11, p0005 temps 1 : scenes 2 et 3 reecrites avec les deux textes reussis de l'essai et passees en « libre » (accord du
+  proprietaire), images relancees (series r11 a r15). A l'oeil les prises sont bonnes ; le controleur note 8 une prise de la
+  scene 2 et refuse toutes celles du gros plan (il y cherche le decor et la tenue entiere) : a corriger. Depense GPU du
+  jour : 3,38 $ sur 7,50 $.
