@@ -84,6 +84,17 @@ def decor_gele(g, brouillon, epais, denoise=0.8):
     return g
 
 
+def lieu_depart(g, lieu, w, h, denoise=0.8):
+    """Lieu tenu sans brouillon (scene a plusieurs personnes, que le brouillon de la pose ne sait pas placer) : l'image
+    part de la photo du lieu vide (deja deposee), recadree au format, et le modele dessine les personnes par-dessus
+    d'apres le texte. Plus `denoise` est bas, plus la piece tient et moins les personnes s'y posent librement."""
+    g["li"] = {"class_type": "LoadImage", "inputs": {"image": lieu}}
+    g["ls"] = {"class_type": "ImageScale", "inputs": {"image": ["li", 0], "upscale_method": "lanczos", "width": w, "height": h, "crop": "center"}}
+    g["lat"] = {"class_type": "VAEEncode", "inputs": {"pixels": ["ls", 0], "vae": ["vae", 0]}}
+    g["ks"]["inputs"]["denoise"] = denoise
+    return g
+
+
 def imposer_pose(g, m, pose_name, force=0.9):
     """Ajoute a un graphe de still_zimage une pose imposee : le dessin d'un squelette (image deja deposee) guide la
     position du corps et le cadrage ; le visage, la tenue et le lieu restent ceux du texte et de la LoRA."""

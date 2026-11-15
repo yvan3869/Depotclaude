@@ -1811,10 +1811,11 @@ class Atelier:
 
     # --- Comparaison des methodes : les memes scenes et les memes tirages, fabriques deux fois ---
     def _comparables(self, p, t):
-        """Scenes d'un temps ou le lieu et la tenue de la bibliotheque s'appliquent : ni gros plan, ni scene libre, ni autre
-        personne a l'image (le brouillon de la pose ne sait poser qu'elle), ni scene continue (pas d'image a elle)."""
+        """Scenes d'un temps ou le lieu et la tenue de la bibliotheque s'appliquent : ni gros plan, ni scene libre, ni scene
+        continue (pas d'image a elle). Avec une autre personne a l'image, le brouillon de la pose ne sait poser qu'elle :
+        la comparaison part alors de la photo du lieu, sans brouillon (plan "lieu_depart")."""
         prec = _prec(p)
-        return [s for s in p["scenes"] if s["temps"] == t and s["still"] and not s["libre"] and not s.get("autres") and not _gros_plan(s)
+        return [s for s in p["scenes"] if s["temps"] == t and s["still"] and not s["libre"] and not _gros_plan(s)
                 and not (prec[s["id"]] and s["raccord"] == "continu")]
 
     def comparer(self, b):
@@ -1839,12 +1840,13 @@ class Atelier:
             if b.get("scenes"):
                 sc = [s for s in sc if s["id"] in b["scenes"]]
             if not sc:
-                raise ValueError("aucune scène de ce temps ne peut être comparée : la nouvelle méthode ne s'applique ni aux gros plans, ni aux scènes libres, ni aux scènes où une autre personne est à l'image")
+                raise ValueError("aucune scène de ce temps ne peut être comparée : la nouvelle méthode ne s'applique ni aux gros plans, ni aux scènes libres")
             v, tenues = str(b.get("tenue") or ""), {}
             for t in ts:  # sans choix : la tenue de la fiche de continuite au temps 1, aucune ensuite (elle se defait)
                 ligne = "" if v == "aucune" else v or ((p.get("continuite") or {}).get("tenue") if t == 1 else "")
                 tenues[t] = self.biblio.image(p["personnage"], "t", ligne, True) if ligne else None
             k = min(max(int(b.get("variantes") or 2), 1), 3)
+            force = min(max(float(b.get("force") or 0.8), 0.5), 0.95)  # scenes a deux : part de l'image refaite sur la photo du lieu
             d = self._pdir(pid) / "cmp"
             d.mkdir(exist_ok=True)
             n = max([int(f.stem[1:]) for f in d.glob("c*.json") if f.stem[1:].isdigit()] or [0]) + 1
@@ -1855,15 +1857,18 @@ class Atelier:
             for s in sc:
                 lo = self._loras_scene(p, s, tmin)  # LoRA du projet, du temps et de la scene, comme a la production
                 seed = (p.get("graines") or {}).get(str(s["temps"]), s["seed"])
-                plus = {"decor": str(lieu)} | ({"tenue_image": str(tenues[s["temps"]])} if tenues[s["temps"]] else {})
+                deux = bool(s.get("autres"))  # autre personne a l'image : pas de brouillon, la photo du lieu sert d'image de depart
+                plus = {"lieu_depart": str(lieu), "lieu_force": force} if deux else \
+                    {"decor": str(lieu)} | ({"tenue_image": str(tenues[s["temps"]])} if tenues[s["temps"]] else {})
                 for m, q, x in (("a", pa, {}), ("b", pb, plus)):
                     for i in range(k):
                         shots.append({"name": f"{s['id']}{m}{i + 1}", "still": self._still(q, s), "seed": seed + i, "tattoos": s["tattoos"],
-                                      "body": bool((perso.get("generation") or {}).get("corps")), "squelette": True}
+                                      "body": bool((perso.get("generation") or {}).get("corps")), "squelette": not deux}
                                      | ({"loras": _loras_plan(lo)} if lo else {}) | x)
             job = {"name": f"{pid}c{n}", "character": self.char_override(perso),
                    "defaults": {"still_size": [720, 1280], "mode": "natural", "grain": True, "same_seed": True, "loras": []}, "shots": shots,
                    "cmp": {"temps": ts, "lieu": b["lieu"], "tenue": v, "variantes": k, "scenes": [s["id"] for s in sc],
+                           "deux": [s["id"] for s in sc if s.get("autres")], "force": force,
                            "idees": {s["id"]: self._idee(s) for s in sc},
                            "date": time.strftime("%Y-%m-%d %H:%M")}}
             _dump(d / f"c{n}.json", job)
@@ -1896,11 +1901,11 @@ class Atelier:
             out.append({"n": int(f.stem[1:]), "temps": m.get("temps"), "lieu": m.get("lieu"), "tenue": m.get("tenue"), "date": m.get("date"),
                         "etat": "en cours" if ici else "termine" if "rapport :" in log else "interrompu", "echecs": log.count("ECHEC"),
                         "attendues": 2 * (m.get("variantes") or 1) * len(m.get("scenes") or []), "faites": len(faits),
-                        "scenes": [{"id": sid, "a": noms(sid, "a"), "b": noms(sid, "b"),
+                        "scenes": [{"id": sid, "a": noms(sid, "a"), "b": noms(sid, "b"), "deux": sid in (m.get("deux") or []),
                                     "idee": (m.get("idees") or {}).get(sid) or ici_idees.get(sid) or {}} for sid in m.get("scenes") or []]})
         return {"id": pid, "titre": p["titre"], "personnage": p["personnage"], "occupe": self.studio.running(), "pod": bool(self.studio.pod()),
                 "temps": {t: {"scenes": sum(s["temps"] == t for s in p["scenes"]), "ok": len(self._comparables(p, t)),
-                              "liste": [{"id": s["id"], "titre": s.get("titre") or ""} for s in self._comparables(p, t)]}
+                              "liste": [{"id": s["id"], "titre": s.get("titre") or "", "deux": bool(s.get("autres"))} for s in self._comparables(p, t)]}
                           for t in sorted({s["temps"] for s in p["scenes"]})},
                 "lieux": [{"en": x["en"], "fr": x["fr"]} for x in v["lieux"] if x["images"]],
                 "tenues": [{"en": x["en"], "fr": x["fr"]} for x in v["tenues"] if x["images"]],

@@ -278,7 +278,7 @@ def cmd_run(a):
                 return True
             return False
 
-        decors = {}
+        decors, lieux = {}, {}
         poses = poses_imposees(c, models, char, shots, data, work, over, decors) if cfg.get("image_model", "wan") == "zimage" else {}
         # Images creees d'abord, images tirees d'une autre par retouche ensuite : un seul changement de modele
         # (creation <-> retouche) au lieu d'un par plan, qui coutait une minute a chaque fois.
@@ -324,6 +324,12 @@ def cmd_run(a):
                         if (s["name"], s["still"]) in decors:  # decor fixe : seule la zone du personnage est refaite
                             workflows.decor_gele(graph, *decors[(s["name"], s["still"])])
                             entry["decor"] = True
+                    elif s.get("lieu_depart"):  # lieu tenu sans brouillon : l'image part de la photo du lieu vide
+                        if s["lieu_depart"] not in lieux:
+                            f = Path(s["lieu_depart"])
+                            lieux[s["lieu_depart"]] = c.upload(f"ga_lieu{len(lieux)}.png", (f if f.is_absolute() else data / f).read_bytes())
+                        workflows.lieu_depart(graph, lieux[s["lieu_depart"]], *s["still_size"], float(s.get("lieu_force") or 0.8))
+                        entry["lieu_depart"] = True
                 else:
                     prompt = f"{char['prefix']}{s['still']}{char.get('still_suffix', '')}"
                     graph = workflows.still(models, char, prompt, *s["still_size"], seed, f"ga_{name}")

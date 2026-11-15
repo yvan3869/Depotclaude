@@ -139,18 +139,19 @@ function rendreComparer() {
       <div class="mut">Moments à comparer : toucher pour choisir</div>
       <div class="chips cmc">${ts.map(t => `<button class="chip ${CM.t.includes(t) ? 'on' : ''}" data-a="cmtemps" data-t="${t}" ${C.temps[t].ok ? '' : 'disabled'}>${t}. ${TEMPS[t][0]} <small>${C.temps[t].ok} sur ${C.temps[t].scenes}</small></button>`).join('')}</div>
       ${CM.t.map(t => `<div class="mut" style="margin-top:6px">Scènes du moment ${t} : toucher pour retirer ou remettre</div>
-      <div class="chips cmc">${C.temps[t].liste.map(s => `<button class="chip ${CM.x.includes(s.id) ? '' : 'on'}" data-a="cmscene" data-s="${s.id}">${esc(s.id.slice(1))}${s.titre ? ' · ' + esc(s.titre) : ''}</button>`).join('')}</div>`).join('')}
-      ${ts.every(t => C.temps[t].ok) ? '' : '<div class="mut" style="color:var(--warn)">Un temps à 0 ne peut pas être comparé. La nouvelle méthode ne s\'applique ni aux gros plans, ni aux scènes libres, ni aux scènes où une autre personne est à l\'image.</div>'}
+      <div class="chips cmc">${C.temps[t].liste.map(s => `<button class="chip ${CM.x.includes(s.id) ? '' : 'on'}" data-a="cmscene" data-s="${s.id}">${esc(s.id.slice(1))}${s.titre ? ' · ' + esc(s.titre) : ''}${s.deux ? ' <small>à deux</small>' : ''}</button>`).join('')}</div>`).join('')}
+      ${ts.every(t => C.temps[t].ok) ? '' : '<div class="mut" style="color:var(--warn)">Un temps à 0 ne peut pas être comparé. La nouvelle méthode ne s\'applique ni aux gros plans, ni aux scènes libres.</div>'}
       <label>Lieu${C.lieux.length ? sel('l', C.lieux.map(x => [x.en, x.fr || x.en])) : '<div class="mut">Aucun lieu du personnage n\'a d\'image : en créer dans son atelier.</div>'}</label>
       <label>Tenue${sel('ten', [['', T1 ? 'Celle de la fiche de continuité' : CM.t.includes('1') ? 'Fiche de continuité au temps 1, aucune ensuite' : 'Aucune : dite par le texte'], ...(CM.t.includes('1') ? [['aucune', 'Aucune : dite par le texte']] : []), ...C.tenues.map(x => [x.en, x.fr || x.en])])}</label>
       <label>Images par scène et par méthode${sel('n', [[1, '1'], [2, '2'], [3, '3']])}</label>
       <div class="row"><button class="p" data-a="cmplancer" ${ok && CM.l && !C.occupe && E.can_run ? '' : 'disabled'}>${ic('lancer')}Lancer la comparaison</button>
         <span class="mut">${C.occupe ? 'Un calcul est en cours : attendre sa fin.' : ok ? `${n} images, environ ${usd((C.pod ? 0.05 : 0.12) + n * 0.02)}, ${Math.round(2 + n * 1.6)} min.` : ''}</span></div>
+      ${CM.t.some(t => C.temps[t].liste.some(s => s.deux && !CM.x.includes(s.id))) ? '<div class="mut">Scènes « à deux » : la nouvelle méthode ne place pas les corps. L\'image part de la photo du lieu et les personnes sont dessinées d\'après le texte ; la tenue choisie ne joue pas.</div>' : ''}
       <div class="mut"><a class="lien" href="#/atelier/${esc(C.personnage)}">${ic('personnage')}Atelier du personnage</a> : lieux et tenues disponibles. Sans image retenue, la première image de la ligne sert.</div>
     </div>
     ${C.lancements.map(x => `<h2>Temps ${[].concat(x.temps).join(', ')} · ${esc(nom(C.lieux, x.lieu))}${x.tenue ? ' · ' + esc(nom(C.tenues, x.tenue)) : ''}</h2>
       <div class="mut">${esc(x.date || '')} · ${x.etat === 'en cours' ? `en cours, ${x.faites} image(s) sur ${x.attendues}` : x.etat === 'termine' ? `terminé, ${x.faites} image(s)` : `interrompu, ${x.faites} image(s) sur ${x.attendues}`}${x.echecs ? ` · ${x.echecs} échec(s)` : ''}</div>
-      ${x.scenes.map(s => `<div class="panel"><b>Scène ${esc(s.id.slice(1))}${s.idee && s.idee.titre ? ' · ' + esc(s.idee.titre) : ''}</b>${idee(s.idee || {})}${rang('Méthode actuelle : lieu et tenue venus du texte', s.a)}${rang('Nouvelle méthode : lieu et tenue venus des images', s.b)}</div>`).join('')}`).join('') || '<p class="mut">Aucune comparaison lancée pour ce projet.</p>'}`;
+      ${x.scenes.map(s => `<div class="panel"><b>Scène ${esc(s.id.slice(1))}${s.idee && s.idee.titre ? ' · ' + esc(s.idee.titre) : ''}</b>${idee(s.idee || {})}${rang('Méthode actuelle : lieu et tenue venus du texte', s.a)}${rang(s.deux ? 'Nouvelle méthode, scène à deux : l\'image part de la photo du lieu, la pose reste libre' : 'Nouvelle méthode : lieu et tenue venus des images', s.b)}</div>`).join('')}`).join('') || '<p class="mut">Aucune comparaison lancée pour ce projet.</p>'}`;
 }
 // --- Etat general, barre du haut -------------------------------------------------------------------
 async function etat() {
