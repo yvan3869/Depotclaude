@@ -178,16 +178,49 @@ class Biblio:
             return out
         g = p.get("generation") or {}
         vis = [n for n in noms if n.startswith("v_")]
+        series = self._series(slug)
         j = self.job if self.job and self.job["slug"] == slug else None
         return {"slug": slug, "nom": p["nom"], "lora": bool(g.get("lora")), "lora_force": g.get("lora_strength"), "prefixe": bool(g.get("zimage_prefix")),
                 "lieux": lignes("lieux", "l"), "tenues": lignes("tenues", "t"),
                 "visage": {"images": vis, "choix": b["choix"].get("visage") if b["choix"].get("visage") in vis else ""},
                 "planches": [{"nom": n, "garde": bool(b["planches"].get(n, {}).get("garde")), "legende": b["planches"].get(n, {}).get("legende", "")}
                              for n in noms if n.startswith("c_")],
+                "series": {s: series[s] for s in {n.split("_")[1] for n in noms if n.startswith("c_")} if s in series},
                 "loras": [{k: lo.get(k) for k in ("nom", "etat", "date", "passages", "images", "cout")} | {"en_place": bool(lo.get("fichier")) and lo.get("fichier") == g.get("lora"),
                            "essais": [n for n in noms if n.startswith(f"e_{lo['v']}_")]} for lo in b["loras"]],
                 "job": ({"quoi": j["quoi"], "n": j["n"]} | self._etat(j["log"], self._ici(j["log"]))) if j else None,
                 "occupe": self.at.studio.running(), "pod": bool(self.at.studio.pod()), "forces": FORCES, "poses": [x[0] for x in POSES]}
+
+    def _series(self, slug):
+        """Reglages de chaque serie de planches, relus dans les fiches de lancement (lots/planches-*.json) : date, tenue, adultes, LoRA en plus."""
+        memo = self.__dict__.setdefault("_memo_series", {})
+        out = {}
+        for f in sorted((self.dir(slug) / "lots").glob("planches-*.json")):
+            if str(f) not in memo:
+                try:
+                    lot = json.loads(f.read_text(encoding="utf-8"))
+                    T = lot["taches"]
+                    serie = int(T[0]["sortie"].split("_")[1])
+                    rg = lot.get("reglages")
+                    if not rg:  # fiche d'avant les reglages notes : la tenue se relit dans le texte de chaque planche
+                        habits = []
+                        for i, t in enumerate(T):
+                            cadre, fond = CADRES[(i * 7 + serie) % len(CADRES)], FONDS[(i + serie) % len(FONDS)]
+                            if "bed" in cadre:
+                                fond = FONDS[1]
+                            h = t["prompt"].partition(f"{cadre}, {fond}, ")[2]
+                            for fin in (FIN, ". Natural smartphone photo.", ", nsfw"):
+                                h = h[:-len(fin)] if h.endswith(fin) else h
+                            habits.append(h)
+                        rg = {"tenue": habits[0] if len(set(habits)) == 1 else "", "nsfw": ", nsfw" in T[0]["prompt"],
+                              "loras": [x if isinstance(x, str) else x.get("name", "") for x in T[0].get("loras") or []]}
+                    m = re.search(r"-(\d{4})(\d\d)(\d\d)-(\d\d)(\d\d)", f.name)
+                    memo[str(f)] = (str(serie), {**rg, "n": len(T), "date": f"{m.group(3)}/{m.group(2)} {m.group(4)}:{m.group(5)}" if m else ""})
+                except Exception:
+                    memo[str(f)] = None
+            if memo[str(f)]:
+                out[memo[str(f)][0]] = memo[str(f)][1]
+        return out
 
     # --- Lignes de la fiche -----------------------------------------------------------------------
     def ajouter(self, b):
@@ -421,7 +454,7 @@ class Biblio:
                 t |= {"lora": True, "loras": [str(x) for x in b.get("loras") or []][:4], "prompt": f"{pre}vertical {desc}{FIN}"}
             taches.append(t)
         self._ecrire(slug, bb)
-        self._lancer(slug, "planches", {"taches": taches}, n)
+        self._lancer(slug, "planches", {"taches": taches, "reglages": {"tenue": tenue, "nsfw": bool(b.get("nsfw")), "loras": [str(x) for x in b.get("loras") or []][:4]}}, n)
         return {"lance": n}
 
     def devis(self, slug, passages):
