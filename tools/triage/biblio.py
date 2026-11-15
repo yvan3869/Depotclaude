@@ -513,6 +513,7 @@ class Biblio:
         p["generation"] = g
         self.at.save_perso(p)
         self._ecrire(slug, bb)
+        (self.dir(slug) / "n_1.png").unlink(missing_ok=True)  # l'image de depart de la cabine sera refaite avec la LoRA en place
         return self.vue(slug)
 
     def revenir(self, b):
@@ -525,6 +526,7 @@ class Biblio:
         p["generation"] = dict(p.get("generation") or {}) | {"lora": h["lora"], "lora_strength": h["force"] or 1.0}
         self.at.save_perso(p)
         self._ecrire(slug, bb)
+        (self.dir(slug) / "n_1.png").unlink(missing_ok=True)  # l'image de depart de la cabine sera refaite avec la LoRA en place
         return self.vue(slug)
 
     # --- Routes -----------------------------------------------------------------------------------
