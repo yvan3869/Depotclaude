@@ -429,6 +429,6 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
   seul lancement (`data/work/girls-ai-serie-<pid>.json`, chaque plan garde le nom de fichier de sa variante par
   `sortie`) et `pilot run` calcule les images creees avant les retouches. Meme essai sur p0004 (2 scenes, 6 images) :
   3 min 30 d'images au lieu de 8 min 30 (9 s par image creee et 18 s par retouche une fois le modele charge),
-  8 min 30 en tout au lieu de 13 min 30 ; 0,19 $. Le pod du controleur demarre maintenant d'apres le nombre
+  8 min 30 en tout au lieu de 13 min 30 ; 0,32 $ au releve (pod de calcul a demarrer compris). Le pod du controleur demarre maintenant d'apres le nombre
   d'images. Reste lent : le controle (4 min, dont 2 d'installation a chaque pod).
 
