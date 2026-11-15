@@ -75,7 +75,7 @@ def controle(p, temps, lib=None):
             sans = [s for s in sc if not any(lib["fiche"].get(n, ("", ""))[0] in cats and lib["fiche"][n][1] == fam for n in _noms(s.get("loras")))]
             if sans:
                 r(f"Temps {temps} : {len(sans)} scène(s) sur {len(sc)} sans LoRA {mot} {quoi}. En choisir une dans « LoRA de ce temps », "
-                  "ou fixer celle par défaut dans la Bibliothèque de LoRA.", grave=temps == 4)
+                  "ou fixer celle par défaut dans les réglages des LoRA.", grave=temps == 4)
     normales = [s for s in sc if not s.get("libre")]
     if len(normales) > 1:
         vides = [lab for k, lab in (("lieu", "lieu"), ("tenue", "tenue")) if not c.get(k) and not (k == "tenue" and temps >= 2)]
@@ -168,12 +168,12 @@ def controle(p, temps, lib=None):
             tmin, lab = (lib.get("tmin") or {}).get(nom, (1, ""))
             if tmin > temps:
                 r(f"LoRA « {nom} » (catégorie {lab}) : admise à partir du temps {tmin} seulement. La retirer de cette scène, "
-                  "ou changer sa catégorie dans le hub.", s, True)
+                  "ou changer sa catégorie dans le Matériel.", s, True)
             bas = (lib.get("bas") or {}).get(nom)
             if bas and lib.get("volume") is not None and bas not in lib["volume"]:
                 r(f"LoRA « {nom} » : {bas} n'est pas sur le volume (inventaire du {lib.get('date') or '?'}).", s, True)
             if not fichier:
-                r(f"LoRA « {nom} » absente du catalogue : le pilote ne saura pas quel fichier charger. L'inscrire dans la bibliothèque de LoRA.", s, True)
+                r(f"LoRA « {nom} » absente du catalogue : le pilote ne saura pas quel fichier charger. L'inscrire dans les réglages des LoRA.", s, True)
             elif lib.get("volume") is not None and fichier not in lib["volume"]:
                 r(f"LoRA « {nom} » : {fichier} n'est pas sur le volume (inventaire du {lib.get('date') or '?'}). "
                   "Le calcul s'arrêterait au démarrage du pod. La déposer par « pilot lora add » ou corriger la scène.", s, True)

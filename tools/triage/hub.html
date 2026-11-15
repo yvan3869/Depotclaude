@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Hub - modèles et LoRA</title>
+<title>Matériel - modèles et LoRA</title>
 <link rel="stylesheet" href="/ui.css">
 <style>
   .grille { display:grid; grid-template-columns:repeat(auto-fill, minmax(165px, 1fr)); gap:10px; margin-top:10px; }
@@ -17,7 +17,7 @@
   .veille p, .veille li { font-size:14px; } .veille ul { padding-left:18px; margin:4px 0; }
   .temps { display:flex; gap:4px; flex-wrap:wrap; } .temps .badge.off { opacity:.35; }
 </style></head><body>
-<header><div class="l1"><a href="/">Studio</a><b>Hub</b><span class="sp"></span><small id="etat"></small></div>
+<header><div class="l1"><a href="/">Studio</a><b>Matériel</b><span class="sp"></span><small id="etat"></small></div>
   <div class="chips" id="onglets"></div></header>
 <main id="vue"></main>
 <script src="/ui.js"></script>
@@ -127,7 +127,7 @@ function vueRetenues() {
         ${E.cle_civitai ? '' : '<div class="aide avt">Clé Civitai absente du service : seules les LoRA de Hugging Face se chargent.</div>'}</div>` : ''}
       ${E.journal.length ? `<details class="pli"${E.en_cours ? ' open' : ''}><summary>Dernier chargement</summary><pre>${esc(E.journal.join('\n'))}</pre></details>` : ''}</details>
     <details class="sec" data-sec="hub-ok"${ouv('hub-ok', true)}><summary><span class="n">2</span>Chargées<small>${ok.length} LoRA</small></summary>
-      <div class="mut">Disponibles dans l'atelier, aux temps que leur catégorie admet. Pour en supprimer une (catalogue et fichier du volume) : « Régler », puis « Supprimer ».</div>
+      <div class="mut">Disponibles dans la Production, aux temps que leur catégorie admet. Pour en supprimer une (catalogue et fichier du volume) : « Régler », puis « Supprimer ».</div>
       ${ok.map(carte).join('') || '<p class="mut">Aucune pour l\'instant.</p>'}</details>`;
 }
 async function regler(el) {
@@ -154,7 +154,7 @@ function vueListe() {
   const par = {};
   E.interne.forEach(x => (par[x.cat] = par[x.cat] || []).push(x));
   vue.innerHTML = effacerHtml() + `<div class="panel"><div class="mut">Les LoRA du catalogue interne, par catégorie. La catégorie décide des temps où une LoRA peut servir.
-      La corbeille la sort du catalogue et efface son fichier du volume. Inscription à la main : <a href="/atelier#/loras">bibliothèque de l'atelier</a>.</div>
+      La corbeille la sort du catalogue et efface son fichier du volume. Inscription à la main : <a href="/atelier#/loras">réglages des LoRA, dans la Production</a>.</div>
       <div style="margin-top:8px;font-size:14px">${E.inventaire ? `Inventaire du volume : <b>${esc(E.inventaire)}</b>` : '<span class="avt">Volume pas encore inventorié</span>'}</div></div>
     ${Object.keys(E.categories).filter(k => par[k]).map(k => `<h2>${esc(E.categories[k].label)} <small>${par[k].length}</small> ${temps(k)}</h2>
       ${par[k].map(x => `<div class="panel"><div class="ret">${x.vignette ? vg(x.vignette) : ''}<div class="g"><b>${esc(x.label)}</b>

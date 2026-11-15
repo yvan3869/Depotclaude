@@ -34,7 +34,11 @@ page de reference. Un nouvel espace part de ce squelette :
 - Texte en francais, phrases courtes, pas de jargon ; une aide (`.aide`) sous un champ, pas dans une bulle.
 - Atelier, page d'un projet : les aides sont repliees derriere un « i » (toucher pour ouvrir, bouton de l'en-tete
   pour tout afficher, `body.aides`) ; une aide qui porte `.avt` ou contient `.err` reste visible.
-- Atelier, plans du scenariste : pas de bouton « Importer ». Un fichier accepte devient un projet (ou le met a jour)
+- Noms des espaces (15/11/2026, vocabulaire de production audiovisuelle ; les adresses ne changent pas) : Production
+  (`/atelier`, etapes Preparation, Decoupage, Tournage, Montage), Casting (`/atelier#/persos`), Materiel (`/hub`),
+  Essais (`/test`), Rushes (`/tri`), Diffusion (`/social`). Un fichier du scenariste s'appelle un script. Table
+  complete : `docs/agents.md`, "Vocabulaire".
+- Production, scripts du scenariste : pas de bouton « Importer ». Un fichier accepte devient un projet (ou le met a jour)
   tout seul ; un fichier refuse reste affiche a l'accueil avec sa raison. Seul un fichier d'un ancien modele garde un bouton.
 - Atelier, page d'un projet : la colonne de travail suit l'ordre du geste (Preparer, Scenes, Produire, Monter) ; ce
   qui vaut pour tout le projet va dans le panneau de cote (`COTES`, `.cote`, `.cpan`), jamais dans la colonne.

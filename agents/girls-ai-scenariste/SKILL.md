@@ -1,12 +1,12 @@
 ---
 name: girls-ai-scenariste
-description: Scénariste de l'atelier girls-ai. À utiliser quand le propriétaire veut imaginer, écrire ou corriger une vidéo d'un personnage (idée, scénario, plans des temps 1 à 4) et la livrer à l'atelier sous la forme exacte qu'il attend, vérifiée avant livraison.
+description: Scénariste de la production girls-ai. À utiliser quand le propriétaire veut imaginer, écrire ou corriger une vidéo d'un personnage (idée, scénario, plans des temps 1 à 4) et la livrer à la Production sous la forme exacte qu'il attend, vérifiée avant livraison.
 ---
 
-# Scénariste de l'atelier girls-ai
+# Scénariste de la production girls-ai
 
-Tu écris des vidéos avec le propriétaire, en conversation, puis tu les livres à l'atelier sous forme de fichiers
-de plans. L'atelier fabrique les images et les clips d'après tes mots, **sans rien comprendre de l'histoire** :
+Tu écris des vidéos avec le propriétaire, en conversation, puis tu les livres à la Production sous forme de scripts
+(un fichier par vidéo). La Production fabrique les images et les clips d'après tes mots, **sans rien comprendre de l'histoire** :
 une vidéo fidèle vient d'un fichier exact, pas d'une belle idée. Ton travail est jugé sur ce que la machine
 produit, pas sur le texte.
 
@@ -89,8 +89,8 @@ Les points où un scénario échoue le plus souvent à l'image :
 
    `REFUSE` et `PERIME` bloquent : corrige. `GRAVE` : corrige. Une `remarque` se corrige aussi ; si tu en
    laisses une parce que le propriétaire l'a voulu ainsi, écris pourquoi dans `note`.
-4. Annonce au propriétaire, en trois lignes : le fichier déposé, le résultat du vérificateur, et ce qu'il
-   lui reste à faire (ouvrir l'Atelier : le projet y est déjà, il n'y a rien à importer ; lancer les images).
+4. Annonce au propriétaire, en trois lignes : le script livré, le résultat du vérificateur, et ce qu'il
+   lui reste à faire (ouvrir la Production : le projet y est déjà, il n'y a rien à importer ; lancer les images).
 5. Correction après coup : modifie le même fichier **sans changer les `name` des plans** (l'image déjà calculée
    est gardée tant que `still` n'a pas changé), revérifie, redis-le. La page reprend le fichier toute seule.
 

@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Réseaux - selfies tous publics</title>
+<title>Diffusion - selfies tous publics</title>
 <link rel="stylesheet" href="/ui.css">
 <style>
   .post { display:flex; gap:10px; }
@@ -13,7 +13,7 @@
   .jour { margin:16px 0 6px; font-size:15px; }
   .deux { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
 </style></head><body>
-<header><div class="l1"><a href="/">Studio</a><b>Réseaux</b><span class="sp"></span><small id="etat"></small></div>
+<header><div class="l1"><a href="/">Studio</a><b>Diffusion</b><span class="sp"></span><small id="etat"></small></div>
   <div class="chips" id="onglets"></div></header>
 <main id="vue"></main>
 <script src="/ui.js"></script>
@@ -92,7 +92,7 @@ function vueReglages() {
         return `<div class="lt ${y ? 'on' : ''}" data-lo="${esc(x.name)}"><button data-a="loratog" title="${esc(x.note || x.label)}"><b>${esc(x.label)}</b><span class="tg"><span class="badge">${esc(x.cat)}</span><span class="badge v">image</span></span>
           <small>${y ? 'Choisie' : 'Toucher pour choisir'}</small></button><div class="fo"${y ? '' : ' hidden'}>Force<input type="number" step="0.05" min="0.1" max="2" value="${y && y.split(':')[1] || x.strength}"></div></div>`; }).join('')}</div>`
         : '<div class="mut">Aucune LoRA d\'image tous publics chargée dans le catalogue.</div>'}
-      ${aide('Une LoRA est un petit complément du modèle d\'image (réalisme, peau, pose). Seules celles du catalogue de l\'atelier classées tous publics sont proposées ici. Sans choix enregistré, celles par défaut du temps 1 sont reprises. Le choix vaut pour les prochaines images, après « Enregistrer ». Pour en ajouter : <a href="/hub">hub</a> ; pour les classer : <a href="/atelier#/loras">Bibliothèque</a>.')}
+      ${aide('Une LoRA est un petit complément du modèle d\'image (réalisme, peau, pose). Seules celles du Matériel classées tous publics sont proposées ici. Sans choix enregistré, celles par défaut du temps 1 sont reprises. Le choix vaut pour les prochaines images, après « Enregistrer ». Pour en ajouter : <a href="/hub">hub</a> ; pour les classer : <a href="/atelier#/loras">Bibliothèque</a>.')}
       ${aide('En automatique, la semaine suivante se prépare à partir du jour choisi : environ ' + cout + ' par semaine, sous le plafond du jour. La mention est ajoutée au texte à copier.')}
       <div class="row"><button class="s p" data-a="regler">${ic('valider')}Enregistrer</button></div>
       <div class="acts" style="margin-top:10px">

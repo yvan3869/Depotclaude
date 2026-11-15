@@ -668,7 +668,7 @@ class Atelier:
             if pid:
                 old = self._raw(pid)
                 if "depots" in b and (b["depots"] or {}) != (old.get("depots") or {}):  # page ouverte avant un import automatique
-                    raise ValueError("Projet mis à jour par un nouveau dépôt du scénariste : la page se recharge.")
+                    raise ValueError("Projet mis à jour par un nouveau script du scénariste : la page se recharge.")
             else:
                 self.perso(b.get("personnage"))
                 nums = [int(d.name[1:]) for d in self.dj.iterdir() if re.fullmatch(r"p\d{4}", d.name)]
@@ -1302,7 +1302,7 @@ class Atelier:
                 raise ValueError(f"plan {nom} : dans les temps 2 à 4, \"still\" dit ce qu'elle porte ou ne porte plus à cet instant "
                                  "(\"wearing ...\", \"naked\"...) ; la tenue de la fiche de continuité ne vaut que pour le temps 1")
             if [k for k in ("steps", "image", "edit", "suite_de", "end_image") if sh.get(k)]:
-                raise ValueError(f"plan {nom} : \"steps\", \"image\", \"edit\", \"suite_de\" et \"end_image\" ne sont pas repris par l'atelier "
+                raise ValueError(f"plan {nom} : \"steps\", \"image\", \"edit\", \"suite_de\" et \"end_image\" ne sont pas repris par la Production "
                                  "(raccords : champ \"raccord\" ; image de référence : \"atelier.reference\")")
             if sh.get("raccord", "coupe") not in RACCORDS:
                 raise ValueError(f"plan {nom} : \"raccord\" vaut coupe, continu ou arrivee")
@@ -1380,7 +1380,7 @@ class Atelier:
                 if pl["projet_de"] and not x["projet"]:
                     x["attente"] = pl["projet_de"]
                 elif not x["projet"] and pl["personnage"] not in self.persos():
-                    raise ValueError(f'"atelier.personnage" : « {pl["personnage"]} » inconnu (un dépôt sans projet nomme un personnage enregistré)')
+                    raise ValueError(f'"atelier.personnage" : « {pl["personnage"]} » inconnu (un script sans projet nomme un personnage enregistré)')
                 elif not x["projet"] and 1 not in pl["lestemps"]:
                     raise ValueError('temps 2 à 4 sans temps 1 : nommer le projet ("atelier.projet")')
                 if self._echecs.get(f.name, (0,))[0] == x["mtime"]:
@@ -1429,7 +1429,7 @@ class Atelier:
                 raise ValueError(f'"atelier.projet_de" : « {pl["projet_de"]} » doit être un dépôt du temps 1 sans "projet"')
             pl["textes"].setdefault("continuite", p1["textes"].get("continuite") or {})
         elif not pid and pl["personnage"] not in self.persos():
-            raise ValueError(f'"atelier.personnage" : « {pl["personnage"]} » inconnu (un dépôt sans projet nomme un personnage enregistré)')
+            raise ValueError(f'"atelier.personnage" : « {pl["personnage"]} » inconnu (un script sans projet nomme un personnage enregistré)')
         elif not pid and 1 not in pl["lestemps"]:
             raise ValueError('temps 2 à 4 sans temps 1 : nommer le projet ("atelier.projet")')
         lib = self._lib()

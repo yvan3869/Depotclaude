@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Atelier</title>
+<title>Production</title>
 <link rel="stylesheet" href="/ui.css">
 <style>
   .scene { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:10px; margin-bottom:10px; }
@@ -58,7 +58,7 @@
   .ver { display:flex; gap:8px; align-items:center; padding:4px 0; font-size:14px; }
 </style></head><body>
 <header>
-  <div class="l1"><a href="/">Studio</a><b>Atelier</b><span class="sp"></span><small id="sauve"></small><small id="redac"></small><small id="gpu"></small><button class="i s" id="baide" title="Afficher ou replier toutes les aides" aria-label="Afficher ou replier toutes les aides"></button></div>
+  <div class="l1"><a href="/">Studio</a><b>Production</b><span class="sp"></span><small id="sauve"></small><small id="redac"></small><small id="gpu"></small><button class="i s" id="baide" title="Afficher ou replier toutes les aides" aria-label="Afficher ou replier toutes les aides"></button></div>
   <div class="chips" id="persos"></div>
   <div class="chips" id="onglets" style="display:none"></div>
 </header>
@@ -98,8 +98,8 @@ const QUOI = {1: 'Tous publics, pour les réseaux : elle donne envie de voir la 
   4: 'Explicite, avec actes. Vendu à l\'unité. Ce temps est à votre main : le rédacteur IA ne l\'écrit pas, ne le relit pas et ne l\'analyse pas.'};
 const CONSIGNES_T2 = ['Plus lente, plus intime', 'Plus près de la caméra', 'Tenue plus défaite, toujours suggestif', 'Fin qui annonce mieux la suite payante'];
 const depotHtml = x => `<div class="var"><b>${esc(x.titre || x.fichier)}</b> <span class="mut">${esc(x.fichier)}, ${esc(x.date)}</span>
-  ${x.erreur ? `<div class="err">Refusé : ${esc(x.erreur)}</div><div class="mut">Rien n'est importé tant que le scénariste n'a pas corrigé son fichier.</div>` : `<div class="mut">${x.n} plan(s) pour ${x.lestemps.length > 1 ? 'les temps ' + x.lestemps.join(', ') : 'le temps ' + x.temps}${x.projet || x.attente ? '' : ', nouveau projet'}${x.perime ? ' ; écrit d\'après un modèle périmé' : ''}${x.remarques ? ` ; ${x.remarques} remarque(s) au contrôle des plans` : ''}${x.note ? ' ; ' + esc(x.note) : ''}</div>
-  <div class="row" style="margin-top:6px">${x.importe ? '<span class="okc">Importé</span>' : x.attente ? `<span class="mut">Suite de « ${esc(x.attente)} » : ce fichier ira dans le projet que l'autre ouvrira.</span>` : x.auto ? '<span class="mut">Import automatique dès qu\'aucun calcul ne tourne : recharger la page.</span>' : `<button class="p s" data-a="importer" data-n="${esc(x.fichier)}">${ic('importer')}${x.change ? 'Réimporter (fichier modifié)' : 'Importer'}</button><span class="mut">Fichier d'un ancien modèle : il ne s'importe pas tout seul.</span>`}</div>`}</div>`;
+  ${x.erreur ? `<div class="err">Refusé : ${esc(x.erreur)}</div><div class="mut">Rien n'est importé tant que le scénariste n'a pas corrigé son script.</div>` : `<div class="mut">${x.n} scène(s) pour ${x.lestemps.length > 1 ? 'les temps ' + x.lestemps.join(', ') : 'le temps ' + x.temps}${x.projet || x.attente ? '' : ', nouveau projet'}${x.perime ? ' ; écrit d\'après un modèle périmé' : ''}${x.remarques ? ` ; ${x.remarques} remarque(s) au contrôle des plans` : ''}${x.note ? ' ; ' + esc(x.note) : ''}</div>
+  <div class="row" style="margin-top:6px">${x.importe ? '<span class="okc">Importé</span>' : x.attente ? `<span class="mut">Suite de « ${esc(x.attente)} » : ce script ira dans le projet que l'autre ouvrira.</span>` : x.auto ? '<span class="mut">Import automatique dès qu\'aucun calcul ne tourne : recharger la page.</span>' : `<button class="p s" data-a="importer" data-n="${esc(x.fichier)}">${ic('importer')}${x.change ? 'Réimporter (script modifié)' : 'Importer'}</button><span class="mut">Fichier d'un ancien modèle : il ne s'importe pas tout seul.</span>`}</div>`}</div>`;
 const CONSIGNES = ['Plus aguicheur, plus de tension', 'Accroche plus forte dès la première seconde', 'Coupe plus frustrante à la fin', 'Plus drôle, plus d\'autodérision', 'Autre lieu, autre tenue', 'Plus court'];
 const CONSIGNES_SCENE = ['Plus sensuelle, toujours suggestive', 'Plus près de la caméra', 'Geste plus simple et plus lent', 'Texte à l\'écran plus percutant', 'Autre tenue'];
 
@@ -109,7 +109,7 @@ async function etat() {
   const actifs = E.personnages.filter(p => p.statut !== 'archive');
   if (!actifs.some(p => p.slug === cur)) cur = actifs[0]?.slug || '';
   $('#persos').innerHTML = actifs.map(p => `<span class="chip ${p.slug === cur ? 'on' : ''}" data-slug="${esc(p.slug)}">${esc(p.nom)}</span>`).join('')
-    + `<span class="chip" data-h="#/persos">${ic('personnage')} Personnages</span><span class="chip" data-h="#/loras">${ic('lora')} LoRA</span>`;
+    + `<span class="chip" data-h="#/persos">${ic('personnage')} Casting</span><span class="chip" data-h="#/loras">${ic('lora')} LoRA</span>`;
   $('#gpu').textContent = E.depense ? `GPU ${usd(E.depense.jour)} / ${usd(E.depense.plafond)}` : '';
   $('#redac').innerHTML = E.redacteur ? '<span class="okc">Rédacteur IA</span>' : '<span style="color:var(--warn)">Rédacteur de secours</span>';
 }
@@ -159,8 +159,8 @@ function vueProjets() {
       <span class="sp"></span><a href="#/perso/${esc(cur)}">Fiche de ${esc(p.nom.split(' ')[0])}</a></div>
     ${p.lora ? '' : '<p class="mut">Ce personnage n\'a pas de LoRA : son visage variera d\'une image à l\'autre.</p>'}
     <div id="idees"></div>
-    ${(E.fiches || []).some(x => !x.fait) ? `<div class="panel"><div class="row"><span>Votre agent a déposé ${E.fiches.filter(x => !x.fait).length} fiche(s) de personnage à relire.</span><span class="sp"></span><button class="p s" onclick="location.hash='#/persos'">${ic('importer')}Voir les fiches</button></div></div>` : ''}
-    ${E.depots.length ? `<h2>Plans déposés par votre scénariste <small>en attente ou refusés</small></h2><div class="panel">${E.depots.map(depotHtml).join('')}</div>` : ''}
+    ${(E.fiches || []).some(x => !x.fait) ? `<div class="panel"><div class="row"><span>Votre directeur de casting a livré ${E.fiches.filter(x => !x.fait).length} fiche(s) de casting à relire.</span><span class="sp"></span><button class="p s" onclick="location.hash='#/persos'">${ic('importer')}Voir les fiches</button></div></div>` : ''}
+    ${E.depots.length ? `<h2>Scripts livrés par votre scénariste <small>en attente ou refusés</small></h2><div class="panel">${E.depots.map(depotHtml).join('')}</div>` : ''}
     <h2>Projets <small>${liste.length}, par date du personnage</small></h2>
     <div class="grille">${liste.map(x => `<a class="card" href="#/p/${x.id}">
       <div class="th" ${x.vignette ? `style="background-image:url('/afile/${x.id}/${esc(x.vignette)}')"` : ''}></div>
@@ -225,7 +225,7 @@ async function sauver() {
   if (!P || !tSave) return;
   clearTimeout(tSave); tSave = null;
   let r;
-  try { r = await api('/api/a/projet', P); } catch (e) { if (/nouveau dépôt/.test(e.message)) { toast(e.message, false); return recharger(); } throw e; }
+  try { r = await api('/api/a/projet', P); } catch (e) { if (/nouveau script/.test(e.message)) { toast(e.message, false); return recharger(); } throw e; }
   $('#sauve').textContent = 'enregistré';
   if (r.controle && D) { D.controle = r.controle; majDyn(); }
 }
@@ -302,7 +302,7 @@ function rendreProjet() {
     <div class="steps" id="etapes"></div>
     <div class="th"><b>${T}. ${TEMPS[T][0]}</b> <span class="mut">${TEMPS[T][1]}</span><span class="aide">${QUOI[T]}${T > 2 && P.suite ? ` Suite annoncée : ${esc(P.suite)}` : ''}</span></div>
 
-    ${sec('prep', 'Préparer', `${L0 + LN(T)} LoRA${P.reference ? (TIR(T) === 'ref' ? ', images tirées de la référence' : ', images créées à part') : ''}`)}
+    ${sec('prep', 'Préparation', `${L0 + LN(T)} LoRA${P.reference ? (TIR(T) === 'ref' ? ', images tirées de la référence' : ', images créées à part') : ''}`)}
     <div class="panel">
       ${T === 1 ? `${f('brief', `${ic('idee')}Idée`, P.brief, {area: 1, rows: 2, ph: 'Elle rentre du sport, trop chaud, elle hésite à enlever son pull devant la caméra',
           aide: 'En français, quelques mots suffisent. Le rédacteur en tire le scénario, les textes et le découpage. La suite payante, la date et le contexte se règlent dans le panneau Projet.'})}
@@ -314,8 +314,8 @@ function rendreProjet() {
         <div class="row"><label class="g">Scènes<select data-k="nb2">${[2, 3, 4, 5, 6].map(n => `<option ${n === P.nb2 ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
           <button class="p" data-a="ecrire2" ${vide || !E.redacteur ? 'disabled' : ''}>${ic('ecrire')}${SC.length ? 'Réécrire' : 'Écrire'}</button></div>
         ${vide ? '<div class="mut" style="margin-top:6px">Écrire d\'abord le temps 1.</div>' : E.redacteur ? '' : '<div class="mut" style="margin-top:6px">Rédacteur IA arrêté : ajouter les scènes à la main.</div>'}` : ''}
-      ${T > 2 ? '<div class="mut">Les scènes de ce temps viennent du fichier déposé par votre scénariste ; elles arrivent toutes seules.</div><div class="aide">Le scénariste dépose un seul fichier par vidéo dans server/jobs/atelier/ ; un fichier corrigé met le projet à jour. Le rédacteur IA n\'écrit pas ce temps, ne le relit pas et ne l\'analyse pas.</div>' : ''}
-      ${dep.length ? `<div class="gt">Plans déposés</div>${dep.map(depotHtml).join('')}` : ''}
+      ${T > 2 ? '<div class="mut">Les scènes de ce temps viennent du script livré par votre scénariste ; elles arrivent toutes seules.</div><div class="aide">Le scénariste livre un seul script par vidéo (un fichier dans server/jobs/atelier/) ; un script corrigé met le projet à jour. Le rédacteur IA n\'écrit pas ce temps, ne le relit pas et ne l\'analyse pas.</div>' : ''}
+      ${dep.length ? `<div class="gt">Scripts livrés</div>${dep.map(depotHtml).join('')}` : ''}
       ${lorasBloc(String(T), `${ic('lora')} LoRA de ce temps`, LT)}
       ${P.reference ? `<label>${ic('image')}Images de ce temps<select data-tir="${T}">${opt([['ref', 'Tirées de la référence'], ['direct', 'Créées à part']], TIR(T))}</select>
         ${aide('Tirée de la référence, une image garde la pièce, la tenue et à peu près la pose : bon pour un temps où elle reste habillée et bouge peu. Créée à part (visage du personnage et fiche de continuité), la tenue et la pose suivent la description de la scène, au prix d\'un décor moins constant. Par défaut : référence aux temps 1 et 2, à part aux temps 3 et 4.')}</label>` : ''}
@@ -323,7 +323,7 @@ function rendreProjet() {
         <button class="s" data-a="cote" data-c="cont">${ic('epingle')}Continuité${P.reference ? '' : ', sans référence'}</button></div>
     </div></details>
 
-    ${sec('scenes', 'Scènes', `${SC.length}, environ ${Math.round(SC.reduce((a, s) => a + (s.duree || 5), 0) + (T === 1 && P.montage.carton ? 2.6 : 0))} s`)}
+    ${sec('scenes', 'Découpage', `${SC.length}, environ ${Math.round(SC.reduce((a, s) => a + (s.duree || 5), 0) + (T === 1 && P.montage.carton ? 2.6 : 0))} s`)}
     <div class="row tete" style="margin-bottom:8px"><span class="mut" style="flex:1;min-width:200px">Le texte de chaque scène vient du scénariste : il reste replié, et s'ouvre quand une remarque demande une retouche.</span>${SC.length > 1 ? `<button class="s" data-a="plier">${ic('plier')}Ouvrir ou fermer les textes</button>` : ''}</div>
     <div class="grille">${SC.map((s, i) => { const cont = s.raccord === 'continu' && i, coupe = !i || (s.raccord || 'coupe') === 'coupe'; return `<div class="scene" data-sid="${s.id}">
       <div class="sh"><b>${i + 1}</b><input data-s="${s.id}" data-k="titre" value="${esc(s.titre)}" placeholder="Titre"></div>
@@ -377,11 +377,11 @@ function rendreProjet() {
     </div>`; }).join('')}</div>
     <button data-a="ajouter" style="margin-top:10px">${ic('ajouter')}Ajouter une scène</button></details>
 
-    ${sec('prod', 'Produire', 'images et clips')}
+    ${sec('prod', 'Tournage', 'images et clips')}
     <div class="panel" id="controle"></div>
     <div class="panel" id="prod"></div></details>
 
-    ${sec('montage', 'Monter', 'la vidéo de ce temps')}
+    ${sec('montage', 'Montage', 'la vidéo de ce temps')}
     <div class="panel">
       <div class="row tete"><span class="mut">Réglages :</span><button class="s" data-a="cote" data-c="rendu">${ic('reglages')}Montage</button><button class="s" data-a="cote" data-c="son">${ic('son')}Son</button>
         ${T === 1 ? `<button class="s" data-a="cote" data-c="pub">${ic('publier')}Textes</button>` : ''}</div>
@@ -409,8 +409,8 @@ function rendreProjet() {
       <div class="aide">Une LoRA ne se charge que si elle est choisie ici, dans un temps ou sur une scène : jamais d'après la description. Ses mots déclencheurs sont ajoutés tout seuls à la description de l'image, ou au mouvement pour une LoRA de clip ; « nsfw » est ajouté d'office dès le temps 2. Une LoRA d'image fait créer l'image à part, sans la tirer de l'image de référence (la retouche ne sait pas charger de LoRA).</div>
       ${lorasBloc('0', 'Tout le projet', E.bibliotheque.loras)}
       <div class="row"><a class="lien" href="#/loras">${ic('lora')}LoRA par défaut de chaque temps</a></div>
-      ${HUBATT && HUBATT.length ? `<div class="aide avt">${HUBATT.length} LoRA retenue(s) dans le hub ne sont pas encore chargées, donc pas proposées ici : ${HUBATT.map(esc).join(', ')}. <a href="/hub#/retenues">Les charger</a>.</div>` : ''}
-      <div class="row"><a class="lien" href="/hub">${ic('chercher')}Hub : en ajouter</a><a class="lien" href="#/loras">${ic('reglages')}Bibliothèque : forces, mots</a></div>`)}
+      ${HUBATT && HUBATT.length ? `<div class="aide avt">${HUBATT.length} LoRA retenue(s) dans le Matériel ne sont pas encore chargées, donc pas proposées ici : ${HUBATT.map(esc).join(', ')}. <a href="/hub#/retenues">Les charger</a>.</div>` : ''}
+      <div class="row"><a class="lien" href="/hub">${ic('chercher')}Matériel : en ajouter</a><a class="lien" href="#/loras">${ic('reglages')}Réglages des LoRA : forces, mots</a></div>`)}
     ${pan('rendu', `<div class="mut">Pour tous les temps. Remonter ne coûte rien.</div>
       <div class="gt">Image</div>
       <div class="row haut">
@@ -455,7 +455,7 @@ function rendreProjet() {
       ${f('hashtags', 'Mots-dièse', P.hashtags, {aide: 'Copiés avec la légende.'})}
       <div class="row"><button class="s" data-a="variantes" ${vide ? 'disabled' : ''}>${ic('idee')}Variantes</button><button class="s" data-a="copier">${ic('copier')}Copier légende et mots-dièse</button></div>
       <div id="variantes"></div>
-      <div class="aide">La validation pour publication se fait à l'étape Monter du temps 1, sous la vidéo.</div>`)}
+      <div class="aide">La validation pour publication se fait à l'étape Montage du temps 1, sous la vidéo.</div>`)}
     </div>
   </aside></div>`;
   document.documentElement.style.setProperty('--htop', $('header').offsetHeight + 12 + 'px');
@@ -484,7 +484,7 @@ function majDyn() {
     <div class="row"><label class="c"><input type="checkbox" data-ch="refaire" ${CH.refaire ? 'checked' : ''} ${actif ? 'disabled' : ''}>Tout refaire (nouvelles prises, les anciennes sont gardées)</label>
       <label class="c"><input type="checkbox" data-ch="hd" ${CH.hd ? 'checked' : ''} ${actif ? 'disabled' : ''}>Clips en 720p</label></div>
     <div class="aide">Tout refaire : recalcule aussi ce qui existe déjà. 720p : quatre fois le prix du 480p, à garder pour la version finale.</div>
-    ${c.etat === 'pause' ? `<div class="aide">Réglages verrouillés pendant la pause. Pour refaire des images sans quitter la chaîne : « Refaire les images », étape Produire. Pour changer les réglages : abandonner la chaîne (les images restent), puis la relancer.</div>` : ''}
+    ${c.etat === 'pause' ? `<div class="aide">Réglages verrouillés pendant la pause. Pour refaire des images sans quitter la chaîne : « Refaire les images », étape Tournage. Pour changer les réglages : abandonner la chaîne (les images restent), puis la relancer.</div>` : ''}
     <div class="row">${c.etat === 'pause' ? `<button class="p" data-a="chainesuite">${ic('lancer')}Continuer : clips et montage</button>` : `<button class="p" data-a="chaine" ${occ || !E.can_run ? 'disabled' : ''}>${ic('lancer')}Lancer la chaîne</button>`}
       ${actif ? `<button data-a="chainestop" ${c.stop ? 'disabled' : ''}>${ic('arret')}${c.etat === 'pause' ? 'Abandonner la chaîne' : c.stop ? 'Arrêt demandé' : 'Arrêter après l\'étape en cours'}</button>` : ''}</div>
     ${c.ailleurs ? `<div class="mut" style="margin-top:6px">Une chaîne tourne sur le projet ${esc(c.ailleurs)} : les lancements attendent sa fin.</div>` : ''}
@@ -538,7 +538,7 @@ function majDyn() {
     ${m.etat === 'erreur' ? `<pre class="err">${esc(m.erreur)}</pre>` : ''}
     ${fin ? `<video class="fin" src="${u(fin)}" controls playsinline preload="metadata"></video>
       <div class="row"><b>${fin.replace('final_', '').replace('.mp4', '').replace('_', ' ')}</b><a class="lien" href="${u(fin)}" download="${P.id}_${fin}">${ic('telecharger')}Télécharger</a><span class="sp"></span>
-        <button class="s" data-a="tri" data-n="${fin}">${ic('envoyer')}Envoyer au Tri</button>${bi('supprimer', 'Supprimer cette version', `data-a="suppfinal" data-n="${fin}"`, 's d')}</div>
+        <button class="s" data-a="tri" data-n="${fin}">${ic('envoyer')}Envoyer aux Rushes</button>${bi('supprimer', 'Supprimer cette version', `data-a="suppfinal" data-n="${fin}"`, 's d')}</div>
       ${inf ? `<div class="mut">${inf.duree} s, ${inf.plans} plan(s)${inf.colles ? `, ${inf.colles} raccord(s) sans coupe` : ''}${inf.cible ? `, visée ${inf.cible} s` : ''}${inf.label ? ', mention IA' : ''}, montée le ${esc(inf.date)}</div>` : ''}
       ${F.length > 1 ? `<details class="pli" data-sec="versions"${ouv('versions')}><summary>Versions précédentes (${F.length - 1})</summary>${F.slice(0, -1).reverse().map(n => `<div class="ver">
         <a href="${u(n)}" target="_blank">${n.replace('final_', '').replace('.mp4', '').replace('_', ' ')}</a><span class="mut">${D.infos[n] ? `${D.infos[n].duree} s, ${esc(D.infos[n].date)}` : ''}</span>
@@ -625,7 +625,7 @@ const actions = {
     if (P && P.id === r.id) { T = r.temps; await recharger(); } else { await etat(); T = r.temps; ouvrirProjet.id = r.id; location.hash = '#/p/' + r.id; }
   },
   ecrire: async () => {
-    if (P.scenes.some(s => s.temps === 1) && !confirm((P.scenes.some(s => s.temps === 1 && s.origine) ? 'Ce temps contient des plans déposés par l\'agent : ils seront remplacés par le rédacteur IA. ' : '')
+    if (P.scenes.some(s => s.temps === 1) && !confirm((P.scenes.some(s => s.temps === 1 && s.origine) ? 'Ce temps contient des scènes du script du scénariste : elles seront remplacées par le rédacteur IA. ' : '')
       + 'Remplacer tout le scénario ? Les images et clips déjà produits ne seront plus rattachés.')) return;
     ecrire({kind: 'scenario', projet: P.id}, recharger, 'Écriture du scénario');
   },
@@ -697,14 +697,14 @@ window.addEventListener('beforeunload', () => { if (P && tSave) navigator.sendBe
 function vueLoras() {
   const B = E.bibliotheque, l = (k, lab, v, o = {}) => `<label>${lab}<input data-l="${k}" type="${o.type || 'text'}" ${o.step ? `step="${o.step}"` : ''} value="${esc(v ?? '')}" placeholder="${esc(o.ph || '')}">${aide(o.aide)}</label>`;
   vue.innerHTML = `<div class="row tete"><a class="lien" href="#/">${ic('retour')}Retour aux projets</a></div>
-    <h2>Bibliothèque de LoRA <small>${B.loras.length} inscrite(s)</small></h2>
+    <h2>Réglages des LoRA <small>${B.loras.length} inscrite(s)</small></h2>
     <div class="panel"><div class="mut">Une LoRA ajoute au modèle d'image une tenue, une pose ou un style. Elle s'ajoute à la LoRA du visage, qui se règle dans la fiche du personnage.
-      Les LoRA se cherchent, se retiennent et se chargent sur le volume depuis le <a href="/hub">hub</a> ; cette page note comment s'en servir : catégorie, force conseillée, mots déclencheurs, note.
+      Les LoRA se cherchent, se retiennent et se chargent sur le volume depuis le <a href="/hub">Matériel</a> ; cette page note comment s'en servir : catégorie, force conseillée, mots déclencheurs, note.
       Le choix des LoRA et leurs réglages sont à votre main.</div>
       <div style="margin-top:8px;font-size:14px">${B.inventaire ? `Inventaire du volume : <b>${esc(B.inventaire)}</b>` : '<span style="color:var(--warn)">Volume pas encore inventorié</span>'}</div>
       <div class="aide">Relevé au démarrage de chaque calcul d'images et après chaque « pilot lora add ». Sans inventaire, la présence d'un fichier ne peut pas être vérifiée avant de lancer.</div></div>
     <h2 id="ldef">LoRA par défaut de chaque temps</h2>
-    <div class="panel"><div class="mut">Posées d'office dans « LoRA de ce temps » de tout nouveau projet, et d'un projet existant au premier plan déposé pour ce temps. Elles se retirent ensuite dans le projet, comme les autres.</div>
+    <div class="panel"><div class="mut">Posées d'office dans « LoRA de ce temps » de tout nouveau projet, et d'un projet existant au premier script livré pour ce temps. Elles se retirent ensuite dans le projet, comme les autres.</div>
       <div class="aide">Une LoRA d'image agit sur les images, une LoRA de clip sur le mouvement de la vidéo. Le contrôle des plans signale un temps 4 sans LoRA porno d'image ou de clip, et un temps 3 sans LoRA de nu d'image.</div>
       <div class="grille" style="margin-top:10px">${NT.map(t => `<div class="lt" style="padding:10px"><div class="gt">${t}. ${TEMPS[t][0]} <small>${TEMPS[t][1]}</small></div><div class="row haut">${[['zimage', 'Image'], ['wan22', 'Clip']].map(([fam, lab]) => {
         const adm = B.loras.filter(x => x.famille === fam && x.temps_min <= t), d = ((B.defauts || {})[t] || '').split(', ').filter(Boolean).map(x => x.split(':')[0]), sel = adm.find(x => d.includes(x.name));
@@ -753,9 +753,9 @@ async function defautsSauver() {
 // --- Personnages -----------------------------------------------------------------------------------
 function vuePersos() {
   vue.innerHTML = `<div class="row tete"><a class="lien" href="#/">${ic('retour')}Retour aux projets</a><span class="sp"></span><button class="p" onclick="location.hash='#/perso'">${ic('ajouter')}Nouveau personnage</button></div>
-    <h2>Personnages</h2>` + E.personnages.map(p => `<a class="card" href="#/perso/${esc(p.slug)}"><div><b>${esc(p.nom)}${p.statut === 'archive' ? ' (archivé)' : ''}</b>
+    <h2>Casting</h2>` + E.personnages.map(p => `<a class="card" href="#/perso/${esc(p.slug)}"><div><b>${esc(p.nom)}${p.statut === 'archive' ? ' (archivé)' : ''}</b>
       <span class="mut">${esc(p.accroche)}</span><span class="mut">${p.age} ans, publie en ${esc(p.langue)}, ${p.lora ? 'LoRA en place' : 'sans LoRA'}, ${E.projets.filter(x => x.personnage === p.slug).length} vidéo(s)</span></div></a>`).join('')
-    + ((E.fiches || []).some(x => !x.fait) ? `<h2>Fiches déposées par votre agent <small>à relire puis enregistrer</small></h2><div class="panel">${E.fiches.filter(x => !x.fait).map(x => `<div class="var"><b>${esc(x.nom || x.fichier)}</b> <span class="mut">${esc(x.fichier)}, ${esc(x.date)}</span>
+    + ((E.fiches || []).some(x => !x.fait) ? `<h2>Fiches livrées par votre directeur de casting <small>à relire puis enregistrer</small></h2><div class="panel">${E.fiches.filter(x => !x.fait).map(x => `<div class="var"><b>${esc(x.nom || x.fichier)}</b> <span class="mut">${esc(x.fichier)}, ${esc(x.date)}</span>
       ${x.erreur ? `<div class="err">Refusée : ${esc(x.erreur)}</div>` : `<div class="mut">${x.age} ans${x.accroche ? ' ; ' + esc(x.accroche) : ''}${x.perime ? ' ; écrite d\'après un modèle périmé' : ''}${x.remarques.length ? ` ; ${x.remarques.length} remarque(s)` : ''}${x.existe ? ' ; remplacera la fiche du même nom' : ''}</div>
       <div class="row" style="margin-top:6px"><button class="p s" onclick="location.hash='#/fiche/${esc(x.fichier)}'">${ic('importer')}Ouvrir la fiche</button></div>`}</div>`).join('')}</div>` : '');
 }
@@ -767,9 +767,9 @@ async function vuePerso(slug, depot) {
   const i = (k, lab, v, o = {}) => `<label>${lab}${o.area ? `<textarea data-p="${k}" rows="${o.rows || 2}" placeholder="${esc(o.ph || '')}">${esc(v)}</textarea>`
     : `<input data-p="${k}" type="${o.type || 'text'}" ${o.step ? `step="${o.step}"` : ''} value="${esc(v)}" placeholder="${esc(o.ph || '')}">`}${aide(o.aide)}</label>`;
   const g = p.generation || {}, w = p.ecriture || {};
-  vue.innerHTML = `<div class="row tete"><a class="lien" href="#/persos">${ic('retour')}Personnages</a></div>
-    <h2>${slug ? esc(p.nom) : dep ? 'Fiche déposée : ' + esc(p.nom) : 'Nouveau personnage'}</h2>
-    ${dep ? `<div class="panel"><div class="mut">Fiche écrite par votre agent (${esc(depot)}). Rien n'est enregistré tant que vous n'appuyez pas sur Enregistrer, en bas.${dep.existe ? ' <b>Elle remplacera la fiche du personnage du même nom.</b>' : ''}</div>
+  vue.innerHTML = `<div class="row tete"><a class="lien" href="#/persos">${ic('retour')}Casting</a></div>
+    <h2>${slug ? esc(p.nom) : dep ? 'Fiche de casting livrée : ' + esc(p.nom) : 'Nouveau personnage'}</h2>
+    ${dep ? `<div class="panel"><div class="mut">Fiche écrite par votre directeur de casting (${esc(depot)}). Rien n'est enregistré tant que vous n'appuyez pas sur Enregistrer, en bas.${dep.existe ? ' <b>Elle remplacera la fiche du personnage du même nom.</b>' : ''}</div>
       ${dep.remarques.length ? `<div class="err" style="margin-top:6px">${dep.remarques.map(esc).join('<br>')}</div>` : ''}</div>` : ''}
     ${slug || dep ? '' : `<div class="panel"><label>Concept, en une ou deux phrases<textarea id="concept" rows="2" placeholder="Une barmaid de nuit à Marseille, brune, tatouée, grande gueule et tendre"></textarea></label>
       <div class="row"><button class="p" data-a="persoia" ${E.redacteur ? '' : 'disabled'}>${ic('ecrire')}Rédiger la fiche avec l'IA</button><span class="mut">${E.redacteur ? 'La fiche reste modifiable avant enregistrement.' : 'Rédacteur IA arrêté : remplir la fiche à la main.'}</span></div></div>`}
@@ -797,7 +797,7 @@ async function vuePerso(slug, depot) {
       ${i('generation.corps', 'Corps (anglais)', g.corps, {area: 1, aide: 'À votre main. Ajouté à chaque image.'})}
       ${i('generation.suffixe', 'Fin de chaque description', g.suffixe, {area: 1, rows: 1, aide: 'Qualité, grain, objectif. Vide : réglage commun à tous les personnages.'})}
       ${i('generation.note', 'Note pour le rédacteur', g.note, {area: 1, rows: 1, aide: 'Ce que la LoRA du visage porte déjà (tatouages, piercing), pour qu\'il ne le redécrive pas.'})}
-      <div class="mut" style="margin-top:8px">Les LoRA de tenue, de pose ou de style se règlent dans la <a href="#/loras">bibliothèque de LoRA</a>.</div></div>
+      <div class="mut" style="margin-top:8px">Les LoRA de tenue, de pose ou de style se règlent dans la <a href="#/loras">réglages des LoRA</a>.</div></div>
     <div class="row"><button class="p" data-a="persosauver">${ic('valider')}Enregistrer</button><span class="sp"></span>
       ${slug ? (p.statut === 'archive' ? '<button data-a="persoreactiver">Réactiver</button>' : '<button class="d" data-a="persoarchiver">Archiver</button>') : ''}</div>
     <p class="mut">Personnages fictifs, adultes, sans ressemblance avec une personne réelle, présentés comme créés par IA.</p>`;

@@ -1,12 +1,31 @@
 # Piloter la generation depuis un autre agent (14/11/2026, revu le 15/11 : verificateur, video entiere deposee d'un coup, fiches de personnage, skills)
 
 Fiche destinee a un agent installe sur le serveur Oracle (par exemple OpenClaw) et configure par le
-proprietaire. L'agent ecrit des fichiers de plans. Il les depose dans l'Atelier, ou le proprietaire
-les importe, les calcule et les monte (voie normale), ou il lance lui-meme le pilote pour un essai,
+proprietaire. L'agent ecrit des fichiers de plans. Il les livre a la Production, qui
+les importe ; le proprietaire les tourne et les monte (voie normale), ou il lance lui-meme le pilote pour un essai,
 dont les images arrivent dans le Tri. Rien n'est publie sans validation du proprietaire.
 
 ## Vocabulaire
-Les memes mots servent dans la page Atelier, dans les fichiers et dans les echanges avec le proprietaire.
+Les memes mots servent dans les pages, dans les fichiers et dans les echanges avec le proprietaire. Ce sont ceux
+d'une production audiovisuelle (convention du 15/11/2026). Les noms techniques ne changent pas : adresses des pages
+(`/atelier`, `/hub`, `/test`, `/tri`, `/social`), dossier `server/jobs/atelier/`, bloc `atelier:` et champs des fichiers.
+
+Les lieux du studio :
+
+| Nom | Adresse | Ce qu'on y fait | Ancien nom |
+|---|---|---|---|
+| Studio | `/` | L'accueil. | |
+| Production | `/atelier` | Un projet, du script a la video montee. Quatre etapes par temps : Preparation, Decoupage (les scenes), Tournage (images et clips), Montage. | Atelier |
+| Casting | `/atelier#/persos` | Les personnages et leurs fiches de casting. | Personnages |
+| Materiel | `/hub` | Modeles et LoRA : les chercher, les retenir, les charger. Leurs reglages (force, mots, LoRA par defaut de chaque temps) : `/atelier#/loras`. | Hub, Bibliotheque de LoRA |
+| Essais | `/test` | Essais d'image hors projet. | Test |
+| Rushes | `/tri` | Tri de ce qui a ete tourne. | Tri |
+| Diffusion | `/social` | Publications tous publics des comptes. | Reseaux |
+
+Les metiers : le **scenariste** ecrit les scripts ; le **directeur de casting** ecrit les fiches de casting ; la
+**production** (les pages et le pilote) tourne et monte ; le **proprietaire** decide, choisit les prises et valide.
+
+Les objets :
 
 | Terme | Sens |
 |---|---|
@@ -15,21 +34,22 @@ Les memes mots servent dans la page Atelier, dans les fichiers et dans les echan
 | Pitch | Le resume du projet en une ou deux phrases, une fois l'idee retenue. |
 | Temps | Une des quatre parties du projet : 1 accroche, 2 montee, 3 devoile, 4 final. |
 | Scene | Une unite d'un temps : une image, un mouvement eventuel, un texte a l'ecran. |
-| Plan | La scene vue du cote de l'agent : une entree de `shots` dans son fichier. Un plan importe devient une scene. |
-| Depot | Un fichier de plans place dans `server/jobs/atelier/`, pour un projet et un temps. |
+| Script | Le fichier du scenariste, place dans `server/jobs/atelier/` : une video entiere, les quatre temps. D'anciens passages disent "depot" ou "fichier de plans". |
+| Plan | La scene vue du cote du scenariste : une entree de `shots` dans son script. Un plan importe devient une scene. |
+| Fiche de casting | La fiche d'un personnage, ecrite par le directeur de casting, placee dans `server/jobs/atelier/personnages/`. |
 | Prise | Un resultat calcule pour une scene (image ou clip). Il peut y en avoir plusieurs ; le proprietaire choisit. Pour les images, chaque lancement en calcule trois par scene ; un controle automatique note chacune sur 10 en la comparant a la description de la scene (`pilot serie`, `server/pilot/controle.py`). Une scene dont aucune image ne depasse 4 est refaite toute seule, deux fois au plus. La mieux notee est proposee, le proprietaire garde le choix. |
 | Montage | La video finale d'un temps, en versions numerotees. |
 | Fiche de continuite | Ce qui ne change pas d'une image a l'autre dans un projet : lieu, tenue, coiffure, lumiere, point de vue. Bloc `continuite`. |
 | Image de reference | L'image d'une scene dont les autres images du projet sont tirees par retouche. Champ `reference`. |
-| Bibliotheque de LoRA | Page `/atelier#/loras` : les LoRA du catalogue, leur presence sur le volume, et les LoRA par defaut de chaque temps. |
-| Hub | Page `/hub` : catalogue Civitai et Hugging Face par modele de base et par categorie, LoRA retenues, chargement sur le volume, veille des modeles. |
+| Reglages des LoRA | Page `/atelier#/loras` (ancienne "bibliotheque") : les LoRA du catalogue, leur presence sur le volume, et les LoRA par defaut de chaque temps. |
+| Materiel | Page `/hub` (ancien "hub") : catalogue Civitai et Hugging Face par modele de base et par categorie, LoRA retenues, chargement sur le volume, veille des modeles. |
 | Categorie d'une LoRA | Ce qu'elle apporte (realisme, smartphone, peau, lumiere, pose, mouvement, vitesse, tenue, corps, nu, porno, autre). Elle fixe le premier temps ou la LoRA est admise. |
 | Raccord | Lien d'une scene avec la precedente du meme temps : `coupe`, `continu` ou `arrivee`. |
 | Date du personnage | Date fictive du projet : le jour ou le personnage vit la scene. Champ `date_perso`, `AAAA-MM-JJ`. |
 | Contexte du moment | Une ligne libre du proprietaire sur ce que le personnage vit ces jours-la. Champ `contexte`. |
 | Dates reelles | `cree` et `modifie` dans `projet.json` : quand le projet a ete cree et modifie sur le serveur. Sans effet sur le contenu. |
 
-Ne pas dire "sequence" ni "phase" pour un temps, ni "lot" pour un projet.
+Ne pas dire "sequence" ni "phase" pour un temps, ni "lot" pour un projet, ni "atelier", "hub", "tri" ou "depot" pour un lieu ou un script.
 
 ## Regles
 - Personnages fictifs et clairement adultes ; aucune ressemblance avec une personne reelle, aucune
@@ -42,10 +62,10 @@ Ne pas dire "sequence" ni "phase" pour un temps, ni "lot" pour un projet.
   instant, plan apres plan (la tenue part de celle du temps 1 et se defait). La `tenue` de la fiche de continuite ne
   vaut que pour le temps 1 : elle n'est jamais ajoutee aux temps 2 a 4. Un plan qui ne dit rien de la tenue est une faute :
   **le depot entier est refuse** (message "plan X : dans les temps 2 a 4, still dit ce qu'elle porte..."). Ecrire
-  "wearing ...", "naked", "topless" ou nommer le vetement. Seul un plan en raccord `continu` en est dispense. Ne pas ecrire "nsfw" : l'atelier l'ajoute a chaque `still` de ces temps.
+  "wearing ...", "naked", "topless" ou nommer le vetement. Seul un plan en raccord `continu` en est dispense. Ne pas ecrire "nsfw" : la Production l'ajoute a chaque `still` de ces temps.
 - Un seul lancement a la fois. Ne jamais redemarrer le conteneur `triage`.
 - Ne rien modifier hors de `server/jobs/` (fichiers de plans de l'agent, dont `server/jobs/atelier/`).
-- Verifier chaque depot avant de l'annoncer : `python3 tools/triage/verifier.py <fichier>` (voir "Verifier un depot").
+- Verifier chaque script avant de l'annoncer : `python3 tools/triage/verifier.py <fichier>` (voir "Verifier un script").
   Le reste du depot et `server/data/` se lisent, ils ne s'ecrivent pas.
 
 ## Un projet en quatre temps
@@ -70,7 +90,7 @@ Ne pas reprendre un ancien fichier sans relire son `temps`.
 
 **Role de l'agent** : il peut ecrire une video entiere, c'est-a-dire les quatre temps, ou seulement
 ceux que le proprietaire lui demande. Sans consigne, il ecrit les temps 3 et 4 et laisse les temps 1 et 2
-au redacteur de l'atelier. Le redacteur de l'atelier, lui, n'ecrit, ne relit et n'analyse jamais les temps 3
+au redacteur de la Production. Le redacteur de la Production, lui, n'ecrit, ne relit et n'analyse jamais les temps 3
 et 4, ni une scene qui porte une LoRA reservee (categorie nu, porno ou non classee). Dans tous les
 cas l'agent depose un seul fichier par video ; la page l'importe toute seule, et le proprietaire lance le calcul
 depuis la page, choisit les prises et monte.
@@ -95,13 +115,13 @@ l'ambiance et les bruits dont la phrase est nouvelle ou a change (`data/audio/br
 silence du debut retire). Au montage, le bruit est pose sur l'instant ou l'image du plan bouge le plus
 (difference entre images successives) ; si rien ne ressort, a une seconde du debut. C'est un calage sur le
 mouvement, pas une ecoute de l'image : quand il tombe mal, le champ « Instant (s) » de la scene le fixe a
-la main (`son_t`, reglage de l'atelier, absent des plans deposes).
+la main (`son_t`, reglage de la Production, absent des plans deposes).
 
 Son d'apres l'image (etape Montage, « Son d'apres l'image ») : un modele (MMAudio) regarde chaque clip retenu du
 temps et fabrique le son de ce qu'on y voit, cale sur l'image (`data/audio/image/<clip>.m4a`, un pod de cinq a
 dix minutes, environ 0,10 $, `pilot sonimage`). La phrase `son` de la scene l'oriente quand elle existe ; elle
 n'est pas necessaire. Au montage, ce son remplace le bruit du geste de la scene (case « L'utiliser au montage »,
-reglage `simage` de l'atelier) ; l'ambiance reste en fond. Il est lie au clip : une nouvelle prise demande un
+reglage `simage` de la Production) ; l'ambiance reste en fond. Il est lie au clip : une nouvelle prise demande un
 nouveau son. Licence du modele : CC BY-NC 4.0 (non commerciale), decision du proprietaire. Rien a ecrire de plus
 dans un plan : `son` reste un bruit bref et concret, sans voix ni musique.
 
@@ -138,13 +158,13 @@ que de prendre la date du jour.
 Trois outils evitent qu'une video change de piece, de tenue ou de personne d'une scene a l'autre.
 
 - **Fiche de continuite** (`continuite`, au projet) : cinq champs en anglais, `lieu` ("in ..."), `tenue`
-  ("wearing ..."), `cheveux`, `lumiere`, `pdv` (point de vue de la camera). L'atelier les ajoute a la fin
+  ("wearing ..."), `cheveux`, `lumiere`, `pdv` (point de vue de la camera). La Production les ajoute a la fin
   de chaque `still` au moment du calcul. Consequence pour l'ecriture : **un `still` ne contient plus que le
   cadrage, la pose et l'expression** ; ne pas y repeter le lieu ni la tenue. Un champ ne contient que ce
   qui vaut pour toute la video ; ce qui change en route (elle retire une veste) reste dans les `still` et
   le champ correspondant reste vide. Un plan qui se passe ailleurs porte `libre: true`.
   **Temps 2 a 4 (modele `2026-11-14g`)** : la `tenue` de la fiche n'est pas ajoutee, parce qu'elle se defait
-  d'un plan a l'autre. Chaque `still` de ces temps dit donc ce qu'elle porte a cet instant. L'atelier ajoute
+  d'un plan a l'autre. Chaque `still` de ces temps dit donc ce qu'elle porte a cet instant. La Production ajoute
   aussi "nsfw" a la fin de chaque `still` de ces temps (plans `libre` compris) : ne pas l'ecrire soi-meme.
   Le `pdv` decrit la vue, jamais l'appareil comme un objet : "shot straight on at chest height on a phone",
   pas "phone propped on the counter, filming her" (le telephone serait dessine dans l'image).
@@ -154,7 +174,7 @@ Trois outils evitent qu'une video change de piece, de tenue ou de personne d'une
   quoi que dise le `still`. Un plan dont le `still` contient "close-up" est donc tire a part (description et
   fiche de continuite, sans la reference) : ecrire ce mot tel quel pour obtenir un gros plan. Les plans `libre` et ceux qui portent des
   LoRA supplementaires gardent leur propre tirage. Dans les temps 2 a 4, la retouche ne garde pas la tenue de la
-  reference : elle prend celle que decrit le `still` (champ de pilote `tenue_libre`, pose par l'atelier).
+  reference : elle prend celle que decrit le `still` (champ de pilote `tenue_libre`, pose par la Production).
 - **Tirage des images d'un temps** (`tirage`, au projet, regle par le proprietaire dans la fiche de continuite ;
   ce n'est pas un champ de plan) : `ref` = images tirees de la reference par retouche, `direct` = chaque image creee
   a part (LoRA du visage, description et fiche de continuite). Par defaut `ref` aux temps 1 et 2, `direct` aux temps
@@ -208,7 +228,7 @@ Trois outils evitent qu'une video change de piece, de tenue ou de personne d'une
   dans `motion` (zoom, pan, travelling) : le modele video le rate, alors que `camera` le rend a coup sur.
 
 ## Controle des plans
-L'atelier relit chaque depot et chaque projet avant tout calcul, sans GPU (`tools/triage/controle.py`), et
+La Production relit chaque depot et chaque projet avant tout calcul, sans GPU (`tools/triage/controle.py`), et
 affiche ses remarques dans la page (nombre de remarques sur la ligne du depot, detail dans le projet).
 Rien n'est bloque, mais un depot sans remarque est l'objectif. Ce qui est verifie :
 - fiche de continuite remplie (lieu, tenue, point de vue) ; tenue non repetee dans les `still` du temps 1, tenue decrite dans chaque `still` des temps 2 a 4 ; heure du
@@ -292,7 +312,7 @@ une planche de controle (les images cles cote a cote) s'affiche sous la video : 
 pour juger raccords et textes. Une transition recouvre la fin d'un plan et le debut du suivant (0,2 a 0,35 s) : ne pas
 y placer un geste ni un texte important. Elle est remplacee par une coupe si l'un des deux plans dure moins d'une seconde.
 
-## Deposer des plans dans l'atelier
+## Livrer un script a la Production
 1. **Lire le projet** : `server/data/projets/pNNNN/projet.json` (lecture seule). On y trouve le
    personnage, le pitch, la date du personnage (`date_perso`), le `contexte` et les scenes deja
    ecrites, chacune avec son `temps`, ainsi que la fiche de continuite (`continuite`). Si la fiche est
@@ -364,7 +384,7 @@ y placer un geste ni un texte important. Elle est remplacee par une coupe si l'u
    remettre : celle du projet fait foi. Une date mal formee bloque le depot.
 3. **Ne pas lancer le pilote sur ce fichier.** Un fichier accepte est importe par la page toute seule, sans bouton,
    des que le proprietaire l'ouvre et qu'aucun calcul ne tourne : les plans deviennent les scenes de leur temps. Un
-   fichier refuse n'ouvre rien : il reste affiche a l'accueil de l'atelier avec sa raison (bloc `atelier` absent,
+   fichier refuse n'ouvre rien : il reste affiche a l'accueil de la Production avec sa raison (bloc `atelier` absent,
    `temps` invalide, nom en double, `still` manquant, decoupage non dit, date mal formee). Le verificateur dit la meme
    chose avant : ne jamais annoncer un fichier qu'il refuse.
 4. **Corriger** : modifier le meme fichier, sans changer les `name`. La page reprend le fichier toute seule ; les
@@ -391,7 +411,7 @@ Lire ce qui a rate, apres un calcul :
 Par scene : la note de l'image retenue, les points douteux ou absents (decor, tenue, geste, objet, cadrage, chaque
 champ de pose) et les cases cochees par le proprietaire. Aucun texte libre : des valeurs fermees et des nombres.
 
-## Verifier un depot
+## Verifier un script
 Avant d'annoncer un fichier au proprietaire, le passer au verificateur (sur le serveur, compte `debian`, sans
 GPU ni IA, lecture seule) :
 
@@ -404,11 +424,11 @@ celle du modele en cours), `GRAVE` et `remarque` (controle des plans, avec le no
 Code de sortie : 0 rien a corriger, 1 des remarques restent, 2 refuse ou perime. Corriger et relancer jusqu'a 0 ;
 une remarque laissee expres s'explique dans `note`. Le controle des plans passe sur chaque temps du fichier.
 
-## Deposer une fiche de personnage
+## Livrer une fiche de casting
 L'agent peut aussi creer un personnage. Il copie `server/jobs/personnage.modele.yaml` (seule reference du
 format, avec sa ligne `modele` et son historique) vers `server/jobs/atelier/personnages/<nom_court>.yaml`, le
-remplit et le verifie avec le meme outil. La fiche apparait dans la page Atelier, Personnages, sous "Fiches
-deposees par votre agent" (et un rappel a l'accueil) : le proprietaire l'ouvre dans le formulaire du personnage,
+remplit et le verifie avec le meme outil. La fiche apparait dans la page Production, Casting, sous "Fiches livrees
+par votre directeur de casting" (et un rappel a l'accueil) : le proprietaire l'ouvre dans le formulaire du personnage,
 la corrige et l'enregistre. Rien n'entre en service sans lui ; une fiche de moins de 21 ans est refusee.
 `generation.lora` reste vide : la LoRA du visage est entrainee par le proprietaire, et sans elle le visage change
 d'une image a l'autre. Le nom court du fichier est celui qu'on ecrit ensuite dans `atelier.personnage`.
@@ -420,7 +440,7 @@ relire a chaque seance ce document, `server/jobs/modele.yaml` et `server/jobs/pe
 verifier avant de livrer. Une evolution du format se fait donc ici et dans les modeles, pas dans les skills.
 
 Les fichiers de `server/jobs/atelier/` ne sont pas suivis par git. Le lancement direct du pilote
-(ci-dessous) reste possible pour des essais hors atelier : ces images vont dans le Tri, pas dans un projet.
+(ci-dessous) reste possible pour des essais hors Production : ces images vont dans les Rushes, pas dans un projet.
 
 ## Commandes (depuis `/home/debian/Depotclaude/server`)
     docker compose run --rm pilot depenses                            # depense du jour / plafond

@@ -483,3 +483,8 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
   pas change. La page refuse d'enregistrer par-dessus un projet que le depot vient de mettre a jour (elle se recharge).
   L'ancienne forme (un fichier par temps) reste lue, avec son bouton. Essais sur une copie des donnees : fichier
   entier accepte, cinq refus, import, redepot. Aucune depense GPU.
+- 15/11, noms de production audiovisuelle, a la demande du proprietaire. Atelier devient Production (etapes
+  Preparation, Decoupage, Tournage, Montage), Personnages devient Casting, Hub devient Materiel, Test devient Essais,
+  Tri devient Rushes, Reseaux devient Diffusion ; un fichier du scenariste est un script, une fiche de personnage
+  livree est une fiche de casting. Seuls les intitules changent : adresses, dossiers et champs des fichiers restent.
+  Table dans `docs/agents.md` (Vocabulaire) ; consignes du scenariste et du directeur de casting mises a jour.

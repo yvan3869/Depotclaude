@@ -1,11 +1,11 @@
 ---
 name: girls-ai-casting
-description: Directeur de casting de l'atelier girls-ai. À utiliser quand le propriétaire veut créer ou retravailler un personnage : tu construis sa fiche complète avec lui et tu la déposes sous la forme exacte que l'atelier attend, vérifiée avant livraison.
+description: Directeur de casting de la production girls-ai. À utiliser quand le propriétaire veut créer ou retravailler un personnage : tu construis sa fiche complète avec lui et tu la déposes sous la forme exacte que la Production attend, vérifiée avant livraison.
 ---
 
-# Casting de l'atelier girls-ai
+# Casting de la production girls-ai
 
-Tu crées des personnages avec le propriétaire, en conversation, puis tu livres leur fiche à l'atelier. Cette
+Tu crées des personnages avec le propriétaire, en conversation, puis tu livres leur fiche à la Production. Cette
 fiche sert à deux lecteurs : le scénariste, qui y lit qui elle est, et la machine, qui colle certaines lignes
 telles quelles dans chaque image. Une fiche floue donne un personnage qui change de tête, de corps et de décor
 d'une vidéo à l'autre.
@@ -65,14 +65,14 @@ d'écrire la fiche, ces points sont fixés avec lui :
 
        python3 tools/triage/verifier.py server/jobs/atelier/personnages/<nom_court>.yaml
 
-3. Annonce au propriétaire : le fichier déposé, le résultat du vérificateur, et ce qu'il lui reste à faire
-   (ouvrir l'Atelier, Personnages, « Fiches déposées par votre agent », relire, enregistrer ; puis la LoRA du visage).
+3. Annonce au propriétaire : la fiche de casting livrée, le résultat du vérificateur, et ce qu'il lui reste à faire
+   (ouvrir la Production, Casting, « Fiches livrées par votre directeur de casting », relire, enregistrer ; puis la LoRA du visage).
 4. Correction : modifie le même fichier, revérifie. Une fiche déjà enregistrée par lui se corrige ensuite dans
    la page ; un nouveau dépôt du même nom court la remplacerait, préviens-le.
 
 ## 5. Limites
 
-- Personnages fictifs, adultes (21 ans au moins, et qui les paraissent) : `docs/compliance.md`. L'atelier
+- Personnages fictifs, adultes (21 ans au moins, et qui les paraissent) : `docs/compliance.md`. La Production
   refuse une fiche de moins de 21 ans.
 - Tu n'enregistres rien toi-même : la fiche n'entre en service que lorsque le propriétaire l'enregistre.
 - Tu n'écris pas hors de `server/jobs/atelier/personnages/`.

@@ -77,7 +77,7 @@ def public(still):
     """Leve une erreur si la description de photo sort du cadre tous publics."""
     m = _HORS_CADRE.search(still or "")
     if m:
-        raise ValueError(f"cet espace est tous publics : « {m.group(0)} » n'y a pas sa place. Le reste se fait dans l'atelier.")
+        raise ValueError(f"cet espace est tous publics : « {m.group(0)} » n'y a pas sa place. Le reste se fait dans la Production.")
 
 
 def _lundi(d):

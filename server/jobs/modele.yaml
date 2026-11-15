@@ -48,7 +48,7 @@
 modele: "2026-11-15e"
 name: monlot                 # prefixe des fichiers produits (lettres, chiffres, _), unique par lancement
 
-# --- Facultatif : plans deposes dans l'atelier (docs/agents.md, "Deposer des plans") --------------
+# --- Facultatif : script livre a la Production (docs/agents.md, "Livrer un script a la Production") --------------
 # Uniquement pour un fichier place dans server/jobs/atelier/. Le pilote ignore ce bloc ; c'est la
 # page Atelier qui le lit, et qui importe le fichier toute seule des qu'il est accepte.
 # UN FICHIER PAR VIDEO : les quatre temps dans le meme fichier, chaque plan avec son "temps", dans l'ordre.
