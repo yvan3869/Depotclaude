@@ -396,6 +396,8 @@ class Biblio:
         p, v, bb = self.at.perso(slug), self.vue(slug), self._b(slug)
         n = max(4, min(int(b.get("n") or 24), 40))
         tenue = _s(b.get("tenue"), 400)
+        # « wearing » devant un etat sans vetement donne des dessous couleur chair : il est retire (page ancienne restee ouverte, ou saisie)
+        tenue = re.sub(r"^wearing\s+(?=(?:fully |completely |totally )?(?:nude|naked|topless|bottomless|undressed|unclothed)\b)", "", tenue, flags=re.I)
         ref = None
         if not v["lora"]:
             if not v["visage"]["choix"]:
