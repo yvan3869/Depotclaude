@@ -525,5 +525,21 @@ Synthese des decisions, de l'etat et des lecons. A importer dans la base de conn
 - Video finale de p0005 figee vers 5 s sur telephone, meme telechargee : des segments du montage sortaient en 4:4:4
   (profil High 4:4:4, illisible par les telephones) et etaient colles tels quels apres le premier. Corrige : tous les
   segments en `yuv420p`. Temps 1 remonte (`final_v2.mp4`, verifie : un seul profil, High).
-- A faire : essai comparatif hors projet, memes scenes par texte, par retouche d'une image maitresse et avec ControlNet.
+### 2026-11-15 (suite) : essai comparatif texte / retouche / pose imposee (hors projet)
+
+- Trois scenes tous publics de Lea (assise en tailleur de trois quarts ; a genoux de profil roulant un tapis ; tres gros
+  plan du visage), chacune faite de trois facons a partir d'une meme image de depart. Images dans
+  data/work/girls-ai-essai-comparatif, planches p0004essai_comparatif_s1/s2/s3 dans le Tri.
+- Texte seul (Z-Image + LoRA du personnage, assemblage du modele g) : visage fidele, mais pose et cadrage faux sur les
+  deux scenes de corps (vue de dos au lieu de trois quarts, plan moyen au lieu de large), coiffure ignoree. Gros plan juste.
+- Retouche de l'image de depart (Qwen-Image-Edit) : pose, cadrage, coiffure et piece justes ; visage plus lisse, moins
+  ressemblant, tatouage reduit ; pas de LoRA possible.
+- Pose imposee : squelette tire de l'image retouchee (torchvision keypointrcnn, dessine au format OpenPose, rien
+  d'installe), puis Z-Image + LoRA + ControlNet (`ModelPatchLoader` + `ZImageFunControlnet`, force 0,9, 9 pas). Pose et
+  cadrage justes ET visage fidele ; la pose tient avec un autre lieu et une autre tenue. La piece n'est pas reprise de
+  l'image de depart (redessinee d'apres le texte). 9 s par image une fois charge.
+- Ajoute au volume `lea-models` (dossier `models/model_patches`, rien supprime) :
+  `Z-Image-Turbo-Fun-Controlnet-Union-2.1-2602-8steps.safetensors` (6,7 Go, celui qui a servi) et
+  `Z-Image-Turbo-Fun-Controlnet-Union.safetensors` (3,1 Go, repli non essaye, supprimable).
+- Depense : reconnaissance 1,8 min + essai 12,6 min a 0,72 $/h, environ 0,17 $. Jour : 3,83 $ sur 7,50.
 
