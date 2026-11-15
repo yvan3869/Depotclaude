@@ -118,6 +118,23 @@ class Social:
         r = {**DEFAUT, **((_load(self.d / "reglages.json") or {}).get(slug) or {})}
         return r
 
+    def _loras_dispo(self):
+        """LoRA d'image du catalogue que leur categorie admet en tous publics (temps 1), presentes sur le volume."""
+        return [x for x in self.at.bibliotheque()["loras"] if x["temps_min"] <= 1 and x["famille"] == "zimage" and x["volume"] is not False]
+
+    def loras(self, r, dispo=None):
+        """LoRA des images d'un personnage : son choix, sinon celles par defaut du temps 1 ; jamais hors de la liste admise."""
+        ok, out = {x["name"] for x in (self._loras_dispo() if dispo is None else dispo)}, []
+        for x in str(r["loras"] if r.get("loras") is not None else self.at._defauts().get(1) or "").split(", "):
+            nom, _, force = x.partition(":")
+            try:
+                force = f":{max(0.1, min(2.0, float(force))):g}" if force else ""
+            except ValueError:
+                force = ""
+            if nom in ok and not any(y.partition(":")[0] == nom for y in out):
+                out.append(nom + force)
+        return ", ".join(out)
+
     def _post(self, P, kid):
         for k in P["posts"]:
             if k["id"] == kid:
@@ -139,8 +156,11 @@ class Social:
         auj = datetime.date.today()
         dep = [x for x in (self._lignes(self.d / "depenses.jsonl")) if x.get("jour", "") >= (auj - datetime.timedelta(days=6)).isoformat()]
         P, vieux = self._posts(), (auj - datetime.timedelta(days=60)).isoformat()
-        return {"personnages": [{"slug": p["slug"], "nom": p["nom"], "langue": p.get("langue"), "lora": bool((p.get("generation") or {}).get("lora")),
-                                 "reglages": self.reglages(p["slug"])} for p in self.at.persos().values() if p.get("statut") != "archive"],
+        dispo = self._loras_dispo()
+        cats = self.at.bibliotheque()["categories"]
+        return {"loras": [{"name": x["name"], "label": x["label"], "cat": cats[x["cat"]]["label"], "strength": x["strength"], "note": x["note"]} for x in dispo],
+                "personnages": [{"slug": p["slug"], "nom": p["nom"], "langue": p.get("langue"), "lora": bool((p.get("generation") or {}).get("lora")),
+                                 "reglages": (lambda r: {**r, "loras": self.loras(r, dispo), "loras_defaut": r.get("loras") is None})(self.reglages(p["slug"]))} for p in self.at.persos().values() if p.get("statut") != "archive"],
                 "posts": sorted((k for k in P["posts"] if not (k["etat"] in ("publie", "refuse") and k["jour"] < vieux)), key=lambda k: (k["jour"], k["id"])),
                 "lots": self._lots()["lots"][-6:][::-1], "redacteur": self.at.redacteur_actif(), "depense": self.at.depense(),
                 "occupe": self.studio.running(), "can_run": self.studio.can_run(), "calcul": bool(self.run), "attente": self.attente,
@@ -169,6 +189,8 @@ class Social:
             r["jour"] = max(0, min(6, int(b.get("jour") if b.get("jour") not in (None, "") else r["jour"])))
             r["mention"] = _s(b.get("mention"), 80) or DEFAUT["mention"]
             r["format"] = b.get("format") if b.get("format") in FORMATS else r["format"]
+            if isinstance(b.get("loras"), str):
+                r["loras"] = self.loras({"loras": _s(b["loras"], 400)})
             tous[p["slug"]] = r
             _dump(self.d / "reglages.json", tous)
         self.ev.set()
@@ -304,7 +326,7 @@ class Social:
             try:
                 perso = at.perso(att[0]["perso"])
                 r = self.reglages(perso["slug"])
-                loras = at._defauts().get(1) or ""
+                loras = self.loras(r)
                 with at.lock:
                     if st.running():
                         return
