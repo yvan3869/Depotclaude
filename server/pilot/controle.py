@@ -70,16 +70,18 @@ python -c "import torch, transformers, PIL; print('PYTHON', '$PY', torch.__versi
 python lot.py /workspace/{DOSSIER}
 """
 
-LOT = '''import json, re, statistics, sys, traceback
+# Le script reste en marche sur le pod : les modeles sont charges une fois, puis chaque lot depose (lot.json) est note
+# des son arrivee. A la fin d'un lot il ecrit out.json puis "pret" dans le fichier fin ; s'il s'arrete, le lanceur y
+# ecrit son code de sortie (Controleur.noter le relance alors).
+LOT = '''import json, re, statistics, sys, time, traceback
 from pathlib import Path
 import torch
 from PIL import Image
 
 racine = Path(sys.argv[1])
-lot = json.loads((racine / "lot.json").read_text())
 cases = json.loads((racine / "cases.json").read_text())
 ouinon = json.loads((racine / "ouinon.json").read_text())
-res = {x["image"]: {} for x in lot}
+lot, res, M = [], {}, {}
 
 
 def ouvrir(x, cote):
@@ -90,9 +92,11 @@ def ouvrir(x, cote):
 
 @torch.inference_mode()
 def visages():
-    from facenet_pytorch import MTCNN, InceptionResnetV1
-    mt = MTCNN(image_size=160, margin=20, keep_all=True, device="cuda")
-    rn = InceptionResnetV1(pretrained="vggface2").eval().to("cuda")
+    if "mt" not in M:
+        from facenet_pytorch import MTCNN, InceptionResnetV1
+        M["mt"] = MTCNN(image_size=160, margin=20, keep_all=True, device="cuda")
+        M["rn"] = InceptionResnetV1(pretrained="vggface2").eval().to("cuda")
+    mt, rn = M["mt"], M["rn"]
     emb = {}
     for x in lot:
         if x.get("leger"):  # brouillon d'une pose : seuls ses champs sont verifies
@@ -119,10 +123,12 @@ def visages():
 
 @torch.inference_mode()
 def vision():
-    from transformers import AutoProcessor, Qwen2_5_VLForConditionalGeneration
-    nom = (racine / "modele.txt").read_text().strip()
-    model = Qwen2_5_VLForConditionalGeneration.from_pretrained(nom, torch_dtype=torch.bfloat16, device_map="cuda").eval()
-    proc = AutoProcessor.from_pretrained(nom, min_pixels=256 * 28 * 28, max_pixels=1280 * 28 * 28)
+    if "model" not in M:
+        from transformers import AutoProcessor, Qwen2_5_VLForConditionalGeneration
+        nom = (racine / "modele.txt").read_text().strip()
+        M["model"] = Qwen2_5_VLForConditionalGeneration.from_pretrained(nom, torch_dtype=torch.bfloat16, device_map="cuda").eval()
+        M["proc"] = AutoProcessor.from_pretrained(nom, min_pixels=256 * 28 * 28, max_pixels=1280 * 28 * 28)
+    model, proc = M["model"], M["proc"]
     systeme, question, qdesc = [(racine / f).read_text() for f in ("systeme.txt", "question.txt", "ouinon_desc.txt")]
     tok = proc.tokenizer
     oui, non = [[tok.encode(m, add_special_tokens=False)[0] for m in l] for l in (("Yes", "yes"), ("No", "no"))]
@@ -167,11 +173,21 @@ def vision():
             print("RATE", x["image"], type(e).__name__, flush=True)
 
 
-for f in (visages, vision):
+while True:
     try:
-        f()
-    except Exception:
-        traceback.print_exc()
-    (racine / "out.json").write_text(json.dumps(res))
-    torch.cuda.empty_cache()
+        lot = json.loads((racine / "lot.json").read_text())
+        (racine / "lot.json").unlink()
+    except Exception:  # pas de lot, ou depot en cours
+        time.sleep(1)
+        continue
+    res = {x["image"]: {} for x in lot}
+    for f in (visages, vision):
+        try:
+            f()
+        except Exception:
+            traceback.print_exc()
+        (racine / "out.json").write_text(json.dumps(res))
+        torch.cuda.empty_cache()
+    (racine / "fin").write_text("pret")
+    print("LOT note", len(lot), flush=True)
 '''

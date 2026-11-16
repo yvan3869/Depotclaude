@@ -861,6 +861,7 @@ class Controleur:
     def __init__(self, cfg, data):
         import secrets
         self.cfg, self.data, self.pod_id, self.cost, self.t0, self.journal, self.pret = cfg, Path(data), None, 0.0, time.time(), "", False
+        self.lance = False  # le script du pod a ete lance : il garde les modeles charges d'un lot a l'autre
         self.jtok = secrets.token_urlsafe(24)
         self.H = {"Authorization": f"token {self.jtok}"}
 
@@ -923,17 +924,25 @@ class Controleur:
             raise RuntimeError("controleur pas pret")
         D, t0 = ct.DOSSIER, time.time()
         try:
-            for nom, f in fichiers.items():
-                self.api("PUT", f"contents/{D}/in/{nom}", {"type": "file", "format": "base64", "content": base64.b64encode(f.read_bytes()).decode()}, timeout=300)
-            self.api("PUT", f"contents/{D}/lot.json", {"type": "file", "format": "text", "content": json.dumps(lot)})
-            for nom in ("fin", "run.log", "out.json"):
+            # le script lance au premier lot reste en marche, modeles charges : il laisse "pret" dans le fichier fin
+            vu, charge = 0, False
+            if self.lance:
+                try:
+                    charge = self.texte("fin").strip() == "pret"
+                    vu = len(self.texte("run.log")) if charge else 0
+                except Exception:
+                    pass
+            for nom in ("fin", "out.json") + (() if charge else ("run.log", "lot.json")):
                 try:
                     self.api("DELETE", f"contents/{D}/{nom}", essais=1, retries=1)
                 except Exception:
                     pass
-            log(f"controle : {len(lot)} image(s) deposee(s)")
+            for nom, f in fichiers.items():
+                self.api("PUT", f"contents/{D}/in/{nom}", {"type": "file", "format": "base64", "content": base64.b64encode(f.read_bytes()).decode()}, timeout=300)
+            self.api("PUT", f"contents/{D}/lot.json", {"type": "file", "format": "text", "content": json.dumps(lot)})  # en dernier : le script le prend des qu'il le voit
+            log(f"controle : {len(lot)} image(s) deposee(s)" + (", modeles deja charges" if charge else ""))
             ordre = f"(nohup sh -c 'bash /workspace/{D}/run.sh > /workspace/{D}/run.log 2>&1; echo $? > /workspace/{D}/fin' >/dev/null 2>&1 &)\r"
-            for _ in range(3):
+            for _ in range(0 if charge else 3):
                 term = self.api("POST", "terminals")["name"]
                 si.ws_envoyer(f"{self.pod_id}-8888.proxy.runpod.net", f"/terminals/websocket/{term}", self.H, json.dumps(["stdin", ordre]), _ctx)
                 time.sleep(10)
@@ -943,10 +952,12 @@ class Controleur:
                 except Exception:
                     log("controle : le script n'a pas demarre, nouvel essai")
             else:
-                raise RuntimeError("le script n'a pas demarre sur le pod")
-            vu, code, journal = 0, None, ""
+                if not charge:
+                    raise RuntimeError("le script n'a pas demarre sur le pod")
+            self.lance = True
+            code, journal, debut = None, "", vu
             while time.time() - t0 < delai_min * 60:
-                time.sleep(20)
+                time.sleep(5 if charge else 20)
                 try:
                     journal = self.texte("run.log")
                     for l in journal[vu:].splitlines():
@@ -966,7 +977,7 @@ class Controleur:
                 journal = self.texte("run.log")
             except Exception:
                 pass
-            self.journal += journal + "\n"
+            self.journal += (journal[debut:] if charge else journal) + "\n"
             try:
                 res = json.loads(self.texte("out.json"))
             except Exception:
