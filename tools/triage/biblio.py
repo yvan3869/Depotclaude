@@ -484,7 +484,13 @@ class Biblio:
         fi = self.at._lib()["fiche"]
         styles = [x for x in _loras_plan(self.at._defauts().get(4) or "") if fi.get(x["name"] if isinstance(x, dict) else x, ("autre", "zimage")) [0] in STYLES
                   and fi.get(x["name"] if isinstance(x, dict) else x, ("", "zimage"))[1] != "wan22"]
-        adulte = temps_min(cat[nom].get("cat")) >= 2
+        avec = []  # LoRA empilees a celle qu'on essaie, au choix du proprietaire, chacune a sa force du catalogue
+        for n in b.get("avec") or []:
+            if n in cat and n != nom and n not in avec and cat[n].get("famille") != "wan22" and not any((x["name"] if isinstance(x, dict) else x) == n for x in styles):
+                avec.append(n)
+        if len(avec) > 4:
+            raise ValueError("4 LoRA ajoutées au plus")
+        adulte = max(temps_min(cat[n].get("cat")) for n in (nom, *avec)) >= 2
         serie = int((bb.setdefault("banc", {}).get(k) or {}).get("serie") or 0) + 1
         pre, taches = self._prefixe(p), []
         deux = str(b.get("personnes")) == "2"
@@ -494,9 +500,9 @@ class Biblio:
         for ci, (ck, _, cadre) in enumerate([c for c in BANC_CADRES if c[0] in (BANC_DEUX if deux else BANC_SEUL)]):
             for f in BANC_FORCES:
                 taches.append({"sortie": f"b_{k}_{serie}_{ck}_{int(round(f * 100)):03d}", "seed": 9000 + 13 * serie + ci, "taille": [720, 1280], "lora": True,
-                               "loras": [*styles, {"name": nom, "strength": f}], "prompt": f"{pre}vertical {cadre}, {phrase or acte}{', nsfw' if adulte else ''}{FIN}"})
+                               "loras": [*styles, *avec, {"name": nom, "strength": f}], "prompt": f"{pre}vertical {cadre}, {phrase or acte}{', nsfw' if adulte else ''}{FIN}"})
         bb["banc"].pop(k, None)  # la derniere serie lancee passe en tete
-        bb["banc"][k] = {"lora": nom, "acte": acte, "phrase": _s(b.get("phrase"), 500), "partenaire": part, "personnes": 2 if deux else 1, "serie": serie, "date": time.strftime("%d/%m/%Y")}
+        bb["banc"][k] = {"lora": nom, "acte": acte, "phrase": _s(b.get("phrase"), 500), "partenaire": part, "personnes": 2 if deux else 1, "avec": avec, "serie": serie, "date": time.strftime("%d/%m/%Y")}
         self._ecrire(slug, bb)
         self._lancer(slug, "banc", {"taches": taches}, len(taches))
         return {"lance": len(taches)}
@@ -512,7 +518,7 @@ class Biblio:
         pre = f"b_{b['cle']}_{x['serie']}_"
         bonnes = [n[len(pre):-4].split("_") for n in b.get("bonnes") or [] if str(n).startswith(pre) and (self.dir(slug) / str(n)).is_file()]
         forces = [int(f) / 100 for _, f in bonnes]
-        ligne = {"acte": x["acte"], "phrase": x["phrase"], "personnes": x["personnes"], "cadrages": sorted({c for c, _ in bonnes}),
+        ligne = {"acte": x["acte"], "phrase": x["phrase"], "personnes": x["personnes"], "avec": x.get("avec") or [], "cadrages": sorted({c for c, _ in bonnes}),
                  "force": min(set(forces), key=lambda f: (-forces.count(f), f)) if forces else 0, "ok": bool(bonnes)}
         avant = [l for l in (self.at._catalogue().get(x["lora"]) or {}).get("capacite") or [] if isinstance(l, dict) and _cle(l.get("acte")) != _cle(x["acte"])]
         bib = self.at.save_capacite({"name": x["lora"], "capacite": [*avant, ligne]}, verrou=False)

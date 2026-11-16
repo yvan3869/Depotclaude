@@ -455,14 +455,15 @@ class Atelier:
         lp = p.get("loras") or {}
         ok = lambda txt: ", ".join(x for x in str(txt or "").split(", ") if x and tmin.get(x.partition(":")[0], (1,))[0] <= s["temps"])
         base, c = _fusion(ok(lp.get("0")), ok(lp.get(str(s["temps"])))), self._cap(s)
-        if c:  # position connue des fiches : un style et la LoRA qui sait la faire, sans empiler les autres LoRA du temps
+        if c:  # position connue des fiches : un style et la LoRA qui sait la faire, sans empiler les autres LoRA du temps (sauf celles essayees avec elle au banc : "avec")
             fi = self._lib()["fiche"]
             for fam, garde in (("image", CATS_STYLE), ("clip", ("mouvement", "vitesse"))):
                 nom, l = c.get(fam) or ("", {})
                 if not nom or tmin.get(nom, (1,))[0] > s["temps"]:
                     continue
                 reste = lambda x: (fi.get(x, ("autre", "zimage"))[1] == "wan22") != (fam == "clip") or fi.get(x, ("autre",))[0] in garde
-                base = _fusion(", ".join(x for x in base.split(", ") if x and reste(x.partition(":")[0])), f"{nom}:{l['force']}" if l.get("force") else nom)
+                plus = [n for n in l.get("avec") or [] if fam == "image" and n in fi and fi[n][1] != "wan22" and tmin.get(n, (1,))[0] <= s["temps"]]
+                base = _fusion(", ".join(x for x in base.split(", ") if x and reste(x.partition(":")[0])), ", ".join(plus), f"{nom}:{l['force']}" if l.get("force") else nom)
         return _fusion(base, s.get("loras"))
 
     def capacites(self):
@@ -488,7 +489,7 @@ class Atelier:
     def save_capacite(self, b, verrou=True):
         """Fiche de capacite d'une LoRA : les positions qu'elle sait faire. Une ligne : "acte" (le mot que le script ecrit), "phrase" (ce que la
         Production envoie au modele a sa place ; vide : le mot lui-meme), "personnes" (1 ou 2), "cadrages" (ceux qui tiennent),
-        "force", "ok" (validee par le proprietaire : la position entre alors dans la liste du scenariste)."""
+        "force", "avec" (LoRA empilees a celle-ci, essayees avec elle), "ok" (validee par le proprietaire : la position entre alors dans la liste du scenariste)."""
         import yaml
         nom, tout = str(b.get("name") or ""), self._catalogue()
         if nom not in tout:
@@ -504,6 +505,7 @@ class Atelier:
             except (TypeError, ValueError):
                 force = 0
             lignes.append({"acte": a, "phrase": _s(l.get("phrase"), 500), "personnes": 2 if str(l.get("personnes")) == "2" else 1,
+                           "avec": [n for i, n in enumerate(l.get("avec") or []) if n in tout and n != nom and tout[n].get("famille") != "wan22" and n not in (l.get("avec") or [])[:i]][:4],
                            "cadrages": [k for k, *_ in BANC_CADRES if k in (l.get("cadrages") or [])], "force": force if 0 < force <= 2 else 0, "ok": bool(l.get("ok"))})
         if len(lignes) > 30:
             raise ValueError("30 positions au plus par LoRA")

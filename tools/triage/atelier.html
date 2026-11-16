@@ -1044,7 +1044,7 @@ let A = null, AO = 'lieux', aT = null;
 const AC = {t: '', l: '', p: 0};  // cabine d'essayage : tenue, lieu et pose choisis
 const GR = {};  // garde-robe d'un personnage (tenues qui ont une image retenue), lue une fois pour la Production
 const ATABS = [['lieux', 'image', 'Lieux'], ['tenues', 'personnage', 'Garde-robe'], ['cabine', 'camera', 'Cabine'], ['corps', 'planche', 'Corps'], ['lora', 'lora', 'LoRA'], ['banc', 'camera', 'Banc d\'essai']];
-let AB = {lora: '', acte: '', phrase: '', partenaire: '', personnes: '1', force: '0.8', coche: {}, orig: {}};  // banc d'essai : formulaire et images cochees, gardes entre deux rafraichissements
+let AB = {lora: '', acte: '', phrase: '', partenaire: '', personnes: '1', force: '0.8', avec: [], coche: {}, orig: {}};  // banc d'essai : formulaire et images cochees, gardes entre deux rafraichissements
 const af = n => `/afile/perso-${A.slug}/${n}`;
 const acout = n => usd((A.pod ? 0 : 0.05) + n * 0.01);
 async function vueAtelier(slug, onglet) {
@@ -1137,6 +1137,9 @@ function rendreAtelier() {
         <div class="row haut"><div style="width:110px"><label>4. Personnes<select data-ab="personnes"><option value="1" ${AB.personnes === '1' ? 'selected' : ''}>1</option><option value="2" ${AB.personnes === '2' ? 'selected' : ''}>2</option></select></label></div>
           <div class="g" style="min-width:0"><label>Partenaire (anglais)<input data-ab="partenaire" maxlength="200" placeholder="with an adult man in his thirties" value="${esc(AB.partenaire)}"></label></div></div>
         <div class="mut" style="font-size:12.5px;margin:-2px 0 10px">À 2 personnes, le partenaire est ajouté au texte et les cadrages s'élargissent (mi-corps, en pied, plan large) pour que les deux corps tiennent dans l'image. Champ vide : un homme adulte, sans précision.</div>
+        ${LI.filter(x => x.name !== AB.lora).length ? `<details class="pli" data-sec="bancavec"${ouv('bancavec', AB.avec.length > 0)}><summary>5. LoRA ajoutées à l'essai <small>${AB.avec.filter(n => n !== AB.lora).length} cochée(s)</small></summary>
+          <div class="mut">Pour une LoRA qui ne marche bien qu'avec une autre : par exemple celle qui débloque le registre adulte. Les LoRA cochées sont chargées avec celle de l'essai, chacune à son poids habituel. Si la position est validée, la Production les chargera ensemble, comme ici. Le style par défaut est déjà chargé : inutile de le cocher.</div>
+          <div class="tuiles">${LI.filter(x => x.name !== AB.lora).map(x => `<label class="c"><input type="checkbox" data-abv="${esc(x.name)}" ${AB.avec.includes(x.name) ? 'checked' : ''}><span>${esc(x.label)}</span></label>`).join('')}</div></details>` : ''}
         <div class="mut" style="font-size:12.5px;margin:0 0 10px">Le poids de la LoRA ne se règle pas ici : le banc essaie tout seul trois poids (${B.banc.forces.join(', ').replace(/\./g, ',')}) à trois cadrages. Les images que vous cochez disent lequel garder.</div>
         <div class="row"><button class="p" data-a="banclancer" ${A.lora ? '' : 'disabled'}>${ic('lancer')}Lancer le banc</button><span class="mut">${A.lora ? `9 images, environ ${acout(9)}` : 'Il faut d\'abord la LoRA du visage (onglet LoRA).'}</span></div>
         <details class="pli" data-sec="bancsans"${ouv('bancsans', false)}><summary>Inscrire sans essai</summary>
@@ -1146,7 +1149,7 @@ function rendreAtelier() {
           <div class="row"><button data-a="bancinscrire">${ic('valider')}Inscrire la position ci-dessus</button></div></details></div>`
       + (A.banc.length ? '<h2>Séries du banc</h2>' + A.banc.map(x => { const I = x.images.filter(n => n.split('_')[2] === String(x.serie)), co = AB.coche[x.cle] || [];
           return `<div class="panel"><div class="row"><b class="g">${esc(x.acte)}</b><span class="badge">${nomL(x.lora)}</span></div>
-            <div class="mut">${esc(x.date)} · ${x.personnes} personne(s)${x.note ? ` · notée le ${esc(x.note.date)} : ${x.note.bonnes} image(s) retenue(s)` : ' · pas encore notée'}</div>
+            <div class="mut">${esc(x.date)} · ${x.personnes} personne(s)${(x.avec || []).length ? ' · avec ' + x.avec.map(nomL).join(', ') : ''}${x.note ? ` · notée le ${esc(x.note.date)} : ${x.note.bonnes} image(s) retenue(s)` : ' · pas encore notée'}</div>
             ${I.length ? B.banc.cadres.map(([ck, lab]) => `<div class="mut" style="margin-top:4px">${esc(lab)}</div><div class="bgal pl">${B.banc.forces.map(fo => { const n = `b_${x.cle}_${x.serie}_${ck}_${String(Math.round(fo * 100)).padStart(3, '0')}.png`;
                 return I.includes(n) ? `<div style="position:relative;flex:none;text-align:center"><img loading="lazy" class="${co.includes(n) ? 'on' : ''}" src="${af(n)}" data-a="banccoche" data-cle="${x.cle}" data-n="${n}" alt=""><div class="mut">force ${String(fo).replace('.', ',')}</div></div>` : ''; }).join('')}</div>`).join('')
               + `<div class="mut">Toucher les images qui tiennent : la position est là, le visage est le sien, rien n'est déformé.</div>
@@ -1154,7 +1157,7 @@ function rendreAtelier() {
       + `<h2>Fiches de capacité <small>${B.positions.length} position(s) dans la liste du script</small></h2>`
       + (avec.length ? avec.map(x => `<div class="panel"><b>${esc(x.label)}</b>${x.famille === 'wan22' ? ' <span class="badge">clip</span>' : ''}
           ${x.capacite.map(l => `<div class="row" style="margin-top:6px"><div class="g"><b style="font-weight:600">${esc(l.acte)}</b> <span class="badge ${l.ok ? 'v' : 'a'}">${l.ok ? 'dans la liste' : 'ne tient pas'}</span>
-            <div class="mut">${l.personnes} personne(s)${l.cadrages.length ? ' · ' + l.cadrages.map(cadre).map(esc).join(', ') : ''}${l.force ? ' · force ' + String(l.force).replace('.', ',') : ''}</div>${l.phrase ? `<div class="mut">${esc(l.phrase)}</div>` : ''}</div>
+            <div class="mut">${l.personnes} personne(s)${l.cadrages.length ? ' · ' + l.cadrages.map(cadre).map(esc).join(', ') : ''}${l.force ? ' · force ' + String(l.force).replace('.', ',') : ''}${(l.avec || []).length ? ' · avec ' + l.avec.map(nomL).join(', ') : ''}</div>${l.phrase ? `<div class="mut">${esc(l.phrase)}</div>` : ''}</div>
             ${bi('supprimer', 'Retirer cette position', `data-a="bancretirer" data-n="${esc(x.name)}" data-acte="${esc(l.acte)}"`)}</div>`).join('')}</div>`).join('')
         : '<div class="panel mut">Aucune fiche pour l\'instant. Tant que la liste est vide, le script écrit ses positions librement et les scènes gardent les LoRA de leur temps.</div>');
   } else {
@@ -1265,7 +1268,7 @@ Object.assign(actions, {
   banclancer: async () => {
     if (!AB.lora || !AB.acte.trim()) return toast('Choisir la LoRA et écrire la position');
     if (!confirm(`Lancer le banc : 9 images, environ ${acout(9)} ?`)) return;
-    await api('/api/a/b/banc', {slug: A.slug, lora: AB.lora, acte: AB.acte, phrase: AB.phrase, personnes: AB.personnes, partenaire: AB.partenaire}); toast('Banc lancé', true); await bMaj(); },
+    await api('/api/a/b/banc', {slug: A.slug, lora: AB.lora, acte: AB.acte, phrase: AB.phrase, personnes: AB.personnes, partenaire: AB.partenaire, avec: AB.avec.filter(n => n !== AB.lora)}); toast('Banc lancé', true); await bMaj(); },
   bancmot: el => { const m = (AB.orig[AB.lora] || {mots: []}).mots[+el.dataset.i]; if (!m) return;
     AB.phrase = (AB.phrase.trim() ? AB.phrase.trim().replace(/,$/, '') + ', ' : '') + m; AB.phrase = AB.phrase.slice(0, 500); rendreAtelier(); },
   bancex: el => { const p = (AB.orig[AB.lora] || {exemples: []}).exemples[+el.dataset.i]; if (!p) return;
@@ -1276,7 +1279,7 @@ Object.assign(actions, {
     const r = await api('/api/a/b/banc/noter', {slug: A.slug, cle: k, bonnes: l}); E.bibliotheque = r.bibliotheque; delete AB.coche[k]; toast('Fiche mise à jour', true); bMaj(r); },
   bancinscrire: async () => { const x = E.bibliotheque.loras.find(y => y.name === AB.lora2);
     if (!x || !AB.acte.trim()) return toast('Choisir la LoRA et écrire la position');
-    const cl = s => s.trim().toLowerCase(), l = {acte: AB.acte, phrase: AB.phrase, personnes: AB.personnes, cadrages: E.bibliotheque.banc.cadres.map(c => c[0]), force: +AB.force || 0, ok: true};
+    const cl = s => s.trim().toLowerCase(), l = {acte: AB.acte, phrase: AB.phrase, personnes: AB.personnes, avec: x.famille === 'wan22' ? [] : AB.avec.filter(n => n !== x.name), cadrages: E.bibliotheque.banc.cadres.map(c => c[0]), force: +AB.force || 0, ok: true};
     E.bibliotheque = (await api('/api/a/lora/capacite', {name: x.name, capacite: [...x.capacite.filter(y => cl(y.acte) !== cl(AB.acte)), l]})).bibliotheque; toast('Position inscrite', true); rendreAtelier(); },
   bancretirer: async el => { const x = E.bibliotheque.loras.find(y => y.name === el.dataset.n);
     if (!x || !confirm('Retirer cette position de la fiche ? Le script ne pourra plus l\'écrire si aucune autre LoRA ne la porte.')) return;
@@ -1294,6 +1297,8 @@ async function bancOrigine(n) {
   if (AB.lora === n && AO === 'banc') rendreAtelier();
 }
 bancOrigine.att = {};
+vue.addEventListener('change', e => { const v = e.target.dataset.abv;
+  if (v) { const i = AB.avec.indexOf(v); e.target.checked ? i < 0 && AB.avec.push(v) : i >= 0 && AB.avec.splice(i, 1); const sm = e.target.closest('details').querySelector('summary small'); if (sm) sm.textContent = `${AB.avec.filter(n => n !== AB.lora).length} cochée(s)`; } });
 vue.addEventListener('change', e => { if (e.target.dataset.ab !== 'lora') return;
   const L = E.bibliotheque.loras, x = L.find(y => y.name === AB.lora), anc = L.map(y => y.trigger).filter(Boolean);
   if (x && (!AB.phrase.trim() || anc.includes(AB.phrase.trim()))) AB.phrase = x.trigger || '';

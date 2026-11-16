@@ -111,7 +111,7 @@ Regles verifiees a l'import (un fichier qui y manque est refuse) :
 « Banc d'essai ») : une position, trois cadrages, trois forces, et il coche ce qui tient. Les positions validees
 forment la liste. Pour un plan dont la position y figure, la Production prend seule la LoRA qui sait la faire, a la
 force validee, remplace le mot du script par la phrase qui marche avec cette LoRA, et ne garde a cote qu'une LoRA de
-style : les autres LoRA du temps ne s'empilent pas. Relire la liste avant chaque script : elle change quand le
+style et celles que le proprietaire a essayees avec elle au banc : les autres LoRA du temps ne s'empilent pas. Relire la liste avant chaque script : elle change quand le
 proprietaire valide ou retire une position. Besoin d'une position absente : le dire au proprietaire, ne pas l'ecrire.
 
 Ce que la Production fait d'un plan `acte` ou `final` : elle le tire directement (pas de brouillon, pas de pose
