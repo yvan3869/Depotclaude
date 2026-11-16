@@ -206,3 +206,10 @@ Ordre de construction : A puis B (le plus gros gain), D en même temps (sans lui
 ## 16/11, 08 h 30 : le lieu se regle tout seul
 
 Demande du proprietaire : ne plus regler a la main les images du temps et le lieu. Le scenariste recopie mot pour mot un lieu du personnage dans `continuite.lieu` ; si ce lieu a une image retenue, l'import pose le tirage « lieu de la bibliotheque » aux temps du script. Sinon le verificateur le signale et donne les lignes connues. Le verificateur ouvre maintenant la bibliotheque du personnage (il etait casse quelques minutes par ce changement, repare).
+
+## A preparer (demande du proprietaire, 16/11, 09 h 00) : un jeu de plusieurs photos coherentes par lieu
+
+Constat sur p0005 temps 3 : la fenetre varie d'une scene a l'autre, la bibliotheque n'ayant qu'une photo par lieu.
+A faire, plus tard : dans la bibliotheque du personnage, creer pour un lieu un jeu de vues coherentes entre elles (meme piece, memes meubles,
+meme lumiere : face, cote, vers la fenetre, plan large) a partir de la photo retenue, jamais d'une image deja derivee ; le proprietaire
+retient ou refait chaque vue ; la Production prend la vue qui convient au cadrage et a l'angle de la scene. Essai d'abord sur p0004 (tous publics).
