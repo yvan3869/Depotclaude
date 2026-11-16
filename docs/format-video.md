@@ -43,7 +43,13 @@ Ecarts :
 | D | **Trois accroches par projet** : debut, milieu, instant d'avant ; a publier a quelques jours d'ecart et comparer | aucun calcul |
 | E | **Meilleur morceau** : au montage, garder dans chaque clip les 2 a 3 s ou le mouvement est le plus net (mesure automatique) plutot que le debut | aucun calcul |
 
-Avis : A, B et C ensemble d'abord (une « accroche courte » fabriquee d'office a cote de l'accroche actuelle),
+**Fait le 16/11/2026 (A, B, C, en option, rien n'est change par defaut)** : reglages du montage, case
+« Amorce (ouvre sur la fin) » et duree visee « 10 s ». L'amorce ouvre la video sur 1,5 s de la fin du dernier plan,
+avec le texte d'accroche, puis reprend au debut ; relue en boucle, la fin enchaine sur l'ouverture. Valable a tous
+les temps. Essai tous publics : `data/inbox/p0004essai_amorce.png`. Un plan ne descend pas sous 2 s : avec quatre
+plans, l'amorce et le carton de fin, « 10 s » donne environ 12 s.
+
+Avis d'origine : A, B et C ensemble d'abord (une « accroche courte » fabriquee d'office a cote de l'accroche actuelle),
 puis D quand la publication tourne, pour mesurer. E est le plus technique, a faire en dernier.
 Les temps 2 a 5 ne sont pas concernes : la, le spectateur a paye ou s'est abonne, la duree est une qualite.
 

@@ -597,10 +597,11 @@ function rendreProjet() {
       ${T === 1 ? '<div class="mut" style="margin-top:10px">Mention « AI character » : toujours incrustée sur le temps 1.</div>'
         : `<label class="c" style="margin-top:10px"><input type="checkbox" data-m="1" data-k="label" ${P.montage.label ? 'checked' : ''}>Mention « AI character »${aide('Petite et semi-transparente, dans un coin. Obligatoire sur l\'accroche ; au choix sur les autres temps.')}</label>`}
       <div class="gt">Durée et fin</div>
-      <label>${ic('horloge')}Durée visée<select data-m="1" data-k="cible">${[[0, 'Tout garder'], [15, '15 s'], [20, '20 s'], [30, '30 s']].map(([v, l]) => `<option value="${v}" ${v === (P.montage.cible || 0) ? 'selected' : ''}>${l}</option>`).join('')}</select>
+      <label>${ic('horloge')}Durée visée<select data-m="1" data-k="cible">${[[0, 'Tout garder'], [10, '10 s'], [15, '15 s'], [20, '20 s'], [30, '30 s']].map(([v, l]) => `<option value="${v}" ${v === (P.montage.cible || 0) ? 'selected' : ''}>${l}</option>`).join('')}</select>
         ${aide('Les plans sont raccourcis en proportion (2 s au moins chacun), sans toucher aux raccords continus ni aux durées réglées à la main.')}</label>
       <div class="row">${T === 1 ? `<label class="c"><input type="checkbox" data-m="1" data-k="carton" ${P.montage.carton ? 'checked' : ''}>Carton de fin</label>` : ''}
-        <label class="c"><input type="checkbox" data-m="1" data-k="noir" ${P.montage.noir ? 'checked' : ''}>Fin au noir</label></div>
+        <label class="c"><input type="checkbox" data-m="1" data-k="noir" ${P.montage.noir ? 'checked' : ''}>Fin au noir</label>
+        <label class="c" title="La vidéo s'ouvre sur 1,5 s de la fin de son dernier plan, puis reprend au début. Sert à retenir dès la première seconde."><input type="checkbox" data-m="1" data-k="amorce" ${P.montage.amorce ? 'checked' : ''}>Amorce (ouvre sur la fin)</label></div>
       <div class="aide">${T === 1 ? 'Carton de fin : 2,6 s avec le texte « Carton de fin » du panneau Publier. ' : ''}Fin au noir : la dernière image s'éteint en fondu au lieu de couper net.</div>
       ${T === 1 ? `<div class="row"><button class="s" data-a="teaser">${ic('valider')}Réglages teaser 15 s</button></div>` : ''}`)}
     ${pan('son', `
@@ -710,7 +711,7 @@ function majDyn() {
     ${fin ? `<video class="fin" src="${u(fin)}" controls playsinline preload="metadata"></video>
       <div class="row"><b>${fin.replace('final_', '').replace('.mp4', '').replace('_', ' ')}</b><a class="lien" href="${u(fin)}" download="${P.id}_${fin}">${ic('telecharger')}Télécharger</a><span class="sp"></span>
         <button class="s" data-a="tri" data-n="${fin}">${ic('envoyer')}Envoyer aux Rushes</button>${bi('supprimer', 'Supprimer cette version', `data-a="suppfinal" data-n="${fin}"`, 's d')}</div>
-      ${inf ? `<div class="mut">${inf.duree} s, ${inf.plans} plan(s)${inf.colles ? `, ${inf.colles} raccord(s) sans coupe` : ''}${inf.cible ? `, visée ${inf.cible} s` : ''}${inf.label ? ', mention IA' : ''}, montée le ${esc(inf.date)}</div>` : ''}
+      ${inf ? `<div class="mut">${inf.duree} s, ${inf.plans} plan(s)${inf.colles ? `, ${inf.colles} raccord(s) sans coupe` : ''}${inf.cible ? `, visée ${inf.cible} s` : ''}${inf.amorce ? ', amorce' : ''}${inf.label ? ', mention IA' : ''}, montée le ${esc(inf.date)}</div>` : ''}
       ${F.length > 1 ? `<details class="pli" data-sec="versions"${ouv('versions')}><summary>Versions précédentes (${F.length - 1})</summary>${F.slice(0, -1).reverse().map(n => `<div class="ver">
         <a href="${u(n)}" target="_blank">${n.replace('final_', '').replace('.mp4', '').replace('_', ' ')}</a><span class="mut">${D.infos[n] ? `${D.infos[n].duree} s, ${esc(D.infos[n].date)}` : ''}</span>
         <span class="sp"></span>${bi('supprimer', 'Supprimer ' + n, `data-a="suppfinal" data-n="${n}"`, 's d')}</div>`).join('')}<div class="mut">Elles s'ouvrent dans un nouvel onglet.</div></details>` : ''}

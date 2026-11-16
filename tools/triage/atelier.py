@@ -141,7 +141,8 @@ Six points au plus, les plus graves d'abord. "a_reprendre" seulement s'il y a au
 RACCORDS = ("coupe", "continu", "arrivee")
 # Fiche de continuite d'un projet : ce qui ne doit pas changer d'une image a l'autre. Texte anglais, ajoute a chaque "still".
 CONT = ("lieu", "tenue", "cheveux", "lumiere", "pdv")
-CIBLES = (0, 15, 20, 30)  # duree visee d'un montage, en secondes (0 : tout garder)
+CIBLES = (0, 10, 15, 20, 30)  # duree visee d'un montage, en secondes (0 : tout garder)
+AMORCE = 1.5  # duree de l'amorce : la fin du dernier plan, montree en tete de l'accroche avant le premier plan
 PLANCHER = 2.0  # un plan raccourci pour tenir la duree visee garde au moins cette duree
 NOIR = 0.4  # fondu au noir de la fin
 FIXE = 2.0  # duree d'une image fixe (scene sans clip), en zoom lent
@@ -854,7 +855,7 @@ class Atelier:
                              "textes": bool(m.get("textes", True)), "carton": bool(m.get("carton", True)),
                              "label": bool(m.get("label", False)), "musique": _s(m.get("musique"), 120),
                              "cible": int(m.get("cible") or 0) if int(m.get("cible") or 0) in CIBLES else 0,
-                             "noir": bool(m.get("noir", True)), "simage": bool(m.get("simage", True)),
+                             "noir": bool(m.get("noir", True)), "amorce": bool(m.get("amorce", False)), "simage": bool(m.get("simage", True)),
                              "rendu": m.get("rendu") if m.get("rendu") in RENDUS else "net" if old.get("montage") else "main",  # nouveau projet : tenu a la main
                              "style": m.get("style") if m.get("style") in STYLES else "doux"}}
             # LoRA du projet : "0" = tout le projet, "1" a "4" = un temps ; s'ajoutent a celles d'une scene (_loras_scene)
@@ -2546,14 +2547,14 @@ class Atelier:
             self.montages.pop(pid, None)
 
     def supprimer_final(self, pid, name):
-        if not re.fullmatch(r"final_(t[234]_)?v\d+\.mp4", str(name)):
+        if not re.fullmatch(r"final_(t[2345]_)?v\d+\.mp4", str(name)):
             raise ValueError("fichier invalide")
         (self._pdir(pid) / name).unlink(missing_ok=True)
         (self._pdir(pid) / _nom_planche(name)).unlink(missing_ok=True)
 
     def planche(self, pid, name):
         """Cree la planche de controle d'une video montee avant que la planche soit faite d'office."""
-        if not re.fullmatch(r"final_(t[234]_)?v\d+\.mp4", str(name)):
+        if not re.fullmatch(r"final_(t[2345]_)?v\d+\.mp4", str(name)):
             raise ValueError("fichier invalide")
         d = self._pdir(pid)
         if not (d / name).is_file():
@@ -2563,7 +2564,7 @@ class Atelier:
 
     def vers_tri(self, pid, name):
         """Copie une video montee dans la boite du Tri (validation humaine avant publication)."""
-        if not re.fullmatch(r"final_(t[234]_)?v\d+\.mp4", str(name)):
+        if not re.fullmatch(r"final_(t[2345]_)?v\d+\.mp4", str(name)):
             raise ValueError("fichier invalide")
         p = self._raw(pid)
         dest = self.data / "inbox" / f"{pid}_{re.sub(r'[^a-z0-9]+', '_', p['titre'].lower()).strip('_')[:30]}_{name[6:]}"
@@ -2867,7 +2868,8 @@ def _plans(p, media):
         plans.append({"s": s, "deb": deb, "dur": dur, "colle": colle})
         derniere = s
     carton = 2.6 if m["carton"] and p.get("cta") else 0
-    trop = sum(x["dur"] for x in plans) + carton - (m.get("cible") or 0)
+    amorce = bool(m.get("amorce") and len(plans) > 1 and plans[-1]["dur"] > AMORCE)
+    trop = sum(x["dur"] for x in plans) + carton + (AMORCE if amorce else 0) - (m.get("cible") or 0)
     if m.get("cible") and trop > 0:
         marges = []
         for i, x in enumerate(plans):  # (plan, marge, debut libre, fin libre) ; les reglages faits a la main ne sont pas touches
@@ -2879,6 +2881,13 @@ def _plans(p, media):
             c = marge * min(1, trop / dispo)
             x["deb"] += c * (2 / 3 if ap else 1) if av else 0  # le debut d'un clip est le moment ou il se passe le moins de choses
             x["dur"] -= c
+    if amorce:
+        # amorce : la video s'ouvre sur la fin de son dernier plan (l'image la plus avancee), puis reprend au debut ;
+        # relue en boucle, la fin enchaine sur l'ouverture. Ni texte de scene, ni bruit, ni mouvement de camera propres.
+        d = plans[-1]
+        plans[0] = {**plans[0], "s": {**plans[0]["s"], "transition": "coupe"}}
+        plans.insert(0, {"s": {**d["s"], "texte": "", "son": "", "camera": "", "transition": "", "raccord": "coupe"},
+                         "deb": d["deb"] + d["dur"] - AMORCE if d["s"]["clip"] else 0, "dur": AMORCE, "colle": False, "amorce": True})
     return plans, carton
 
 
@@ -3076,7 +3085,9 @@ def monter(p, media, tmp, out, audio_dir, plateforme=""):
                   f"afade=t=in:d=0.4,afade=t=out:st={max(0, total - 1.2):.2f}:d=1.2[a]")
         _ff(*ins, "-filter_complex", ";".join(fc), "-map", "0:v", "-map", "[a]", "-c:v", "copy", "-c:a", "aac", "-b:a", "160k",
             "-t", f"{total:.2f}", "-movflags", "+faststart", out)
-    return {"bruits": cales, "simage": [plans[i]["s"]["id"] for i in simg], "duree": round(total, 2), "label": bool(m["label"]), "rendu": rendu, "passages": noms, "cible": m.get("cible") or 0, "plans": len(plans),
-            "debuts": debuts, "colle": [x["colle"] for x in plans], "carton": round(total - carton, 2) if carton else 0,
-            "images": sum(1 for x in plans if not x["s"]["clip"]), "colles": sum(1 for x in plans if x["colle"]),
-            "prises": [[x["s"]["id"], x["s"]["clip"] or x["s"]["image"]] for x in plans]}
+    vrais = [x for x in plans if not x.get("amorce")]
+    return {"bruits": cales, "simage": [plans[i]["s"]["id"] for i in simg if not plans[i].get("amorce")], "duree": round(total, 2), "label": bool(m["label"]), "rendu": rendu, "passages": noms, "cible": m.get("cible") or 0, "plans": len(vrais),
+            "amorce": AMORCE if len(vrais) < len(plans) else 0,
+            "debuts": [d for d, x in zip(debuts, plans) if not x.get("amorce")], "colle": [x["colle"] for x in vrais], "carton": round(total - carton, 2) if carton else 0,
+            "images": sum(1 for x in vrais if not x["s"]["clip"]), "colles": sum(1 for x in vrais if x["colle"]),
+            "prises": [[x["s"]["id"], x["s"]["clip"] or x["s"]["image"]] for x in vrais]}

@@ -743,3 +743,14 @@ environ 0,06 $ par essai ; compteur du jour 10,34 $ sur 20. Series d'essai retir
 **16/11, soir (suite) : poids au choix dans le banc, marche a suivre, chargement de deux LoRA retenues** (commit 6cb3189). A la demande du
 proprietaire, ses deux LoRA retenues en attente ont ete chargees sur le volume des que la Production a ete libre (premier essai refuse par RunPod,
 faute de machine ; second reussi). Depense du chargement : environ 0,11 $ ; compteur du jour 10,76 $ sur 20.
+
+### 16/11/2026 - Banc des LoRA de clip, format des videos, amorce
+
+- Banc d'essai etendu aux LoRA de clip : image de depart au choix (envoyee ou prise dans une serie d'images du banc),
+  mouvement ecrit, trois poids, trois clips de 5 s cote a cote, coche, fiche de capacite. En ligne. L'essai reel
+  (tous publics) attend : l'adresse `rest.runpod.io` ne repondait plus (panne de nom de domaine cote RunPod, constatee
+  vers 16 h UTC) ; aucun pod ne peut etre cree pendant la panne, cout du banc de clips encore estime (0,15 $).
+- Format des videos : releve de ce qui marche sur les reseaux et propositions, `docs/format-video.md`.
+- Montage : option « Amorce (ouvre sur la fin) » et duree visee de 10 s, eteintes par defaut. Aucun calcul GPU.
+- Correction : une video montee du temps 5 ne pouvait pas etre supprimee ni recevoir sa planche (nom refuse).
+- Depense GPU : aucune.
