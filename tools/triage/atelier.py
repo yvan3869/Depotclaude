@@ -193,13 +193,13 @@ def _tirage(p, t):
 
 def _voie(p, s):
     """Tirage d'une scene : le sien si elle en force un, sinon celui de son temps ; "auto" est resolu d'apres le cadrage
-    (le champ `cadrage`, a defaut le debut de la description)."""
+    (gros plan : image creee a part ; tout autre plan : lieu de la bibliotheque, depuis le 16/11/2026 les plans moyens aussi)."""
     v = s.get("voie") or _tirage(p, s["temps"])
     if v != "auto":
         return v
     if _gros_plan(s):
         return "direct"
-    return "decor" if PLAN_LARGE.search(s.get("cadrage") or (s.get("still") or "").split(",")[0]) else "pose"
+    return "decor"  # tout plan non serre : le lieu de la bibliotheque tient la piece ; sans image du lieu, pose imposee
 MARGE = 0.03  # le tremble de main recadre dans une image agrandie d'autant
 JOINT = 1 / 32  # a un raccord continu, la premiere image du clip suivant repete la derniere du precedent : elle est retiree
 
@@ -1775,11 +1775,20 @@ class Atelier:
         tenue = self.biblio.image(p["personnage"], "t", ligne) if ligne else None
         return {"decor": str(lieu)} | ({"tenue_image": str(tenue)} if tenue else {})
 
+    def _lieu_depart(self, p, s):
+        """Scene a plusieurs personnes en tirage "decor" : le brouillon ne sait placer qu'une personne, l'image part donc de
+        la photo du lieu (workflows.lieu_depart) et la piece tient quand meme (p0005, 16/11/2026 : lieu faux sur 16 images
+        sur 21 au temps 4, ou toutes les scenes ont un partenaire)."""
+        if _voie(p, s) != "decor" or _gros_plan(s) or not s.get("autres") or s["libre"]:
+            return {}
+        lieu = self._decor(p, s).get("decor")
+        return {"lieu_depart": lieu, "lieu_force": 0.8} if lieu else {}
+
     def _voie_dite(self, p, s, tmin):
         """Ce que la Production fera vraiment de la scene (affiche sur chaque scene) : "ref", "decor", "pose" ou "direct"."""
         v = _voie(p, s)
         if v == "direct" or _gros_plan(s) or s.get("autres"):
-            return "direct"
+            return "decor" if self._lieu_depart(p, s) else "direct"
         if v == "ref":
             ref = p.get("reference")
             return "ref" if ref and s["id"] != ref and not s["libre"] and not self._lora_image({"loras": self._loras_scene(p, s, tmin)}) else "pose"
@@ -1862,7 +1871,8 @@ class Atelier:
                                       "body": bool((perso.get("generation") or {}).get("corps"))}
                                      | ({"loras": _loras_plan(lo)} if lo else {}) | champs
                                      | ({"squelette": True} if _voie(p, s) != "direct" and not _gros_plan(s) and not s.get("autres") else {})
-                                     | (self._decor(p, s) if _voie(p, s) == "decor" and not _gros_plan(s) and not s.get("autres") and not s["libre"] else {}))
+                                     | (self._decor(p, s) if _voie(p, s) == "decor" and not _gros_plan(s) and not s.get("autres") and not s["libre"] else {})
+                                     | self._lieu_depart(p, s))
             else:
                 ids = self._a_cliper(p, ch, int(b.get("temps") or 1), want)
                 suiv = {prec[s["id"]]["id"]: s for s in p["scenes"] if prec[s["id"]]}
