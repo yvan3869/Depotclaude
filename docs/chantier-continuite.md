@@ -213,3 +213,12 @@ Constat sur p0005 temps 3 : la fenetre varie d'une scene a l'autre, la bibliothe
 A faire, plus tard : dans la bibliotheque du personnage, creer pour un lieu un jeu de vues coherentes entre elles (meme piece, memes meubles,
 meme lumiere : face, cote, vers la fenetre, plan large) a partir de la photo retenue, jamais d'une image deja derivee ; le proprietaire
 retient ou refait chaque vue ; la Production prend la vue qui convient au cadrage et a l'angle de la scene. Essai d'abord sur p0004 (tous publics).
+
+## A preparer (demande du proprietaire, 16/11, 09 h 15) : temps 4, plans moins nombreux et plus longs
+
+Idee du proprietaire : au temps 4, moins de scenes mais plus longues (mouvement repete a montrer), ralenties juste assez pour rester
+lisibles et fluides ; ses LoRA video font le mouvement si les images de depart sont bonnes.
+Pistes cote outil (rien de construit) : regle du scenariste par temps (nombre de plans et duree visee au temps 4) ; clip prolonge par
+enchainement (derniere image du clip = depart du suivant) ou clip en boucle (meme image au debut et a la fin, rejoue 2 ou 3 fois) ;
+ralenti par images intermediaires calculees (pas par simple etirement) ; reglage « duree » et « ralenti » par scene dans la Production.
+A traiter dans le chantier video ; essai tous publics sur p0004 d'abord.
