@@ -183,6 +183,7 @@ class Biblio:
         return {"slug": slug, "nom": p["nom"], "lora": bool(g.get("lora")), "lora_force": g.get("lora_strength"), "prefixe": bool(g.get("zimage_prefix")),
                 "lieux": lignes("lieux", "l"), "tenues": lignes("tenues", "t"),
                 "visage": {"images": vis, "choix": b["choix"].get("visage") if b["choix"].get("visage") in vis else ""},
+                "banc": [{"cle": k, **x, "images": [n for n in noms if n.startswith(f"b_{k}_")]} for k, x in reversed(list((b.get("banc") or {}).items()))],
                 "planches": [{"nom": n, "garde": bool(b["planches"].get(n, {}).get("garde")), "legende": b["planches"].get(n, {}).get("legende", "")}
                              for n in noms if n.startswith("c_")],
                 "series": {s: series[s] for s in {n.split("_")[1] for n in noms if n.startswith("c_")} if s in series},
@@ -461,6 +462,60 @@ class Biblio:
         self._lancer(slug, "planches", {"taches": taches, "reglages": {"tenue": tenue, "nsfw": bool(b.get("nsfw")), "loras": [str(x) for x in b.get("loras") or []][:4]}}, n)
         return {"lance": n}
 
+    def banc(self, b):
+        """Banc d'essai d'une LoRA d'image : une position, a trois cadrages et trois forces, avec le visage du personnage et les LoRA de style
+        par defaut du temps 4. Le proprietaire coche ce qui tient ; la fiche de capacite de la LoRA en est tiree (banc_noter)."""
+        from atelier import BANC_CADRES, BANC_FORCES, CATS_STYLE as STYLES, _cle, _loras_plan
+        from categories import temps_min
+        slug = b["slug"]
+        self._libre()
+        p, v, bb = self.at.perso(slug), self.vue(slug), self._b(slug)
+        cat, nom = self.at._catalogue(), str(b.get("lora") or "")
+        if nom not in cat:
+            raise ValueError("choisir une LoRA du catalogue")
+        if cat[nom].get("famille") == "wan22":
+            raise ValueError("le banc essaie les LoRA d'image ; une LoRA de clip s'inscrit sans essai")
+        if not v["lora"]:
+            raise ValueError("ce personnage n'a pas encore sa LoRA de visage : le banc en a besoin")
+        acte, phrase = _s(b.get("acte"), 80), _s(b.get("phrase"), 300)
+        if not acte:
+            raise ValueError("écrire la position à essayer")
+        k = hashlib.sha1(f"{nom}|{_cle(acte)}".encode()).hexdigest()[:8]
+        fi = self.at._lib()["fiche"]
+        styles = [x for x in _loras_plan(self.at._defauts().get(4) or "") if fi.get(x["name"] if isinstance(x, dict) else x, ("autre", "zimage")) [0] in STYLES
+                  and fi.get(x["name"] if isinstance(x, dict) else x, ("", "zimage"))[1] != "wan22"]
+        adulte = temps_min(cat[nom].get("cat")) >= 2
+        serie = int((bb.setdefault("banc", {}).get(k) or {}).get("serie") or 0) + 1
+        pre, taches = self._prefixe(p), []
+        for ci, (ck, _, cadre) in enumerate(BANC_CADRES):
+            for f in BANC_FORCES:
+                taches.append({"sortie": f"b_{k}_{serie}_{ck}_{int(round(f * 100)):03d}", "seed": 9000 + 13 * serie + ci, "taille": [720, 1280], "lora": True,
+                               "loras": [*styles, {"name": nom, "strength": f}], "prompt": f"{pre}vertical {cadre}, {phrase or acte}{', nsfw' if adulte else ''}{FIN}"})
+        bb["banc"].pop(k, None)  # la derniere serie lancee passe en tete
+        bb["banc"][k] = {"lora": nom, "acte": acte, "phrase": phrase, "personnes": 2 if str(b.get("personnes")) == "2" else 1, "serie": serie, "date": time.strftime("%d/%m/%Y")}
+        self._ecrire(slug, bb)
+        self._lancer(slug, "banc", {"taches": taches}, len(taches))
+        return {"lance": len(taches)}
+
+    def banc_noter(self, b):
+        """Le proprietaire a coche les images du banc qui tiennent ("bonnes") : la ligne de la fiche de capacite est ecrite. Cadrages : ceux
+        des images cochees ; force : celle qui revient le plus (la plus basse a egalite). Rien de coche : la position est notee non validee."""
+        from atelier import _cle
+        slug, bb = b["slug"], self._b(b["slug"])
+        x = (bb.get("banc") or {}).get(str(b.get("cle")))
+        if not x:
+            raise ValueError("série du banc inconnue")
+        pre = f"b_{b['cle']}_{x['serie']}_"
+        bonnes = [n[len(pre):-4].split("_") for n in b.get("bonnes") or [] if str(n).startswith(pre) and (self.dir(slug) / str(n)).is_file()]
+        forces = [int(f) / 100 for _, f in bonnes]
+        ligne = {"acte": x["acte"], "phrase": x["phrase"], "personnes": x["personnes"], "cadrages": sorted({c for c, _ in bonnes}),
+                 "force": min(set(forces), key=lambda f: (-forces.count(f), f)) if forces else 0, "ok": bool(bonnes)}
+        avant = [l for l in (self.at._catalogue().get(x["lora"]) or {}).get("capacite") or [] if isinstance(l, dict) and _cle(l.get("acte")) != _cle(x["acte"])]
+        bib = self.at.save_capacite({"name": x["lora"], "capacite": [*avant, ligne]}, verrou=False)
+        x["note"] = {"bonnes": len(bonnes), "date": time.strftime("%d/%m/%Y")}
+        self._ecrire(slug, bb)
+        return {**self.vue(slug), "bibliotheque": bib}
+
     def devis(self, slug, passages):
         """Duree et cout estimes d'un entrainement : 1 350 pas en 40 min sur la carte rapide (constate par le proprietaire), plus la mise en route."""
         n = sum(1 for x in self._b(slug)["planches"].values() if x.get("garde"))
@@ -540,7 +595,8 @@ class Biblio:
     def post(self, path, b):
         f = {"/api/a/b/creer": self.creer, "/api/a/b/ajouter": self.ajouter, "/api/a/b/retirer": self.retirer, "/api/a/b/choix": self.choix,
              "/api/a/b/visage": self.visage, "/api/a/b/planches": self.planches, "/api/a/b/garde": self.garde, "/api/a/b/entrainer": self.entrainer,
-             "/api/a/b/adopter": self.adopter, "/api/a/b/revenir": self.revenir, "/api/a/b/importer": self.importer, "/api/a/b/essayer": self.essayer}.get(path)
+             "/api/a/b/adopter": self.adopter, "/api/a/b/revenir": self.revenir, "/api/a/b/importer": self.importer, "/api/a/b/essayer": self.essayer,
+             "/api/a/b/banc": self.banc, "/api/a/b/banc/noter": self.banc_noter}.get(path)
         if not f:
             return None
         with self.at.lock:

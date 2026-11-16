@@ -46,6 +46,11 @@ GARDER = ("tenues", "lieux")  # listes de la fiche du personnage qu'un script pe
 MODELE_5T = "2026-11-16b"  # premier modele de plans a cinq temps : aux temps 4 et 5 chaque plan dit son "moment" et, pour un acte, sa position ("acte")
 # Moment d'un plan des temps 4 et 5 : un acte, un plan de transition (changement de position, rare), le final, le temps calme de la fin
 MOMENTS = ("acte", "transition", "final", "calme")
+# Fiches de capacite des LoRA et banc d'essai : cadrages essayes (cle, intitule, texte pour le modele) et forces
+BANC_CADRES = (("gros", "Gros plan", "close-up shot"), ("serre", "Plan serré", "medium close-up shot, framed from the chest up"),
+               ("mi", "Mi-corps", "medium shot, framed from the waist up"))
+BANC_FORCES = (0.6, 0.8, 1.0)
+CATS_STYLE = ("realisme", "smartphone", "peau", "lumiere")  # categories de LoRA qui restent a cote de la LoRA d'un acte
 MODELE_ETAT = "2026-11-16a"  # premier modele de plans ou chaque plan des temps 2 a 4 dit ce qu'elle ne porte plus ("retire")
 MODELE_UN = "2026-11-15e"  # premier modele de plans ou une video entiere tient dans un fichier, importe sans bouton
 MODELE_CADRE = "2026-11-15g"  # premier modele de plans ou chaque plan qui a son image dit cadrage, angle, position et regard
@@ -446,7 +451,72 @@ class Atelier:
         tmin = self._lib()["tmin"] if tmin is None else tmin
         lp = p.get("loras") or {}
         ok = lambda txt: ", ".join(x for x in str(txt or "").split(", ") if x and tmin.get(x.partition(":")[0], (1,))[0] <= s["temps"])
-        return _fusion(ok(lp.get("0")), ok(lp.get(str(s["temps"]))), s.get("loras"))
+        base, c = _fusion(ok(lp.get("0")), ok(lp.get(str(s["temps"])))), self._cap(s)
+        if c:  # position connue des fiches : un style et la LoRA qui sait la faire, sans empiler les autres LoRA du temps
+            fi = self._lib()["fiche"]
+            for fam, garde in (("image", CATS_STYLE), ("clip", ("mouvement", "vitesse"))):
+                nom, l = c.get(fam) or ("", {})
+                if not nom or tmin.get(nom, (1,))[0] > s["temps"]:
+                    continue
+                reste = lambda x: (fi.get(x, ("autre", "zimage"))[1] == "wan22") != (fam == "clip") or fi.get(x, ("autre",))[0] in garde
+                base = _fusion(", ".join(x for x in base.split(", ") if x and reste(x.partition(":")[0])), f"{nom}:{l['force']}" if l.get("force") else nom)
+        return _fusion(base, s.get("loras"))
+
+    def capacites(self):
+        """Fiches de capacite : pour chaque position validee, la LoRA d'image et la LoRA de clip qui savent la faire
+        ({cle: {"acte", "image": (nom, ligne), "clip": (nom, ligne)}}). Pour une meme position, la premiere LoRA du catalogue l'emporte."""
+        try:
+            brut = self._catalogue()
+        except Exception:
+            brut = {}
+        out = {}
+        for k, v in brut.items():
+            for l in v.get("capacite") or []:
+                if isinstance(l, dict) and l.get("ok") and _s(l.get("acte")):
+                    out.setdefault(_cle(l["acte"]), {"acte": _s(l["acte"])}).setdefault("clip" if v.get("famille") == "wan22" else "image", (k, l))
+        return out
+
+    def _cap(self, s):
+        """Lignes de fiche qui servent une scene d'acte ({} : pas un acte, ou position absente des fiches : la scene garde les LoRA de son temps)."""
+        if not s.get("acte") or not _acte(s) or s.get("voie"):
+            return {}
+        return self.capacites().get(_cle(s["acte"]), {})
+
+    def save_capacite(self, b, verrou=True):
+        """Fiche de capacite d'une LoRA : les positions qu'elle sait faire. Une ligne : "acte" (le mot que le script ecrit), "phrase" (ce que la
+        Production envoie au modele a sa place ; vide : le mot lui-meme), "personnes" (1 ou 2), "cadrages" (ceux qui tiennent),
+        "force", "ok" (validee par le proprietaire : la position entre alors dans la liste du scenariste)."""
+        import yaml
+        nom, tout = str(b.get("name") or ""), self._catalogue()
+        if nom not in tout:
+            raise ValueError("cette LoRA n'est pas dans le catalogue")
+        lignes, vus = [], set()
+        for l in b.get("capacite") or []:
+            a = _s((l or {}).get("acte"), 80)
+            if not a or _cle(a) in vus:
+                continue
+            vus.add(_cle(a))
+            try:
+                force = round(float(l.get("force") or 0), 2)
+            except (TypeError, ValueError):
+                force = 0
+            lignes.append({"acte": a, "phrase": _s(l.get("phrase"), 300), "personnes": 2 if str(l.get("personnes")) == "2" else 1,
+                           "cadrages": [k for k, *_ in BANC_CADRES if k in (l.get("cadrages") or [])], "force": force if 0 < force <= 2 else 0, "ok": bool(l.get("ok"))})
+        if len(lignes) > 30:
+            raise ValueError("30 positions au plus par LoRA")
+        f = self.data / "lora_catalog.yaml"
+
+        def ecrire():
+            cat = (yaml.safe_load(f.read_text(encoding="utf-8")) or {}) if f.is_file() else {}
+            cat[nom] = {**tout[nom], **cat.get(nom, {}), "capacite": lignes}
+            cat[nom].pop("ou", None)
+            f.write_text(yaml.safe_dump(cat, allow_unicode=True, sort_keys=False), encoding="utf-8")
+        if verrou:
+            with self.lock:
+                ecrire()
+        else:
+            ecrire()
+        return self.bibliotheque()
 
     def _lora_image(self, s):
         """Vrai si la scene porte une LoRA d'image : son image est alors tiree directement, pas par retouche de la reference."""
@@ -488,9 +558,10 @@ class Atelier:
                            "trigger": str(v.get("trigger") or ""), "note": str(v.get("note") or ""), "base": str(v.get("base") or ""),
                            "source": str(v.get("source") or ""), "ou": v["ou"], "cat": v.get("cat") if v.get("cat") in CATS else "autre",
                            "temps_min": temps_min(v.get("cat")), "famille": v.get("famille") if v.get("famille") in FAMILLES else "zimage",
-                           "vignette": str(v.get("vignette") or ""),
+                           "vignette": str(v.get("vignette") or ""), "capacite": [l for l in v.get("capacite") or [] if isinstance(l, dict)],
                            "volume": None if fichiers is None else str(v.get("file") or k) in fichiers} for k, v in cat.items()],
-                "inventaire": vol.get("date", ""),
+                "inventaire": vol.get("date", ""), "positions": sorted(x["acte"] for x in self.capacites().values()),
+                "banc": {"cadres": [[k, lab] for k, lab, _ in BANC_CADRES], "forces": list(BANC_FORCES)},
                 "hors": sorted(f for f in fichiers or [] if f not in connus and f not in visages),
                 "defauts": self._defauts(), "categories": {k: {"label": v[0], "temps": v[1], "aide": v[2]} for k, v in CATS.items()},
                 "familles": {k: {"label": v["label"], "usage": v["usage"]} for k, v in FAMILLES.items()}}
@@ -1568,6 +1639,10 @@ class Atelier:
                                      "position, rare), final ou calme (le temps calme qui clôt le temps 5)")
                 if mom in ("acte", "final") and not _s(act):
                     raise ValueError(f"plan {nom} : \"moment: {mom}\" demande \"acte\", la position choisie dans la liste des positions du studio")
+                caps = self.capacites() if mom in ("acte", "final") else {}
+                if caps and _cle(act) not in caps:  # la liste existe des qu'une fiche est validee : hors d'elle, aucune LoRA ne sait faire
+                    raise ValueError(f"plan {nom} : la position « {_s(act)} » n'est pas dans la liste du studio (python3 tools/triage/verifier.py "
+                                     "--positions). Positions connues : " + " ; ".join(sorted(x["acte"] for x in caps.values())))
                 if mom in ("transition", "calme") and _s(act):
                     raise ValueError(f"plan {nom} : \"acte\" ne s'écrit pas sur un plan de transition ou de temps calme")
                 if mom in ("acte", "final") and PLAN_LARGE.search(_s(pose.get("cadrage"))):
@@ -1854,7 +1929,8 @@ class Atelier:
         if t2 and not re.search(r"\bnsfw\b", s["still"], re.I):
             c.append("nsfw")
         # un acte : sa position vient juste apres le cadrage et l'angle, avant le reste de la pose
-        tete = [s[k].strip(" .,") for k in ("cadrage", "angle", "acte", *CHAMPS[2:-1]) if s.get(k)]
+        ph = _s((self._cap(s).get("image") or ("", {}))[1].get("phrase"))  # la phrase de la fiche de capacite remplace le mot du script
+        tete = [(ph if k == "acte" and ph else s[k]).strip(" .,") for k in ("cadrage", "angle", "acte", *CHAMPS[2:-1]) if s.get(k)]
         return ", ".join([*tete, s["still"].rstrip(" .,") if c or tete else s["still"], *c])
 
     def _a_imager(self, p, ch, temps, refaire=False):
@@ -2013,7 +2089,8 @@ class Atelier:
                                       "body": bool((perso.get("generation") or {}).get("corps"))}
                                      | ({"loras": _loras_plan(lo)} if lo else {}) | champs
                                      # chemin "actes" : controle reduit (nombre de personnes, cadrage, corps, visage)
-                                     | ({"acte": {"personnes": 0 if _pov(s) else 2 if s.get("autres") else 1}} if _acte(s) and not s.get("voie") else {})
+                                     | ({"acte": {"personnes": 0 if _pov(s) else 2 if s.get("autres") or (self._cap(s).get("image") or ("", {}))[1].get("personnes") == 2 else 1}}
+                                        if _acte(s) and not s.get("voie") else {})
                                      | (self._continuite(p, s) or (
                                          ({"squelette": True} if _voie(p, s) != "direct" and not _gros_plan(s) and not s.get("autres") else {})
                                          | (self._decor(p, s) if _voie(p, s) == "decor" and not _gros_plan(s) and not s.get("autres") and not s["libre"] else {})
@@ -2553,6 +2630,8 @@ class Atelier:
             return {"bibliotheque": self.save_lora(b)}
         if path == "/api/a/lora/defauts":
             return {"bibliotheque": self.save_defauts(b)}
+        if path == "/api/a/lora/capacite":
+            return {"bibliotheque": self.save_capacite(b)}
         if path == "/api/a/final/supprimer":
             self.supprimer_final(b["id"], b["fichier"])
             return {}

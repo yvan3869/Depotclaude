@@ -208,7 +208,9 @@ shots:
     #                        # large ni en pied) et "pose.regard" ; pas les autres champs de "pose". "transition" et
     #                        # "calme" : un plan ordinaire, "pose" entiere, sans "acte".
     # acte: ""               # la position, en quelques mots anglais (80 caracteres au plus). Obligatoire quand
-    #                        # "moment" vaut acte ou final, interdit sinon.
+    #                        # "moment" vaut acte ou final, interdit sinon. A CHOISIR DANS LA LISTE DU STUDIO, mot pour
+    #                        # mot : python3 tools/triage/verifier.py --positions (hors liste : fichier refuse ; liste
+    #                        # vide : libre). La Production choisit seule la LoRA et ecrit la phrase.
     # retire: ["the beige blazer", "the white sneakers"]
     #                        # OBLIGATOIRE aux temps 2 a 5 : la liste ENTIERE des vetements de la tenue de la fiche de
     #                        # continuite qu'elle ne porte plus a cet instant, avec les memes mots que la fiche. Elle ne

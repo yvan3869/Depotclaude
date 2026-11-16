@@ -102,7 +102,17 @@ Regles verifiees a l'import (un fichier qui y manque est refuse) :
 - `acte` et `final` : **cadrage serre** (pas de plan large, pas de plan en pied), et rien d'autre dans `pose` que
   `cadrage` et `regard` ; ne pas decrire le corps membre par membre, ni le lieu : la Production ecrit la phrase ;
 - temps 4 : ni `final` ni `calme` ; temps 5 : au moins un `acte`, puis un `final`, puis un `calme` en dernier, et rien
-  d'autre apres le final.
+  d'autre apres le final ;
+- **`acte` se choisit dans la liste du studio** : `python3 tools/triage/verifier.py --positions` l'affiche (une
+  position par ligne). L'ecrire mot pour mot. Une position hors liste fait refuser le fichier, et le message de refus
+  redonne la liste. Tant que la commande repond « aucune position inscrite », `acte` s'ecrit librement.
+
+**La liste des positions.** Le proprietaire essaie chaque LoRA sur un banc d'essai (atelier du personnage, onglet
+« Banc d'essai ») : une position, trois cadrages, trois forces, et il coche ce qui tient. Les positions validees
+forment la liste. Pour un plan dont la position y figure, la Production prend seule la LoRA qui sait la faire, a la
+force validee, remplace le mot du script par la phrase qui marche avec cette LoRA, et ne garde a cote qu'une LoRA de
+style : les autres LoRA du temps ne s'empilent pas. Relire la liste avant chaque script : elle change quand le
+proprietaire valide ou retire une position. Besoin d'une position absente : le dire au proprietaire, ne pas l'ecrire.
 
 Ce que la Production fait d'un plan `acte` ou `final` : elle le tire directement (pas de brouillon, pas de pose
 imposee, pas d'image du partenaire, pas de lieu gele) avec les LoRA du temps ; **le scenariste ne choisit pas la

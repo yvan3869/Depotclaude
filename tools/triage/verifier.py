@@ -5,6 +5,7 @@ remarques du controle des plans, modele perime. Lecture seule, sans GPU ni IA, s
 
     python3 tools/triage/verifier.py server/jobs/atelier/mavideo.yaml [autre.yaml ...]
     python3 tools/triage/verifier.py --etat      # modeles en cours, personnages, projets
+    python3 tools/triage/verifier.py --positions     # positions que "acte" peut ecrire aux temps 4 et 5 (une par ligne)
     python3 tools/triage/verifier.py --retour        # retour de tournage : chaque script importe, en une ligne
     python3 tools/triage/verifier.py --retour mavideo   # le detail d'un script, scene par scene (ou --notes pNNNN : un projet entier)
 
@@ -159,6 +160,9 @@ if __name__ == "__main__":
         sys.exit(0)
     if args[0] == "--etat":
         etat(a)
+        sys.exit(0)
+    if args[0] == "--positions":  # liste fermee des positions des temps 4 et 5 (fiches de capacite des LoRA) ; vide : "acte" est libre
+        print("\n".join(sorted(x["acte"] for x in a.capacites().values())) or "aucune position inscrite : \"acte\" s'ecrit librement")
         sys.exit(0)
     if args[0] == "--retour":
         sys.exit(retour(a, *args[1:2]))
