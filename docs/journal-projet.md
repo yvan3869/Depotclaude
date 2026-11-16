@@ -690,3 +690,10 @@ modeles de retouche ne servent qu'a preparer (brouillon, tenue, lieu). Rien n'es
 - Rendu de la video (modele `2026-11-15h`) mis en ligne apres la fin des planches du proprietaire : `rendu: main` ou `pose` propose par le script, clips en camera posee quand le rendu n'est pas « main ». Non essaye a l'image.
 - Planches : « wearing » retire cote serveur devant un etat sans vetement ; bouton « Supprimer la serie » ; « Tout garder / Tout ecarter » visibles aussitot ; file d'attente sur une ligne qui defile ; portrait de depart annonce « sans objet » quand le personnage a une LoRA.
 - Verification des 8 dernieres series du proprietaire (fiches et journaux seulement) : LoRA du personnage et LoRA en plus appliquees partout, force 0,6, aucune erreur. Aucune depense de ma part.
+
+## 2026-11-16 (nuit) : voie selon le cadrage, controleur garde charge, images d'origine
+
+- Tirage `auto` d'un temps (« Choisies selon le cadrage de chaque scene ») : plan large = lieu et tenue de la bibliotheque, plan moyen = pose imposee, gros plan = texte seul ; champ `voie` d'une scene pour forcer. En service a 01 h 37, defauts du proprietaire inchanges. Verifie hors ligne seulement (pas encore a l'image).
+- Controleur garde charge entre deux relectures : essai sur 7 images de p0004 en trois lots, 282 s puis 23 s puis 7 s. Depense : 0,07 $.
+- Images d'origine de Lea retrouvees sur le volume : 57 dans la sortie de ComfyUI (40 `set_*`, 17 `nm_*`) et le jeu exact de sa premiere LoRA (`lea_ds/images`, 47 images et leurs legendes). Tout est copie dans `server/data/girls-ai-origine/` ; les 47 sont rangees dans son atelier en serie 21 « planche initiale », aucune gardee d'office, 4 sans legende (lecture echouee). Rien supprime sur le volume. Depense : 0,02 $ (trois pods de moins d'une minute).
+- Entrainement : 10 et 15 passages ajoutes au choix (la v2 a 30 passages sur 41 planches parait moins detaillee au proprietaire).
