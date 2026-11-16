@@ -1848,7 +1848,7 @@ class Atelier:
             return out | {"squelette": True}
         out |= {"still_seule": self._still(p, {**s, "autres": ""}), "depart_brouillon": 0.6}
         if _pov(s):
-            return out
+            return out | {"pov_geste": s["autres"]}
         return out | {"partenaire": p["partenaire"], "partenaire_geste": s["autres"]} if p.get("partenaire") else {}
 
     def _voie_dite(self, p, s, tmin):

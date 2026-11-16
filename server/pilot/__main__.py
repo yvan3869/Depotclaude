@@ -270,6 +270,9 @@ def poses_imposees(c, models, char, shots, data, work, over, decors=None, verif=
                     etat = (f"She no longer wears: {', '.join(sans)}. Not on her body anymore. " if sans else "") + (
                         f"What has changed since image 1: {s['etat'].strip(' .')}. " if s.get("etat") else "")
                     etat += "Everything else she wears is exactly as in image 1. " if etat else ""
+                    vue = ("The photo is taken through the eyes of a man who is right in front of her, very close: she is turned toward the lens. "
+                           "At the bottom edge of the frame only his forearms and hands are visible, coming from behind the camera: "
+                           + s["pov_geste"].strip(" .") + ". His face and his body are never in the picture. ") if s.get("pov_geste") else ""
                     try:
                         elle = etat_image(s)
                     except Exception as e:
@@ -277,7 +280,7 @@ def poses_imposees(c, models, char, shots, data, work, over, decors=None, verif=
                         log(f"{name} : image d'etat ratee, la reference sert ({str(e)[:120]})")
                     g = plusieurs(workflows.edit_image(
                         models, elle, "She is the same woman as in image 1 and wears the very same garments as in image 1. " + etat
-                        + "New photo of her in the place shown in image 2: " + s["still"].rstrip(" .") + ". " + MEME.format(n=2)
+                        + "New photo of her in the place shown in image 2: " + s["still"].rstrip(" .") + ". " + vue + MEME.format(n=2)
                         + "Only one woman in the picture. Natural smartphone photo.", *s["still_size"], seed, f"ga_{name}_b"), [depose(s["decor"])])
                 elif s.get("decor"):
                     autres = ([depose(s["tenue_image"])] if s.get("tenue_image") else []) + [depose(s["decor"])]
@@ -316,8 +319,8 @@ def poses_imposees(c, models, char, shots, data, work, over, decors=None, verif=
                     ch = {k: v for k, v in (s.get("champs") or {}).items() if k in POSE} if isinstance(s.get("champs"), dict) else {}
                     if s.get("reference_tenue"):  # "sansN" : question posee a l'envers (elle le porte ?), la note est retournee
                         ch |= {f"sans{i}": "she is wearing " + str(x).strip(" .,") for i, x in enumerate(s.get("retire") or []) if str(x).strip(" .,")}
-                        if s.get("partenaire") and s.get("partenaire_geste"):
-                            ch["autres"] = s["partenaire_geste"]
+                        if s.get("partenaire") and s.get("partenaire_geste") or s.get("pov_geste"):
+                            ch["autres"] = s.get("pov_geste") or s["partenaire_geste"]
                     return ch
 
                 def relire(l):
