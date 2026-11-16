@@ -245,6 +245,7 @@ Etapes : 1) aiguillage automatique ; 2) fiche de capacite par LoRA du catalogue 
 3) banc d'essai a l'ajout d'une LoRA (planche, le proprietaire coche, la fiche se remplit) ; 4) script court : position choisie dans la liste
 tiree des fiches, expression, vetements restants, sens de l'image ; position hors liste refusee ; 5) controle reduit (nombre de personnes,
 cadrage, corps, visage). Limite d'empilement des LoRA. Vetement qui s'enleve ou tombe : en video, image de depart et image de fin.
-Structure du temps 4 voulue par le proprietaire : **deux moments chauds, puis le final, puis toujours un temps calme a la fin** ;
+Structure voulue par le proprietaire (precisee a 11 h 00) : **passer a 5 temps**, les temps 4 et 5 etant les deux moments chauds, avec des scripts
+plus courts en explications ; le final puis toujours un temps calme a la fin ;
 plans de transition (changement de position) rares, juste de quoi dynamiser.
 Verification : deux scenes du temps 4 de p0005 par le nouveau chemin, jugees par le proprietaire ; sinon on arrete.
