@@ -195,6 +195,8 @@ def poses_imposees(c, models, char, shots, data, work, over, decors=None, verif=
                 g["pos"]["inputs"][f"image{i}"] = g["neg"]["inputs"][f"image{i}"] = [f"img{i}", 0]
             return g
 
+        rates = set()
+
         def garde(nom, cle, fait):  # image faite une fois par personnage, lieu et tenue, gardee d'un lancement a l'autre
             import hashlib
             f = data / "work" / f"girls-ai-{nom}-{hashlib.sha1(json.dumps(cle, sort_keys=True).encode()).hexdigest()[:12]}.png"
@@ -216,6 +218,44 @@ def poses_imposees(c, models, char, shots, data, work, over, decors=None, verif=
                              "she stands facing the camera, arms relaxed along her body, wearing " + s["reference_tenue"].strip(" .,")
                              + ". Only one woman in the picture. Natural smartphone photo.", *s["still_size"], 11, "ga_reference"), autres))
 
+        def etat_image(s):
+            """Elle telle qu'elle est a ce moment : la reference, un vetement retire a la fois par une retouche simple, relue par le
+            controleur (trois tirages au plus) et gardee. Un retrait non obtenu : l'image d'avant sert, le texte dit le reste."""
+            import hashlib
+            ref = reference(s)
+            cle = [str(char.get("lora_still_zimage")), s["decor"], s.get("tenue_image"), s["reference_tenue"], list(s["still_size"])]
+            sans = [str(x).strip(" .,") for x in s.get("retire") or [] if str(x).strip(" .,")]
+            for i, x in enumerate(sans):
+                f = data / "work" / f"girls-ai-etat-{hashlib.sha1(json.dumps(cle + sans[:i + 1], sort_keys=True).encode()).hexdigest()[:12]}.png"
+                if str(f) not in vus:
+                    if not f.is_file():
+                        if str(f) in rates:
+                            return ref
+                        bon = None
+                        for n in range(3):
+                            b = c.fetch(c.run(workflows.edit_image(
+                                models, ref, f"Remove her {x}: she has taken it off, it is no longer on her body. Change nothing else: same woman, same face, "
+                                "same hair, same pose, her other clothes, the room and the light stay exactly as in image 1. Only one woman in the picture.",
+                                *s["still_size"], 31 + n, "ga_etat"))[0])
+                            if not verif:
+                                bon = b
+                                break
+                            nom = f"etat{len(vus)}_{n}"
+                            (work / f"{nom}.png").write_bytes(b)
+                            v = (verif([(nom, work / f"{nom}.png", "she stands in the room", {"sans0": "she is wearing " + x})]).get(nom) or {}).get("sans0")
+                            if v is not None and 1 - v >= SEUIL_CHAMP:
+                                bon = b
+                                break
+                        if bon is None:
+                            rates.add(str(f))
+                            log(f"continuite : image d'etat non obtenue (vetement {i + 1} sur {len(sans)}), le texte le dira")
+                            return ref
+                        f.write_bytes(bon)
+                        log(f"continuite : image d'etat faite (vetement {i + 1} sur {len(sans)}, tirage {n + 1})")
+                    vus[str(f)] = c.upload(f"ga_etat{len(vus)}.png", f.read_bytes())
+                ref = vus[str(f)]
+            return ref
+
         def partenaire(s):
             return garde("partenaire", [s["partenaire"], list(s["still_size"])],
                          lambda: workflows.still_zimage(models, {}, "photo of " + s["partenaire"].strip(" .,") + ", standing facing the camera, arms relaxed, "
@@ -230,8 +270,13 @@ def poses_imposees(c, models, char, shots, data, work, over, decors=None, verif=
                     etat = (f"She no longer wears: {', '.join(sans)}. Not on her body anymore. " if sans else "") + (
                         f"What has changed since image 1: {s['etat'].strip(' .')}. " if s.get("etat") else "")
                     etat += "Everything else she wears is exactly as in image 1. " if etat else ""
+                    try:
+                        elle = etat_image(s)
+                    except Exception as e:
+                        elle = reference(s)
+                        log(f"{name} : image d'etat ratee, la reference sert ({str(e)[:120]})")
                     g = plusieurs(workflows.edit_image(
-                        models, reference(s), "She is the same woman as in image 1 and wears the very same garments as in image 1. " + etat
+                        models, elle, "She is the same woman as in image 1 and wears the very same garments as in image 1. " + etat
                         + "New photo of her in the place shown in image 2: " + s["still"].rstrip(" .") + ". " + MEME.format(n=2)
                         + "Only one woman in the picture. Natural smartphone photo.", *s["still_size"], seed, f"ga_{name}_b"), [depose(s["decor"])])
                 elif s.get("decor"):
