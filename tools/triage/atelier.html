@@ -294,7 +294,7 @@ function vueProjets() {
   vue.innerHTML = `
     <div class="row tete"><button class="p" data-a="nouveau">${ic('ajouter')}Nouveau projet</button><button data-a="idees">${ic('idee')}Trouver des idées</button>
       <span class="sp"></span><a href="#/perso/${esc(cur)}">Fiche de ${esc(p.nom.split(' ')[0])}</a></div>
-    ${p.lora ? '' : '<p class="mut">Ce personnage n\'a pas de LoRA : son visage variera d\'une image à l\'autre.</p>'}
+    ${p.lora ? '' : `<p class="mut">Ce personnage n'a pas de LoRA : son visage variera d'une image à l'autre. <a href="#/atelier/${esc(cur)}/debut">Débuter : visage, expressions, corps, LoRA</a></p>`}
     <div id="idees"></div>
     ${(E.fiches || []).some(x => !x.fait) ? `<div class="panel"><div class="row"><span>Votre directeur de casting a livré ${E.fiches.filter(x => !x.fait).length} fiche(s) de casting à relire.</span><span class="sp"></span><button class="p s" onclick="location.hash='#/persos'">${ic('importer')}Voir les fiches</button></div></div>` : ''}
     ${E.depots.length ? `<h2>Scripts livrés par votre scénariste <small>en attente ou refusés</small></h2><div class="panel">${E.depots.map(depotHtml).join('')}</div>` : ''}
@@ -1033,7 +1033,7 @@ async function persoSauver(statut) {
   const r = await api('/api/a/personnage', o);
   if (o.statut !== 'archive') { cur = r.personnage.slug; localStorage.setItem('perso', cur); }
   toast('Personnage enregistré', true);
-  location.hash = o.statut === 'archive' ? '#/persos' : o.nouveau ? '#/atelier/' + r.personnage.slug : '#/';
+  location.hash = o.statut === 'archive' ? '#/persos' : o.nouveau || !(r.personnage.generation || {}).lora ? '#/atelier/' + r.personnage.slug + '/debut' : '#/';  // sans LoRA : le parcours « Debuter »
 }
 async function persoIA() {
   const c = $('#concept').value.trim(); if (!c) return toast('Décrire le personnage en une ou deux phrases');
