@@ -664,7 +664,7 @@ def cmd_depenses(a):
 
 def cmd_pods(a):
     for p in runpod.list_pods():
-        print(p["id"], p.get("name"), p.get("desiredStatus"), p.get("costPerHr"), p.get("createdAt"))
+        print(p["id"], p.get("name"), p.get("status"), p.get("cost"), p.get("createdAt"))
 
 
 def deposer(pod_id, jtok, fname, blob, dossier="loras"):
