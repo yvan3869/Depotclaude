@@ -249,3 +249,14 @@ Structure voulue par le proprietaire (precisee a 11 h 00) : **passer a 5 temps**
 plus courts en explications ; le final puis toujours un temps calme a la fin ;
 plans de transition (changement de position) rares, juste de quoi dynamiser.
 Verification : deux scenes du temps 4 de p0005 par le nouveau chemin, jugees par le proprietaire ; sinon on arrete.
+
+### Construit le 16/11 (commit 83dde34, modele `2026-11-16b`) : etapes 1, 4 (structure) et 5
+
+- Cinq temps : 4 « chaud », 5 « final » (second moment, final, puis plan calme). Projets a quatre temps inchanges.
+- Aiguillage automatique : plan `acte`/`final`, ou plan a deux a partir du temps 3 = tirage direct (ni brouillon, ni pose imposee,
+  ni image du partenaire, ni lieu gele). Une voie choisie a la main sur la scene reste respectee.
+- Script court aux temps 4 et 5 : `moment` + `acte` + cadrage serre + regard ; structure verifiee a l'import.
+- Controle reduit pour ces plans : personnes en trop, cadrage, corps, visage ; relance seulement si toutes les images de la scene sont ratees.
+- Verifie hors ligne seulement (cas d'import et aiguillage). **Aucune image faite par ce chemin** : c'est le proprietaire qui lance et juge.
+
+Restes : 2) fiches de capacite, 3) banc d'essai, 4) liste fermee des positions et choix automatique de la LoRA, limite d'empilement.

@@ -721,3 +721,6 @@ Notes du controleur, 29 images avant / 28 apres (metadonnees seulement) : **aucu
 lieu juste 5 -> 6 ; pose juste 7 -> 6 ; cadrage juste 8 -> 5 ; anatomie « grave » 16 -> 17 ; tenue « fausse » partout ; ressemblance du visage 0,55 -> 0,37 ;
 3 personnes comptees sur 6 images (2 attendues). Brouillons : 11 refaits sur 26, aucune image d'etat fabriquee au journal.
 A deux, la voie est « image de depart a 0,6 » et non « decor gele » : elle ne tient pas sur ces scenes. A diagnostiquer avec l'avis du proprietaire.
+
+**16/11, midi : cinq temps et chemin des actes en service** (commit 83dde34, modele `2026-11-16b`). Aucune depense GPU : verifie hors ligne
+(imports acceptes et refuses, aiguillage). Le script deja depose en `2026-11-16a` est signale perime, sans erreur. Detail : `docs/chantier-continuite.md`.
