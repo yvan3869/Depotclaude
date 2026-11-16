@@ -961,6 +961,8 @@ def controle_lot(data, pid, runs=None):
         if desc:
             if not sh.get("still") and not sh.get("attendu") and lieu:  # la description d'une scene ne redit pas le lieu : il est dans la fiche de continuite
                 desc += f", place: {lieu}"
+            if desc and sh.get("retire"):  # continuite : ce qu'elle a deja retire fait partie de la tenue attendue
+                desc += ". Clothing at this moment: she has already taken off " + ", ".join(map(str, sh["retire"])) + (" (" + str(sh["etat"]) + ")" if sh.get("etat") else "")
             lot.append({"image": f.name, "projet": pid, "desc": desc[:1500], "gros_plan": bool(re.search(r"\bclose[- ]?up\b", desc, re.I)), "perso": p.get("personnage") or "", "temps": temps.get(m.group(2), 0),
                         "champs": sh["champs"] if isinstance(sh.get("champs"), dict) else poses.get(m.group(2), {})})
             fichiers[f.name] = f
