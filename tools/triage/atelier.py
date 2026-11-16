@@ -159,7 +159,12 @@ RENDU_SCRIPT = {"main": "main", "pose": "telephone"}  # "atelier.rendu" d'un scr
 # "pose" = creee a part elle aussi, mais sur le squelette d'un brouillon (pose imposee, voir plus bas)
 # "decor" = pose imposee, et en plus le lieu et, au choix, une tenue de la garde-robe sont ceux des images de la bibliotheque du personnage :
 # le brouillon est fabrique dans la photo du lieu, puis seule la zone du personnage est refaite (la piece reste identique)
-TIRAGES = ("ref", "direct", "pose", "decor")
+TIRAGES = ("ref", "direct", "pose", "decor", "auto")
+# Tirage "auto" : la facon de fabriquer l'image est choisie scene par scene d'apres son cadrage (essais du 15/11/2026 : le
+# lieu de la bibliotheque sert quand la piece se voit, la pose imposee quand le corps remplit l'image, le texte seul sur un
+# gros plan). Une scene peut forcer la sienne (champ "voie").
+VOIES = ("pose", "decor", "direct")
+PLAN_LARGE = re.compile(r"\b(wide|full[- ]?(body|length|figure|shot)|long shot|establishing|head[- ]to[- ]toe)\b", re.I)
 # Verdict du proprietaire sur une image : des cases, pas de texte (l'assistant corrige les reglages sans voir l'image)
 IMAGES_PAR_SCENE = 3  # images creees par scene a chaque lancement ; le controleur les note (pilot serie), la mieux notee est proposee
 # Pose decomposee d'une scene : chaque champ rempli est mis en tete de la description, dans cet ordre (le modele d'image
@@ -184,6 +189,17 @@ def _gros_plan(s):
 def _tirage(p, t):
     v = (p.get("tirage") or {}).get(str(t))
     return v if v in TIRAGES else "ref" if t <= 2 else "pose"
+
+
+def _voie(p, s):
+    """Tirage d'une scene : le sien si elle en force un, sinon celui de son temps ; "auto" est resolu d'apres le cadrage
+    (le champ `cadrage`, a defaut le debut de la description)."""
+    v = s.get("voie") or _tirage(p, s["temps"])
+    if v != "auto":
+        return v
+    if _gros_plan(s):
+        return "direct"
+    return "decor" if PLAN_LARGE.search(s.get("cadrage") or (s.get("still") or "").split(",")[0]) else "pose"
 MARGE = 0.03  # le tremble de main recadre dans une image agrandie d'autant
 JOINT = 1 / 32  # a un raccord continu, la premiere image du clip suivant repete la derniere du precedent : elle est retiree
 
@@ -683,6 +699,7 @@ class Atelier:
                 "temps": int(d.get("temps") or 1) if str(d.get("temps") or 1) in ("1", "2", "3", "4") else 1,
                 "loras": _loras(d.get("loras")), "origine": _s(d.get("origine"), 120),
                 "raccord": d.get("raccord") if d.get("raccord") in RACCORDS else "coupe", "libre": bool(d.get("libre")),
+                "voie": d.get("voie") if d.get("voie") in VOIES else "",
                 "transition": d.get("transition") if d.get("transition") in TRANSITIONS else "",
                 "camera": d.get("camera") if d.get("camera") in CAMERAS else "",
                 "cran": min(5, max(0, int(d.get("cran") or 0))) if str(d.get("cran") or 0).isdigit() else 0,
@@ -924,7 +941,7 @@ class Atelier:
             mt = {"etat": "erreur", "erreur": "montage interrompu (interface redémarrée)"}
         return {"projet": p, "choix": {s["id"]: {"image": s["image"], "clip": s["clip"]} for s in e["scenes"]}, "prises": pr,
                 "finals": finals, "etape": self._etape(e, finals[1]), "montage": mt, "prod": self.prod(pid),
-                "devis": {t: self.devis(e, t) for t in TEMPS}, "depots": [x for x in self.depots() if x.get("projet") == pid],
+                "devis": {t: self.devis(e, t) for t in TEMPS}, "voies": self._voies(p), "depots": [x for x in self.depots() if x.get("projet") == pid],
                 "verdicts": _load(self._pdir(pid) / "verdicts.json", {}),
                 # propositions du script pour la fiche du personnage : montrees une fois une image retenue
                 "garder": self._a_garder(p) if any(s["image"] for s in e["scenes"]) else {k: [] for k in GARDER},
@@ -1198,7 +1215,7 @@ class Atelier:
                 scenes = []
                 for d in res.get("scenes") or []:
                     o = old.get(d.get("id")) or {}
-                    scenes.append(self._scene({**{k: o[k] for k in ("id", "seed", "image", "clip", "debut", "duree", "raccord", "libre", "transition", "camera") if k in o}, **d,
+                    scenes.append(self._scene({**{k: o[k] for k in ("id", "seed", "image", "clip", "debut", "duree", "raccord", "libre", "voie", "transition", "camera") if k in o}, **d,
                                                **({"id": o["id"]} if o else {"id": None}), "temps": t, "loras": o.get("loras", ""), "origine": ""}, p))
                 if not scenes:
                     raise ValueError("le rédacteur n'a renvoyé aucune scène")
@@ -1712,7 +1729,7 @@ class Atelier:
         t2, sans = s["temps"] >= 2, {"pdv"} if s.get("angle") else set()
         sans |= {"tenue"} if t2 or (_gros_plan(s) and tenue_dite(s["still"])) else set()
         cont = dict(p.get("continuite") or {})
-        if _tirage(p, s["temps"]) == "decor" and (p.get("decors") or {}).get(str(s["temps"])):  # lieu choisi dans la bibliotheque
+        if (_tirage(p, s["temps"]) in ("decor", "auto") or s.get("voie") == "decor") and (p.get("decors") or {}).get(str(s["temps"])):  # lieu choisi dans la bibliotheque
             cont["lieu"] = p["decors"][str(s["temps"])]
         c = [] if s["libre"] else [v.strip(" .,") for k, v in cont.items() if v and k not in sans]
         if s.get("autres"):  # apres elle et sa fiche : la premiere personne decrite reste le sujet
@@ -1758,14 +1775,31 @@ class Atelier:
         tenue = self.biblio.image(p["personnage"], "t", ligne) if ligne else None
         return {"decor": str(lieu)} | ({"tenue_image": str(tenue)} if tenue else {})
 
+    def _voie_dite(self, p, s, tmin):
+        """Ce que la Production fera vraiment de la scene (affiche sur chaque scene) : "ref", "decor", "pose" ou "direct"."""
+        v = _voie(p, s)
+        if v == "direct" or _gros_plan(s) or s.get("autres"):
+            return "direct"
+        if v == "ref":
+            ref = p.get("reference")
+            return "ref" if ref and s["id"] != ref and not s["libre"] and not self._lora_image({"loras": self._loras_scene(p, s, tmin)}) else "pose"
+        return "decor" if v == "decor" and not s["libre"] and self._decor(p, s) else "pose"
+
+    def _voies(self, p):
+        try:
+            tmin = self._lib()["tmin"]
+            return {s["id"]: self._voie_dite(p, s, tmin) for s in p["scenes"]}
+        except Exception:
+            return {}
+
     def devis(self, p, temps=1):
         """Cout estime des deux lancements d'un temps, d'apres les couts constates (docs/journal-projet.md)."""
         ch = {s["id"]: s for s in p["scenes"]}
         img = self._a_imager(p, ch, (temps,))
         clp = [ch[i] for i in self._a_cliper(p, ch, temps)]
         # pose imposee : un brouillon et un squelette par scene, deux changements de modele en plus (essai du 15/11/2026)
-        sq = [i for i in img if _tirage(p, ch[i]["temps"]) != "direct" and not _gros_plan(ch[i]) and not ch[i].get("autres")
-              and (_tirage(p, ch[i]["temps"]) == "pose" or not p.get("reference") or i == p.get("reference"))]
+        sq = [i for i in img if _voie(p, ch[i]) != "direct" and not _gros_plan(ch[i]) and not ch[i].get("autres")
+              and (_voie(p, ch[i]) != "ref" or not p.get("reference") or i == p.get("reference"))]
         return {"images": {"n": len(img), "usd": round((0.003 * IMAGES_PAR_SCENE * len(img) + 0.12 + (0 if self.studio.pod() else 0.05)
                                                         + (0.05 + 0.006 * len(sq) if sq else 0)) if img else 0, 2)},
                 "clips": {"n": len(clp), "usd": round(sum(0.07 if s["end_edit"] else 0.035 for s in clp) + 0.12, 2),
@@ -1809,7 +1843,7 @@ class Atelier:
                 base = f"{pid}r{n}_{ref}.png" if ref in ids else ch.get(ref, {}).get("image") if ref else ""
                 for s in sorted((s for s in p["scenes"] if s["id"] in ids), key=lambda s: s["id"] != ref):
                     lo = self._loras_scene(p, s, tmin)  # LoRA du projet, du temps et de la scene
-                    retouche = (base and s["id"] != ref and not s["libre"] and _tirage(p, s["temps"]) == "ref"
+                    retouche = (base and s["id"] != ref and not s["libre"] and _voie(p, s) == "ref"
                                 and not self._lora_image({"loras": lo}) and not _gros_plan(s))
                     if ch[s["id"]]["image"]:  # nouvelle prise demandee : autre tirage
                         s["seed"] = random.randint(1, 999999)
@@ -1827,8 +1861,8 @@ class Atelier:
                         shots.append({"name": s["id"], "still": self._still(p, s), "seed": s["seed"], "tattoos": s["tattoos"],
                                       "body": bool((perso.get("generation") or {}).get("corps"))}
                                      | ({"loras": _loras_plan(lo)} if lo else {}) | champs
-                                     | ({"squelette": True} if _tirage(p, s["temps"]) != "direct" and not _gros_plan(s) and not s.get("autres") else {})
-                                     | (self._decor(p, s) if _tirage(p, s["temps"]) == "decor" and not _gros_plan(s) and not s.get("autres") and not s["libre"] else {}))
+                                     | ({"squelette": True} if _voie(p, s) != "direct" and not _gros_plan(s) and not s.get("autres") else {})
+                                     | (self._decor(p, s) if _voie(p, s) == "decor" and not _gros_plan(s) and not s.get("autres") and not s["libre"] else {}))
             else:
                 ids = self._a_cliper(p, ch, int(b.get("temps") or 1), want)
                 suiv = {prec[s["id"]]["id"]: s for s in p["scenes"] if prec[s["id"]]}

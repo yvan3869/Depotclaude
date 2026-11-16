@@ -201,6 +201,11 @@ Trois outils evitent qu'une video change de piece, de tenue ou de personne d'une
   d'une scene, de la meme famille mais rearrangee d'une scene a l'autre (le brouillon la recompose). Aux temps 2 a 4 la
   tenue reste dite par le texte (elle se defait). Limite connue : l'image finale garde les vetements du brouillon.
   Jamais par defaut : le proprietaire le choisit par temps.
+  Cinquieme valeur, `auto` (selon le cadrage) : la Production choisit scene par scene d'apres le champ `cadrage` (a
+  defaut le debut du `still`) : plan large ou en pied (`wide`, `full-body`, `full shot`, `long shot`) = `decor` ; gros
+  plan (`close-up`) = texte seul ; tout autre cadrage = `pose`. Une scene peut forcer sa facon (`voie` de la scene :
+  `decor`, `pose` ou `direct`, pose par le proprietaire dans les reglages de la scene ; ce n'est pas un champ de plan).
+  La facon retenue est affichee sur chaque scene. Pour le scenariste : dire le cadrage avec ces mots.
 - **Raccord** (`raccord`, par plan, par rapport au plan precedent du meme temps) :
   - `coupe` (defaut) : le plan a sa propre image, le montage coupe. Pour un changement de cadrage ou d'angle.
   - `continu` : le plan n'a pas d'image propre. Son clip demarre sur la derniere image du clip precedent et

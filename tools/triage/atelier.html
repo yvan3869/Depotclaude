@@ -76,6 +76,7 @@ let E = null, D = null, P = null, cur = localStorage.getItem('perso') || '', aut
 const ETAPES = [['idee', 'Idée'], ['ecrit', 'Scénario'], ['images', 'Images'], ['clips', 'Clips'], ['monte', 'Montage'], ['valide', 'Validée']];
 const TEMPS = {1: ['Accroche', 'tous publics'], 2: ['Montée', 'suggestif'], 3: ['Dévoilé', 'nu, sans acte'], 4: ['Final', 'explicite']}, NT = [1, 2, 3, 4];
 const TIR = t => (P.tirage || {})[t] || (t <= 2 ? 'ref' : 'pose');
+const VOIE = {ref: 'référence', decor: 'lieu de la bibliothèque', pose: 'pose imposée', direct: 'texte seul'};  // ce que la Production fera de la scene
 // Note du controleur d'images (essai) : ce qu'un modele de vision a trouve en comparant l'image a sa description.
 const NOTE_FAUX = {setting: 'décor', outfit: 'tenue', pose: 'geste', object: 'objet', framing: 'cadrage'};
 // Pose decomposee (facultative) : chaque champ rempli est verifie a part par le controleur.
@@ -199,7 +200,7 @@ const SCH = {
     ['e', 'Pour chaque scène du moment', 'Le texte de l\'image est assemblé : début de description du personnage, corps, fiche de continuité (lieu, tenue, point de vue), puis ce que le scénariste a écrit. Une scène « libre » ne reçoit pas la fiche de continuité.'],
     ['q', 'Gros plan, ou une autre personne à l\'image ?', [
       ['Oui', [['f', 'Texte seul', 'L\'image est créée à part, sans pose imposée. Le visage vient de la LoRA du personnage. Un gros plan ne décrit pas le lieu.']]],
-      ['Non', [['q', 'Quel tirage pour ce moment ?', [
+      ['Non', [['q', 'Quel tirage pour ce moment (ou pour cette scène, si elle en force un) ?', [
         ['D\'après la référence (par défaut aux moments 1 et 2)', [['q', 'Une image de référence est choisie, la scène n\'est pas libre et n\'a pas ses propres LoRA ?', [
           ['Oui', [['f', 'Retouche de la référence', 'Même personne, même pièce, nouvelle pose. Au moment 1 la tenue de la référence est gardée ; à partir du moment 2 la tenue est celle du texte.']]],
           ['Non', [['f', 'Pose imposée', 'Voir la branche suivante.']]]]]]],
@@ -216,6 +217,9 @@ const SCH = {
             ['e', 'Squelette', 'Relevé sur ce brouillon.'],
             ['f', 'Seule la zone du personnage est refaite', 'Le reste de l\'image est la pièce du brouillon, au pixel.']]],
           ['Non', [['f', 'Pose imposée', 'Voir la branche précédente.']]]]]]],
+        ['Selon le cadrage', [['q', 'Que dit le cadrage de la scène ?', [
+          ['Plan large ou en pied', [['f', 'Lieu et tenue de la bibliothèque', 'Voir cette branche. La pièce se voit : elle doit être la même d\'une scène à l\'autre.']]],
+          ['Plan moyen', [['f', 'Pose imposée', 'Voir cette branche. Le corps remplit l\'image : la pose compte plus que la pièce.']]]]]]],
         ['Texte seul', [['f', 'Image créée à part', 'Sans brouillon ni squelette : la pose dépend du texte.']]]]]]]]],
     ['e', 'Ce qui s\'ajoute à chaque image créée', 'La LoRA du personnage, les LoRA du moment et de la scène avec leurs mots, « nsfw » à partir du moment 2. Les scènes d\'un même moment partent du même tirage au sort, pour que le décor bouge moins.'],
     ['q', 'Finition activée ?', [
@@ -451,7 +455,7 @@ function rendreProjet() {
     ${garderHtml((E.personnages.find(x => x.slug === P.personnage) || p).nom)}
     <div class="th"><b>${T}. ${TEMPS[T][0]}</b> <span class="mut">${TEMPS[T][1]}</span><span class="aide">${QUOI[T]}${T > 2 && P.suite ? ` Suite annoncée : ${esc(P.suite)}` : ''}</span></div>
 
-    ${sec('prep', 'Préparation', `${L0 + LN(T)} LoRA${TIR(T) === 'direct' ? ', images créées à part' : P.reference && TIR(T) === 'ref' ? ', images tirées de la référence' : ', images créées à part, pose imposée'}`)}
+    ${sec('prep', 'Préparation', `${L0 + LN(T)} LoRA${TIR(T) === 'auto' ? ', images selon le cadrage' : TIR(T) === 'direct' ? ', images créées à part' : P.reference && TIR(T) === 'ref' ? ', images tirées de la référence' : ', images créées à part, pose imposée'}`)}
     <div class="panel">
       ${T === 1 ? `${f('brief', `${ic('idee')}Idée`, P.brief, {area: 1, rows: 2, ph: 'Elle rentre du sport, trop chaud, elle hésite à enlever son pull devant la caméra',
           aide: 'En français, quelques mots suffisent. Le rédacteur en tire le scénario, les textes et le découpage. La suite payante, la date et le contexte se règlent dans le panneau Projet.'})}
@@ -466,9 +470,9 @@ function rendreProjet() {
       ${T > 2 ? '<div class="mut">Les scènes de ce temps viennent du script livré par votre scénariste ; elles arrivent toutes seules.</div><div class="aide">Le scénariste livre un seul script par vidéo (un fichier dans server/jobs/atelier/) ; un script corrigé met le projet à jour. Le rédacteur IA n\'écrit pas ce temps, ne le relit pas et ne l\'analyse pas.</div>' : ''}
       ${dep.length ? `<div class="gt">Scripts livrés</div>${dep.map(depotHtml).join('')}` : ''}
       ${lorasBloc(String(T), `${ic('lora')} LoRA de ce temps`, LT)}
-      ${`<label>${ic('image')}Images de ce temps<select data-tir="${T}">${opt([...(P.reference ? [['ref', 'Tirées de la référence']] : []), ['pose', 'Créées à part, pose imposée'], ['decor', 'Pose imposée, lieu et tenue de la bibliothèque'], ['direct', 'Créées à part, texte seul']], !P.reference && TIR(T) === 'ref' ? 'pose' : TIR(T))}</select>
-        ${aide('Tirée de la référence, une image garde la pièce, la tenue et à peu près la pose : bon pour un temps où elle reste habillée et bouge peu. Créée à part (visage du personnage et fiche de continuité), la tenue et la pose suivent la description de la scène, au prix d\'un décor moins constant. Lieu et tenue de la bibliothèque : pose imposée, et en plus le brouillon est fabriqué dans l\'image retenue du lieu (atelier du personnage), avec l\'image d\'une tenue de la garde-robe si vous en choisissez une (au temps 1, celle de la fiche de continuité par défaut) ; seule la zone du personnage est ensuite refaite, la pièce reste identique. Il faut que le lieu de la fiche de continuité soit un lieu du personnage qui a son image ; sinon la scène est faite en pose imposée. Pose imposée : un brouillon de la scène est d\'abord tiré, son squelette (un dessin en bâtons du corps) est relevé, et l\'image est créée dessus ; la position du corps et le cadrage écrits sont tenus (sauf gros plan et scène à plusieurs, faits d\'après le texte). Par défaut : référence aux temps 1 et 2 (pose imposée s\'il n\'y a pas de référence), pose imposée aux temps 3 et 4.')}</label>`}
-      ${TIR(T) === 'decor' ? tenueTemps() : ''}
+      ${`<label>${ic('image')}Images de ce temps<select data-tir="${T}">${opt([...(P.reference ? [['ref', 'Tirées de la référence']] : []), ['auto', 'Choisies selon le cadrage de chaque scène'], ['pose', 'Créées à part, pose imposée'], ['decor', 'Pose imposée, lieu et tenue de la bibliothèque'], ['direct', 'Créées à part, texte seul']], !P.reference && TIR(T) === 'ref' ? 'pose' : TIR(T))}</select>
+        ${aide('Selon le cadrage : chaque scène prend la façon qui lui va le mieux. Plan large ou en pied : lieu et tenue de la bibliothèque. Plan moyen : pose imposée. Gros plan : texte seul. La façon retenue est écrite sur chaque scène, et une scène peut en forcer une autre dans ses réglages. Tirée de la référence, une image garde la pièce, la tenue et à peu près la pose : bon pour un temps où elle reste habillée et bouge peu. Créée à part (visage du personnage et fiche de continuité), la tenue et la pose suivent la description de la scène, au prix d\'un décor moins constant. Lieu et tenue de la bibliothèque : pose imposée, et en plus le brouillon est fabriqué dans l\'image retenue du lieu (atelier du personnage), avec l\'image d\'une tenue de la garde-robe si vous en choisissez une (au temps 1, celle de la fiche de continuité par défaut) ; seule la zone du personnage est ensuite refaite, la pièce reste identique. Il faut que le lieu de la fiche de continuité soit un lieu du personnage qui a son image ; sinon la scène est faite en pose imposée. Pose imposée : un brouillon de la scène est d\'abord tiré, son squelette (un dessin en bâtons du corps) est relevé, et l\'image est créée dessus ; la position du corps et le cadrage écrits sont tenus (sauf gros plan et scène à plusieurs, faits d\'après le texte). Par défaut : référence aux temps 1 et 2 (pose imposée s\'il n\'y a pas de référence), pose imposée aux temps 3 et 4.')}</label>`}
+      ${TIR(T) === 'decor' || TIR(T) === 'auto' || SC.some(s => s.voie === 'decor') ? tenueTemps() : ''}
       <div class="row"><span class="mut">Tout le projet :</span><button class="s" data-a="cote" data-c="lora">${ic('lora')}LoRA (${LN(0)})</button>
         <button class="s" data-a="cote" data-c="cont">${ic('epingle')}Continuité${P.reference ? '' : ', sans référence'}</button></div>
     </div></details>
@@ -479,7 +483,7 @@ function rendreProjet() {
       <div class="sh"><b>${i + 1}</b><input data-s="${s.id}" data-k="titre" value="${esc(s.titre)}" placeholder="Titre"></div>
       <div class="media" data-sid="${s.id}"></div>
       <details class="pli" data-sec="tx:${P.id}:${s.id}"${ouv(`tx:${P.id}:${s.id}`, !(s.still || s.motion))}><summary>${ic('ecrire')}<span class="ell">Texte et réglages de la scène</span>
-        ${!coupe ? `<span class="badge">${cont ? 'continu' : 'arrivée'}</span>` : ''}${s.libre ? '<span class="badge i">libre</span>' : ''}${s.loras ? '<span class="badge">LoRA</span>' : ''}</summary>
+        ${!coupe ? `<span class="badge">${cont ? 'continu' : 'arrivée'}</span>` : ''}${s.libre ? '<span class="badge i">libre</span>' : ''}${(D.voies || {})[s.id] ? `<span class="badge">${VOIE[D.voies[s.id]]}</span>` : ''}${s.loras ? '<span class="badge">LoRA</span>' : ''}</summary>
       <div class="row outils"><span class="mut">Scène :</span>${bi('haut', 'Avancer la scène', `data-a="monte" ${i ? '' : 'disabled'}`, 's')}${bi('bas', 'Reculer la scène', `data-a="descend" ${i < SC.length - 1 ? '' : 'disabled'}`, 's')}${bi('copier', 'Dupliquer la scène', 'data-a="dupliquer"', 's')}${bi('supprimer', 'Supprimer la scène', 'data-a="supprimer"', 's d')}</div>
       ${cont ? '' : f('still', `${ic('image')}Image <small>en anglais</small>`, s.still, {area: 1, rows: 3, at: `data-s="${s.id}"`,
         aide: T > 1 ? 'Cadrage, pose, expression, et ce qu\'elle porte à cet instant. Le lieu, la coiffure et la lumière viennent de la continuité ; « nsfw » est ajouté d\'office.'
@@ -522,6 +526,7 @@ function rendreProjet() {
           <div class="g">${f('duree', 'Durée gardée (s)', s.duree, {type: 'number', step: '0.1', at: `data-s="${s.id}"`, aide: '0 : tout le clip. Une durée réglée ici n\'est pas raccourcie par la durée visée.'})}</div></div>
         <div class="gt">Cas particuliers</div>
         <label class="c" style="margin-top:6px"><input type="checkbox" data-s="${s.id}" data-k="tattoos" ${s.tattoos ? 'checked' : ''}>Épaules et poitrine visibles (tatouages)${aide('Décocher quand la tenue couvre les épaules : sinon le modèle dessine les tatouages par-dessus le tissu.')}</label>
+        <label style="margin-top:10px">${ic('image')}Façon de fabriquer l'image<select data-s="${s.id}" data-k="voie">${[['', 'Celle du moment'], ['decor', 'Lieu et tenue de la bibliothèque'], ['pose', 'Pose imposée'], ['direct', 'Texte seul']].map(([k, lab]) => `<option value="${k}" ${k === (s.voie || '') ? 'selected' : ''}>${lab}</option>`).join('')}</select>${aide('« Celle du moment » suit le réglage « Images de ce temps » de la Préparation. Les autres choix ne valent que pour cette scène. Un gros plan et une scène à deux restent faits d\'après le texte.')}</label>
         <label class="c" style="margin-top:10px"><input type="checkbox" data-s="${s.id}" data-k="libre" ${s.libre ? 'checked' : ''}>Scène libre${aide('Autre lieu ou autre tenue : la scène ignore la fiche de continuité et l\'image de référence, et décrit tout elle-même.')}</label>
         ${s.origine ? `<div class="mut" style="margin-top:6px">Origine : ${esc(s.origine)}</div>` : ''}
       </details>
@@ -853,7 +858,7 @@ vue.addEventListener('input', e => {
   if (!k || !P) return;
   const v = t.type === 'checkbox' ? t.checked : t.type === 'number' || k === 'nb_scenes' || k === 'nb2' || k === 'cran' || k === 'cible' ? +t.value : t.value;
   if (t.dataset.s) sc(t.dataset.s)[k] = v; else if (t.dataset.m) P.montage[k] = v; else if (t.dataset.c) P.continuite[k] = v; else P[k] = v;
-  if (k === 'raccord' || k === 'reference') return essai(structure)(() => {});  // le devis et les boutons en dependent
+  if (k === 'raccord' || k === 'reference' || k === 'voie') return essai(structure)(() => {});  // le devis et les boutons en dependent
   planifier();
 });
 window.addEventListener('beforeunload', () => { if (P && tSave) navigator.sendBeacon?.('/api/a/projet', new Blob([JSON.stringify(P)], {type: 'application/json'})); });
