@@ -24,6 +24,7 @@ def ouvrir():
     a.dp, a.dj = a.data / "personnages", a.data / "projets"
     a.dd = REPO / "server" / "jobs" / "atelier"
     a.df = a.dd / "personnages"
+    a.biblio = atelier.biblio.Biblio(a)  # lecture des lieux du personnage qui ont une image
     return a
 
 
