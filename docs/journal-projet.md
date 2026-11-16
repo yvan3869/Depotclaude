@@ -767,3 +767,7 @@ faute de machine ; second reussi). Depense du chargement : environ 0,11 $ ; comp
   acceptee dans sa forme (aucun refus de champ). La creation elle-meme a ete refusee faute de machine libre a EU-RO-1
   ce soir-la (meme sans volume) : preuve complete a la premiere machine disponible.
 - Depense GPU : aucune.
+- Preuve complete a 18 h 57 UTC, des qu'une machine s'est liberee : essai tous publics du banc des LoRA de clip (LoRA de
+  mouvement, trois poids, une image de depart habillee). Pod cree, trois clips de 5 s rendus sans echec en 12 minutes,
+  pod supprime par l'API v2. Le mouvement demande est suivi aux trois poids. Planche : `data/inbox/p0004essai_bancclip.png`.
+  Depense : 0,15 $ (conforme a l'estimation affichee) ; compteur du jour 11,01 $ sur 20. Serie et image d'essai retirees.
