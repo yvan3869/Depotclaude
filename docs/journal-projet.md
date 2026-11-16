@@ -771,3 +771,25 @@ faute de machine ; second reussi). Depense du chargement : environ 0,11 $ ; comp
   mouvement, trois poids, une image de depart habillee). Pod cree, trois clips de 5 s rendus sans echec en 12 minutes,
   pod supprime par l'API v2. Le mouvement demande est suivi aux trois poids. Planche : `data/inbox/p0004essai_bancclip.png`.
   Depense : 0,15 $ (conforme a l'estimation affichee) ; compteur du jour 11,01 $ sur 20. Serie et image d'essai retirees.
+
+## 2026-11-16 (soir) : Diffusion elargie, debuter un personnage
+- **Diffusion** : cinq types de publication au lieu d'un. « objet » (ce qu'elle mange ou a devant elle) et « lieu »
+  (connu ou anonyme) sont fabriques sans elle : ni sa description ni sa LoRA (`sans_perso` dans le pilote) ; « amis »
+  (elle avec une ou deux personnes de dos ou de profil, adultes, inventees) et « visite » (elle en pied devant un lieu)
+  gardent sa LoRA. Le redacteur melange les types sur la semaine ; ajout a la main d'une publication (`/api/s/ajouter`).
+- Essai tous publics, 10 images (planche `data/inbox/p0004essai_diffusion_genres.png`) : assiettes, lieux, amis et
+  visite reussis. Un defaut corrige : un visage inconnu apparaissait au premier plan d'un lieu ; le suffixe des photos
+  sans elle ne parle plus de peau, et la consigne dit « deserted, nobody around » au lieu de « no people in the
+  foreground ». Refait : plus de visage. Publications d'essai supprimees.
+- **Debuter un personnage** : onglet « Debuter » de l'atelier, sept etapes avec etat, bouton et cout (fiche, visage,
+  expressions, corps, LoRA, lieux et garde-robe, debuts). Une fiche enregistree sans LoRA y mene tout droit.
+- **Galerie d'expressions** (`Biblio.expressions`, images `x_<cle>_<n>.png`) : celles de la fiche puis une liste commune
+  de 14 ; tirees de la LoRA si elle existe, sinon du portrait retenu. Les images gardees entrent dans le jeu
+  d'entrainement avec leur legende ; elles s'affichent aussi dans l'onglet Corps.
+- **Fiche de casting**, modele 2026-11-16 : champ `expressions` (3 a 6 mimiques, « francais | anglais », le visage
+  seul) ; la premiere tenue habille les premieres images. Verificateur, formulaire, skill du casting et
+  `docs/agents.md` a jour.
+- Essai sur un personnage « Girls-ai Essai » (fiche deposee, verifiee, enregistree par la page) : quatre portraits
+  proches les uns des autres, puis 17 expressions lisibles avec le meme visage, tenues et fonds varies (planche
+  `data/inbox/p0004essai_expressions.png`). Personnage archive, fiche deposee retiree.
+- Depense GPU : 0,09 $ (Diffusion) et 0,14 $ (portraits et expressions) ; compteur du jour 11,69 $ sur 20.
