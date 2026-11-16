@@ -201,3 +201,8 @@ Ordre de construction : A puis B (le plus gros gain), D en même temps (sans lui
 - Pour le proprietaire : pour en profiter sur un projet, tirage « decor » (ou « auto ») au temps voulu, lieu de la bibliotheque avec image, tenue dans la fiche de continuite, et un script ecrit au modele `2026-11-16a`.
 - 16/11/2026, 06 h 20 : **image d'etat en service** (point 1 ci-dessus fait, `etat_image` dans `server/pilot/__main__.py`, fichiers `data/work/girls-ai-etat-<sha>.png`). Essai 8 : 6 images justes sur 6 sans relance. Restent les points 2 a 5.
 - 16/11/2026, 07 h 50 : **vue subjective faite** (point 2 : `pov_geste` passe par `_continuite`, brouillon dessine a travers ses yeux). Essai 9 : 3 sur 3, aucune relance. Le script du scenariste pour p0005 au modele `2026-11-16a` est depose et accepte par le verificateur ; le proprietaire regle le tirage et le lieu puis relance. Restent les points 3 a 5.
+
+
+## 16/11, 08 h 30 : le lieu se regle tout seul
+
+Demande du proprietaire : ne plus regler a la main les images du temps et le lieu. Le scenariste recopie mot pour mot un lieu du personnage dans `continuite.lieu` ; si ce lieu a une image retenue, l'import pose le tirage « lieu de la bibliotheque » aux temps du script. Sinon le verificateur le signale et donne les lignes connues. Le verificateur ouvre maintenant la bibliotheque du personnage (il etait casse quelques minutes par ce changement, repare).
