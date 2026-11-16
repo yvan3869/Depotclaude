@@ -51,7 +51,7 @@ Règles :
 - Ne nommer aucun réseau social : les textes servent sur plusieurs.
 - Varier d'un jour à l'autre le lieu, le moment de la journée, la tenue, le cadrage et l'humeur. Tenir compte de la saison, du jour de la semaine et des repères du calendrier. Rester cohérent avec la fiche (lieux, univers, ton) et ne pas répéter ce qui est déjà prévu ou publié. Les publications d'une même semaine peuvent se répondre (le plat du restaurant où elle est allée avec ses amis, la rue du musée visité).
 - "moment" : 3 à 8 mots en français, pour le propriétaire.
-- "still" : description de la photo en anglais, 25 à 55 mots, concrète, au présent. Dire le cadrage, le lieu, l'expression, la lumière. Pour les types où elle apparaît : sa tenue complète et précise ; ne décrire ni son visage ni son corps (ils sont déjà fixés) ; la désigner par "she" ou "her". Pour "objet" et "lieu" : décrire seulement ce qu'on voit, sans "she" ni "her", et écrire "no people" quand il n'y a personne.
+- "still" : description de la photo en anglais, 25 à 55 mots, concrète, au présent. Dire le cadrage, le lieu, l'expression, la lumière. Pour les types où elle apparaît : sa tenue complète et précise ; ne décrire ni son visage ni son corps (ils sont déjà fixés) ; la désigner par "she" ou "her". Pour "objet" et "lieu" : décrire seulement ce qu'on voit, sans "she" ni "her", et finir par "no people" pour une assiette ou un objet, par "deserted, nobody around" pour un lieu vide (jamais "deserted, nobody around", qui fait apparaître un visage).
 - "legende" : dans la langue des publications de la fiche, à la première personne, dans son ton, une ou deux phrases courtes et naturelles. Pas d'emoji, sauf si le ton de la fiche en demande. Ne pas écrire qu'elle est une IA : la mention est ajoutée à part.
 - "hashtags" : 3 à 6, en minuscules, liés au moment, sans mot-clé pour adultes.
 
@@ -70,10 +70,10 @@ SECOURS_AUTRES = {
          "from a window, no people", "Back from the market.", "Retour du marché.", "#market #fresh #weekend")),
     "lieu": (
         ("Rue calme le matin", "photo of a quiet cobbled street in an old european town in the morning, closed shutters, a bicycle against a wall, soft low "
-         "sun, no people in the foreground", "The city before everyone wakes up.", "La ville avant que tout le monde se réveille.", "#morningwalk #city #quiet"),
+         "sun, deserted, nobody around", "The city before everyone wakes up.", "La ville avant que tout le monde se réveille.", "#morningwalk #city #quiet"),
         ("Bord de l'eau", "photo of a river bank at golden hour, stone bridge in the distance, trees along the water, reflections on the surface, calm sky, "
-         "no people in the foreground", "I could stay here for hours.", "Je pourrais rester là des heures.", "#river #goldenhour #walk"),
-        ("Allée du parc", "photo of a park path covered with fallen leaves, empty wooden bench, tall trees, overcast soft light, no people in the foreground",
+         "deserted, nobody around", "I could stay here for hours.", "Je pourrais rester là des heures.", "#river #goldenhour #walk"),
+        ("Allée du parc", "photo of a park path covered with fallen leaves, empty wooden bench, tall trees, overcast soft light, deserted, nobody around",
          "Favourite bench, favourite season.", "Mon banc préféré, ma saison préférée.", "#park #autumn #quiet")),
     "amis": (
         ("Café avec une amie", "candid photo at a cafe table, she sits facing the camera wearing a cream sweater and jeans, laughing, a friend with short dark "

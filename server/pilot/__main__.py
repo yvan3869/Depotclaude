@@ -1,6 +1,7 @@
 import argparse
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -497,7 +498,9 @@ def cmd_run(a):
                     prompt = f"{char.get('zimage_prefix', char['prefix'])}{tat}{body}{s['still']}{char.get('zimage_suffix', '')}"
                     ch = char
                     if s.get("sans_perso"):  # photo sans le personnage (assiette, lieu) : ni sa description ni sa LoRA
-                        prompt, ch = f"{s['still']}{char.get('zimage_suffix', '')}", {**char, "lora_still_zimage": None}
+                        # suffixe sans la mention de la peau, qui fait apparaitre un visage au premier plan
+                        suf = re.sub(r",?\s*realistic skin[^,.]*", "", char.get("zimage_suffix", ""))
+                        prompt, ch = f"{s['still']}{suf}", {**char, "lora_still_zimage": None}
                     extra = loras_image(resolve_loras(cfg, s.get("loras")))
                     trig = ", ".join(x["trigger"] for x in extra or [] if x.get("trigger"))
                     if trig:  # mots declencheurs des LoRA supplementaires
