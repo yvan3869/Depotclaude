@@ -30,7 +30,7 @@ try { F = {...F, ...JSON.parse(localStorage.getItem('hub:filtres') || '{}'), q: 
 try { exclu = new Set(JSON.parse(localStorage.getItem('hub:exclu') || '[]')); } catch (e) {}
 const onglet = () => (location.hash.slice(2) || 'catalogue');
 const nb = n => n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1).replace('.', ',') + ' k' : String(n);
-const temps = c => `<span class="temps">${[1, 2, 3, 4].map(t => `<span class="badge ${t >= E.categories[c].temps ? 'v' : 'off'}">${t}</span>`).join('')}</span>`;
+const temps = c => `<span class="temps">${[1, 2, 3, 4, 5].map(t => `<span class="badge ${t >= E.categories[c].temps ? 'v' : 'off'}">${t}</span>`).join('')}</span>`;
 const selCat = (v, attr) => `<select ${attr}>${Object.entries(E.categories).map(([k, c]) => `<option value="${k}"${k === v ? ' selected' : ''}>${esc(c.label)} (dès le temps ${c.temps})</option>`).join('')}</select>`;
 const vg = (u, cls = 'vg') => `<div class="${cls}"${u ? ` style="background-image:url('${esc(u)}')"` : ''}>${u ? '' : 'pas de vignette'}</div>`;
 
@@ -52,7 +52,7 @@ function vueCatalogue() {
         <label>Modèle de base<select data-f="famille">${Object.entries(E.familles).map(([k, f]) => `<option value="${k}"${k === F.famille ? ' selected' : ''}>${esc(f.label)} (${f.usage})</option>`).join('')}</select></label>
         <label>Source<select data-f="source"><option value="civitai"${F.source === 'civitai' ? ' selected' : ''}>Civitai</option><option value="hf"${F.source === 'hf' ? ' selected' : ''}>Hugging Face</option></select></label>
       </div>
-      <label>Catégorie${selCat(F.cat, 'data-f="cat"')}${aide(esc(c.aide) + ' Utilisable aux temps ' + [1, 2, 3, 4].filter(t => t >= c.temps).join(', ') + '.')}</label>
+      <label>Catégorie${selCat(F.cat, 'data-f="cat"')}${aide(esc(c.aide) + ' Utilisable aux temps ' + [1, 2, 3, 4, 5].filter(t => t >= c.temps).join(', ') + '.')}</label>
       <label>Recherche (anglais)<input data-f="q" value="${esc(F.q)}" placeholder="${esc(E.requetes[F.cat] || 'mots libres')}">${aide('Vide : la recherche habituelle de la catégorie. Les résultats sont triés par nombre de téléchargements.')}</label>
       <div class="row"><button class="p" data-a="chercher">${ic('chercher')}Chercher</button><span class="mut">${fam.usage === 'clips' ? 'LoRA vidéo : appliquées au clip, pas à l\'image.' : 'LoRA d\'image.'}</span></div></div>
     <div id="res"></div>`;

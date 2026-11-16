@@ -6,8 +6,9 @@ L'ecriture est confiee au redacteur IA (server/writer, file d'attente dans data/
 repond pas, un redacteur de secours (moteur_local.py) tire un scenario d'une structure toute faite.
 Les images et les clips passent par le pilote, donc par le plafond GPU du jour.
 
-Un projet couvre quatre temps : 1 accroche tous publics, 2 montee suggestive, 3 devoile (nudite, sans
-acte), 4 final prive. Chaque scene porte son temps. Le redacteur ecrit les temps 1 et 2 ; les temps 3 et 4
+Un projet couvre cinq temps : 1 accroche tous publics, 2 montee suggestive, 3 devoile (nudite, sans
+acte), 4 et 5 les deux moments chauds (le 5 finit par le final puis un temps calme). Chaque scene porte son temps.
+Le redacteur ecrit les temps 1 et 2 ; les temps 3 a 5
 sont a la main du proprietaire, ou alimentes par un plan depose par son agent dans server/jobs/atelier/.
 Bibliotheque de LoRA : catalogue du pilote (production.yaml et data/lora_catalog.yaml), LoRA par defaut de
 chaque temps (data/lora_defauts.json), inventaire du volume releve par le pilote (data/lora_volume.json).
@@ -39,9 +40,12 @@ from controle import CIBLE, controle, tenue_dite
 AGE_MIN = 21
 ETAPES = ("idee", "ecrit", "images", "clips", "monte", "valide")
 FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
-TEMPS = {1: "accroche", 2: "montee", 3: "devoile", 4: "final"}
+TEMPS = {1: "accroche", 2: "montee", 3: "devoile", 4: "chaud", 5: "final"}  # cinq temps depuis le 16/11/2026 : 4 et 5 sont les deux moments chauds
 V = 4            # version des donnees : 4 = quatre temps (l'ancien temps 3, le final, est devenu le temps 4)
 GARDER = ("tenues", "lieux")  # listes de la fiche du personnage qu'un script peut allonger, sur accord du proprietaire
+MODELE_5T = "2026-11-16b"  # premier modele de plans a cinq temps : aux temps 4 et 5 chaque plan dit son "moment" et, pour un acte, sa position ("acte")
+# Moment d'un plan des temps 4 et 5 : un acte, un plan de transition (changement de position, rare), le final, le temps calme de la fin
+MOMENTS = ("acte", "transition", "final", "calme")
 MODELE_ETAT = "2026-11-16a"  # premier modele de plans ou chaque plan des temps 2 a 4 dit ce qu'elle ne porte plus ("retire")
 MODELE_UN = "2026-11-15e"  # premier modele de plans ou une video entiere tient dans un fichier, importe sans bouton
 MODELE_CADRE = "2026-11-15g"  # premier modele de plans ou chaque plan qui a son image dit cadrage, angle, position et regard
@@ -206,6 +210,13 @@ def _pov(s):
                           f"{s.get('angle') or ''} {s.get('cadrage') or ''} {s.get('still') or ''}", re.I))
 
 
+def _acte(s):
+    """Scene du chemin "actes" (16/11/2026, apres le temps 4 de p0005) : un acte, ou une autre personne a l'image a partir du
+    temps 3. Ni brouillon, ni pose imposee, ni image du partenaire, ni lieu gele : ces etapes passent par un modele de
+    retouche qui ne sait pas dessiner ces scenes et bride la LoRA. L'image est creee a part, le texte et la LoRA commandent."""
+    return bool(s.get("acte") or s.get("moment") in ("acte", "final") or (s["temps"] >= 3 and s.get("autres")))
+
+
 def _tirage(p, t):
     v = (p.get("tirage") or {}).get(str(t))
     return v if v in TIRAGES else "ref" if t <= 2 else "pose"
@@ -214,7 +225,7 @@ def _tirage(p, t):
 def _voie(p, s):
     """Tirage d'une scene : le sien si elle en force un, sinon celui de son temps ; "auto" est resolu d'apres le cadrage
     (gros plan : image creee a part ; tout autre plan : lieu de la bibliotheque, depuis le 16/11/2026 les plans moyens aussi)."""
-    v = s.get("voie") or _tirage(p, s["temps"])
+    v = s.get("voie") or ("direct" if _acte(s) else _tirage(p, s["temps"]))  # le chemin "actes" se choisit tout seul, sauf scene forcee
     if v != "auto":
         return v
     if _gros_plan(s):
@@ -701,7 +712,7 @@ class Atelier:
             s.setdefault("temps", 1), s.setdefault("loras", ""), s.setdefault("origine", "")
             s.setdefault("raccord", "coupe"), s.setdefault("libre", False), s.setdefault("cran", 0)
             s.setdefault("transition", ""), s.setdefault("camera", "")
-            for k in (*CHAMPS, "retire", "etat"):
+            for k in (*CHAMPS, "retire", "etat", "acte", "moment"):
                 s.setdefault(k, "")
         p["continuite"] = _cont(p.get("continuite"))
         p.setdefault("partenaire", "")
@@ -717,7 +728,7 @@ class Atelier:
             sid = f"s{proj['next']}"
             proj["next"] += 1
         return {"id": sid, "titre": _s(d.get("titre"), 80), "role": d.get("role") if d.get("role") in ("accroche", "montee", "chute") else "montee",
-                "temps": int(d.get("temps") or 1) if str(d.get("temps") or 1) in ("1", "2", "3", "4") else 1,
+                "temps": int(d.get("temps") or 1) if str(d.get("temps") or 1) in ("1", "2", "3", "4", "5") else 1,
                 "loras": _loras(d.get("loras")), "origine": _s(d.get("origine"), 120),
                 "raccord": d.get("raccord") if d.get("raccord") in RACCORDS else "coupe", "libre": bool(d.get("libre")),
                 "voie": d.get("voie") if d.get("voie") in VOIES else "",
@@ -726,6 +737,7 @@ class Atelier:
                 "cran": min(5, max(0, int(d.get("cran") or 0))) if str(d.get("cran") or 0).isdigit() else 0,
                 **{k: _s(d.get(k), 300 if k == "autres" else 160) for k in CHAMPS},
                 "retire": _s(d.get("retire"), 300), "etat": _s(d.get("etat"), 300),
+                "acte": _s(d.get("acte"), 80), "moment": d.get("moment") if d.get("moment") in MOMENTS else "",
                 "still": _s(d.get("still"), 1200), "motion": _s(d.get("motion"), 600), "end_edit": _s(d.get("end_edit"), 600),
                 "texte": _s(d.get("texte"), 120), "voix": _s(d.get("voix"), 240), "son": _s(d.get("son"), 200), "son_t": _son_t(d.get("son_t")), "tattoos": bool(d.get("tattoos", True)),
                 "seed": int(d.get("seed") or random.randint(1, 999999)), "image": _s(d.get("image"), 80), "clip": _s(d.get("clip"), 80),
@@ -770,8 +782,8 @@ class Atelier:
                              "rendu": m.get("rendu") if m.get("rendu") in RENDUS else "net" if old.get("montage") else "main",  # nouveau projet : tenu a la main
                              "style": m.get("style") if m.get("style") in STYLES else "doux"}}
             # LoRA du projet : "0" = tout le projet, "1" a "4" = un temps ; s'ajoutent a celles d'une scene (_loras_scene)
-            p["loras"] = {k: _loras((b.get("loras", old.get("loras")) or {}).get(k)) for k in ("0", "1", "2", "3", "4")}
-            p["lora_def"] = [t for t in old.get("lora_def") or [] if t in ("1", "2", "3", "4")]  # temps qui ont deja recu leurs LoRA par defaut
+            p["loras"] = {k: _loras((b.get("loras", old.get("loras")) or {}).get(k)) for k in ("0", "1", "2", "3", "4", "5")}
+            p["lora_def"] = [t for t in old.get("lora_def") or [] if t in ("1", "2", "3", "4", "5")]  # temps qui ont deja recu leurs LoRA par defaut
             p["tirage"] = {str(k): _tirage({"tirage": b.get("tirage", old.get("tirage"))}, k) for k in TEMPS}
             # Tenue de la garde-robe par temps (tirage "decor") : "" = celle de la fiche de continuite au temps 1, aucune ensuite ;
             # "aucune" = dite par le texte seul ; sinon la ligne d'une tenue du personnage (le proprietaire choisit, a tous les temps)
@@ -880,7 +892,8 @@ class Atelier:
                 return ""
             n = t.get("serie", {}).get(t["images"][-1])
             lot = [i for i in t["images"] if n and t["serie"].get(i) == n] or t["images"][-1:]
-            cle = lambda i: (notes.get(i, {}).get("score", -1), (notes.get(i, {}).get("p") or {}).get("fidele", 0))
+            # image d'un acte : celles qui passent le controle reduit d'abord (la note libre y est peu fiable)
+            cle = lambda i: (not (notes.get(i, {}).get("acte") or {}).get("ratee"), notes.get(i, {}).get("score", -1), (notes.get(i, {}).get("p") or {}).get("fidele", 0))
             return max(reversed(lot), key=cle)
 
         cont = {s["id"]: bool(prec[s["id"]]) and s["raccord"] == "continu" for s in p["scenes"]}
@@ -1104,7 +1117,7 @@ class Atelier:
         """Texte d'un temps du projet pour le redacteur. Les temps 3 et 4 ne lui sont jamais envoyes, ni une scene qui porte une LoRA reservee
         (nu, porno, non classee)."""
         if temps not in (1, 2):
-            raise ValueError("les temps 3 et 4 sont à votre main : le rédacteur IA ne les lit pas")
+            raise ValueError("les temps 3 à 5 sont à votre main : le rédacteur IA ne les lit pas")
         keep = ("id", "titre", "role", "raccord", "transition", "camera", "cran", "still", "motion", "son", "end_edit", "texte", "voix", "tattoos")
         tete = {k: p.get(k) for k in ("titre", "pitch", "accroche", "legende", "cta", "hashtags")} if temps == 1 else {}
         return json.dumps(tete | {"continuite": p["continuite"], "scenes": [{k: s[k] for k in keep} for s in p["scenes"] if s["temps"] == temps and not self._reservee(s)]}, ensure_ascii=False, indent=1)
@@ -1144,7 +1157,7 @@ class Atelier:
             if not sc:
                 raise ValueError("scène inconnue")
             if sc["temps"] not in (1, 2):
-                raise ValueError("les temps 3 et 4 sont à votre main : le rédacteur IA ne les écrit pas")
+                raise ValueError("les temps 3 à 5 sont à votre main : le rédacteur IA ne les écrit pas")
             if self._reservee(sc):
                 raise ValueError("scène à LoRA réservée (nu, porno ou non classée) : elle reste à votre main")
             prompt = (f"PERSONNAGE\n{self._fiche(perso)}\n\n{moment}SCÉNARIO\n{self._texte_projet(proj, sc['temps'])}\n\nCOMMANDE\nRéécris uniquement la scène \"{sc['id']}\" "
@@ -1291,7 +1304,7 @@ class Atelier:
         scenes qui portent des LoRA supplementaires : ces images sont a la main du proprietaire."""
         pid, t = b["id"], int(b.get("temps") or 1)
         if t not in (1, 2):
-            raise ValueError("les temps 3 et 4 sont à votre main : ils ne sont pas relus")
+            raise ValueError("les temps 3 à 5 sont à votre main : ils ne sont pas relus")
         if not self.redacteur_actif():
             raise ValueError("le rédacteur IA ne répond pas (service girls-ai-writer)")
         p = self._raw(pid)
@@ -1381,7 +1394,7 @@ class Atelier:
         pid, nom = b["id"], str(b.get("fichier"))
         m = re.fullmatch(r"final_(t2_)?v\d+\.mp4", nom)
         if not m:
-            raise ValueError("les temps 3 et 4 sont à votre main : ils ne sont pas analysés" if re.match(r"final_t[34]_", nom) else "fichier invalide")
+            raise ValueError("les temps 3 à 5 sont à votre main : ils ne sont pas analysés" if re.match(r"final_t[345]_", nom) else "fichier invalide")
         if not self.redacteur_actif():
             raise ValueError("le rédacteur IA ne répond pas (service girls-ai-writer)")
         t = 2 if m.group(1) else 1
@@ -1467,12 +1480,12 @@ class Atelier:
         a, d, shots = j["atelier"], j.get("defaults") or {}, j.get("shots")
         # video entiere : pas de "atelier.temps", chaque plan dit le sien ("temps: 1" a 4), dans l'ordre
         entier = "temps" not in a and str(j.get("modele") or "") >= MODELE_UN
-        if not entier and (a.get("temps") not in (1, 2, 3, 4) or isinstance(a.get("temps"), bool)):
-            raise ValueError('"atelier.temps" doit valoir 1, 2, 3 ou 4 (ou être absent : chaque plan dit alors son "temps")')
+        if not entier and (a.get("temps") not in (1, 2, 3, 4, 5) or isinstance(a.get("temps"), bool)):
+            raise ValueError('"atelier.temps" doit valoir 1, 2, 3, 4 ou 5 (ou être absent : chaque plan dit alors son "temps")')
         if not entier and a["temps"] == 3 and str(j.get("modele") or "") < MODELE_4T:  # plan ecrit avant les quatre temps : son temps 3 etait le final
             a = a | {"temps": 4}
-        if not isinstance(shots, list) or not 1 <= len(shots) <= (30 if entier else 10):
-            raise ValueError("de 1 à 30 plans par fichier, 10 par temps" if entier else "de 1 à 10 plans par fichier")
+        if not isinstance(shots, list) or not 1 <= len(shots) <= (40 if entier else 10):
+            raise ValueError("de 1 à 40 plans par fichier, 10 par temps" if entier else "de 1 à 10 plans par fichier")
         scenes, noms, avant, premiers = [], set(), 0, set()
         for i, sh in enumerate(shots):
             nom = str(sh.get("name") or "") if isinstance(sh, dict) else ""
@@ -1480,10 +1493,10 @@ class Atelier:
                 raise ValueError(f"plan {i + 1} : nom absent, invalide ou en double")
             noms.add(nom)
             tp = sh.get("temps") if entier else a["temps"]
-            if tp not in (1, 2, 3, 4) or isinstance(tp, bool):
-                raise ValueError(f"plan {nom} : \"temps\" vaut 1, 2, 3 ou 4 (fichier sans \"atelier.temps\" : chaque plan dit le sien)")
+            if tp not in (1, 2, 3, 4, 5) or isinstance(tp, bool):
+                raise ValueError(f"plan {nom} : \"temps\" vaut 1, 2, 3, 4 ou 5 (fichier sans \"atelier.temps\" : chaque plan dit le sien)")
             if tp < avant:
-                raise ValueError(f"plan {nom} : les plans se suivent dans l'ordre des temps (1, puis 2, puis 3, puis 4)")
+                raise ValueError(f"plan {nom} : les plans se suivent dans l'ordre des temps (1, puis 2, puis 3, puis 4, puis 5)")
             prem, avant = tp != avant, tp  # premier plan de son temps : chaque temps est une video a part
             if prem:
                 premiers.add(nom)
@@ -1495,7 +1508,7 @@ class Atelier:
                 raise ValueError(f"plan {nom} : \"retire\" n'est pas vide : \"still\" dit ce qu'elle porte encore à cet instant (\"wearing ...\") ; "
                                  "la tenue entière de la fiche de continuité n'est alors plus ajoutée")
             if tp >= 2 and not (not prem and sh.get("raccord") == "continu") and not tenue_dite(sh["still"]):
-                raise ValueError(f"plan {nom} : dans les temps 2 à 4, \"still\" dit ce qu'elle porte ou ne porte plus à cet instant "
+                raise ValueError(f"plan {nom} : dans les temps 2 à 5, \"still\" dit ce qu'elle porte ou ne porte plus à cet instant "
                                  "(\"wearing ...\", \"naked\"...) ; la tenue de la fiche de continuité ne vaut que pour le temps 1")
             if [k for k in ("steps", "image", "edit", "suite_de", "end_image") if sh.get(k)]:
                 raise ValueError(f"plan {nom} : \"steps\", \"image\", \"edit\", \"suite_de\" et \"end_image\" ne sont pas repris par la Production "
@@ -1521,7 +1534,12 @@ class Atelier:
                 raise ValueError(f"plan {nom} : les champs de \"pose\", \"contact\" et \"autres\" sont des textes")
             # depuis le modele MODELE_CADRE, un plan qui a sa propre image dit son cadrage, son angle, sa position et son regard
             if str(j.get("modele") or "") >= MODELE_CADRE and (prem or sh.get("raccord") != "continu"):
-                manque = [k for k in POSE_DUE if not _s(pose.get(k))]
+                # temps 4 et 5, script court : pour un acte la position est dite par "acte", l'angle est facultatif
+                court = str(j.get("modele") or "") >= MODELE_5T and tp >= 4 and sh.get("moment") in ("acte", "final")
+                manque = [k for k in (("cadrage", "regard") if court else POSE_DUE) if not _s(pose.get(k))]
+                if manque and court:
+                    raise ValueError(f"plan {nom} : \"pose\" doit dire {', '.join(manque)} (pour un acte : le cadrage, serré, et le regard ou "
+                                     "l'expression ; la position est dite par \"acte\")")
                 if manque:
                     raise ValueError(f"plan {nom} : \"pose\" doit dire {', '.join(manque)} (cadrage, angle de la caméra, position du corps et "
                                      "des jambes, tête et regard : sans eux le modèle d'image la montre de face, les yeux dans l'objectif)")
@@ -1536,8 +1554,25 @@ class Atelier:
             if sh.get("etat") is not None and not isinstance(sh["etat"], str):
                 raise ValueError(f"plan {nom} : \"etat\" est un texte")
             if str(j.get("modele") or "") >= MODELE_ETAT and tp >= 2 and (prem or sh.get("raccord") != "continu") and ret is None:
-                raise ValueError(f"plan {nom} : dans les temps 2 à 4, \"retire\" dit la liste entière des vêtements de la fiche de continuité "
+                raise ValueError(f"plan {nom} : dans les temps 2 à 5, \"retire\" dit la liste entière des vêtements de la fiche de continuité "
                                  "qu'elle ne porte plus à cet instant (\"retire: []\" si elle porte encore tout) ; \"etat\" dit où ils sont passés")
+            # temps 4 et 5 (depuis MODELE_5T) : script court, chaque plan qui a son image dit son moment
+            mom, act = sh.get("moment"), sh.get("acte")
+            if (mom is not None and mom not in MOMENTS) or (act is not None and (not isinstance(act, str) or len(act) > 80)):
+                raise ValueError(f"plan {nom} : \"moment\" vaut {', '.join(MOMENTS)} ; \"acte\" est un texte court (80 caractères au plus)")
+            if (mom or act) and tp < 4:
+                raise ValueError(f"plan {nom} : \"moment\" et \"acte\" ne s'écrivent qu'aux temps 4 et 5")
+            if str(j.get("modele") or "") >= MODELE_5T and tp >= 4 and (prem or sh.get("raccord") != "continu"):
+                if mom not in MOMENTS:
+                    raise ValueError(f"plan {nom} : aux temps 4 et 5, \"moment\" dit ce qu'est le plan : acte, transition (changement de "
+                                     "position, rare), final ou calme (le temps calme qui clôt le temps 5)")
+                if mom in ("acte", "final") and not _s(act):
+                    raise ValueError(f"plan {nom} : \"moment: {mom}\" demande \"acte\", la position choisie dans la liste des positions du studio")
+                if mom in ("transition", "calme") and _s(act):
+                    raise ValueError(f"plan {nom} : \"acte\" ne s'écrit pas sur un plan de transition ou de temps calme")
+                if mom in ("acte", "final") and PLAN_LARGE.search(_s(pose.get("cadrage"))):
+                    raise ValueError(f"plan {nom} : un acte se cadre serré ou à mi-corps, jamais en plan large ou en pied "
+                                     "(un plan large ne se justifie que sur une transition ou sur le temps calme)")
             if sh.get("cran") not in (None, 1, 2, 3, 4, 5):
                 raise ValueError(f"plan {nom} : \"cran\" est un entier de 1 à 5")
             seed = sh.get("seed") or (int(d["seed"]) + (0 if d.get("same_seed") else i) if d.get("seed") else 0)
@@ -1547,7 +1582,25 @@ class Atelier:
                            "raccord": sh.get("raccord"), "libre": bool(sh.get("libre")), "cran": sh.get("cran"),
                            "transition": sh.get("transition"), "camera": sh.get("camera"),
                            **{k: pose.get(k) for k in POSE}, "contact": sh.get("contact"), "autres": sh.get("autres"),
-                           "retire": "; ".join(_s(x) for x in ret or []), "etat": sh.get("etat") or ("fully dressed" if ret == [] else "")})
+                           "retire": "; ".join(_s(x) for x in ret or []), "etat": sh.get("etat") or ("fully dressed" if ret == [] else ""),
+                           "acte": act, "moment": mom, "_image": prem or sh.get("raccord") != "continu"})
+        # structure des temps 4 et 5 (deux moments chauds) : transitions rares ; le temps 5 finit par le final puis un temps calme
+        if str(j.get("modele") or "") >= MODELE_5T:
+            for tp in (4, 5):
+                ms = [s["moment"] for s in scenes if s["temps"] == tp and s["_image"]]
+                if not ms:
+                    continue
+                if ms.count("transition") > 2:
+                    raise ValueError(f"temps {tp} : 2 plans de transition au plus, juste de quoi relancer le moment")
+                if tp == 4 and [m for m in ms if m in ("final", "calme")]:
+                    raise ValueError("temps 4 : premier moment chaud, des plans \"acte\" et au plus 2 \"transition\" ; le final et le temps calme sont au temps 5")
+                if tp == 5:
+                    i = ms.index("final") if "final" in ms else -1
+                    if i < 1 or "acte" not in ms[:i] or ms[-1] != "calme" or [m for m in ms[i:] if m not in ("final", "calme")] or "final" in ms[ms.index("calme"):]:
+                        raise ValueError("temps 5 : second moment chaud (plans \"acte\"), puis le final (\"moment: final\"), puis toujours un "
+                                         "temps calme pour finir (dernier plan en \"moment: calme\") ; rien d'autre après le final")
+        for s in scenes:
+            del s["_image"]
         # textes de publication : seulement avec le temps 1, et seulement ceux qui sont remplis
         lim = {"pitch": 400, "ambiance": 300, "accroche": 120, "legende": 600, "cta": 120, "hashtags": 200}
         lestemps = sorted({s["temps"] for s in scenes})
@@ -1592,7 +1645,7 @@ class Atelier:
                 garder[k] = [" | ".join(_s(y) for y in x.partition("|")[::2]) for x in l]
         de = str(a.get("projet_de") or "")
         if de and (entier or a.get("projet") or a["temps"] == 1 or de == f.name or not re.fullmatch(r"[A-Za-z0-9_.-]{1,80}\.yaml", de)):
-            raise ValueError('"atelier.projet_de" : nom du fichier du temps 1 de la même vidéo, pour un temps 2 à 4, sans "projet"')
+            raise ValueError('"atelier.projet_de" : nom du fichier du temps 1 de la même vidéo, pour un temps 2 à 5, sans "projet"')
         return {"projet": str(a.get("projet") or ""), "projet_de": de, "temps": lestemps[0], "lestemps": lestemps, "entier": entier, "personnage": str(a.get("personnage") or ""),
                 "titre": _s(a.get("titre"), 100), "note": _s(a.get("note"), 300), "modele": str(j.get("modele") or ""), "scenes": scenes,
                 "textes": textes, "reference": ref if un else "", "garder": garder, "rendu": rendu if un else ""}
@@ -1800,7 +1853,8 @@ class Atelier:
             c.append("also in the frame: " + s["autres"].strip(" .,"))
         if t2 and not re.search(r"\bnsfw\b", s["still"], re.I):
             c.append("nsfw")
-        tete = [s[k].strip(" .,") for k in CHAMPS[:-1] if s.get(k)]
+        # un acte : sa position vient juste apres le cadrage et l'angle, avant le reste de la pose
+        tete = [s[k].strip(" .,") for k in ("cadrage", "angle", "acte", *CHAMPS[2:-1]) if s.get(k)]
         return ", ".join([*tete, s["still"].rstrip(" .,") if c or tete else s["still"], *c])
 
     def _a_imager(self, p, ch, temps, refaire=False):
@@ -1871,6 +1925,8 @@ class Atelier:
     def _voie_dite(self, p, s, tmin):
         """Ce que la Production fera vraiment de la scene (affiche sur chaque scene) : "ref", "decor", "pose" ou "direct"."""
         v = _voie(p, s)
+        if _acte(s) and not s.get("voie"):
+            return "acte"
         if self._continuite(p, s):
             return "decor"
         if v == "direct" or _gros_plan(s) or s.get("autres"):
@@ -1956,6 +2012,8 @@ class Atelier:
                         shots.append({"name": s["id"], "still": self._still(p, s), "seed": s["seed"], "tattoos": s["tattoos"],
                                       "body": bool((perso.get("generation") or {}).get("corps"))}
                                      | ({"loras": _loras_plan(lo)} if lo else {}) | champs
+                                     # chemin "actes" : controle reduit (nombre de personnes, cadrage, corps, visage)
+                                     | ({"acte": {"personnes": 0 if _pov(s) else 2 if s.get("autres") else 1}} if _acte(s) and not s.get("voie") else {})
                                      | (self._continuite(p, s) or (
                                          ({"squelette": True} if _voie(p, s) != "direct" and not _gros_plan(s) and not s.get("autres") else {})
                                          | (self._decor(p, s) if _voie(p, s) == "decor" and not _gros_plan(s) and not s.get("autres") and not s["libre"] else {})

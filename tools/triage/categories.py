@@ -1,7 +1,7 @@
 """Categories de LoRA et familles de modeles : ce que le hub classe, ce que l'atelier autorise a chaque temps.
 
 Une LoRA n'est proposee et acceptee dans une scene qu'a partir du temps de sa categorie. Une LoRA sans categorie
-(inscrite a la main avant le hub) est traitee comme reservee : elle n'est admise qu'aux temps 3 et 4.
+(inscrite a la main avant le hub) est traitee comme reservee : elle n'est admise qu'a partir du temps 3.
 """
 
 # cle : (intitule, premier temps ou elle est admise, ce qu'elle apporte)
@@ -17,7 +17,7 @@ CATS = {
     "corps": ("Corps", 2, "Silhouette, formes, proportions."),
     "nu": ("Nu", 3, "Nudité sans acte."),
     "porno": ("Porno", 4, "Actes explicites."),
-    "autre": ("Autre", 3, "Non classée : admise aux temps 3 et 4 tant qu'elle n'a pas de catégorie."),
+    "autre": ("Autre", 3, "Non classée : admise à partir du temps 3 tant qu'elle n'a pas de catégorie."),
 }
 
 # Familles de modeles de base du projet : une LoRA ne fonctionne qu'avec sa famille.

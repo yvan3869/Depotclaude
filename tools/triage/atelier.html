@@ -76,9 +76,9 @@
 const vue = $('#vue');
 let E = null, D = null, P = null, cur = localStorage.getItem('perso') || '', autoEcrire = '', timer = null, tSave = null, sig = {}, T = 1;
 const ETAPES = [['idee', 'Idée'], ['ecrit', 'Scénario'], ['images', 'Images'], ['clips', 'Clips'], ['monte', 'Montage'], ['valide', 'Validée']];
-const TEMPS = {1: ['Accroche', 'tous publics'], 2: ['Montée', 'suggestif'], 3: ['Dévoilé', 'nu, sans acte'], 4: ['Final', 'explicite']}, NT = [1, 2, 3, 4];
+const TEMPS = {1: ['Accroche', 'tous publics'], 2: ['Montée', 'suggestif'], 3: ['Dévoilé', 'nu, sans acte'], 4: ['Chaud', 'explicite, premier moment'], 5: ['Final', 'explicite, second moment, final puis calme']}, NT = [1, 2, 3, 4, 5];
 const TIR = t => (P.tirage || {})[t] || (t <= 2 ? 'ref' : 'pose');
-const VOIE = {ref: 'référence', decor: 'lieu de la bibliothèque', pose: 'pose imposée', direct: 'texte seul'};  // ce que la Production fera de la scene
+const VOIE = {ref: 'référence', decor: 'lieu de la bibliothèque', pose: 'pose imposée', direct: 'texte seul', acte: 'acte : la LoRA commande'};  // ce que la Production fera de la scene
 // Note du controleur d'images (essai) : ce qu'un modele de vision a trouve en comparant l'image a sa description.
 const NOTE_FAUX = {setting: 'décor', outfit: 'tenue', pose: 'geste', object: 'objet', framing: 'cadrage'};
 // Pose decomposee (facultative) : chaque champ rempli est verifie a part par le controleur.
@@ -104,7 +104,8 @@ const VERDICTS = [['ok', 'Bonne'], ['passable', 'Passable'], ['pose', 'Position 
 const QUOI = {1: 'Tous publics, pour les réseaux : elle donne envie de voir la suite. Le rédacteur IA peut l\'écrire, la relire et l\'analyser.',
   2: 'Suggestif poussé : lingerie, nu suggéré, rien d\'explicite. Offert ou réservé aux abonnés, c\'est le temps qui convertit. Le rédacteur IA peut l\'écrire, sauf les scènes qui portent des LoRA.',
   3: 'Nudité explicite, sans acte. Pour l\'abonnement ou un paiement bas. Ce temps est à votre main : le rédacteur IA ne l\'écrit pas, ne le relit pas et ne l\'analyse pas.',
-  4: 'Explicite, avec actes. Vendu à l\'unité. Ce temps est à votre main : le rédacteur IA ne l\'écrit pas, ne le relit pas et ne l\'analyse pas.'};
+  4: 'Explicite, avec actes : le premier moment chaud. Des plans serrés, peu de transitions. Une scène d\'acte ou à deux est créée à part, sans brouillon ni pose imposée : la LoRA commande. Ce temps est à votre main : le rédacteur IA ne l\'écrit pas, ne le relit pas et ne l\'analyse pas.',
+  5: 'Explicite, avec actes : le second moment chaud, puis le final, puis toujours un temps calme pour finir. Vendu à l\'unité. Ce temps est à votre main : le rédacteur IA ne l\'écrit pas, ne le relit pas et ne l\'analyse pas.'};
 const CONSIGNES_T2 = ['Plus lente, plus intime', 'Plus près de la caméra', 'Tenue plus défaite, toujours suggestif', 'Fin qui annonce mieux la suite payante'];
 const depotHtml = x => `<div class="var"><b>${esc(x.titre || x.fichier)}</b> <span class="mut">${esc(x.fichier)}, ${esc(x.date)}</span>
   ${x.erreur ? `<div class="err">Refusé : ${esc(x.erreur)}</div><div class="mut">Rien n'est importé tant que le scénariste n'a pas corrigé son script.</div>` : `<div class="mut">${x.n} scène(s) pour ${x.lestemps.length > 1 ? 'les temps ' + x.lestemps.join(', ') : 'le temps ' + x.temps}${x.projet || x.attente ? '' : ', nouveau projet'}${x.perime ? ' ; écrit d\'après un modèle périmé' : ''}${x.remarques ? ` ; ${x.remarques} remarque(s) au contrôle des plans` : ''}${x.note ? ' ; ' + esc(x.note) : ''}</div>
@@ -494,6 +495,10 @@ function rendreProjet() {
         aide: 'Un seul geste lent, sans mouvement de caméra : un clip dure 5 s. Vide : la scène reste une image fixe de 2 s avec un zoom lent, sans coût de clip.'})}
       ${f('texte', `${ic('texte')}Texte à l'écran`, s.texte, {at: `data-s="${s.id}"`, aide: '7 mots au plus, sans emoji. Vide : aucun texte sur cette scène.'})}
       <details class="pli" data-sec="plus:${P.id}:${s.id}"${ouv(`plus:${P.id}:${s.id}`, false)}><summary>${ic('plus')}Plus <small>pose, raccord, caméra, son, LoRA, rognage</small></summary>
+        ${s.temps >= 4 ? `<div class="gt">Moment chaud</div>
+        <label>Moment<select data-s="${s.id}" data-k="moment">${opt([['', 'Non renseigné'], ['acte', 'Acte'], ['transition', 'Transition (changement de position)'], ['final', 'Final'], ['calme', 'Temps calme']], s.moment || '')}</select>
+          ${aide('Un acte, ou une scène à deux à partir du temps 3, est créé à part : ni brouillon, ni pose imposée, ni lieu gelé, la LoRA commande. Cadrer serré. Une transition ou un temps calme où elle est seule garde la méthode habituelle.')}</label>
+        ${f('acte', 'Position de l\'acte', s.acte || '', {at: `data-s="${s.id}"`, aide: 'Placée en tête de la description, juste après le cadrage et l\'angle.'})}` : ''}
         <div class="gt">Pose détaillée (facultatif, en anglais)</div>
         <div class="mut" style="margin:4px 0 6px">Un champ rempli est ajouté à la description et vérifié à part sur l'image. Ne pas le redire dans la description.</div>
         ${POSE.map(c => f(c[0], c[1], s[c[0]] || '', {at: `data-s="${s.id}"`, ph: c[2]})).join('')}
@@ -567,7 +572,7 @@ function rendreProjet() {
       <div class="row"><button class="d s" data-a="archiver">${ic('archiver')}Archiver ce projet</button></div>`)}
     ${pan('cont', `<div class="mut">Ce qui ne change pas d'une image à l'autre, pour tous les temps. En anglais.</div>
       <div class="aide">Ces éléments sont ajoutés à la description de chaque image : les écrire ici une seule fois, et ne garder dans chaque scène que le cadrage, la pose et l'expression. Laisser vide ce qui change en cours de vidéo. Temps 2 à 4 : la tenue n'est pas ajoutée aux images, et « nsfw » est ajouté d'office.</div>
-      ${CONT.map(([k, lab, ph, ai]) => f(k, lab + (k === 'tenue' ? ' <small>temps 1 seulement</small>' : ''), P.continuite[k], {at: 'data-c="1"', ph, aide: k === 'tenue' ? 'Dans les temps 2 à 4 elle n\'est pas ajoutée : elle se défait d\'une scène à l\'autre, chaque scène dit ce qu\'elle porte.' : ai})).join('')}
+      ${CONT.map(([k, lab, ph, ai]) => f(k, lab + (k === 'tenue' ? ' <small>temps 1 seulement</small>' : ''), P.continuite[k], {at: 'data-c="1"', ph, aide: k === 'tenue' ? 'Dans les temps 2 à 5 elle n\'est pas ajoutée : elle se défait d\'une scène à l\'autre, chaque scène dit ce qu\'elle porte.' : ai})).join('')}
       <label>${ic('image')}Image de référence<select data-k="reference"><option value="">Aucune</option>
         ${P.scenes.filter((s, i) => s.temps === 1 && s.still && !(s.raccord === 'continu' && P.scenes.slice(0, i).some(x => x.temps === 1))).map(s => `<option value="${s.id}" ${s.id === P.reference ? 'selected' : ''}>Scène ${P.scenes.filter(x => x.temps === 1).indexOf(s) + 1} du temps 1 : ${esc(s.titre)}</option>`).join('')}</select>
         ${aide('Sans référence, chaque image est créée à partir de sa description. Avec une image de référence, les autres images en sont tirées par retouche : même personne, même pièce, même tenue, seule la pose change ; elle garde aussi le cadrage de la référence, donc une scène dont la description contient « close-up » est tirée à part, avec la fiche de continuité. À choisir une fois l\'image de cette scène réussie. Les scènes « libres » et celles qui portent des LoRA gardent leur propre image. Le choix « tirées de la référence » ou « créées à part » se fait dans chaque temps, étape Préparer.')}</label>`)}
@@ -866,7 +871,7 @@ vue.addEventListener('input', e => {
   if (!k || !P) return;
   const v = t.type === 'checkbox' ? t.checked : t.type === 'number' || k === 'nb_scenes' || k === 'nb2' || k === 'cran' || k === 'cible' ? +t.value : t.value;
   if (t.dataset.s) sc(t.dataset.s)[k] = v; else if (t.dataset.m) P.montage[k] = v; else if (t.dataset.c) P.continuite[k] = v; else P[k] = v;
-  if (k === 'raccord' || k === 'reference' || k === 'voie') return essai(structure)(() => {});  // le devis et les boutons en dependent
+  if (k === 'raccord' || k === 'reference' || k === 'voie' || k === 'moment') return essai(structure)(() => {});  // le devis et les boutons en dependent
   planifier();
 });
 window.addEventListener('beforeunload', () => { if (P && tSave) navigator.sendBeacon?.('/api/a/projet', new Blob([JSON.stringify(P)], {type: 'application/json'})); });
@@ -883,7 +888,7 @@ function vueLoras() {
       <div class="aide">Relevé au démarrage de chaque calcul d'images et après chaque « pilot lora add ». Sans inventaire, la présence d'un fichier ne peut pas être vérifiée avant de lancer.</div></div>
     <h2 id="ldef">LoRA par défaut de chaque temps</h2>
     <div class="panel"><div class="mut">Posées d'office dans « LoRA de ce temps » de tout nouveau projet, et d'un projet existant au premier script livré pour ce temps. Elles se retirent ensuite dans le projet, comme les autres.</div>
-      <div class="aide">Toucher toutes celles qui doivent servir à ce temps : plusieurs peuvent s'ajouter (un style, plus une LoRA de nu, par exemple). Une LoRA d'image agit sur les images, une LoRA de clip sur le mouvement de la vidéo. Le contrôle des plans signale un temps 4 sans LoRA porno d'image ou de clip, et un temps 3 sans LoRA de nu d'image.</div>
+      <div class="aide">Toucher toutes celles qui doivent servir à ce temps : plusieurs peuvent s'ajouter (un style, plus une LoRA de nu, par exemple). Une LoRA d'image agit sur les images, une LoRA de clip sur le mouvement de la vidéo. Le contrôle des plans signale un temps 4 ou 5 sans LoRA porno d'image ou de clip, et un temps 3 sans LoRA de nu d'image.</div>
       <div id="ldefb">${defautsBloc()}</div>
       <div class="row"><button class="p" data-a="defautssauver">${ic('valider')}Enregistrer les LoRA par défaut</button></div></div>
     <h2>LoRA inscrites</h2>

@@ -964,9 +964,19 @@ def controle_lot(data, pid, runs=None):
             if desc and sh.get("retire"):  # continuite : ce qu'elle a deja retire fait partie de la tenue attendue
                 desc += ". Clothing at this moment: she has already taken off " + ", ".join(map(str, sh["retire"])) + (" (" + str(sh["etat"]) + ")" if sh.get("etat") else "")
             lot.append({"image": f.name, "projet": pid, "desc": desc[:1500], "gros_plan": bool(re.search(r"\bclose[- ]?up\b", desc, re.I)), "perso": p.get("personnage") or "", "temps": temps.get(m.group(2), 0),
+                        **({"acte": sh["acte"]} if isinstance(sh.get("acte"), dict) else {}),
                         "champs": sh["champs"] if isinstance(sh.get("champs"), dict) else poses.get(m.group(2), {})})
             fichiers[f.name] = f
     return lot, fichiers
+
+
+def acte_ratee(nt, acte):
+    """Controle reduit d'une image d'acte (chemin "actes", 16/11/2026) : le decor, la tenue et le detail de la pose n'y
+    sont pas juges (le controleur s'y trompe, p0005 temps 4). Ratee si : plus de personnes que prevu, cadrage manque,
+    corps incoherent, ou visage qui n'est plus le sien."""
+    n = int(acte.get("personnes") or 0)
+    return bool((n and nt.get("people", -1) > n) or (nt.get("champs") or {}).get("cadrage", 1) < SEUIL_CHAMP
+                or nt.get("anatomy") == "major" or nt.get("ressemblance", 1) < SEUIL_VISAGE_ACTE)
 
 
 def note_calculee(r, gros_plan=False):
@@ -987,6 +997,8 @@ def controle_ranger(data, lot, res):
         for x in lot:
             if x["projet"] == pid and "score" in res.get(x["image"], {}):
                 notes[x["image"]] = res[x["image"]] | {"temps": x["temps"], "date": jour, "calc": note_calculee(res[x["image"]], x.get("gros_plan"))}
+                if x.get("acte"):
+                    notes[x["image"]]["acte"] = {"ratee": acte_ratee(res[x["image"]], x["acte"])}
         f.write_text(json.dumps(notes, indent=1), encoding="utf-8")
 
 
@@ -1174,6 +1186,7 @@ SEUIL_RELANCE = 4   # une scene dont aucune image ne depasse cette note sur 10 e
 SEUIL_CALC = 7      # ... sauf si la note calculee d'une de ses images atteint celle-ci : la note libre s'est trompee
 SEUIL_CHAMP = 0.3   # un champ de pose sous cette probabilite est manque : il est redit en tete a la relance
 RELANCES = 2        # nouvelles tentatives au plus
+SEUIL_VISAGE_ACTE = 0.2  # image d'acte : ressemblance du visage sous laquelle ce n'est plus elle
 SEUIL_VISAGE = 0.13  # visage plus petit que cette part de la hauteur de l'image : repris seul en fin de serie
 
 
@@ -1259,19 +1272,21 @@ def cmd_serie(a):
                 if neuf:
                     controle_ranger(data, neuf, c.noter(neuf, {x["image"]: fichiers[x["image"]] for x in neuf}))
                 notes = json.loads(nf.read_text(encoding="utf-8")) if nf.exists() else {}
-                par, sauve, mieux = {}, {}, {}
+                par, sauve, mieux, actes = {}, {}, {}, {}
                 for x in lot:
                     nt = notes.get(x["image"]) or {}
                     s, sc = nt.get("score", -1), re.search(r"_(s\d+)\.png$", x["image"]).group(1)
                     if isinstance(s, int) and s >= 0:
                         par.setdefault(sc, []).append(s)
+                        if x.get("acte"):  # image d'acte : seul le controle reduit decide de la relance
+                            actes.setdefault(sc, []).append(bool((nt.get("acte") or {}).get("ratee")))
                         if nt.get("calc", -1) >= max(SEUIL_CALC, sauve.get(sc, (0,))[0]):
                             sauve[sc] = (nt["calc"], x["image"])
                         if s >= mieux.get(sc, (-1,))[0]:  # la mieux notee : ses champs manques sont redits a la relance
                             mieux[sc] = (s, [k for k, v in (nt.get("champs") or {}).items() if v < SEUIL_CHAMP and k != "autres"], nt.get("p") or {})
-                rates = [s for s, l in par.items() if max(l) <= SEUIL_RELANCE and s not in sauve]
-                if [s for s in sauve if max(par[s]) <= SEUIL_RELANCE]:
-                    log(f"controle : note libre basse mais note calculee bonne, pas refaite : {', '.join(s for s in sauve if max(par[s]) <= SEUIL_RELANCE)}")
+                rates = [s for s, l in par.items() if (all(actes[s]) if s in actes else max(l) <= SEUIL_RELANCE and s not in sauve)]
+                if [s for s in sauve if max(par[s]) <= SEUIL_RELANCE and s not in actes]:
+                    log(f"controle : note libre basse mais note calculee bonne, pas refaite : {', '.join(s for s in sauve if max(par[s]) <= SEUIL_RELANCE and s not in actes)}")
                 log(f"controle : {len(par)} scene(s) notee(s), a refaire : {', '.join(rates) or 'aucune'}")
                 if not rates or tour == RELANCES:
                     break
@@ -1281,6 +1296,8 @@ def cmd_serie(a):
                 for sh in job["shots"]:
                     sh["seed"] = random.randint(1, 999999)
                     mx = mieux.get(sh["name"], (0, [], {}))
+                    if sh.get("acte"):  # acte : seul le cadrage manque est redit, ni le lieu ni la tenue
+                        mx = (mx[0], [k for k in mx[1] if k == "cadrage"], {})
                     dire = [str(sh["champs"][k]).strip(" .,") for k in mx[1] if isinstance(sh.get("champs"), dict) and sh["champs"].get(k)]
                     cle = "still" if sh.get("still") else "edit" if sh.get("edit") else ""
                     # lieu ou tenue manques sur la mieux notee : la phrase de la fiche, deja dans le texte, est redite en tete elle aussi

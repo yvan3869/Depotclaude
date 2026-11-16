@@ -29,12 +29,12 @@ Les objets :
 
 | Terme | Sens |
 |---|---|
-| Projet | Une video entiere : l'idee, le pitch, les textes de publication et les quatre temps. Numerote `pNNNN`. |
+| Projet | Une video entiere : l'idee, le pitch, les textes de publication et les cinq temps. Numerote `pNNNN`. |
 | Idee | La phrase de depart, avant ecriture. |
 | Pitch | Le resume du projet en une ou deux phrases, une fois l'idee retenue. |
-| Temps | Une des quatre parties du projet : 1 accroche, 2 montee, 3 devoile, 4 final. |
+| Temps | Une des cinq parties du projet : 1 accroche, 2 montee, 3 devoile, 4 chaud, 5 final. |
 | Scene | Une unite d'un temps : une image, un mouvement eventuel, un texte a l'ecran. |
-| Script | Le fichier du scenariste, place dans `server/jobs/atelier/` : une video entiere, les quatre temps. D'anciens passages disent "depot" ou "fichier de plans". |
+| Script | Le fichier du scenariste, place dans `server/jobs/atelier/` : une video entiere, les cinq temps. D'anciens passages disent "depot" ou "fichier de plans". |
 | Plan | La scene vue du cote du scenariste : une entree de `shots` dans son script. Un plan importe devient une scene. |
 | Fiche de casting | La fiche d'un personnage, ecrite par le directeur de casting, placee dans `server/jobs/atelier/personnages/`. |
 | Prise | Un resultat calcule pour une scene (image ou clip). Il peut y en avoir plusieurs ; le proprietaire choisit. Pour les images, chaque lancement en calcule trois par scene ; un controle automatique note chacune sur 10 en la comparant a la description de la scene (`pilot serie`, `server/pilot/controle.py`). Une scene dont aucune image ne depasse 4 est refaite toute seule, deux fois au plus. La mieux notee est proposee, le proprietaire garde le choix. |
@@ -58,7 +58,7 @@ Ne pas dire "sequence" ni "phase" pour un temps, ni "lot" pour un projet, ni "at
   lui-meme. Au-dela, le pilote refuse de creer un pod (message "plafond GPU du jour atteint").
   Ne pas contourner : le plafond se change seulement par le proprietaire (`infra.daily_cap_usd`
   dans `persona/production.yaml`).
-- **Tenue dans les temps 2, 3 et 4** : chaque `still` de ces temps dit ce qu'elle porte ou ne porte plus a cet
+- **Tenue dans les temps 2 a 5** : chaque `still` de ces temps dit ce qu'elle porte ou ne porte plus a cet
   instant, plan apres plan (la tenue part de celle du temps 1 et se defait). La `tenue` de la fiche de continuite ne
   vaut que pour le temps 1 : elle n'est jamais ajoutee aux temps 2 a 4. Un plan qui ne dit rien de la tenue est une faute :
   **le depot entier est refuse** (message "plan X : dans les temps 2 a 4, still dit ce qu'elle porte..."). Ecrire
@@ -68,8 +68,8 @@ Ne pas dire "sequence" ni "phase" pour un temps, ni "lot" pour un projet, ni "at
 - Verifier chaque script avant de l'annoncer : `python3 tools/triage/verifier.py <fichier>` (voir "Verifier un script").
   Le reste du depot et `server/data/` se lisent, ils ne s'ecrivent pas.
 
-## Un projet en quatre temps
-Chaque video est un projet de l'Atelier (page `/atelier` du studio), decoupe en quatre temps qui se
+## Un projet en cinq temps
+Chaque video est un projet de l'Atelier (page `/atelier` du studio), decoupe en cinq temps qui se
 suivent dans le meme decor et la meme tenue :
 
 | Temps | Contenu | Public | Registre |
@@ -77,10 +77,38 @@ suivent dans le meme decor et la meme tenue :
 | 1. Accroche | teaser de 15 a 20 s, 3 scenes environ, coupe avant la suite, appel a l'action | reseaux, tous publics | suggestif au plus : il doit passer la moderation des reseaux |
 | 2. Montee | la suite du teaser, un cran plus loin a chaque scene, sans appel a l'action | gratuit ou abonnes : il sert a convertir | suggestif pousse (lingerie, nu suggere), rien d'explicite |
 | 3. Devoile | la suite, nudite montree | abonnes ou paiement bas | nudite explicite, sans acte ; fixe par le proprietaire |
-| 4. Final | la fin de la scene | prive, paiement a l'unite | explicite ; fixe par le proprietaire |
+| 4. Chaud | premier moment chaud | prive, paiement a l'unite | explicite ; fixe par le proprietaire |
+| 5. Final | second moment chaud, puis le final, puis un plan calme qui ferme la video | prive, paiement a l'unite | explicite ; fixe par le proprietaire |
 
 Chaque temps a ses scenes, ses images, ses clips et son montage (`final_vN.mp4` pour le temps 1,
-`final_t2_vN.mp4`, `final_t3_vN.mp4`, `final_t4_vN.mp4`).
+`final_t2_vN.mp4`, `final_t3_vN.mp4`, `final_t4_vN.mp4`, `final_t5_vN.mp4`).
+
+**Changement du 16/11/2026 (modele `2026-11-16b`) : cinq temps, script court aux temps 4 et 5.** Les temps 1 a 3
+ne changent pas. Le temps 4 est le premier moment chaud ; le temps 5 est le second, suivi du final, puis d'un plan
+calme qui ferme toujours la video. Les projets deja ecrits en quatre temps restent lisibles tels quels (leur temps 4
+reste leur fin) ; un fichier nouveau s'ecrit en `2026-11-16b`.
+
+Aux temps 4 et 5, chaque plan qui a sa propre image dit son `moment` :
+
+| `moment` | Ce que c'est | Ce que le plan ecrit |
+|---|---|---|
+| `acte` | une position tenue | `acte` (la position, quelques mots anglais, 80 caracteres au plus), `pose.cadrage` et `pose.regard`, `still` (expression, ce qu'elle porte encore), `retire`, et `autres` si quelqu'un d'autre est a l'image |
+| `final` | le sommet, au temps 5 seulement, une fois | comme `acte` |
+| `transition` | un plan court qui relance le rythme, deux au plus par temps | un plan ordinaire : `pose` entiere, pas de `acte` |
+| `calme` | le dernier plan du temps 5 | un plan ordinaire : `pose` entiere, pas de `acte` |
+
+Regles verifiees a l'import (un fichier qui y manque est refuse) :
+- `moment` est obligatoire aux temps 4 et 5 et interdit ailleurs ;
+- `acte` et `final` : **cadrage serre** (pas de plan large, pas de plan en pied), et rien d'autre dans `pose` que
+  `cadrage` et `regard` ; ne pas decrire le corps membre par membre, ni le lieu : la Production ecrit la phrase ;
+- temps 4 : ni `final` ni `calme` ; temps 5 : au moins un `acte`, puis un `final`, puis un `calme` en dernier, et rien
+  d'autre apres le final.
+
+Ce que la Production fait d'un plan `acte` ou `final` : elle le tire directement (pas de brouillon, pas de pose
+imposee, pas d'image du partenaire, pas de lieu gele) avec les LoRA du temps ; **le scenariste ne choisit pas la
+LoRA**. Le controle n'y regarde que quatre points : le nombre de personnes, le cadrage serre, un corps coherent, le
+visage ; seules ces fautes font refaire l'image. Un plan du temps 3 ou plus qui remplit `autres` suit le meme chemin.
+Ecrire moins de plans, plus longs : un vetement qui s'enleve se montre dans le clip (`motion`), pas par une image de plus.
 
 **Changement du 14/11/2026.** Jusqu'au modele `2026-11-14e`, il y avait trois temps et le 3 etait le final.
 Le final est maintenant le temps 4, et le 3 est le devoile. Les projets existants ont ete convertis
@@ -88,8 +116,8 @@ Le final est maintenant le temps 4, et le 3 est le devoile. Les projets existant
 `2026-11-14f` et `temps: 3` est lu comme `temps: 4` ; avec le modele en cours, `temps: 3` veut dire devoile.
 Ne pas reprendre un ancien fichier sans relire son `temps`.
 
-**Role de l'agent** : il peut ecrire une video entiere, c'est-a-dire les quatre temps, ou seulement
-ceux que le proprietaire lui demande. Sans consigne, il ecrit les temps 3 et 4 et laisse les temps 1 et 2
+**Role de l'agent** : il peut ecrire une video entiere, c'est-a-dire les cinq temps, ou seulement
+ceux que le proprietaire lui demande. Sans consigne, il ecrit les temps 3 a 5 et laisse les temps 1 et 2
 au redacteur de la Production. Le redacteur de la Production, lui, n'ecrit, ne relit et n'analyse jamais les temps 3
 et 4, ni une scene qui porte une LoRA reservee (categorie nu, porno ou non classee). Dans tous les
 cas l'agent depose un seul fichier par video ; la page l'importe toute seule, et le proprietaire lance le calcul
@@ -104,12 +132,12 @@ Le temps 1 porte aussi `ambiance` : le fond sonore du lieu pour toute la video, 
 sans musique ni voix (la piece, deux ou trois sons precis, leur distance). Rien qui doive tomber sur un
 geste : le son n'est pas synchronise a l'image. Le proprietaire le fait fabriquer depuis la page (etape
 Montage, « Fabriquer les sons » : un pod de quelques minutes, environ 0,05 $, fichier
-`data/audio/pNNNN_ambiance.m4a` choisi comme bande-son) ; il sert aux quatre temps.
+`data/audio/pNNNN_ambiance.m4a` choisi comme bande-son) ; il sert aux cinq temps.
 
 Chaque scene peut porter `son` : le bruit de son geste, en anglais, UN seul son bref et concret, entendu de
 pres, avec la matiere (`a ceramic cup set down on a wooden counter`, `a zipper pulled down slowly`). Vide
 quand le geste ne fait pas de bruit (regard, sourire) : une scene sur deux environ. Jamais de voix, de
-souffle ni de musique. Le redacteur l'ecrit pour les temps 1 et 2 ; aux temps 3 et 4 le proprietaire
+souffle ni de musique. Le redacteur l'ecrit pour les temps 1 et 2 ; aux temps 3 a 5 le proprietaire
 l'ecrit a la main. Le meme bouton de l'etape Montage (« Fabriquer les sons ») fabrique sur un seul pod
 l'ambiance et les bruits dont la phrase est nouvelle ou a change (`data/audio/bruits/pNNNN_sN.m4a`, 4 s,
 silence du debut retire). Au montage, le bruit est pose sur l'instant ou l'image du plan bouge le plus
@@ -135,7 +163,7 @@ Un projet porte deux sortes de dates, a ne jamais confondre.
 - **Dates reelles** (`cree`, `modifie`) : horodatage du serveur. Elles ne disent rien de la scene et
   ne servent jamais a ecrire. Le jour ou l'agent travaille ne compte pas non plus.
 
-Ce que la date du personnage impose, sur les quatre temps du projet :
+Ce que la date du personnage impose, sur les cinq temps du projet :
 - la saison (hemisphere nord, le personnage vit en France sauf mention contraire dans sa fiche) :
   tenue, meteo, activite, et dans chaque `still` une lumiere et une heure du jour plausibles (nuit a
   17 h 30 en decembre, jour jusqu'a 21 h 30 en juin) ;
@@ -179,7 +207,7 @@ Trois outils evitent qu'une video change de piece, de tenue ou de personne d'une
 - **Tirage des images d'un temps** (`tirage`, au projet, regle par le proprietaire dans la fiche de continuite ;
   ce n'est pas un champ de plan) : `ref` = images tirees de la reference par retouche, `direct` = chaque image creee
   a part (LoRA du visage, description et fiche de continuite). Par defaut `ref` aux temps 1 et 2, `pose` (creee a part,
-  pose imposee, voir plus bas) aux temps 3 et 4 : une retouche garde trop la tenue et la pose de la reference pour un
+  pose imposee, voir plus bas) aux temps 3 a 5 : une retouche garde trop la tenue et la pose de la reference pour un
   temps ou elle se deshabille. En tirage `direct` ou `pose`, le `still` doit donc dire le lieu en plus de la tenue si la fiche ne suffit pas.
   Les images creees a part d'un meme temps partent du meme tirage (`graines`, au projet, un nombre par temps, fixe
   a la premiere image du temps) : le decor bouge moins d'une scene a l'autre. « Autre image » tire un nouveau nombre
@@ -190,7 +218,7 @@ Trois outils evitent qu'une video change de piece, de tenue ou de personne d'une
   ecrits sont tenus, le visage, la tenue et le lieu viennent du texte et de la LoRA. Un seul brouillon par scene,
   commun a ses trois images. Pas sur un gros plan ni sur une scene a plusieurs (texte seul). Aux temps 1 et 2, toute
   image creee a part l'utilise (image de reference comprise, ou projet sans reference) sauf tirage `direct` ; aux
-  temps 3 et 4 c'est le tirage par defaut (`direct` = texte seul, au choix du proprietaire). Rien ne change dans l'ecriture d'un script.
+  temps 3 a 5 c'est le tirage par defaut (`direct` = texte seul, au choix du proprietaire). Rien ne change dans l'ecriture d'un script.
   Quatrieme valeur, `decor` (lieu et tenue de la bibliotheque) : pose imposee, et en plus le brouillon est fabrique
   dans l'image retenue du lieu (atelier du personnage, voir plus bas), avec l'image d'une tenue de la garde-robe si le proprietaire en choisit une pour ce temps (a tous les temps ; au temps 1, celle de la fiche de continuite par defaut) ; dans
   l'image finale seule la zone du personnage est refaite (champs de pilote `decor` et `tenue_image`, poses par la
@@ -270,13 +298,13 @@ Rien n'est bloque, mais un depot sans remarque est l'objectif. Ce qui est verifi
   `dezoom` vers un cadre plus large ; un temps de plus de trois plans sans aucun mouvement est signale comme plat.
 
 Lire la fiche et l'image de reference du projet dans `projet.json` (`continuite`, `reference`) avant
-d'ecrire les temps 2, 3 et 4 : elles s'appliquent a eux aussi.
+d'ecrire les temps 2 a 5 : elles s'appliquent a eux aussi.
 
 ## Relecture des images
 Apres les images et avant les clips, le redacteur IA relit les images retenues des temps 1 et 2 (bouton
 "Relire les images", ou d'office a la pause de la chaine) : meme personne, lieu et tenue de la fiche, defauts
 d'anatomie, image conforme au `still`, pose d'ou le `motion` peut partir, place pour le texte. Ses remarques
-s'affichent sous chaque image et valent tant que l'image retenue est celle relue. Les temps 3 et 4 et les plans
+s'affichent sous chaque image et valent tant que l'image retenue est celle relue. Les temps 3 a 5 et les plans
 qui portent une LoRA reservee (nu, porno, non classee) ne sont jamais relus : leur verification reste au proprietaire.
 
 ## LoRA supplementaires et bibliotheque
@@ -289,7 +317,7 @@ Les LoRA supplementaires (hors LoRA du personnage) se gerent dans la page `/atel
 - **Force** : `loras: [nom]` prend la force conseillee ; `loras: [{name: nom, strength: 0.6}]` la remplace.
 - **Categorie et temps (modele `2026-11-14h`)** : chaque LoRA a une categorie, qui fixe le premier temps ou elle est
   admise. Des le temps 1 : realisme, smartphone, peau, lumiere, pose, mouvement, vitesse. Des le temps 2 : tenue, corps.
-  Temps 3 et 4 : nu. Temps 4 : porno. Une LoRA non classee (`autre`) n'est admise qu'aux temps 3 et 4. Un depot dont un
+  Temps 3 a 5 : nu. Temps 4 et 5 : porno. Une LoRA non classee (`autre`) n'est admise qu'a partir du temps 3. Un depot dont un
   plan nomme une LoRA trop tot est **refuse a l'import** ; le lancement d'un calcul aussi. Les categories et les LoRA
   chargees se lisent dans `/hub` (onglet « Notre liste ») ; le champ `cat` figure dans le catalogue.
 - **LoRA video** : une LoRA de la famille Wan 2.2 (`famille: wan22` au catalogue) nommee dans `loras` s'applique au clip
@@ -300,8 +328,8 @@ Les LoRA supplementaires (hors LoRA du personnage) se gerent dans la page `/atel
   projet, et d'un projet existant au premier depot de ce temps (`lora_def` du projet note les temps deja servis) ; il
   les retire ensuite s'il veut. Elles valent pour toutes les scenes du temps : le `loras` d'un plan s'y **ajoute**, et
   `loras: []` ne les retire pas. Le scenariste n'a donc rien a ecrire pour elles. Le controle des plans signale un
-  temps 4 sans LoRA porno d'image ou de clip (grave, sans bloquer le calcul) et un temps 3 sans LoRA de nu d'image (rien n'est demande pour le clip au temps 3).
-- **LoRA du projet et d'un temps** (`loras` au projet : `"0"` = tout le projet, `"1"` a `"4"` = un temps ; choisies
+  temps 4 ou 5 sans LoRA porno d'image ou de clip (grave, sans bloquer le calcul) et un temps 3 sans LoRA de nu d'image (rien n'est demande pour le clip au temps 3).
+- **LoRA du projet et d'un temps** (`loras` au projet : `"0"` = tout le projet, `"1"` a `"5"` = un temps ; choisies
   par le proprietaire dans la section LoRA de la page, ce n'est pas un champ de plan). Au calcul (images et clips),
   une scene recoit celles du projet, puis de son temps, puis les siennes ; pour un meme nom la derniere force
   l'emporte. Une LoRA que sa categorie n'admet pas a ce temps est laissee de cote. Le `loras` d'un plan sert donc
@@ -310,7 +338,7 @@ Les LoRA supplementaires (hors LoRA du personnage) se gerent dans la page `/atel
   Une LoRA n'est jamais chargee d'apres ce que dit la description : seulement si elle est nommee.
 - **Verdict du proprietaire** : sous chaque image retenue, des cases (bonne, tenue fausse, geste absent, objet en
   trop, visage, corps, decor, cadrage), gardees dans `verdicts.json` du projet (`{image: [codes]}`, rendu par
-  `/api/a/projet` sous `verdicts`). Des codes, pas de texte : ils se lisent sans voir l'image, temps 3 et 4 compris.
+  `/api/a/projet` sous `verdicts`). Des codes, pas de texte : ils se lisent sans voir l'image, temps 3 a 5 compris.
 - **Presence sur le volume** : a chaque lancement, le pilote note les fichiers du volume dans
   `server/data/lora_volume.json`. Le controle des plans signale comme grave une LoRA absente du catalogue ou dont le
   fichier n'est pas sur le volume : le calcul s'arreterait au demarrage du pod. N'employer que des noms du catalogue.
@@ -404,7 +432,7 @@ y placer un geste ni un texte important. Elle est remplacee par une coupe si l'u
          # facultatifs (absents : ceux du projet sont gardes) :
          date_perso: "2026-12-19"   # date du personnage, fictive, entre guillemets
          contexte: ""               # contexte du moment, une ligne en francais
-         continuite:                # ecrite une fois pour les quatre temps ; voir "Continuite et raccords"
+         continuite:                # ecrite une fois pour les cinq temps ; voir "Continuite et raccords"
            lieu: "in ..."
            tenue: "wearing ..."
            cheveux: ""
@@ -420,7 +448,7 @@ y placer un geste ni un texte important. Elle est remplacee par une coupe si l'u
          # loras: [nom]       # noms du catalogue ; s'ajoutent aux LoRA par defaut du temps, posees sur le projet
        shots:
          - name: plan01       # unique dans le fichier, lettres, chiffres et _
-           temps: 1           # obligatoire : 1, 2, 3 ou 4 (voir "Un projet en quatre temps") ; plans dans l'ordre des temps
+           temps: 1           # obligatoire : 1 a 5 (voir "Un projet en cinq temps") ; plans dans l'ordre des temps
            titre: "..."       # nom de la scene dans la page (facultatif)
            still: "..."       # obligatoire
            motion: "She ..."  # facultatif : sans lui, la scene reste une image fixe
@@ -439,14 +467,16 @@ y placer un geste ni un texte important. Elle est remplacee par une coupe si l'u
              regard: "head turned to the left, eyes looking away toward the window, not looking at the camera"
            contact: ""        # facultatif : ce que son corps touche et ou
            autres: ""         # facultatif : les autres personnes visibles a l'image ; vide quand elle est seule
-           retire: []         # temps 2 a 4, obligatoire : liste entiere des vetements de la fiche qu'elle ne porte plus
+           moment: acte       # temps 4 et 5, obligatoire : acte, transition, final ou calme
+           acte: ""           # la position, quand moment vaut acte ou final
+           retire: []         # temps 2 a 5, obligatoire : liste entiere des vetements de la fiche qu'elle ne porte plus
            etat: ""           # facultatif : ou ils sont passes, comment le reste est porte
 
    Champs repris par plan : `name`, `still`, `motion`, `end_edit`, `tattoos`, `loras`, `seed`,
-   `temps`, `titre`, `texte`, `voix`, `son`, `role`, `raccord`, `transition`, `camera`, `libre`, `cran`, `pose`, `contact`, `autres`, `retire`, `etat`. 30 plans au plus par fichier, 10 par temps. `steps`, `image`,
+   `temps`, `titre`, `texte`, `voix`, `son`, `role`, `raccord`, `transition`, `camera`, `libre`, `cran`, `pose`, `contact`, `autres`, `retire`, `etat`, `moment`, `acte`. 40 plans au plus par fichier, 10 par temps. `steps`, `image`,
    `edit`, `suite_de`, `end_image` et `character` ne sont pas repris (un depot qui en porte est refuse) ; `body` et `dest` sont inutiles (le temps et la fiche du personnage en
    tiennent lieu).
-   **Une video, un fichier** (modele `2026-11-15e`) : les quatre temps, ou ceux qui sont demandes, dans le meme
+   **Une video, un fichier** (modele `2026-11-15e`) : les cinq temps, ou ceux qui sont demandes, dans le meme
    fichier. Chaque plan dit son `temps` et les plans se suivent dans l'ordre des temps ; chaque temps est une video a
    part, donc son premier plan n'a pas de `transition` et un raccord ne traverse pas deux temps. Une video nouvelle ne
    nomme pas de `projet` (elle porte `personnage` et `titre`) : la page ouvre le projet. Ne jamais deviner un numero

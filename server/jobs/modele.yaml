@@ -62,15 +62,21 @@
 #                fabrique alors chaque image a partir d'une meme image d'elle en tenue complete dans le lieu, et fait
 #                relire les vetements par le controle. Bloc "atelier" : partenaire (obligatoire des qu'un plan remplit
 #                "autres" sans etre vu par ses yeux) : il est decrit une fois, son image est faite une fois.
+#   2026-11-16b  CINQ TEMPS : 4 = premier moment chaud, 5 = second moment chaud, puis le final, puis un plan calme
+#                qui ferme la video. Aux temps 4 et 5 le script est COURT : chaque plan qui a son image dit son
+#                "moment" (acte, transition, final, calme). Pour "acte" et "final", il ecrit seulement "acte" (la
+#                position, quelques mots), "pose.cadrage" (serre) et "pose.regard", plus "still" (expression, ce
+#                qu'elle porte encore) ; la Production ecrit le reste et choisit la LoRA. Deux "transition" au plus
+#                par temps. 40 plans au plus par fichier. Un fichier ecrit en 2026-11-16a est signale perime : le reecrire.
 
-modele: "2026-11-16a"
+modele: "2026-11-16b"
 name: monlot                 # prefixe des fichiers produits (lettres, chiffres, _), unique par lancement
 
 # --- Facultatif : script livre a la Production (docs/agents.md, "Livrer un script a la Production") --------------
 # Uniquement pour un fichier place dans server/jobs/atelier/. Le pilote ignore ce bloc ; c'est la
 # page Atelier qui le lit, et qui importe le fichier toute seule des qu'il est accepte.
-# UN FICHIER PAR VIDEO : les quatre temps dans le meme fichier, chaque plan avec son "temps", dans l'ordre.
-# 30 plans au plus, 10 par temps, "still" obligatoire dans chacun, pas de "character", ni de "steps", "image", "edit", "suite_de",
+# UN FICHIER PAR VIDEO : les cinq temps dans le meme fichier, chaque plan avec son "temps", dans l'ordre.
+# 40 plans au plus, 10 par temps, "still" obligatoire dans chacun, pas de "character", ni de "steps", "image", "edit", "suite_de",
 # "end_image" (les raccords se demandent par "raccord", l'image de reference par "reference").
 # atelier:
 #   projet: ""               # "" ou absent : nouvelle video, la page ouvre son projet. pNNNN : plans a verser dans ce projet.
@@ -94,7 +100,7 @@ name: monlot                 # prefixe des fichiers produits (lettres, chiffres,
 #   date_perso: "2026-12-19" # date FICTIVE, entre guillemets, AAAA-MM-JJ : le jour ou le personnage vit la scene.
 #                            # Ce n'est ni la date d'ecriture, ni celle du calcul, ni celle du depot.
 #   contexte: ""             # contexte du moment, une ligne en francais (meteo, fete proche, ce qu'elle vit)
-#   # Continuite du projet : ecrite une fois, elle vaut pour les quatre temps. Absente : celle du projet.
+#   # Continuite du projet : ecrite une fois, elle vaut pour les cinq temps. Absente : celle du projet.
 #   continuite:              # ce qui ne change pas d'une image a l'autre ; en anglais ; ajoute a la fin de chaque "still"
 #     lieu: "in a small Parisian bathroom with white tiles and a round mirror"
 #     tenue: "wearing a white ribbed tank top and grey cotton shorts"
@@ -144,7 +150,7 @@ shots:
     tattoos: true            # false si la tenue couvre epaules et poitrine (pull, peignoir ferme)
     # Lus par l'atelier seulement (ignores par le pilote) :
     # temps: 1               # OBLIGATOIRE dans un fichier depose : 1 accroche tous publics, 2 montee suggestive,
-    #                        # 3 devoile (nudite, sans acte), 4 final prive. Les plans se suivent dans l'ordre des temps ;
+    #                        # 3 devoile (nudite, sans acte), 4 et 5 moments chauds (voir "moment"). Les plans se suivent dans l'ordre des temps ;
     #                        # chaque temps est une video a part (son premier plan n'a pas de "transition").
     # titre: "Regard"        # nom de la scene dans la page
     # texte: "Don't blink."  # texte incruste au montage
@@ -195,8 +201,16 @@ shots:
     #                        # quand elle est seule a l'image (le cas courant, meme si quelqu'un est suppose hors champ) :
     #                        # le controle signale alors toute autre personne. Ne pas y redire son physique
     #                        # ("atelier.partenaire" le dit) : seulement ou il est et ce qu'il fait.
+    # moment: acte           # OBLIGATOIRE aux temps 4 et 5 (et seulement la) : acte, transition, final ou calme.
+    #                        # Temps 4 : des "acte", deux "transition" au plus. Temps 5 : au moins un "acte", puis
+    #                        # "final", puis le dernier plan "calme" ; rien d'autre apres le final.
+    #                        # "acte" et "final" : script court. On ecrit "acte", "pose.cadrage" (serre : pas de plan
+    #                        # large ni en pied) et "pose.regard" ; pas les autres champs de "pose". "transition" et
+    #                        # "calme" : un plan ordinaire, "pose" entiere, sans "acte".
+    # acte: ""               # la position, en quelques mots anglais (80 caracteres au plus). Obligatoire quand
+    #                        # "moment" vaut acte ou final, interdit sinon.
     # retire: ["the beige blazer", "the white sneakers"]
-    #                        # OBLIGATOIRE aux temps 2 a 4 : la liste ENTIERE des vetements de la tenue de la fiche de
+    #                        # OBLIGATOIRE aux temps 2 a 5 : la liste ENTIERE des vetements de la tenue de la fiche de
     #                        # continuite qu'elle ne porte plus a cet instant, avec les memes mots que la fiche. Elle ne
     #                        # fait que s'allonger d'un plan a l'autre, sauf vetement remis. "retire: []" : elle porte tout.
     #                        # Au temps 1, si "retire" n'est pas vide, "still" dit ce qu'elle porte encore ("wearing ...").
