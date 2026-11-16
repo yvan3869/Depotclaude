@@ -1,14 +1,23 @@
 <!doctype html>
 <html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Studio</title>
+<meta name="theme-color" content="#0e0c13">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3CradialGradient id='g' cx='.3' cy='.2' r='1'%3E%3Cstop stop-color='%23c4a1ff'/%3E%3Cstop offset='.6' stop-color='%23ff8fb8'/%3E%3Cstop offset='1' stop-color='%23ffb48a'/%3E%3C/radialGradient%3E%3Crect width='32' height='32' rx='8' fill='%230e0c13'/%3E%3Cpath d='M12 9.5v13l11-6.5z' fill='url(%23g)'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="/ui.css">
 <style>
-  a.card { align-items:center; gap:14px; padding:14px; }
-  a.card .ic { width:24px; height:24px; color:var(--acc); }
+  .hero { padding:26px 0 6px; }
+  .hero h1 { margin:0; font-size:clamp(30px,8vw,48px); line-height:1.05; letter-spacing:-.02em; background:var(--grad); -webkit-background-clip:text; background-clip:text; color:transparent; display:inline-block; }
+  .hero p { margin:8px 0 0; color:var(--mut); font-size:16px; max-width:46ch; }
+  h2 { font-size:12px; letter-spacing:.09em; text-transform:uppercase; color:var(--mut); margin-top:26px; }
+  .cartes { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:10px; }
+  a.card { align-items:center; gap:14px; padding:14px; margin:0; }
+  a.card .tu { width:46px; height:46px; flex:none; border-radius:13px; display:grid; place-items:center; background:var(--acc-bg); border:1px solid var(--line); }
+  a.card .ic { width:22px; height:22px; color:var(--acc); }
+  a.card:hover .tu { background:var(--grad); border-color:transparent; } a.card:hover .ic { color:var(--sur-acc); }
   a.card b { font-size:16px; } a.card .mut { -webkit-line-clamp:3; }
 </style></head><body>
 <header><div class="l1"><b>Studio</b><span class="sp"></span><small>Contenu généré par IA</small></div></header>
-<main id="vue"></main>
+<main><div class="hero"><h1>Du script à l'écran.</h1><p>Casting, tournage, montage, diffusion : tout le plateau au même endroit.</p></div><div id="vue"></div></main>
 <script src="/ui.js"></script>
 <script>
 const ESPACES = [
@@ -20,7 +29,7 @@ const ESPACES = [
     ['/test', 'image', 'Essais', "Essayer des réglages d'image (décor, cadrage, poses, corps, LoRA), voir les résultats, valider ou supprimer."],
     ['/tri', 'archiver', 'Rushes', 'Trier les clips et images tournés : soft, payant, à refaire, rejeté.']]],
 ];
-$('#vue').innerHTML = ESPACES.map(([titre, l]) => `<h2>${titre}</h2>` + l.map(([u, i, n, d]) =>
-  `<a class="card" href="${u}">${ic(i)}<span><b>${n}</b><span class="mut">${esc(d)}</span></span></a>`).join('')).join('');
+$('#vue').innerHTML = ESPACES.map(([titre, l]) => `<h2>${titre}</h2><div class="cartes">` + l.map(([u, i, n, d]) =>
+  `<a class="card" href="${u}"><span class="tu">${ic(i)}</span><span><b>${n}</b><span class="mut">${esc(d)}</span></span></a>`).join('') + '</div>').join('');
 </script>
 </body></html>

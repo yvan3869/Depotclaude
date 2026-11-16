@@ -21,6 +21,10 @@ page de reference. Un nouvel espace part de ce squelette :
   Une icone qui manque s'ajoute dans `ICONES` (24 x 24, traits, sans remplissage), jamais dans la page.
 - Couleurs et rayons : uniquement les jetons (`--bg --panel --fond --line --txt --mut --acc --ok --bad --warn`
   et leurs fonds `--acc-bg --ok-bg --bad-bg --warn-bg`). Pas de couleur en dur dans une page.
+- Theme « salle de projection » (16/11/2026) : nuit violette, accent orchidee. Jetons en plus : `--acc2` (rose, second accent :
+  « payant » des Rushes, liste personnelle des Essais), `--grad` (degrade orchidee, rose, ambre : bouton principal, titre de
+  l'en-tete, numeros de section), `--sur-acc` (texte pose sur l'accent ou le degrade), `--halo` (anneau de saisie). Le degrade
+  reste rare : une action principale par bloc. Changer de theme = changer les jetons en tete de `ui.css`.
 - Un seul bouton principal (`.p`) par bloc : l'action attendue. `.d` pour ce qui detruit, `.s` pour les
   actions secondaires d'une ligne. Cible tactile : 38 px (32 px en `.s`).
 - Une action qui coute ou qui dure s'ecrit dans une liste `.acts` : le bouton a gauche, ce qu'il fait et

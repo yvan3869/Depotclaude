@@ -1,6 +1,8 @@
 <!doctype html>
 <html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Production</title>
+<meta name="theme-color" content="#0e0c13">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3CradialGradient id='g' cx='.3' cy='.2' r='1'%3E%3Cstop stop-color='%23c4a1ff'/%3E%3Cstop offset='.6' stop-color='%23ff8fb8'/%3E%3Cstop offset='1' stop-color='%23ffb48a'/%3E%3C/radialGradient%3E%3Crect width='32' height='32' rx='8' fill='%230e0c13'/%3E%3Cpath d='M12 9.5v13l11-6.5z' fill='url(%23g)'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="/ui.css">
 <style>
   .scene { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:10px; margin-bottom:10px; }
@@ -43,7 +45,7 @@
   .rail { display:flex; gap:2px; }
   .rail button { flex:1; min-width:0; flex-direction:column; gap:3px; border:0; background:none; color:var(--mut); font-size:10.5px; padding:6px 0; min-height:50px; position:relative; }
   .rail button .ic { width:20px; height:20px; } .rail button.on { color:var(--acc); background:var(--acc-bg); }
-  .rail i { position:absolute; top:3px; left:calc(50% + 7px); font-style:normal; } .rail i.nb { background:var(--acc); color:#06131a; border-radius:8px; font-size:10px; line-height:14px; min-width:14px; padding:0 3px; }
+  .rail i { position:absolute; top:3px; left:calc(50% + 7px); font-style:normal; } .rail i.nb { background:var(--acc); color:var(--sur-acc); border-radius:8px; font-size:10px; line-height:14px; min-width:14px; padding:0 3px; }
   .rail i.pt { width:9px; height:9px; border-radius:50%; background:var(--acc); } .rail i.pt.avt { background:var(--warn); } .rail i.pt.err { background:var(--bad); } .rail i.pt.okc { background:var(--ok); }
   @media (min-width:1000px) {
     .pg { display:grid; grid-template-columns:360px minmax(0,1fr); gap:22px; align-items:start; } .cote { order:-1; }
