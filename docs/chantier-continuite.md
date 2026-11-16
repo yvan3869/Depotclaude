@@ -199,3 +199,4 @@ Ordre de construction : A puis B (le plus gros gain), D en même temps (sans lui
   4. Ecran « controle en cours » ; lieu a plusieurs vues ; poses gardees ; essai aux temps 2 a 4 par le proprietaire (c'est lui qui juge).
   5. Nettoyage cote serveur : `server/data/work/girls-ai-essai-*`, `server/data/work/p0004r*`, vieilles planches `p0004essai_*` ; scenes s5 a s8 de p0004 ; puis suppression du worktree `girls-ai-wip`.
 - Pour le proprietaire : pour en profiter sur un projet, tirage « decor » (ou « auto ») au temps voulu, lieu de la bibliotheque avec image, tenue dans la fiche de continuite, et un script ecrit au modele `2026-11-16a`.
+- 16/11/2026, 06 h 20 : **image d'etat en service** (point 1 ci-dessus fait, `etat_image` dans `server/pilot/__main__.py`, fichiers `data/work/girls-ai-etat-<sha>.png`). Essai 8 : 6 images justes sur 6 sans relance. Restent les points 2 a 5.
