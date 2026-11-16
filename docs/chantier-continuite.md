@@ -57,7 +57,7 @@ Fichier de suivi : il dit ce qui a été constaté, pourquoi, quelles parades so
 ### 2. Partenaire : une seule façon de le montrer par temps
 - [ ] Script : nouveau champ `atelier.vue`, par temps : `pov` (on voit par ses yeux : ses mains, ses avant-bras, jamais
       son visage) ou `tiers` (caméra extérieure, les deux visibles). Obligatoire dès qu'une scène du temps a `autres`.
-- [ ] Fiche de continuité : ligne `partenaire` (qui il est, écrit une seule fois) ; `autres` ne dit plus que ce qu'il fait.
+- [x] Fiche de continuité : ligne `partenaire` (qui il est, écrit une seule fois) ; `autres` ne dit plus que ce qu'il fait.
 - [ ] La chaîne met en tête de chaque scène du temps la phrase fixe de la vue choisie (tous publics, écrite par moi).
 - [ ] Vérificateur du script : refuse un `autres` qui contredit la vue du temps.
 - [ ] Contrôleur : nouvelle case « vue » (subjective, extérieure, mélange) ; un mélange relance la scène.
@@ -67,7 +67,7 @@ Fichier de suivi : il dit ce qui a été constaté, pourquoi, quelles parades so
 - [ ] Script : champ `tenue` par scène à partir du temps 2 (ce qu'elle porte encore, ce qui est retiré et où c'est posé).
       Vide = identique à la scène précédente, d'un temps au suivant aussi. Obligatoire sur la première scène du temps 2.
 - [ ] La chaîne l'ajoute juste après la pose (début de description) et le donne au contrôleur comme champ à part.
-- [ ] `docs/agents.md` et `tools/triage/verifier.py` : nouveau modèle de plan, mis à jour ensemble.
+- [x] `docs/agents.md` et `tools/triage/verifier.py` : nouveau modèle de plan, mis à jour ensemble.
 - [ ] Le texte de ces champs aux temps 2 à 4 est écrit par le scénariste du propriétaire, pas par l'assistant.
 
 ### 4. Contrôle qui agit sur ces points
@@ -76,7 +76,7 @@ Fichier de suivi : il dit ce qui a été constaté, pourquoi, quelles parades so
 
 ### 5. Plus tard
 - [ ] « Pose gardée » : le squelette d'une image validée (à deux aussi) est rangé sous le nom de sa position et resservi.
-- [ ] Brouillon à deux personnages.
+- [x] Brouillon à deux personnages.
 
 ## Approche élargie : « tout passe par un brouillon contrôlé » (16/11/2026, seconde demande)
 
@@ -152,11 +152,11 @@ Une séquence de 5 scènes dans un lieu de la bibliothèque de Léa, ancienne vo
 1. debout, veste et robe ; 2. assise, veste retirée et posée ; 3. allongée, chaussures retirées ;
 4. plan moyen, un ami assis à côté d'elle (vue extérieure) ; 5. vue par les yeux de l'ami : elle lui tend une tasse.
 
-- [ ] Essai 1 : brouillons enchaînés seuls (5 brouillons, 2 graines) : la veste reste-t-elle retirée en 3, 4, 5 ?
+- [x] Essai 1 : brouillons enchaînés seuls (5 brouillons, 2 graines) : la veste reste-t-elle retirée en 3, 4, 5 ?
   la pièce est-elle la même ? combien de personnes en 4 et en 5 ?
-- [ ] Essai 2 : rendu final Z-Image depuis ces brouillons (gelé pour 1 à 3, départ 0,6 et 0,7 pour 4, départ pour 5).
-- [ ] Essai 3 : étalonnage et comparaison image à image par le contrôleur sur ces mêmes images.
-- [ ] Ensuite : portage dans le pilote (`poses_imposees`), puis `atelier.py` (file vide), puis essai sur p0004.
+- [x] Essai 2 : rendu final Z-Image depuis ces brouillons (gelé pour 1 à 3, départ 0,6 et 0,7 pour 4, départ pour 5).
+- [x] Essai 3 : étalonnage et comparaison image à image par le contrôleur sur ces mêmes images.
+- [x] Ensuite : portage dans le pilote (`poses_imposees`), puis `atelier.py` (file vide), puis essai sur p0004.
 
 Ordre de construction : A puis B (le plus gros gain), D en même temps (sans lui rien n'est automatique), C, puis E et F.
 
@@ -164,7 +164,7 @@ Ordre de construction : A puis B (le plus gros gain), D en même temps (sans lui
 
 « Nettoyer tes essais et les modèles qui ne servent pas sur RunPod. » Accord donné pour ces deux choses seulement.
 
-- [ ] Volume RunPod `lea-models` : dresser la liste des fichiers de modèles avec leur taille, la comparer à ce que
+- [x] Volume RunPod `lea-models` : dresser la liste des fichiers de modèles avec leur taille, la comparer à ce que
   la chaîne appelle (`persona/production.yaml`, `server/pilot/workflows.py`, `controle.py`, LoRA de la bibliothèque et
   des projets). Supprimer : les sorties et images déposées par mes essais (`ga_*` dans `input/` et `output/` de ComfyUI),
   les modèles téléchargés pour un essai et que plus rien n'appelle. Ne pas toucher : les LoRA du propriétaire, les
@@ -190,3 +190,12 @@ Ordre de construction : A puis B (le plus gros gain), D en même temps (sans lui
 - 16/11/2026, 04 h 10 : essai 1 fait (0,21 $, détail au journal). Leçons : (1) ne **pas** enchaîner les brouillons l'un sur l'autre (dérive des couleurs, vêtement qui change, pose qui colle) ; la section A est à corriger : la référence d'elle reste **fixe** (une image « tenue complète » du temps) et c'est l'**état cumulé**, écrit par la chaîne d'après les scènes d'avant, qui dit ce qui est retiré ; (2) le rendu final depuis le brouillon marche : décor gelé pour elle seule, image de départ à 0,6 pour deux personnes (0,7 défait la scène) ; (3) le texte seul réinvente pièce et robe à chaque scène. Essai 2 lancé (référence fixe, 2 graines, + liste du volume pour le nettoyage).
 - 16/11/2026, 04 h 30 : essai 2 fait (environ 0,10 $, detail au journal). Lecons : (1) reference fixe + etat cumule **tient pour elle seule** (robe, veste retiree, chaussures au sol) ; a garder, avec un controle du brouillon (une chaussure remise 1 fois sur 6) ; (2) **a deux, l'etat est perdu** : avec trois images (elle, lieu, partenaire) le modele recopie la reference habillee. Parade a essayer : fabriquer d'abord le brouillon d'elle seule dans le bon etat (ca marche), puis **ajouter le partenaire dans cette image** par une seconde retouche (un seul maillon, rien d'autre ne change) ; (3) la lampe et le cadrage bougent : dire le cadrage dans le texte du brouillon, et faire relire le brouillon contre la photo du lieu par le controleur. Reste a faire, dans l'ordre : essai 3 (partenaire ajoute en second, rendu final, etalonnage ColorMatch, controle image a image) + nettoyage du volume avec le meme pod ; puis portage dans `server/pilot` et `atelier.py`.
 - 16/11/2026, 05 h 00 : essai 3 fait (environ 0,11 $, detail au journal). Acquis : (1) scene a deux = brouillon d'elle seule dans le bon etat, puis partenaire **ajoute par une seconde retouche** (etat tenu 2 sur 2) ; (2) rendu final : decor gele seule, depart 0,6 a deux et en vue subjective ; (3) ColorMatch (mkl) disponible dans le graphe ; (4) nettoyage du volume fait (4,1 Go), reste a nettoyer cote serveur les dossiers d'essai. La methode est donc arretee : **reference fixe + photo du lieu + etat cumule -> brouillon (relu par le controleur : position, vetements, nombre de personnes) -> partenaire ajoute si besoin -> Z-Image + LoRA (gele ou depart 0,6) -> ColorMatch**. Reste a faire : portage dans `server/pilot` (`poses_imposees` : plans `reference`, `etat`, `partenaire_image`, `depart_brouillon`), puis `atelier.py` (file vide), `verifier.py` et `docs/agents.md`, puis essai sur p0004.
+- 16/11/2026, 06 h 00 : **methode en service** (commits efc4f89 et suivant, deployes). Modele de plan `2026-11-16a` : `retire` (liste, obligatoire aux temps 2 a 4), `etat`, `atelier.partenaire` ; verificateur, `docs/agents.md`, `server/jobs/modele.yaml` et page (champs de scene et de projet) a jour. Production : `_continuite` dans `atelier.py` (tirage « decor », lieu avec image, tenue dans la fiche) ; pilote : reference fixe gardee en cache, partenaire ajoute en second, relecture du brouillon par vetement retire, depart 0,6 a deux, ColorMatch. Essais 4 a 7 au journal (0,13 + 0,08 + 0,71 + 0,73 $).
+- Resultat de l'essai 7 (planche `data/inbox/p0004essai_chaine7_production.jpg`) : piece et lumiere tenues sur toutes les images ; vetements justes sur les images finales apres une relance ; partenaire present et le meme.
+- Reste a faire, par ordre d'interet :
+  1. Brouillon : la veste retiree reste souvent sur elle (le modele de retouche obeit mal a « ne porte plus »). Piste : une **image d'etat** par liste `retire` (la reference, vetement enleve par une retouche simple a une seule image, relue une fois par le controleur, gardee en cache), dont tous les brouillons de cet etat sont tires.
+  2. Vue subjective : rendue en vue exterieure, mains du partenaire absentes ; le controle relance deux fois pour rien. A voir avec les LoRA du proprietaire aux temps 3-4 ; sinon ne pas relancer sur ce seul point.
+  3. Cadrage : le champ « cadrage » est note bas en plan large (personnage petit dans une grande piece) ; resserrer le brouillon.
+  4. Ecran « controle en cours » ; lieu a plusieurs vues ; poses gardees ; essai aux temps 2 a 4 par le proprietaire (c'est lui qui juge).
+  5. Nettoyage cote serveur : `server/data/work/girls-ai-essai-*`, `server/data/work/p0004r*`, vieilles planches `p0004essai_*` ; scenes s5 a s8 de p0004 ; puis suppression du worktree `girls-ai-wip`.
+- Pour le proprietaire : pour en profiter sur un projet, tirage « decor » (ou « auto ») au temps voulu, lieu de la bibliotheque avec image, tenue dans la fiche de continuite, et un script ecrit au modele `2026-11-16a`.
