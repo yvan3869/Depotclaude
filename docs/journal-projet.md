@@ -713,3 +713,11 @@ Lance par le proprietaire (series r6, r9, r10 ; 18 + 1 + 1 images, 6 scenes). De
 Notes du controleur, 20 images avant / 20 apres (metadonnees seulement) : note moyenne 3,86 -> 5,26 ; images au-dessus de 4 : 10 -> 20 ;
 lieu juste 3 -> 19 ; pose juste 10 -> 18 ; cadrage juste 10 -> 19 ; anatomie « grave » 5 -> 5 ; tenue « fausse » 19 -> 19.
 A voir : le verdict « tenue » ne tient sans doute pas compte des vetements retires (a corriger dans le controleur) ; anatomie inchangee.
+
+### 16/11/2026, 10 h 30 CET : p0005 temps 4 refait par le proprietaire avec la methode de continuite
+
+Series r11 a r15 (7 scenes, 28 images, 2 relances). Depense : 1,32 $ ; compteur du jour 9,60 $ sur 20.
+Notes du controleur, 29 images avant / 28 apres (metadonnees seulement) : **aucun progres**. Note moyenne 3,55 -> 3,54 ; au-dessus de 4 : 13 -> 10 ;
+lieu juste 5 -> 6 ; pose juste 7 -> 6 ; cadrage juste 8 -> 5 ; anatomie « grave » 16 -> 17 ; tenue « fausse » partout ; ressemblance du visage 0,55 -> 0,37 ;
+3 personnes comptees sur 6 images (2 attendues). Brouillons : 11 refaits sur 26, aucune image d'etat fabriquee au journal.
+A deux, la voie est « image de depart a 0,6 » et non « decor gele » : elle ne tient pas sur ces scenes. A diagnostiquer avec l'avis du proprietaire.
