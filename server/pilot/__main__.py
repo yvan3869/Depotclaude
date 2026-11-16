@@ -1610,7 +1610,7 @@ def main():
     pe = sub.add_parser("perso", help="images de la bibliotheque d'un personnage (lieux, tenues, portraits, planches) d'apres un lot de l'atelier")
     pe.add_argument("lot")
     pe.add_argument("--pod-id", help="reutilise un pod existant (ni cree ni supprime)")
-    pe.set_defaults(fn=lambda a: perso.images(a, load_config(a), resolve_loras))
+    pe.set_defaults(fn=lambda a: perso.images(a, load_config(a), resolve_loras, to_mp4))
     en = sub.add_parser("entrainer", help="entraine la LoRA d'un personnage d'apres un lot de l'atelier, sur un pod a lui, puis tire des images d'essai")
     en.add_argument("lot")
     en.set_defaults(fn=lambda a: perso.entrainer(a, load_config(a)))

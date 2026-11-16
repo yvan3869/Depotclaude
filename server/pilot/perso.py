@@ -46,10 +46,12 @@ def _fin(report, t0, pod_id, own):
     return 1 if any("error" in s for s in report["shots"]) or not report["shots"] else 0
 
 
-def images(a, cfg, resolve_loras):
+def images(a, cfg, resolve_loras, to_mp4=None):
     """Lot d'images d'un personnage : {"nom", "out", "character", "taches": [{"sortie", "prompt", "seed", "taille",
     "lora" (LoRA du personnage ou non), "loras" (en plus), "force", "ref" (image dont celle-ci est tiree par retouche),
-    "refs" (images en plus pour la retouche : « image 2 », « image 3 » du texte)}]}."""
+    "refs" (images en plus pour la retouche : « image 2 », « image 3 » du texte)}]}.
+    Tache de clip (banc des LoRA de clip) : "clip" (image de depart), "prompt" (le mouvement), "loras" (LoRA de clip), "images" (duree,
+    81 par defaut : 5 s) ; elle rend <sortie>.mp4, fabrique comme un clip de la Production."""
     lot = json.load(open(a.lot, encoding="utf-8"))
     models, char = cfg["models"], {**cfg["character"], **(lot.get("character") or {})}
     sans = {**char, "lora_still_zimage": None, "extra_loras_still": []}
@@ -67,7 +69,7 @@ def images(a, cfg, resolve_loras):
         c.wait_ready()
         log("ComfyUI pret")
         volume, refs = c.models("loras"), {}
-        for t in sorted(lot["taches"], key=lambda t: bool(t.get("ref"))):  # creations puis retouches : un seul changement de modele
+        for t in sorted(lot["taches"], key=lambda t: (bool(t.get("clip")), bool(t.get("ref")))):  # creations, retouches puis clips : un changement de modele a la fois
             e = {"name": t["sortie"]}
             report["shots"].append(e)
             if (time.time() - t0) / 60 > cfg["infra"].get("max_session_min", 90):
@@ -75,7 +77,22 @@ def images(a, cfg, resolve_loras):
                 continue
             try:
                 d = time.time()
-                w, h = t.get("taille") or [720, 1280]
+                w, h = t.get("taille") or ([480, 832] if t.get("clip") else [720, 1280])
+                if t.get("clip"):
+                    vlo = [x for x in resolve_loras(cfg, t.get("loras") or []) if x["video"]]
+                    if any(f and f not in volume for x in vlo for f in (x["name"], x.get("low"))):
+                        raise RuntimeError("LoRA introuvable sur le volume")
+                    if t["clip"] not in refs:
+                        refs[t["clip"]] = c.upload(f"ga_perso_ref{len(refs)}.png", Path(t["clip"]).read_bytes())
+                    mouv = t["prompt"] + char.get("motion_suffix", "") + "".join(f" {x['trigger']}" for x in vlo if x.get("trigger"))
+                    g = workflows.clip(models, char, refs[t["clip"]], mouv, w, h, int(t["seed"]), f"ga_{t['sortie']}", mode=t.get("mode") or "natural",
+                                       frames=int(t.get("images") or 81), loras=vlo)
+                    webm = out / "lots" / f"{t['sortie']}.webm"
+                    webm.write_bytes(c.fetch(c.run(g)[0]))
+                    to_mp4(webm, out / f"{t['sortie']}.mp4", True, True)
+                    webm.unlink()
+                    log(f"{t['sortie']} : clip ({round(time.time() - d)} s)")
+                    continue
                 if t.get("ref"):
                     if t["ref"] not in refs:
                         refs[t["ref"]] = c.upload(f"ga_perso_ref{len(refs)}.png", Path(t["ref"]).read_bytes())

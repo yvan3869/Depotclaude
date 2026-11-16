@@ -123,7 +123,7 @@ class Biblio:
     def fichier(self, slug, name):
         d = self.dir(slug)
         f = (d / name).resolve()
-        if f.parent == d.resolve() and f.is_file() and f.suffix == ".png":
+        if f.parent == d.resolve() and f.is_file() and f.suffix in (".png", ".mp4"):
             return f
         raise FileNotFoundError(name)
 
@@ -147,7 +147,7 @@ class Biblio:
         etat = "en cours" if ici else "arrete" if "ARRET" in t else "termine" if "rapport :" in t else "interrompu"
         m = re.search(r'"cost_usd": ([\d.]+)', t)
         lo = re.search(r'"lora": "([^"]*)"', t)
-        return {"etat": etat, "faites": t.count(" : image ("), "echecs": t.count("ECHEC"), "cout": float(m.group(1)) if m else None,
+        return {"etat": etat, "faites": t.count(" : image (") + t.count(" : clip ("), "echecs": t.count("ECHEC"), "cout": float(m.group(1)) if m else None,
                 "lora": lo.group(1) if lo else "", "log": "\n".join(l for l in t.strip().splitlines()[-3:] if "rapport :" not in l and "pod " not in l)[-400:]}
 
     def _ici(self, log):
@@ -183,7 +183,9 @@ class Biblio:
         return {"slug": slug, "nom": p["nom"], "lora": bool(g.get("lora")), "lora_force": g.get("lora_strength"), "prefixe": bool(g.get("zimage_prefix")),
                 "lieux": lignes("lieux", "l"), "tenues": lignes("tenues", "t"),
                 "visage": {"images": vis, "choix": b["choix"].get("visage") if b["choix"].get("visage") in vis else ""},
-                "banc": [{"cle": k, **x, "images": [n for n in noms if n.startswith(f"b_{k}_")]} for k, x in reversed(list((b.get("banc") or {}).items()))],
+                "banc": [{"cle": k, **x, "images": [n for n in noms if n.startswith(f"b_{k}_")], "clips": sorted(f.name for f in d.glob(f"bv_{k}_*.mp4"))}
+                         for k, x in reversed(list((b.get("banc") or {}).items()))],
+                "departs": [n for n in noms if n.startswith("bd_")],
                 "planches": [{"nom": n, "garde": bool(b["planches"].get(n, {}).get("garde")), "legende": b["planches"].get(n, {}).get("legende", "")}
                              for n in noms if n.startswith("c_")],
                 "series": {s: series[s] for s in {n.split("_")[1] for n in noms if n.startswith("c_")} if s in series},
@@ -463,7 +465,7 @@ class Biblio:
         return {"lance": n}
 
     def banc(self, b):
-        """Banc d'essai d'une LoRA d'image : une position, a trois cadrages et trois forces, avec le visage du personnage et les LoRA de style
+        """Banc d'essai d'une LoRA. LoRA de clip : voir _banc_clip. LoRA d'image : une position, a trois cadrages et trois forces, avec le visage du personnage et les LoRA de style
         par defaut du temps 4. Le proprietaire coche ce qui tient ; la fiche de capacite de la LoRA en est tiree (banc_noter)."""
         from atelier import BANC_CADRES, BANC_DEUX, BANC_FORCES, BANC_PARTENAIRE, BANC_SEUL, CATS_STYLE as STYLES, _cle, _loras_plan
         from categories import temps_min
@@ -474,7 +476,7 @@ class Biblio:
         if nom not in cat:
             raise ValueError("choisir une LoRA du catalogue")
         if cat[nom].get("famille") == "wan22":
-            raise ValueError("le banc essaie les LoRA d'image ; une LoRA de clip s'inscrit sans essai")
+            return self._banc_clip(b, p, bb, cat, nom)
         if not v["lora"]:
             raise ValueError("ce personnage n'a pas encore sa LoRA de visage : le banc en a besoin")
         acte, phrase = _s(b.get("acte"), 80), _s(b.get("phrase"), 500)
@@ -491,12 +493,7 @@ class Biblio:
         if len(avec) > 4:
             raise ValueError("4 LoRA ajoutées au plus")
         adulte = max(temps_min(cat[n].get("cat")) for n in (nom, *avec)) >= 2
-        try:  # trois poids, au choix du proprietaire (par defaut BANC_FORCES)
-            forces = sorted({round(float(str(f).replace(",", ".")), 2) for f in b.get("forces") or BANC_FORCES})
-        except (TypeError, ValueError):
-            forces = []
-        if len(forces) != 3 or not all(0.1 <= f <= 2 for f in forces):
-            raise ValueError("trois poids différents, entre 0,1 et 2")
+        forces = self._forces(b)
         serie = int((bb.setdefault("banc", {}).get(k) or {}).get("serie") or 0) + 1
         pre, taches = self._prefixe(p), []
         deux = str(b.get("personnes")) == "2"
@@ -512,6 +509,78 @@ class Biblio:
         self._ecrire(slug, bb)
         self._lancer(slug, "banc", {"taches": taches}, len(taches))
         return {"lance": len(taches)}
+
+    def _forces(self, b):
+        """Trois poids, au choix du proprietaire (par defaut BANC_FORCES)."""
+        from atelier import BANC_FORCES
+        try:
+            forces = sorted({round(float(str(f).replace(",", ".")), 2) for f in b.get("forces") or BANC_FORCES})
+        except (TypeError, ValueError):
+            forces = []
+        if len(forces) != 3 or not all(0.1 <= f <= 2 for f in forces):
+            raise ValueError("trois poids différents, entre 0,1 et 2")
+        return forces
+
+    def _banc_clip(self, b, p, bb, cat, nom):
+        """Banc d'une LoRA de clip : une image de depart choisie par le proprietaire, un mouvement, et trois clips de 5 s qui ne different que
+        par le poids de la LoRA. Les LoRA de mouvement et de vitesse par defaut du temps 4 sont chargees comme en Production."""
+        from atelier import _cle, _loras_plan
+        slug = b["slug"]
+        acte, phrase = _s(b.get("acte"), 80), _s(b.get("phrase"), 500)
+        if not acte or not phrase:
+            raise ValueError("écrire la position et le mouvement")
+        try:
+            depart = self.fichier(slug, str(b.get("image") or ""))
+        except FileNotFoundError:
+            depart = None
+        if not depart or depart.suffix != ".png":
+            raise ValueError("choisir l'image de départ")
+        fi = self.at._lib()["fiche"]
+        nm = lambda x: x["name"] if isinstance(x, dict) else x
+        base = [x for x in _loras_plan(self.at._defauts().get(4) or "") if nm(x) != nom and fi.get(nm(x), ("autre", "zimage"))[1] == "wan22"
+                and fi.get(nm(x), ("autre",))[0] in ("mouvement", "vitesse")]
+        avec = []  # LoRA de clip empilees a celle qu'on essaie
+        for n in b.get("avec") or []:
+            if n in cat and n != nom and n not in avec and cat[n].get("famille") == "wan22" and not any(nm(x) == n for x in base):
+                avec.append(n)
+        if len(avec) > 2:
+            raise ValueError("2 LoRA de clip ajoutées au plus")
+        forces = self._forces(b)
+        k = hashlib.sha1(f"{nom}|{_cle(acte)}".encode()).hexdigest()[:8]
+        serie = int((bb.setdefault("banc", {}).get(k) or {}).get("serie") or 0) + 1
+        taches = [{"sortie": f"bv_{k}_{serie}_{int(round(f * 100)):03d}", "clip": str(depart), "prompt": phrase, "seed": 9100 + 13 * serie, "taille": [480, 832],
+                   "loras": [*base, *avec, {"name": nom, "strength": f}]} for f in forces]
+        bb["banc"].pop(k, None)
+        bb["banc"][k] = {"lora": nom, "acte": acte, "phrase": phrase, "personnes": 1, "avec": avec, "forces": forces, "serie": serie, "clip": True,
+                         "image": depart.name, "date": time.strftime("%d/%m/%Y")}
+        self._ecrire(slug, bb)
+        self._lancer(slug, "banc", {"taches": taches}, len(taches))
+        return {"lance": len(taches)}
+
+    def banc_depart(self, b):
+        """Image de depart envoyee par le proprietaire pour le banc des clips ("png" : PNG en base64, reduit par la page)."""
+        slug = b["slug"]
+        try:
+            data = base64.b64decode(str(b.get("png") or "").rpartition(",")[2], validate=True)
+        except ValueError:
+            data = b""
+        if data[:8] != b"\x89PNG\r\n\x1a\n" or len(data) > 12_000_000:
+            raise ValueError("image illisible ou trop lourde")
+        d = self.dir(slug)
+        d.mkdir(parents=True, exist_ok=True)
+        deja = sorted(d.glob("bd_*.png"))
+        if len(deja) >= 24:
+            raise ValueError("24 images de départ au plus : en retirer une")
+        nom = f"bd_{hashlib.sha1(data).hexdigest()[:8]}.png"
+        (d / nom).write_bytes(data)
+        return {**self.vue(slug), "depart": nom}
+
+    def banc_depart_retirer(self, b):
+        f = self.fichier(b["slug"], str(b.get("image") or ""))
+        if not f.name.startswith("bd_"):
+            raise ValueError("image de départ inconnue")
+        f.unlink()
+        return self.vue(b["slug"])
 
     def banc_retirer(self, b):
         """Retire une serie du banc de la page (ses images restent sur le disque, la fiche de capacite n'est pas touchee)."""
@@ -529,10 +598,12 @@ class Biblio:
         x = (bb.get("banc") or {}).get(str(b.get("cle")))
         if not x:
             raise ValueError("série du banc inconnue")
-        pre = f"b_{b['cle']}_{x['serie']}_"
+        pre = f"b{'v' if x.get('clip') else ''}_{b['cle']}_{x['serie']}_"
         bonnes = [n[len(pre):-4].split("_") for n in b.get("bonnes") or [] if str(n).startswith(pre) and (self.dir(slug) / str(n)).is_file()]
+        if x.get("clip"):  # un clip par poids : le plus bas des poids coches est garde
+            bonnes = [("", f) for f, in bonnes]
         forces = [int(f) / 100 for _, f in bonnes]
-        ligne = {"acte": x["acte"], "phrase": x["phrase"], "personnes": x["personnes"], "avec": x.get("avec") or [], "cadrages": sorted({c for c, _ in bonnes}),
+        ligne = {"acte": x["acte"], "phrase": x["phrase"], "personnes": x["personnes"], "avec": x.get("avec") or [], "cadrages": sorted({c for c, _ in bonnes if c}),
                  "force": min(set(forces), key=lambda f: (-forces.count(f), f)) if forces else 0, "ok": bool(bonnes)}
         avant = [l for l in (self.at._catalogue().get(x["lora"]) or {}).get("capacite") or [] if isinstance(l, dict) and _cle(l.get("acte")) != _cle(x["acte"])]
         bib = self.at.save_capacite({"name": x["lora"], "capacite": [*avant, ligne]}, verrou=False)
@@ -620,7 +691,8 @@ class Biblio:
         f = {"/api/a/b/creer": self.creer, "/api/a/b/ajouter": self.ajouter, "/api/a/b/retirer": self.retirer, "/api/a/b/choix": self.choix,
              "/api/a/b/visage": self.visage, "/api/a/b/planches": self.planches, "/api/a/b/garde": self.garde, "/api/a/b/entrainer": self.entrainer,
              "/api/a/b/adopter": self.adopter, "/api/a/b/revenir": self.revenir, "/api/a/b/importer": self.importer, "/api/a/b/essayer": self.essayer,
-             "/api/a/b/banc": self.banc, "/api/a/b/banc/noter": self.banc_noter, "/api/a/b/banc/retirer": self.banc_retirer}.get(path)
+             "/api/a/b/banc": self.banc, "/api/a/b/banc/noter": self.banc_noter, "/api/a/b/banc/retirer": self.banc_retirer,
+             "/api/a/b/banc/depart": self.banc_depart, "/api/a/b/banc/depart/retirer": self.banc_depart_retirer}.get(path)
         if not f:
             return None
         with self.at.lock:

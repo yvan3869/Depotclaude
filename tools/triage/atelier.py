@@ -462,7 +462,7 @@ class Atelier:
                 if not nom or tmin.get(nom, (1,))[0] > s["temps"]:
                     continue
                 reste = lambda x: (fi.get(x, ("autre", "zimage"))[1] == "wan22") != (fam == "clip") or fi.get(x, ("autre",))[0] in garde
-                plus = [n for n in l.get("avec") or [] if fam == "image" and n in fi and fi[n][1] != "wan22" and tmin.get(n, (1,))[0] <= s["temps"]]
+                plus = [n for n in l.get("avec") or [] if n in fi and (fi[n][1] == "wan22") == (fam == "clip") and tmin.get(n, (1,))[0] <= s["temps"]]
                 base = _fusion(", ".join(x for x in base.split(", ") if x and reste(x.partition(":")[0])), ", ".join(plus), f"{nom}:{l['force']}" if l.get("force") else nom)
         return _fusion(base, s.get("loras"))
 
@@ -505,7 +505,7 @@ class Atelier:
             except (TypeError, ValueError):
                 force = 0
             lignes.append({"acte": a, "phrase": _s(l.get("phrase"), 500), "personnes": 2 if str(l.get("personnes")) == "2" else 1,
-                           "avec": [n for i, n in enumerate(l.get("avec") or []) if n in tout and n != nom and tout[n].get("famille") != "wan22" and n not in (l.get("avec") or [])[:i]][:4],
+                           "avec": [n for i, n in enumerate(l.get("avec") or []) if n in tout and n != nom and (tout[n].get("famille") == "wan22") == (tout[nom].get("famille") == "wan22") and n not in (l.get("avec") or [])[:i]][:4],
                            "cadrages": [k for k, *_ in BANC_CADRES if k in (l.get("cadrages") or [])], "force": force if 0 < force <= 2 else 0, "ok": bool(l.get("ok"))})
         if len(lignes) > 30:
             raise ValueError("30 positions au plus par LoRA")

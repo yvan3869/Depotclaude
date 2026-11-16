@@ -1044,9 +1044,9 @@ let A = null, AO = 'lieux', aT = null;
 const AC = {t: '', l: '', p: 0};  // cabine d'essayage : tenue, lieu et pose choisis
 const GR = {};  // garde-robe d'un personnage (tenues qui ont une image retenue), lue une fois pour la Production
 const ATABS = [['lieux', 'image', 'Lieux'], ['tenues', 'personnage', 'Garde-robe'], ['cabine', 'camera', 'Cabine'], ['corps', 'planche', 'Corps'], ['lora', 'lora', 'LoRA'], ['banc', 'camera', 'Banc d\'essai']];
-let AB = {lora: '', acte: '', phrase: '', partenaire: '', personnes: '1', force: '0.8', forces: ['0.6', '0.8', '1'], avec: [], coche: {}, orig: {}};  // banc d'essai : formulaire et images cochees, gardes entre deux rafraichissements
+let AB = {lora: '', acte: '', phrase: '', partenaire: '', personnes: '1', force: '0.8', forces: ['0.6', '0.8', '1'], avec: [], image: '', coche: {}, orig: {}};  // banc d'essai : formulaire et images cochees, gardes entre deux rafraichissements
 const af = n => `/afile/perso-${A.slug}/${n}`;
-const acout = n => usd((A.pod ? 0 : 0.05) + n * 0.01);
+const acout = n => usd((A.pod ? 0 : 0.05) + n * 0.01), CLIP3 = 0.15;  // CLIP3 : cout constate d'un banc de trois clips
 async function vueAtelier(slug, onglet) {
   if (ATABS.some(x => x[0] === onglet)) AO = onglet;
   A = await api('/api/a/b?slug=' + encodeURIComponent(slug));
@@ -1128,19 +1128,41 @@ function rendreAtelier() {
     const cadre = k => (B.banc.cadres.find(c => c[0] === k) || [k, k])[1], avec = B.loras.filter(x => x.capacite.length);
     if (HUBATT === null) { HUBATT = []; api('/api/h/etat').then(r => { HUBATT = r.retenues.filter(x => !x.chargee).map(x => x.label); if (HUBATT.length && AO === 'banc') rendreAtelier(); }).catch(() => {}); }
     const fv = f => String(f).replace('.', ','), ligneDe = x => ((B.loras.find(y => y.name === x.lora) || {capacite: []}).capacite.find(l => l.acte.trim().toLowerCase() === x.acte.trim().toLowerCase()));
+    const clipL = (B.loras.find(x => x.name === AB.lora) || {}).famille === 'wan22', LV = B.loras.filter(x => x.famille === 'wan22' && x.name !== AB.lora);
+    const dep = n => `<img loading="lazy" class="${AB.image === n ? 'on' : ''}" src="${af(n)}" data-a="bancimage" data-n="${n}" alt="">`;
+    const clipsDe = (x, co) => { const V = (x.clips || []).filter(n => n.split('_')[2] === String(x.serie));
+      return V.length ? `<div class="row haut" style="gap:8px;margin-top:6px;overflow-x:auto">${x.image ? `<div style="flex:none;text-align:center"><img loading="lazy" src="${af(x.image)}" style="width:min(22vw,120px);border-radius:6px" alt=""><div class="mut">départ</div></div>` : ''}${V.map(n => { const fo = +n.slice(-7, -4) / 100, on = co.includes(n);
+          return `<div style="flex:none;text-align:center"><video src="${af(n)}" controls loop muted playsinline preload="metadata" style="width:min(40vw,200px);border-radius:6px;border:3px solid ${on ? 'var(--acc)' : 'transparent'}"></video><div><button class="s${on ? ' p' : ''}" data-a="banccoche" data-cle="${x.cle}" data-n="${n}">${on ? ic('valider') : ''}poids ${fv(fo)}</button></div></div>`; }).join('')}</div>
+        <div class="mut">Regarder les clips, puis toucher le poids de ceux qui tiennent : le mouvement est là, le visage reste le sien, rien ne se déforme. Si plusieurs sont cochés, le poids le plus bas est gardé.</div>
+        <div class="row" style="margin-top:6px"><button class="p" data-a="bancnoter" data-cle="${x.cle}">${ic('valider')}Enregistrer dans la fiche (${co.length} coché(s))</button><span class="mut">${co.length ? '' : 'Aucun coché : la position sera notée « ne tient pas » pour cette LoRA.'}</span></div>` : '<div class="mut">Clips en cours de calcul, ou calcul échoué.</div>'; };
     corps = `<div class="panel"><div class="mut">Le banc dit ce qu'une LoRA sait vraiment faire, et met en service celles qui marchent.</div>
       <details class="pli" data-sec="bancguide"${ouv('bancguide', true)}><summary>Marche à suivre</summary>
         <div style="font-size:13.5px;line-height:1.5"><b>1.</b> La LoRA doit être chargée : c'est fait dans le <a href="/hub">Matériel</a>. Une LoRA seulement retenue n'apparaît pas ici.<br>
         <b>2.</b> Remplir « Essayer une position » et lancer : 9 images, avec le visage de ${esc(A.nom)}, à trois cadrages et trois poids.<br>
         <b>3.</b> Dans « Séries du banc », toucher les images réussies, puis « Enregistrer dans la fiche ».<br>
         <b>4.</b> C'est tout. La position entre dans la liste du script. Quand un script l'écrit aux temps 4 ou 5, la Production charge seule cette LoRA, au poids que vos images ont désigné, avec le texte de l'essai. Rien à régler ailleurs : ni LoRA par défaut, ni script.<br>
-        <b>Si rien ne tient :</b> « Reprendre ces réglages » sur la série, puis changer une seule chose : le texte (un prompt d'exemple de l'auteur), une LoRA ajoutée (champ 5), ou les poids (champ 6). Relancer.</div></details>
+        <b>Si rien ne tient :</b> « Reprendre ces réglages » sur la série, puis changer une seule chose : le texte (un prompt d'exemple de l'auteur), une LoRA ajoutée (champ 5), ou les poids (champ 6). Relancer.<br>
+        <b>LoRA de clip :</b> même chemin. On choisit une image de départ qui montre déjà la position, on écrit le mouvement, et le banc rend trois clips de 5 secondes, un par poids. On coche ceux qui tiennent.</div></details>
       ${HUBATT && HUBATT.length ? `<div class="aide avt">${HUBATT.length} LoRA retenue(s) dans le Matériel ne sont pas encore chargées : elles ne peuvent pas être essayées. <a href="/hub">Les charger</a></div>` : ''}</div>
       <h2>Essayer une position</h2><div class="panel">
-        <label>1. LoRA à essayer<select data-ab="lora"><option value="">Choisir</option>${LI.map(x => `<option value="${esc(x.name)}" ${AB.lora === x.name ? 'selected' : ''}>${esc(x.label)}</option>`).join('')}</select>${aide('Les LoRA d\'image inscrites. Une LoRA de clip ne s\'essaie pas ici : elle s\'inscrit sans essai, plus bas.')}</label>
+        <label>1. LoRA à essayer<select data-ab="lora"><option value="">Choisir</option>${B.loras.map(x => `<option value="${esc(x.name)}" ${AB.lora === x.name ? 'selected' : ''}>${esc(x.label)}${x.famille === 'wan22' ? ' (clip)' : ''}</option>`).join('')}</select>${aide('Les LoRA inscrites. Une LoRA d\'image donne 9 images ; une LoRA de clip, marquée « (clip) », donne 3 clips à partir d\'une image de départ.')}</label>
         <label>2. Nom de la position (anglais, deux ou trois mots)<input data-ab="acte" maxlength="80" placeholder="exemple : sitting cross-legged" value="${esc(AB.acte)}"></label>
         <div class="mut" style="font-size:12.5px;margin:-2px 0 10px">Une simple étiquette, pour la liste où le script choisit. Elle ne sert pas à fabriquer l'image.</div>
-        <label>3. Texte qui fabrique l'image (anglais)<textarea data-ab="phrase" rows="3" maxlength="500" placeholder="mots déclencheurs de la LoRA, puis ce qu'on doit voir">${esc(AB.phrase)}</textarea></label>
+        ${clipL ? `<label>3. Mouvement (anglais)<textarea data-ab="phrase" rows="3" maxlength="500" placeholder="ce qui bouge, à quel rythme, et ce que fait la caméra">${esc(AB.phrase)}</textarea></label>
+        <div class="mut" style="font-size:12.5px;margin:-2px 0 10px">Ce qui doit bouger dans le clip. Les mots déclencheurs de la LoRA sont ajoutés tout seuls. Le plus sûr : partir d'un prompt d'exemple de l'auteur, juste dessous.</div>
+        ${origine(AB.lora)}
+        <label>4. Image de départ</label>
+        <div class="mut" style="font-size:12.5px;margin:2px 0 6px">Le clip part de cette image : elle doit déjà montrer la position. Toucher une image ci-dessous, ou en envoyer une.</div>
+        ${A.departs.length ? `<div class="mut">Images envoyées</div><div class="bgal">${A.departs.map(dep).join('')}</div>` : ''}
+        ${A.banc.filter(x => !x.clip).map(x => { const I = x.images.filter(n => n.split('_')[2] === String(x.serie));
+          return I.length ? `<details class="pli" data-sec="dep${x.cle}"${ouv('dep' + x.cle, I.includes(AB.image))}><summary>Banc : ${esc(x.acte)} <small>${I.length} image(s)</small></summary><div class="bgal">${I.map(dep).join('')}</div></details>` : ''; }).join('')}
+        <div class="row" style="margin:6px 0 10px"><button class="s" data-a="bancdepart">${ic('importer')}Envoyer une image</button>${AB.image.startsWith('bd_') ? `<button class="s" data-a="bancdepartoter">${ic('supprimer')}Retirer l'image choisie</button>` : ''}<span class="mut">${AB.image ? 'Image choisie.' : 'Aucune image choisie.'}</span></div>
+        ${LV.length ? `<details class="pli" data-sec="bancavec"${ouv('bancavec', AB.avec.length > 0)}><summary>5. LoRA de clip ajoutées à l'essai <small>${AB.avec.filter(n => n !== AB.lora).length} cochée(s)</small></summary>
+          <div class="mut">Pour une LoRA de clip qui ne marche bien qu'avec une autre. Deux au plus, chacune à son poids habituel. Les LoRA de mouvement et de vitesse par défaut sont déjà chargées.</div>
+          <div class="tuiles">${LV.map(x => `<label class="c"><input type="checkbox" data-abv="${esc(x.name)}" ${AB.avec.includes(x.name) ? 'checked' : ''}><span>${esc(x.label)}</span></label>`).join('')}</div></details>` : ''}
+        <label>6. Poids à essayer</label><div class="row">${[0, 1, 2].map(i => `<input data-abf="${i}" type="number" step="0.05" min="0.1" max="2" style="width:84px" value="${esc(AB.forces[i])}">`).join('')}</div>
+        <div class="mut" style="font-size:12.5px;margin:2px 0 10px">Trois poids différents, entre 0,1 et 2 : un clip par poids, tout le reste identique. D'habitude : ${B.banc.forces.map(fv).join(' ; ')}. Corps ou visage qui se déforme : baisser. Mouvement absent : monter.</div>
+        <div class="row"><button class="p" data-a="banclancer">${ic('lancer')}Lancer le banc</button><span class="mut">3 clips de 5 secondes, environ ${usd(CLIP3)}, une dizaine de minutes</span></div>` : `<label>3. Texte qui fabrique l'image (anglais)<textarea data-ab="phrase" rows="3" maxlength="500" placeholder="mots déclencheurs de la LoRA, puis ce qu'on doit voir">${esc(AB.phrase)}</textarea></label>
         <div class="mut" style="font-size:12.5px;margin:-2px 0 10px">C'est le prompt : d'abord les mots déclencheurs de la LoRA (déjà posés s'ils sont connus), puis une description de ce qu'on doit voir. Les mots déclencheurs seuls ne suffisent pas. Le plus sûr : prendre un prompt d'exemple de l'auteur, juste dessous. Le visage, le cadrage et le style sont ajoutés tout seuls.</div>
         ${origine(AB.lora)}
         <div class="row haut"><div style="width:110px"><label>4. Personnes<select data-ab="personnes"><option value="1" ${AB.personnes === '1' ? 'selected' : ''}>1</option><option value="2" ${AB.personnes === '2' ? 'selected' : ''}>2</option></select></label></div>
@@ -1151,9 +1173,9 @@ function rendreAtelier() {
           <div class="tuiles">${LI.filter(x => x.name !== AB.lora).map(x => `<label class="c"><input type="checkbox" data-abv="${esc(x.name)}" ${AB.avec.includes(x.name) ? 'checked' : ''}><span>${esc(x.label)}</span></label>`).join('')}</div></details>` : ''}
         <label>6. Poids à essayer</label><div class="row">${[0, 1, 2].map(i => `<input data-abf="${i}" type="number" step="0.05" min="0.1" max="2" style="width:84px" value="${esc(AB.forces[i])}">`).join('')}</div>
         <div class="mut" style="font-size:12.5px;margin:2px 0 10px">Trois poids différents pour la LoRA essayée, entre 0,1 et 2. Chaque cadrage est fait aux trois. Les images que vous cochez disent lequel garder. D'habitude : ${B.banc.forces.map(fv).join(' ; ')}. Image abîmée ou visage qui change : baisser. Position absente : monter.</div>
-        <div class="row"><button class="p" data-a="banclancer" ${A.lora ? '' : 'disabled'}>${ic('lancer')}Lancer le banc</button><span class="mut">${A.lora ? `9 images, environ ${acout(9)}` : 'Il faut d\'abord la LoRA du visage (onglet LoRA).'}</span></div>
+        <div class="row"><button class="p" data-a="banclancer" ${A.lora ? '' : 'disabled'}>${ic('lancer')}Lancer le banc</button><span class="mut">${A.lora ? `9 images, environ ${acout(9)}` : 'Il faut d\'abord la LoRA du visage (onglet LoRA).'}</span></div>`}
         <details class="pli" data-sec="bancsans"${ouv('bancsans', false)}><summary>Inscrire sans essai</summary>
-          <div class="mut">Pour une position déjà éprouvée, ou une LoRA de clip. Elle entre dans la liste tout de suite, aux trois cadrages.</div>
+          <div class="mut">Pour une position déjà éprouvée. Elle entre dans la liste tout de suite, aux trois cadrages.</div>
           <div class="row haut"><div class="g"><label>LoRA<select data-ab="lora2"><option value="">Choisir</option>${B.loras.map(x => `<option value="${esc(x.name)}" ${AB.lora2 === x.name ? 'selected' : ''}>${esc(x.label)}${x.famille === 'wan22' ? ' (clip)' : ''}</option>`).join('')}</select></label></div>
             <div style="width:110px"><label>Force<input data-ab="force" type="number" step="0.05" min="0.1" max="2" value="${esc(AB.force)}"></label></div></div>
           <div class="row"><button data-a="bancinscrire">${ic('valider')}Inscrire la position ci-dessus</button></div></details></div>`
@@ -1161,10 +1183,10 @@ function rendreAtelier() {
           const li = x.note ? ligneDe(x) : null, bilan = !x.note ? '' : x.note.bonnes && li && li.ok
             ? `<div class="aide voir" style="margin:6px 0"><b>En service.</b> Cette position est dans la liste du script${li.force ? `, au poids ${fv(li.force)}` : ''}${li.cadrages.length ? ` (${li.cadrages.map(cadre).map(esc).join(', ')})` : ''}. Rien d'autre à faire : au prochain script, le scénariste peut l'écrire aux temps 4 et 5, et la Production charge cette LoRA toute seule.</div>`
             : `<div class="aide avt" style="margin:6px 0"><b>Ne tient pas.</b> La position reste hors de la liste. « Reprendre ces réglages », puis changer une seule chose : le texte, une LoRA ajoutée, ou les poids.</div>`;
-          return `<div class="panel"><div class="row"><b class="g">${esc(x.acte)}</b><span class="badge">${nomL(x.lora)}</span></div>${bilan}
+          return `<div class="panel"><div class="row"><b class="g">${esc(x.acte)}</b><span class="badge">${nomL(x.lora)}</span>${x.clip ? '<span class="badge">clip</span>' : ''}</div>${bilan}
             <div class="row" style="flex-wrap:wrap;gap:6px;margin:4px 0"><button class="s" data-a="bancreprendre" data-cle="${x.cle}">${ic('refaire')}Reprendre ces réglages</button><button class="s" data-a="bancautre" data-cle="${x.cle}">Autre position, même LoRA</button><button class="s" data-a="bancoter" data-cle="${x.cle}">${ic('supprimer')}Retirer de la page</button></div>
-            <div class="mut">${esc(x.date)} · ${x.personnes} personne(s)${(x.avec || []).length ? ' · avec ' + x.avec.map(nomL).join(', ') : ''}${x.note ? ` · notée le ${esc(x.note.date)} : ${x.note.bonnes} image(s) retenue(s)` : ' · pas encore notée'}</div>
-            ${I.length ? B.banc.cadres.map(([ck, lab]) => `<div class="mut" style="margin-top:4px">${esc(lab)}</div><div class="bgal pl">${(x.forces || B.banc.forces).map(fo => { const n = `b_${x.cle}_${x.serie}_${ck}_${String(Math.round(fo * 100)).padStart(3, '0')}.png`;
+            <div class="mut">${esc(x.date)} · ${x.clip ? '3 clips' : x.personnes + ' personne(s)'}${(x.avec || []).length ? ' · avec ' + x.avec.map(nomL).join(', ') : ''}${x.note ? ` · notée le ${esc(x.note.date)} : ${x.note.bonnes} ${x.clip ? 'clip(s) retenu(s)' : 'image(s) retenue(s)'}` : ' · pas encore notée'}</div>
+            ${x.clip ? clipsDe(x, co) : I.length ? B.banc.cadres.map(([ck, lab]) => `<div class="mut" style="margin-top:4px">${esc(lab)}</div><div class="bgal pl">${(x.forces || B.banc.forces).map(fo => { const n = `b_${x.cle}_${x.serie}_${ck}_${String(Math.round(fo * 100)).padStart(3, '0')}.png`;
                 return I.includes(n) ? `<div style="position:relative;flex:none;text-align:center"><img loading="lazy" class="${co.includes(n) ? 'on' : ''}" src="${af(n)}" data-a="banccoche" data-cle="${x.cle}" data-n="${n}" alt=""><div class="mut">poids ${fv(fo)}</div></div>` : ''; }).join('')}</div>`).join('')
               + `<div class="mut">Toucher les images qui tiennent : la position est là, le visage est le sien, rien n'est déformé.</div>
                 <div class="row" style="margin-top:6px"><button class="p" data-a="bancnoter" data-cle="${x.cle}">${ic('valider')}Enregistrer dans la fiche (${co.length} cochée(s))</button><span class="mut">${co.length ? '' : 'Aucune cochée : la position sera notée « ne tient pas » et restera hors de la liste.'}</span></div>` : '<div class="mut">Images en cours de calcul, ou calcul échoué.</div>'}</div>`; }).join('') : '')
@@ -1194,7 +1216,7 @@ function rendreAtelier() {
     <h2>Atelier de ${esc(A.nom)}</h2>
     <div class="steps">${etapes.map(([l, ok], i) => `<span class="${ok ? 'done' : i === proch ? 'cur' : ''}">${i + 1}. ${l}</span>`).join('')}</div>
     <div class="chips" style="margin-bottom:8px">${ATABS.map(([k, i, l]) => `<button class="chip ${k === AO ? 'on' : ''}" data-a="bonglet" data-o="${k}">${l}</button>`).join('')}</div>
-    ${j ? `<div class="panel"><b>${enc ? 'Calcul en cours' : j.etat === 'termine' ? 'Dernier calcul terminé' : 'Dernier calcul ' + esc(j.etat)}</b> : ${esc(j.quoi)}, ${j.faites} image(s) sur ${j.n}${j.echecs ? `, ${j.echecs} échec(s)` : ''}${j.cout != null ? ', ' + usd(j.cout) : ''}
+    ${j ? `<div class="panel"><b>${enc ? 'Calcul en cours' : j.etat === 'termine' ? 'Dernier calcul terminé' : 'Dernier calcul ' + esc(j.etat)}</b> : ${esc(j.quoi)}, ${j.faites} sur ${j.n}${j.echecs ? `, ${j.echecs} échec(s)` : ''}${j.cout != null ? ', ' + usd(j.cout) : ''}
       ${enc ? '<div class="mut">La page se met à jour seule. Vous pouvez la quitter : le calcul continue.</div>' : ''}${j.log && (enc || j.etat !== 'termine') ? `<div class="mut">${esc(j.log)}</div>` : ''}</div>` : pris ? '<div class="panel mut">Un autre calcul est en cours (Production ou Essais) : les lancements d\'ici attendent sa fin.</div>' : ''}
     ${corps}`;
   if (AO === 'lora') bDevis();
@@ -1206,6 +1228,14 @@ async function bEnvoi(f, q, cle) {  // photo du telephone : reduite a 1280 px da
   const r = await api('/api/a/b/importer', {slug: A.slug, quoi: q, cle, png: c.toDataURL('image/png')});
   toast(q === 'lieux' ? 'Photo du lieu en place' : 'Photo reçue : le vêtement à plat arrive', true);
   return bMaj(r.lieux ? r : null);
+}
+async function bDepart(f) {  // image de depart du banc des clips : reduite a 1280 px dans la page, envoyee en PNG
+  const im = await createImageBitmap(f), k = Math.min(1, 1280 / Math.max(im.width, im.height)), c = document.createElement('canvas');
+  c.width = Math.round(im.width * k); c.height = Math.round(im.height * k);
+  c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+  const r = await api('/api/a/b/banc/depart', {slug: A.slug, png: c.toDataURL('image/png')});
+  AB.image = r.depart; toast('Image de départ reçue', true);
+  return bMaj(r);
 }
 async function bDevis() {
   const el = $('#bdevis'); if (!el) return;
@@ -1283,18 +1313,25 @@ Object.assign(actions, {
     if (!AB.lora || !AB.acte.trim()) return toast('Choisir la LoRA et écrire la position');
     const fo = AB.forces.map(f => +String(f).replace(',', '.'));
     if (new Set(fo).size !== 3 || fo.some(f => !(f >= 0.1 && f <= 2))) return toast('Poids : trois valeurs différentes, entre 0,1 et 2');
-    if (!confirm(`Lancer le banc : 9 images, environ ${acout(9)} ?`)) return;
-    await api('/api/a/b/banc', {slug: A.slug, lora: AB.lora, acte: AB.acte, phrase: AB.phrase, personnes: AB.personnes, partenaire: AB.partenaire, avec: AB.avec.filter(n => n !== AB.lora), forces: fo}); toast('Banc lancé', true); await bMaj(); },
+    const clip = (E.bibliotheque.loras.find(y => y.name === AB.lora) || {}).famille === 'wan22';
+    if (clip && !AB.phrase.trim()) return toast('Écrire le mouvement');
+    if (clip && !AB.image) return toast('Choisir l\'image de départ');
+    if (!confirm(clip ? `Lancer le banc : 3 clips de 5 secondes, environ ${usd(CLIP3)} ?` : `Lancer le banc : 9 images, environ ${acout(9)} ?`)) return;
+    await api('/api/a/b/banc', {slug: A.slug, lora: AB.lora, acte: AB.acte, phrase: AB.phrase, image: AB.image, personnes: AB.personnes, partenaire: AB.partenaire, avec: AB.avec.filter(n => n !== AB.lora), forces: fo}); toast('Banc lancé', true); await bMaj(); },
+  bancimage: el => { AB.image = AB.image === el.dataset.n ? '' : el.dataset.n; rendreAtelier(); },
+  bancdepart: () => { const i = document.createElement('input'); i.type = 'file'; i.accept = 'image/*';
+    i.onchange = () => i.files[0] && bDepart(i.files[0]).catch(e => toast(e.message)); i.click(); },
+  bancdepartoter: async () => { if (!confirm('Retirer cette image de départ ?')) return; const n = AB.image; AB.image = ''; bMaj(await api('/api/a/b/banc/depart/retirer', {slug: A.slug, image: n})); },
   bancmot: el => { const m = (AB.orig[AB.lora] || {mots: []}).mots[+el.dataset.i]; if (!m) return;
     AB.phrase = (AB.phrase.trim() ? AB.phrase.trim().replace(/,$/, '') + ', ' : '') + m; AB.phrase = AB.phrase.slice(0, 500); rendreAtelier(); },
   bancex: el => { const p = (AB.orig[AB.lora] || {exemples: []}).exemples[+el.dataset.i]; if (!p) return;
     AB.phrase = p.slice(0, 500); rendreAtelier(); toast(p.length > 500 ? 'Phrase copiée, coupée à 500 caractères' : 'Phrase copiée', true); },
   banccoche: el => { const l = AB.coche[el.dataset.cle] ||= [], n = el.dataset.n, i = l.indexOf(n); i < 0 ? l.push(n) : l.splice(i, 1); rendreAtelier(); },
   bancnoter: async el => { const k = el.dataset.cle, l = AB.coche[k] || [];
-    if (!l.length && !confirm('Aucune image cochée : noter que cette position ne tient pas avec cette LoRA ?')) return;
-    const r = await api('/api/a/b/banc/noter', {slug: A.slug, cle: k, bonnes: l}); E.bibliotheque = r.bibliotheque; delete AB.coche[k]; toast(l.length ? 'Position en service : elle est dans la liste du script' : 'Notée « ne tient pas »', true); bMaj(r); },
+    if (!l.length && !confirm('Rien de coché : noter que cette position ne tient pas avec cette LoRA ?')) return;
+    const r = await api('/api/a/b/banc/noter', {slug: A.slug, cle: k, bonnes: l}); E.bibliotheque = r.bibliotheque; delete AB.coche[k]; toast(l.length ? 'En service : la Production chargera cette LoRA pour cette position' : 'Notée « ne tient pas »', true); bMaj(r); },
   bancreprendre: el => { const x = A.banc.find(y => y.cle === el.dataset.cle); if (!x) return;
-    Object.assign(AB, {lora: x.lora, acte: x.acte, phrase: x.phrase || '', personnes: String(x.personnes || 1), partenaire: x.personnes === 2 ? x.partenaire || '' : '', avec: (x.avec || []).slice(), forces: (x.forces || E.bibliotheque.banc.forces).map(String)});
+    Object.assign(AB, {lora: x.lora, acte: x.acte, phrase: x.phrase || '', personnes: String(x.personnes || 1), partenaire: x.personnes === 2 ? x.partenaire || '' : '', avec: (x.avec || []).slice(), image: x.image || '', forces: (x.forces || E.bibliotheque.banc.forces).map(String)});
     rendreAtelier(); window.scrollTo({top: 0}); toast('Réglages repris : changer une chose, puis relancer', true); },
   bancautre: el => { const x = A.banc.find(y => y.cle === el.dataset.cle); if (!x) return;
     Object.assign(AB, {lora: x.lora, acte: '', phrase: (E.bibliotheque.loras.find(y => y.name === x.lora) || {}).trigger || '', avec: (x.avec || []).slice()}); rendreAtelier(); window.scrollTo({top: 0}); },
@@ -1324,7 +1361,8 @@ vue.addEventListener('change', e => { const v = e.target.dataset.abv;
   if (v) { const i = AB.avec.indexOf(v); e.target.checked ? i < 0 && AB.avec.push(v) : i >= 0 && AB.avec.splice(i, 1); const sm = e.target.closest('details').querySelector('summary small'); if (sm) sm.textContent = `${AB.avec.filter(n => n !== AB.lora).length} cochée(s)`; } });
 vue.addEventListener('change', e => { if (e.target.dataset.ab !== 'lora') return;
   const L = E.bibliotheque.loras, x = L.find(y => y.name === AB.lora), anc = L.map(y => y.trigger).filter(Boolean);
-  if (x && (!AB.phrase.trim() || anc.includes(AB.phrase.trim()))) AB.phrase = x.trigger || '';
+  if (x && (!AB.phrase.trim() || anc.includes(AB.phrase.trim()))) AB.phrase = x.famille === 'wan22' ? '' : x.trigger || '';
+  AB.avec = AB.avec.filter(n => ((L.find(y => y.name === n) || {}).famille === 'wan22') === (x && x.famille === 'wan22'));
   rendreAtelier(); bancOrigine(AB.lora); });
 
 vue.addEventListener('change', e => { if (e.target.dataset.cmt) { CM.t = e.target.checked ? [...CM.t, e.target.dataset.cmt].sort() : CM.t.filter(t => t !== e.target.dataset.cmt); rendreComparer(); } if (e.target.dataset.cm) { CM[e.target.dataset.cm] = e.target.value; rendreComparer(); } if (e.target.dataset.ac) { AC[e.target.dataset.ac] = e.target.value; rendreAtelier(); } if (e.target.id === 'bpass') essai(bDevis)(); if (e.target.id === 'bn') { const c = $('#bcout'); if (c && (A.lora || A.visage.choix)) c.textContent = 'environ ' + acout(+e.target.value); } });
