@@ -78,6 +78,88 @@ Fichier de suivi : il dit ce qui a été constaté, pourquoi, quelles parades so
 - [ ] « Pose gardée » : le squelette d'une image validée (à deux aussi) est rangé sous le nom de sa position et resservi.
 - [ ] Brouillon à deux personnages.
 
+## Approche élargie : « tout passe par un brouillon contrôlé » (16/11/2026, seconde demande)
+
+Demande du propriétaire : tout automatiser, résultat le meilleur possible dès le premier tirage, sans compter le temps.
+Le personnage change souvent de position et d'expression et perd des habits au fil des scènes ; le lieu et la lumière,
+eux, ne changent pas : le lieu est dans la bibliothèque du personnage, la lumière est celle des images de la scène d'avant.
+
+Idée : aujourd'hui l'image finale est tirée « à l'aveugle » depuis un texte, puis notée. À la place, chaque scène passe
+d'abord par un **brouillon** peu coûteux qui fixe tout ce qui doit tenir (pièce, lumière, vêtements restants, position,
+nombre de personnes, point de vue). On contrôle le brouillon, on le refait s'il est faux, et seulement ensuite Z-Image
+et ses LoRA redessinent le personnage par-dessus. Le rendu final reste Z-Image + LoRA aux temps 3 et 4.
+
+### A. Le brouillon enchaîné (l'état se transmet par l'image, plus par le texte)
+
+- [ ] Brouillon de chaque scène par retouche à plusieurs images (Qwen-Image-Edit, déjà dans le pilote) avec :
+  image 1 = **elle, telle qu'à la scène d'avant** (le brouillon précédent ; à la première scène, l'image neutre et la
+  tenue de la fiche) ; image 2 = **la photo d'origine du lieu** (toujours l'originale, jamais une image déjà fabriquée,
+  pour que la pièce ne dérive pas) ; image 3 au besoin = la fiche du partenaire.
+- [ ] Le texte du brouillon ne dit que ce qui change : position, cadrage, ce qui est retiré ou déplacé, expression.
+  Un vêtement retiré reste donc retiré aux scènes suivantes sans que le script ait à le redire.
+- [ ] Entre deux temps : le dernier brouillon du temps N sert de départ au temps N+1 (la continuité avec le temps 2
+  demandée par le propriétaire).
+- [ ] Chaîne cassée (brouillon refusé trois fois) : on repart de la dernière image d'état valable, la scène est signalée.
+
+### B. Le partenaire
+
+- [ ] Fiche du partenaire dans la bibliothèque du personnage (homme adulte fictif, image habillée, tous publics) ;
+  `continuite.partenaire` le décrit en une ligne.
+- [ ] Vue écrite une fois par temps (`atelier.vue` : `pov` ou `tiers`) ; à défaut, la chaîne la choisit elle-même
+  (première scène du temps qui cite un partenaire) et la garde pour tout le temps.
+- [ ] `tiers` : brouillon à deux (elle + partenaire + lieu). `pov` : brouillon à une personne, « vu par ses yeux »,
+  au plus des mains au premier plan ; le contrôleur refuse une seconde personne entière.
+- [ ] Image finale d'une scène à deux : pas de squelette (il ne sait placer qu'une personne) mais « image de départ »
+  depuis le brouillon à deux, force 0,6 à 0,7. À essayer ensuite : contrôle par la profondeur du brouillon.
+
+### C. De quoi le brouillon tient l'image finale
+
+- [ ] Seule, plan large ou moyen : squelette + décor gelé à 0,8 (essai du 15/11 : pièce identique, 4 sur 4).
+- [ ] Gros plan : départ depuis un brouillon serré, force 0,6 (à essayer ; aujourd'hui le gros plan est libre).
+- [ ] À deux : voir B.
+- [ ] Étalonnage automatique sur le serveur, sans GPU : les couleurs de l'image finale sont accordées à celles de la
+  photo du lieu (fond, hors zone du personnage) ; sur un gros plan, à celles de la peau de l'image d'avant.
+- [ ] Expression : champ `expression` par scène, redit au moment de la reprise du visage.
+
+### D. Le contrôle
+
+- [ ] Brouillon relu avant le rendu final : position, nombre de personnes, vue, lieu, vêtements. Trois essais.
+- [ ] Image finale comparée **à des images**, pas seulement au texte : à la photo du lieu (même pièce ?) et au
+  brouillon (mêmes vêtements, même position ?).
+- [ ] Relance aussi quand le lieu, la tenue ou la vue sont faux, pas seulement quand la note est basse.
+- [ ] Relances qui changent quelque chose : 1re = autre graine ; 2e = pose plus forte, LoRA de style plus faibles ;
+  3e = force de redessin plus basse (l'image reste plus près du brouillon).
+- [ ] Écran : « contrôle en cours », puis le défaut restant par scène, en clair.
+
+### E. Bibliothèques qui grandissent toutes seules
+
+- [ ] Lieu à plusieurs vues : à partir d'une photo, un jeu de 4 à 6 angles de la même pièce, fabriqué une fois ;
+  la scène prend la vue qui convient à son cadrage.
+- [ ] Poses gardées : le squelette (ou le brouillon) d'une image validée par le propriétaire est rangé par position,
+  vue et cadrage, et resservi en premier la fois suivante.
+- [ ] Lumière : relevé chiffré (teinte, clarté, contraste) de la dernière image validée du temps précédent, appliqué
+  comme cible de l'étalonnage du temps suivant.
+
+### F. Côté script (le scénariste), sans en dépendre
+
+La chaîne doit tenir même avec un script comme celui de p0005. Les champs ci-dessous l'aident mais ne sont pas exigés :
+`atelier.vue` par temps, `continuite.partenaire`, `tenue` par scène (héritée de la scène d'avant si absente),
+`expression`. À ajouter ensemble dans `atelier.py`, `verifier.py` et `docs/agents.md`, avec un nouveau modèle de plan.
+
+### Programme d'essais (tous publics, hors projets du propriétaire)
+
+Une séquence de 5 scènes dans un lieu de la bibliothèque de Léa, ancienne voie contre nouvelle :
+1. debout, veste et robe ; 2. assise, veste retirée et posée ; 3. allongée, chaussures retirées ;
+4. plan moyen, un ami assis à côté d'elle (vue extérieure) ; 5. vue par les yeux de l'ami : elle lui tend une tasse.
+
+- [ ] Essai 1 : brouillons enchaînés seuls (5 brouillons, 2 graines) : la veste reste-t-elle retirée en 3, 4, 5 ?
+  la pièce est-elle la même ? combien de personnes en 4 et en 5 ?
+- [ ] Essai 2 : rendu final Z-Image depuis ces brouillons (gelé pour 1 à 3, départ 0,6 et 0,7 pour 4, départ pour 5).
+- [ ] Essai 3 : étalonnage et comparaison image à image par le contrôleur sur ces mêmes images.
+- [ ] Ensuite : portage dans le pilote (`poses_imposees`), puis `atelier.py` (file vide), puis essai sur p0004.
+
+Ordre de construction : A puis B (le plus gros gain), D en même temps (sans lui rien n'est automatique), C, puis E et F.
+
 ## Règles de travail
 
 - Essais de l'assistant : tous publics, sur p0004, file d'attente vide. Le propriétaire juge les temps 3 et 4.
@@ -87,3 +169,4 @@ Fichier de suivi : il dit ce qui a été constaté, pourquoi, quelles parades so
 ## Journal du chantier
 
 - 16/11/2026, 02 h 50 : diagnostic fait, ce fichier écrit. Rien de construit encore. Une chaîne du propriétaire tourne.
+- 16/11/2026, 03 h 20 : approche élargie « brouillon contrôlé » écrite (sections A à F, programme d'essais). Aucun essai : un entraînement du propriétaire tourne.
