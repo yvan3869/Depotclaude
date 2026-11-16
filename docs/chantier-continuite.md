@@ -160,6 +160,20 @@ Une séquence de 5 scènes dans un lieu de la bibliothèque de Léa, ancienne vo
 
 Ordre de construction : A puis B (le plus gros gain), D en même temps (sans lui rien n'est automatique), C, puis E et F.
 
+## Nettoyage demandé par le propriétaire (16/11/2026)
+
+« Nettoyer tes essais et les modèles qui ne servent pas sur RunPod. » Accord donné pour ces deux choses seulement.
+
+- [ ] Volume RunPod `lea-models` : dresser la liste des fichiers de modèles avec leur taille, la comparer à ce que
+  la chaîne appelle (`persona/production.yaml`, `server/pilot/workflows.py`, `controle.py`, LoRA de la bibliothèque et
+  des projets). Supprimer : les sorties et images déposées par mes essais (`ga_*` dans `input/` et `output/` de ComfyUI),
+  les modèles téléchargés pour un essai et que plus rien n'appelle. Ne pas toucher : les LoRA du propriétaire, les
+  jeux d'entraînement, le contrôleur, tout fichier dont l'usage n'est pas sûr (le lister et demander).
+- [ ] Serveur : dossiers `server/data/work/girls-ai-essai-*` des essais terminés ; planches `p0004essai_*` anciennes
+  de `server/data/inbox/` (garder celles de l'essai en cours).
+- [ ] Noter dans `docs/journal-projet.md` ce qui a été supprimé et la place regagnée (avant / après).
+- Se fait avec un pod : donc quand la chaîne est libre, à la suite d'un essai pour ne pas payer un pod de plus.
+
 ## Règles de travail
 
 - Essais de l'assistant : tous publics, sur p0004, file d'attente vide. Le propriétaire juge les temps 3 et 4.
@@ -169,4 +183,6 @@ Ordre de construction : A puis B (le plus gros gain), D en même temps (sans lui
 ## Journal du chantier
 
 - 16/11/2026, 02 h 50 : diagnostic fait, ce fichier écrit. Rien de construit encore. Une chaîne du propriétaire tourne.
-- 16/11/2026, 03 h 20 : approche élargie « brouillon contrôlé » écrite (sections A à F, programme d'essais). Aucun essai : un entraînement du propriétaire tourne.
+- 16/11/2026, 03 h 05 : approche élargie « brouillon contrôlé » écrite (sections A à F, programme d'essais). Aucun essai : un entraînement du propriétaire tourne.
+- 16/11/2026, 03 h 10 : essai 1 et 2 écrits (lanceur `ch1.py` du dossier de travail de la session : 5 scènes sur le canapé de la bibliothèque, brouillons anciens et enchaînés, partenaire, images finales gelées ou « de départ »). En attente : la chaîne est occupée par un entraînement du propriétaire ; l'essai part seul quand elle est libre. Sorties dans `server/data/work/girls-ai-essai-chaine/`. Nettoyage demandé, consigné ci-dessus.
+- Si la session s'arrête ici : reprendre par l'essai 1 (le réécrire d'après la section « Programme d'essais » si le lanceur a disparu), puis suivre l'ordre de construction A, B, D, C, E, F et le nettoyage.
