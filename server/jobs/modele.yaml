@@ -197,6 +197,7 @@ shots:
     #                        # OBLIGATOIRE aux temps 2 a 4 : la liste ENTIERE des vetements de la tenue de la fiche de
     #                        # continuite qu'elle ne porte plus a cet instant, avec les memes mots que la fiche. Elle ne
     #                        # fait que s'allonger d'un plan a l'autre, sauf vetement remis. "retire: []" : elle porte tout.
+    #                        # Au temps 1, si "retire" n'est pas vide, "still" dit ce qu'elle porte encore ("wearing ...").
     # etat: "the blazer lies folded on the armrest, the sneakers stand on the floor in front of the sofa"
     #                        # facultatif : ou sont passes les vetements retires, et comment le reste est porte (ouvert,
     #                        # releve, glisse). A redire a chaque plan tant que c'est vrai : c'est l'etat entier.

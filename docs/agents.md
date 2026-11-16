@@ -515,6 +515,8 @@ les habits tiennent d'une image a l'autre, le script dit l'etat, la Production f
   le reste est porte (ouvert, releve, glisse). C'est l'etat entier a cet instant : le redire tant qu'il est vrai.
 - `still` continue de dire ce qu'elle porte a cet instant ; `retire` et `etat` ne le remplacent pas, ils doivent dire
   la meme chose.
+- Au temps 1, un plan dont `retire` n'est pas vide dit lui aussi dans `still` ce qu'elle porte encore (`"wearing a white
+  t-shirt and blue jeans, barefoot"`) : la tenue entiere de la fiche n'est alors plus ajoutee (elle remettrait le vetement).
 - `atelier.partenaire` : l'autre personne, decrite **une seule fois** (age adulte, physique, habits). Obligatoire des
   qu'un plan remplit `autres`. Dans `autres`, ne dire que ou il est et ce qu'il fait (`"he sits next to her on the
   sofa, turned toward her"`) : son image est faite une fois puis ajoutee a chaque plan, il reste donc le meme.

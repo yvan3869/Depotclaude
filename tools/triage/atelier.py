@@ -1491,6 +1491,9 @@ class Atelier:
                 raise ValueError(f"plan {nom} : 10 plans au plus par temps")
             if not _s(sh.get("still")):
                 raise ValueError(f"plan {nom} : \"still\" obligatoire")
+            if tp == 1 and isinstance(sh.get("retire"), list) and sh["retire"] and not tenue_dite(sh["still"]):
+                raise ValueError(f"plan {nom} : \"retire\" n'est pas vide : \"still\" dit ce qu'elle porte encore à cet instant (\"wearing ...\") ; "
+                                 "la tenue entière de la fiche de continuité n'est alors plus ajoutée")
             if tp >= 2 and not (not prem and sh.get("raccord") == "continu") and not tenue_dite(sh["still"]):
                 raise ValueError(f"plan {nom} : dans les temps 2 à 4, \"still\" dit ce qu'elle porte ou ne porte plus à cet instant "
                                  "(\"wearing ...\", \"naked\"...) ; la tenue de la fiche de continuité ne vaut que pour le temps 1")
@@ -1770,6 +1773,8 @@ class Atelier:
         (decrite en entier, elle elargit le cadre) des que la scene dit elle-meme ce qu'on en voit."""
         t2, sans = s["temps"] >= 2, {"pdv"} if s.get("angle") else set()
         sans |= {"tenue"} if t2 or (_gros_plan(s) and tenue_dite(s["still"])) else set()
+        if not t2 and s.get("id") and _etat(p, s)[0]:  # un vetement est retire : la tenue entiere de la fiche le remettrait (essai du 16/11/2026)
+            sans |= {"tenue"}
         cont = dict(p.get("continuite") or {})
         if (_tirage(p, s["temps"]) in ("decor", "auto") or s.get("voie") == "decor") and (p.get("decors") or {}).get(str(s["temps"])):  # lieu choisi dans la bibliotheque
             cont["lieu"] = p["decors"][str(s["temps"])]
