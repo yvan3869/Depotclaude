@@ -1044,7 +1044,7 @@ let A = null, AO = 'lieux', aT = null;
 const AC = {t: '', l: '', p: 0};  // cabine d'essayage : tenue, lieu et pose choisis
 const GR = {};  // garde-robe d'un personnage (tenues qui ont une image retenue), lue une fois pour la Production
 const ATABS = [['lieux', 'image', 'Lieux'], ['tenues', 'personnage', 'Garde-robe'], ['cabine', 'camera', 'Cabine'], ['corps', 'planche', 'Corps'], ['lora', 'lora', 'LoRA'], ['banc', 'camera', 'Banc d\'essai']];
-let AB = {lora: '', acte: '', phrase: '', personnes: '1', force: '0.8', coche: {}, orig: {}};  // banc d'essai : formulaire et images cochees, gardes entre deux rafraichissements
+let AB = {lora: '', acte: '', phrase: '', partenaire: '', personnes: '1', force: '0.8', coche: {}, orig: {}};  // banc d'essai : formulaire et images cochees, gardes entre deux rafraichissements
 const af = n => `/afile/perso-${A.slug}/${n}`;
 const acout = n => usd((A.pod ? 0 : 0.05) + n * 0.01);
 async function vueAtelier(slug, onglet) {
@@ -1132,7 +1132,8 @@ function rendreAtelier() {
         <label>Position (le mot que le script écrira, en anglais)<input data-ab="acte" maxlength="80" value="${esc(AB.acte)}">${aide('Court et toujours écrit pareil : c\'est ce mot que le scénariste choisira dans la liste.')}</label>
         <label>Phrase envoyée au modèle (anglais)<textarea data-ab="phrase" rows="3" maxlength="500">${esc(AB.phrase)}</textarea>${aide('La description qui marche avec cette LoRA, mots déclencheurs compris. Vide : le mot de la position est envoyé tel quel.')}</label>
         ${origine(AB.lora)}
-        <div class="row haut"><div style="width:150px"><label>Personnes à l'image<select data-ab="personnes"><option value="1" ${AB.personnes === '1' ? 'selected' : ''}>1</option><option value="2" ${AB.personnes === '2' ? 'selected' : ''}>2</option></select></label></div></div>
+        <div class="row haut"><div style="width:150px"><label>Personnes à l'image<select data-ab="personnes"><option value="1" ${AB.personnes === '1' ? 'selected' : ''}>1</option><option value="2" ${AB.personnes === '2' ? 'selected' : ''}>2</option></select></label></div>
+          <div class="g"><label>Partenaire, si 2 personnes (anglais)<input data-ab="partenaire" maxlength="200" placeholder="with an adult man in his thirties" value="${esc(AB.partenaire)}">${aide('À 2 personnes, le banc ajoute le partenaire à la phrase et essaie mi-corps, en pied et plan large, pour que les deux corps tiennent dans l\'image. Vide : un homme adulte, sans précision.')}</label></div></div>
         <div class="row"><button class="p" data-a="banclancer" ${A.lora ? '' : 'disabled'}>${ic('lancer')}Lancer le banc</button><span class="mut">${A.lora ? `9 images, environ ${acout(9)}` : 'Il faut d\'abord la LoRA du visage (onglet LoRA).'}</span></div>
         <details class="pli" data-sec="bancsans"${ouv('bancsans', false)}><summary>Inscrire sans essai</summary>
           <div class="mut">Pour une position déjà éprouvée, ou une LoRA de clip. Elle entre dans la liste tout de suite, aux trois cadrages.</div>
@@ -1260,7 +1261,7 @@ Object.assign(actions, {
   banclancer: async () => {
     if (!AB.lora || !AB.acte.trim()) return toast('Choisir la LoRA et écrire la position');
     if (!confirm(`Lancer le banc : 9 images, environ ${acout(9)} ?`)) return;
-    await api('/api/a/b/banc', {slug: A.slug, lora: AB.lora, acte: AB.acte, phrase: AB.phrase, personnes: AB.personnes}); toast('Banc lancé', true); await bMaj(); },
+    await api('/api/a/b/banc', {slug: A.slug, lora: AB.lora, acte: AB.acte, phrase: AB.phrase, personnes: AB.personnes, partenaire: AB.partenaire}); toast('Banc lancé', true); await bMaj(); },
   bancmot: el => { const m = (AB.orig[AB.lora] || {mots: []}).mots[+el.dataset.i]; if (!m) return;
     AB.phrase = (AB.phrase.trim() ? AB.phrase.trim().replace(/,$/, '') + ', ' : '') + m; AB.phrase = AB.phrase.slice(0, 500); rendreAtelier(); },
   bancex: el => { const p = (AB.orig[AB.lora] || {exemples: []}).exemples[+el.dataset.i]; if (!p) return;

@@ -465,7 +465,7 @@ class Biblio:
     def banc(self, b):
         """Banc d'essai d'une LoRA d'image : une position, a trois cadrages et trois forces, avec le visage du personnage et les LoRA de style
         par defaut du temps 4. Le proprietaire coche ce qui tient ; la fiche de capacite de la LoRA en est tiree (banc_noter)."""
-        from atelier import BANC_CADRES, BANC_FORCES, CATS_STYLE as STYLES, _cle, _loras_plan
+        from atelier import BANC_CADRES, BANC_DEUX, BANC_FORCES, BANC_PARTENAIRE, BANC_SEUL, CATS_STYLE as STYLES, _cle, _loras_plan
         from categories import temps_min
         slug = b["slug"]
         self._libre()
@@ -487,12 +487,16 @@ class Biblio:
         adulte = temps_min(cat[nom].get("cat")) >= 2
         serie = int((bb.setdefault("banc", {}).get(k) or {}).get("serie") or 0) + 1
         pre, taches = self._prefixe(p), []
-        for ci, (ck, _, cadre) in enumerate(BANC_CADRES):
+        deux = str(b.get("personnes")) == "2"
+        part = (_s(b.get("partenaire"), 200) or BANC_PARTENAIRE) if deux else ""
+        if deux:  # a deux : cadrages qui laissent voir les deux corps, et le partenaire dit dans la phrase
+            phrase = f"{phrase or acte}, {part}"
+        for ci, (ck, _, cadre) in enumerate([c for c in BANC_CADRES if c[0] in (BANC_DEUX if deux else BANC_SEUL)]):
             for f in BANC_FORCES:
                 taches.append({"sortie": f"b_{k}_{serie}_{ck}_{int(round(f * 100)):03d}", "seed": 9000 + 13 * serie + ci, "taille": [720, 1280], "lora": True,
                                "loras": [*styles, {"name": nom, "strength": f}], "prompt": f"{pre}vertical {cadre}, {phrase or acte}{', nsfw' if adulte else ''}{FIN}"})
         bb["banc"].pop(k, None)  # la derniere serie lancee passe en tete
-        bb["banc"][k] = {"lora": nom, "acte": acte, "phrase": phrase, "personnes": 2 if str(b.get("personnes")) == "2" else 1, "serie": serie, "date": time.strftime("%d/%m/%Y")}
+        bb["banc"][k] = {"lora": nom, "acte": acte, "phrase": _s(b.get("phrase"), 500), "partenaire": part, "personnes": 2 if deux else 1, "serie": serie, "date": time.strftime("%d/%m/%Y")}
         self._ecrire(slug, bb)
         self._lancer(slug, "banc", {"taches": taches}, len(taches))
         return {"lance": len(taches)}

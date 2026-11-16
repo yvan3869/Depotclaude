@@ -48,7 +48,10 @@ MODELE_5T = "2026-11-16b"  # premier modele de plans a cinq temps : aux temps 4 
 MOMENTS = ("acte", "transition", "final", "calme")
 # Fiches de capacite des LoRA et banc d'essai : cadrages essayes (cle, intitule, texte pour le modele) et forces
 BANC_CADRES = (("gros", "Gros plan", "close-up shot"), ("serre", "Plan serré", "medium close-up shot, framed from the chest up"),
-               ("mi", "Mi-corps", "medium shot, framed from the waist up"))
+               ("mi", "Mi-corps", "medium shot, framed from the waist up"), ("pied", "En pied", "full body shot, both bodies fully in frame"),
+               ("large", "Plan large", "wide shot, seen from a few steps back, both bodies fully in frame"))
+BANC_SEUL, BANC_DEUX = ("gros", "serre", "mi"), ("mi", "pied", "large")  # les trois cadrages essayes : a une personne, a deux
+BANC_PARTENAIRE = "with an adult man in his thirties, both of them clearly visible"  # partenaire par defaut du banc a deux
 BANC_FORCES = (0.6, 0.8, 1.0)
 CATS_STYLE = ("realisme", "smartphone", "peau", "lumiere")  # categories de LoRA qui restent a cote de la LoRA d'un acte
 MODELE_ETAT = "2026-11-16a"  # premier modele de plans ou chaque plan des temps 2 a 4 dit ce qu'elle ne porte plus ("retire")
