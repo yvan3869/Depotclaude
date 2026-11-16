@@ -290,3 +290,6 @@ Restes : le proprietaire passe ses LoRA au banc, puis lance et juge deux scenes 
   categorie est admise au temps de la scene. « Inscrire sans essai » les prend aussi. Le mot nsfw est ajoute si l'une d'elles est de categorie adulte.
 - Limite connue : « plan large » reste serre avec une LoRA de pose qui tire vers le portrait ; le texte ne suffit pas.
 - Les trois poids essayes (0,6 ; 0,8 ; 1,0) ne se choisissent pas encore dans la page.
+- Ajoute le 16/11 au soir : les trois poids se choisissent (champ 6, `forces`, gardes dans la serie) ; « Marche a suivre » en tete du banc ;
+  chaque serie notee dit si la position est en service ou non, avec « Reprendre ces reglages », « Autre position, meme LoRA » et
+  « Retirer de la page » (`/api/a/b/banc/retirer` : images et fiche intactes) ; rappel des LoRA retenues mais pas encore chargees.

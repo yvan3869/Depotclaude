@@ -1044,7 +1044,7 @@ let A = null, AO = 'lieux', aT = null;
 const AC = {t: '', l: '', p: 0};  // cabine d'essayage : tenue, lieu et pose choisis
 const GR = {};  // garde-robe d'un personnage (tenues qui ont une image retenue), lue une fois pour la Production
 const ATABS = [['lieux', 'image', 'Lieux'], ['tenues', 'personnage', 'Garde-robe'], ['cabine', 'camera', 'Cabine'], ['corps', 'planche', 'Corps'], ['lora', 'lora', 'LoRA'], ['banc', 'camera', 'Banc d\'essai']];
-let AB = {lora: '', acte: '', phrase: '', partenaire: '', personnes: '1', force: '0.8', avec: [], coche: {}, orig: {}};  // banc d'essai : formulaire et images cochees, gardes entre deux rafraichissements
+let AB = {lora: '', acte: '', phrase: '', partenaire: '', personnes: '1', force: '0.8', forces: ['0.6', '0.8', '1'], avec: [], coche: {}, orig: {}};  // banc d'essai : formulaire et images cochees, gardes entre deux rafraichissements
 const af = n => `/afile/perso-${A.slug}/${n}`;
 const acout = n => usd((A.pod ? 0 : 0.05) + n * 0.01);
 async function vueAtelier(slug, onglet) {
@@ -1126,7 +1126,16 @@ function rendreAtelier() {
         <div class="mut"><a href="${esc(x.source)}" target="_blank" rel="noopener">Ouvrir la page</a></div></details>`; };
     const B = E.bibliotheque, LI = B.loras.filter(x => x.famille !== 'wan22'), nomL = n => esc((B.loras.find(x => x.name === n) || {}).label || n);
     const cadre = k => (B.banc.cadres.find(c => c[0] === k) || [k, k])[1], avec = B.loras.filter(x => x.capacite.length);
-    corps = `<div class="panel"><div class="mut">Le banc dit ce qu'une LoRA sait vraiment faire. Une position, essayée avec le visage de ${esc(A.nom)} à trois cadrages et trois forces : vous cochez les images qui tiennent, et la fiche de la LoRA se remplit. Aux temps 4 et 5, le script ne peut écrire que les positions validées ici ; la Production prend alors seule la bonne LoRA, à la bonne force, avec la phrase qui marche.</div></div>
+    if (HUBATT === null) { HUBATT = []; api('/api/h/etat').then(r => { HUBATT = r.retenues.filter(x => !x.chargee).map(x => x.label); if (HUBATT.length && AO === 'banc') rendreAtelier(); }).catch(() => {}); }
+    const fv = f => String(f).replace('.', ','), ligneDe = x => ((B.loras.find(y => y.name === x.lora) || {capacite: []}).capacite.find(l => l.acte.trim().toLowerCase() === x.acte.trim().toLowerCase()));
+    corps = `<div class="panel"><div class="mut">Le banc dit ce qu'une LoRA sait vraiment faire, et met en service celles qui marchent.</div>
+      <details class="pli" data-sec="bancguide"${ouv('bancguide', true)}><summary>Marche à suivre</summary>
+        <div style="font-size:13.5px;line-height:1.5"><b>1.</b> La LoRA doit être chargée : c'est fait dans le <a href="/hub">Matériel</a>. Une LoRA seulement retenue n'apparaît pas ici.<br>
+        <b>2.</b> Remplir « Essayer une position » et lancer : 9 images, avec le visage de ${esc(A.nom)}, à trois cadrages et trois poids.<br>
+        <b>3.</b> Dans « Séries du banc », toucher les images réussies, puis « Enregistrer dans la fiche ».<br>
+        <b>4.</b> C'est tout. La position entre dans la liste du script. Quand un script l'écrit aux temps 4 ou 5, la Production charge seule cette LoRA, au poids que vos images ont désigné, avec le texte de l'essai. Rien à régler ailleurs : ni LoRA par défaut, ni script.<br>
+        <b>Si rien ne tient :</b> « Reprendre ces réglages » sur la série, puis changer une seule chose : le texte (un prompt d'exemple de l'auteur), une LoRA ajoutée (champ 5), ou les poids (champ 6). Relancer.</div></details>
+      ${HUBATT && HUBATT.length ? `<div class="aide avt">${HUBATT.length} LoRA retenue(s) dans le Matériel ne sont pas encore chargées : elles ne peuvent pas être essayées. <a href="/hub">Les charger</a></div>` : ''}</div>
       <h2>Essayer une position</h2><div class="panel">
         <label>1. LoRA à essayer<select data-ab="lora"><option value="">Choisir</option>${LI.map(x => `<option value="${esc(x.name)}" ${AB.lora === x.name ? 'selected' : ''}>${esc(x.label)}</option>`).join('')}</select>${aide('Les LoRA d\'image inscrites. Une LoRA de clip ne s\'essaie pas ici : elle s\'inscrit sans essai, plus bas.')}</label>
         <label>2. Nom de la position (anglais, deux ou trois mots)<input data-ab="acte" maxlength="80" placeholder="exemple : sitting cross-legged" value="${esc(AB.acte)}"></label>
@@ -1140,7 +1149,8 @@ function rendreAtelier() {
         ${LI.filter(x => x.name !== AB.lora).length ? `<details class="pli" data-sec="bancavec"${ouv('bancavec', AB.avec.length > 0)}><summary>5. LoRA ajoutées à l'essai <small>${AB.avec.filter(n => n !== AB.lora).length} cochée(s)</small></summary>
           <div class="mut">Pour une LoRA qui ne marche bien qu'avec une autre : par exemple celle qui débloque le registre adulte. Les LoRA cochées sont chargées avec celle de l'essai, chacune à son poids habituel. Si la position est validée, la Production les chargera ensemble, comme ici. Le style par défaut est déjà chargé : inutile de le cocher.</div>
           <div class="tuiles">${LI.filter(x => x.name !== AB.lora).map(x => `<label class="c"><input type="checkbox" data-abv="${esc(x.name)}" ${AB.avec.includes(x.name) ? 'checked' : ''}><span>${esc(x.label)}</span></label>`).join('')}</div></details>` : ''}
-        <div class="mut" style="font-size:12.5px;margin:0 0 10px">Le poids de la LoRA ne se règle pas ici : le banc essaie tout seul trois poids (${B.banc.forces.join(', ').replace(/\./g, ',')}) à trois cadrages. Les images que vous cochez disent lequel garder.</div>
+        <label>6. Poids à essayer</label><div class="row">${[0, 1, 2].map(i => `<input data-abf="${i}" type="number" step="0.05" min="0.1" max="2" style="width:84px" value="${esc(AB.forces[i])}">`).join('')}</div>
+        <div class="mut" style="font-size:12.5px;margin:2px 0 10px">Trois poids différents pour la LoRA essayée, entre 0,1 et 2. Chaque cadrage est fait aux trois. Les images que vous cochez disent lequel garder. D'habitude : ${B.banc.forces.map(fv).join(' ; ')}. Image abîmée ou visage qui change : baisser. Position absente : monter.</div>
         <div class="row"><button class="p" data-a="banclancer" ${A.lora ? '' : 'disabled'}>${ic('lancer')}Lancer le banc</button><span class="mut">${A.lora ? `9 images, environ ${acout(9)}` : 'Il faut d\'abord la LoRA du visage (onglet LoRA).'}</span></div>
         <details class="pli" data-sec="bancsans"${ouv('bancsans', false)}><summary>Inscrire sans essai</summary>
           <div class="mut">Pour une position déjà éprouvée, ou une LoRA de clip. Elle entre dans la liste tout de suite, aux trois cadrages.</div>
@@ -1148,10 +1158,14 @@ function rendreAtelier() {
             <div style="width:110px"><label>Force<input data-ab="force" type="number" step="0.05" min="0.1" max="2" value="${esc(AB.force)}"></label></div></div>
           <div class="row"><button data-a="bancinscrire">${ic('valider')}Inscrire la position ci-dessus</button></div></details></div>`
       + (A.banc.length ? '<h2>Séries du banc</h2>' + A.banc.map(x => { const I = x.images.filter(n => n.split('_')[2] === String(x.serie)), co = AB.coche[x.cle] || [];
-          return `<div class="panel"><div class="row"><b class="g">${esc(x.acte)}</b><span class="badge">${nomL(x.lora)}</span></div>
+          const li = x.note ? ligneDe(x) : null, bilan = !x.note ? '' : x.note.bonnes && li && li.ok
+            ? `<div class="aide voir" style="margin:6px 0"><b>En service.</b> Cette position est dans la liste du script${li.force ? `, au poids ${fv(li.force)}` : ''}${li.cadrages.length ? ` (${li.cadrages.map(cadre).map(esc).join(', ')})` : ''}. Rien d'autre à faire : au prochain script, le scénariste peut l'écrire aux temps 4 et 5, et la Production charge cette LoRA toute seule.</div>`
+            : `<div class="aide avt" style="margin:6px 0"><b>Ne tient pas.</b> La position reste hors de la liste. « Reprendre ces réglages », puis changer une seule chose : le texte, une LoRA ajoutée, ou les poids.</div>`;
+          return `<div class="panel"><div class="row"><b class="g">${esc(x.acte)}</b><span class="badge">${nomL(x.lora)}</span></div>${bilan}
+            <div class="row" style="flex-wrap:wrap;gap:6px;margin:4px 0"><button class="s" data-a="bancreprendre" data-cle="${x.cle}">${ic('refaire')}Reprendre ces réglages</button><button class="s" data-a="bancautre" data-cle="${x.cle}">Autre position, même LoRA</button><button class="s" data-a="bancoter" data-cle="${x.cle}">${ic('supprimer')}Retirer de la page</button></div>
             <div class="mut">${esc(x.date)} · ${x.personnes} personne(s)${(x.avec || []).length ? ' · avec ' + x.avec.map(nomL).join(', ') : ''}${x.note ? ` · notée le ${esc(x.note.date)} : ${x.note.bonnes} image(s) retenue(s)` : ' · pas encore notée'}</div>
-            ${I.length ? B.banc.cadres.map(([ck, lab]) => `<div class="mut" style="margin-top:4px">${esc(lab)}</div><div class="bgal pl">${B.banc.forces.map(fo => { const n = `b_${x.cle}_${x.serie}_${ck}_${String(Math.round(fo * 100)).padStart(3, '0')}.png`;
-                return I.includes(n) ? `<div style="position:relative;flex:none;text-align:center"><img loading="lazy" class="${co.includes(n) ? 'on' : ''}" src="${af(n)}" data-a="banccoche" data-cle="${x.cle}" data-n="${n}" alt=""><div class="mut">force ${String(fo).replace('.', ',')}</div></div>` : ''; }).join('')}</div>`).join('')
+            ${I.length ? B.banc.cadres.map(([ck, lab]) => `<div class="mut" style="margin-top:4px">${esc(lab)}</div><div class="bgal pl">${(x.forces || B.banc.forces).map(fo => { const n = `b_${x.cle}_${x.serie}_${ck}_${String(Math.round(fo * 100)).padStart(3, '0')}.png`;
+                return I.includes(n) ? `<div style="position:relative;flex:none;text-align:center"><img loading="lazy" class="${co.includes(n) ? 'on' : ''}" src="${af(n)}" data-a="banccoche" data-cle="${x.cle}" data-n="${n}" alt=""><div class="mut">poids ${fv(fo)}</div></div>` : ''; }).join('')}</div>`).join('')
               + `<div class="mut">Toucher les images qui tiennent : la position est là, le visage est le sien, rien n'est déformé.</div>
                 <div class="row" style="margin-top:6px"><button class="p" data-a="bancnoter" data-cle="${x.cle}">${ic('valider')}Enregistrer dans la fiche (${co.length} cochée(s))</button><span class="mut">${co.length ? '' : 'Aucune cochée : la position sera notée « ne tient pas » et restera hors de la liste.'}</span></div>` : '<div class="mut">Images en cours de calcul, ou calcul échoué.</div>'}</div>`; }).join('') : '')
       + `<h2>Fiches de capacité <small>${B.positions.length} position(s) dans la liste du script</small></h2>`
@@ -1267,8 +1281,10 @@ Object.assign(actions, {
   badopter: async el => { const f = $(`[data-bf="${el.dataset.n}"]`, vue).value; if (!confirm(`Faire de cette version la LoRA du personnage, à la force ${f} ? L'ancienne reste disponible (Revenir à la précédente).`)) return; bMaj(await api('/api/a/b/adopter', {slug: A.slug, lora: el.dataset.n, force: +f})); await etat(); },
   banclancer: async () => {
     if (!AB.lora || !AB.acte.trim()) return toast('Choisir la LoRA et écrire la position');
+    const fo = AB.forces.map(f => +String(f).replace(',', '.'));
+    if (new Set(fo).size !== 3 || fo.some(f => !(f >= 0.1 && f <= 2))) return toast('Poids : trois valeurs différentes, entre 0,1 et 2');
     if (!confirm(`Lancer le banc : 9 images, environ ${acout(9)} ?`)) return;
-    await api('/api/a/b/banc', {slug: A.slug, lora: AB.lora, acte: AB.acte, phrase: AB.phrase, personnes: AB.personnes, partenaire: AB.partenaire, avec: AB.avec.filter(n => n !== AB.lora)}); toast('Banc lancé', true); await bMaj(); },
+    await api('/api/a/b/banc', {slug: A.slug, lora: AB.lora, acte: AB.acte, phrase: AB.phrase, personnes: AB.personnes, partenaire: AB.partenaire, avec: AB.avec.filter(n => n !== AB.lora), forces: fo}); toast('Banc lancé', true); await bMaj(); },
   bancmot: el => { const m = (AB.orig[AB.lora] || {mots: []}).mots[+el.dataset.i]; if (!m) return;
     AB.phrase = (AB.phrase.trim() ? AB.phrase.trim().replace(/,$/, '') + ', ' : '') + m; AB.phrase = AB.phrase.slice(0, 500); rendreAtelier(); },
   bancex: el => { const p = (AB.orig[AB.lora] || {exemples: []}).exemples[+el.dataset.i]; if (!p) return;
@@ -1276,7 +1292,14 @@ Object.assign(actions, {
   banccoche: el => { const l = AB.coche[el.dataset.cle] ||= [], n = el.dataset.n, i = l.indexOf(n); i < 0 ? l.push(n) : l.splice(i, 1); rendreAtelier(); },
   bancnoter: async el => { const k = el.dataset.cle, l = AB.coche[k] || [];
     if (!l.length && !confirm('Aucune image cochée : noter que cette position ne tient pas avec cette LoRA ?')) return;
-    const r = await api('/api/a/b/banc/noter', {slug: A.slug, cle: k, bonnes: l}); E.bibliotheque = r.bibliotheque; delete AB.coche[k]; toast('Fiche mise à jour', true); bMaj(r); },
+    const r = await api('/api/a/b/banc/noter', {slug: A.slug, cle: k, bonnes: l}); E.bibliotheque = r.bibliotheque; delete AB.coche[k]; toast(l.length ? 'Position en service : elle est dans la liste du script' : 'Notée « ne tient pas »', true); bMaj(r); },
+  bancreprendre: el => { const x = A.banc.find(y => y.cle === el.dataset.cle); if (!x) return;
+    Object.assign(AB, {lora: x.lora, acte: x.acte, phrase: x.phrase || '', personnes: String(x.personnes || 1), partenaire: x.personnes === 2 ? x.partenaire || '' : '', avec: (x.avec || []).slice(), forces: (x.forces || E.bibliotheque.banc.forces).map(String)});
+    rendreAtelier(); window.scrollTo({top: 0}); toast('Réglages repris : changer une chose, puis relancer', true); },
+  bancautre: el => { const x = A.banc.find(y => y.cle === el.dataset.cle); if (!x) return;
+    Object.assign(AB, {lora: x.lora, acte: '', phrase: (E.bibliotheque.loras.find(y => y.name === x.lora) || {}).trigger || '', avec: (x.avec || []).slice()}); rendreAtelier(); window.scrollTo({top: 0}); },
+  bancoter: async el => { if (!confirm('Retirer cette série de la page ? Les images restent sur le disque et la fiche n\'est pas touchée.')) return;
+    bMaj(await api('/api/a/b/banc/retirer', {slug: A.slug, cle: el.dataset.cle})); },
   bancinscrire: async () => { const x = E.bibliotheque.loras.find(y => y.name === AB.lora2);
     if (!x || !AB.acte.trim()) return toast('Choisir la LoRA et écrire la position');
     const cl = s => s.trim().toLowerCase(), l = {acte: AB.acte, phrase: AB.phrase, personnes: AB.personnes, avec: x.famille === 'wan22' ? [] : AB.avec.filter(n => n !== x.name), cadrages: E.bibliotheque.banc.cadres.map(c => c[0]), force: +AB.force || 0, ok: true};
@@ -1286,7 +1309,7 @@ Object.assign(actions, {
     E.bibliotheque = (await api('/api/a/lora/capacite', {name: x.name, capacite: x.capacite.filter(y => y.acte !== el.dataset.acte)})).bibliotheque; rendreAtelier(); },
   brevenir: async () => { if (!confirm('Remettre la LoRA précédente ?')) return; bMaj(await api('/api/a/b/revenir', {slug: A.slug})); await etat(); },
 });
-vue.addEventListener('input', e => { if (e.target.dataset.ab) AB[e.target.dataset.ab] = e.target.value; });
+vue.addEventListener('input', e => { if (e.target.dataset.ab) AB[e.target.dataset.ab] = e.target.value; if (e.target.dataset.abf) AB.forces[+e.target.dataset.abf] = e.target.value; });
 // Banc : au choix d'une LoRA, la phrase demarre avec ses mots declencheurs et sa page d'origine est relue chez la source
 async function bancOrigine(n) {
   const x = n && E.bibliotheque.loras.find(y => y.name === n);

@@ -491,6 +491,12 @@ class Biblio:
         if len(avec) > 4:
             raise ValueError("4 LoRA ajoutées au plus")
         adulte = max(temps_min(cat[n].get("cat")) for n in (nom, *avec)) >= 2
+        try:  # trois poids, au choix du proprietaire (par defaut BANC_FORCES)
+            forces = sorted({round(float(str(f).replace(",", ".")), 2) for f in b.get("forces") or BANC_FORCES})
+        except (TypeError, ValueError):
+            forces = []
+        if len(forces) != 3 or not all(0.1 <= f <= 2 for f in forces):
+            raise ValueError("trois poids différents, entre 0,1 et 2")
         serie = int((bb.setdefault("banc", {}).get(k) or {}).get("serie") or 0) + 1
         pre, taches = self._prefixe(p), []
         deux = str(b.get("personnes")) == "2"
@@ -498,14 +504,22 @@ class Biblio:
         if deux:  # a deux : cadrages qui laissent voir les deux corps, et le partenaire dit dans la phrase
             phrase = f"{phrase or acte}, {part}"
         for ci, (ck, _, cadre) in enumerate([c for c in BANC_CADRES if c[0] in (BANC_DEUX if deux else BANC_SEUL)]):
-            for f in BANC_FORCES:
+            for f in forces:
                 taches.append({"sortie": f"b_{k}_{serie}_{ck}_{int(round(f * 100)):03d}", "seed": 9000 + 13 * serie + ci, "taille": [720, 1280], "lora": True,
                                "loras": [*styles, *avec, {"name": nom, "strength": f}], "prompt": f"{pre}vertical {cadre}, {phrase or acte}{', nsfw' if adulte else ''}{FIN}"})
         bb["banc"].pop(k, None)  # la derniere serie lancee passe en tete
-        bb["banc"][k] = {"lora": nom, "acte": acte, "phrase": _s(b.get("phrase"), 500), "partenaire": part, "personnes": 2 if deux else 1, "avec": avec, "serie": serie, "date": time.strftime("%d/%m/%Y")}
+        bb["banc"][k] = {"lora": nom, "acte": acte, "phrase": _s(b.get("phrase"), 500), "partenaire": part, "personnes": 2 if deux else 1, "avec": avec, "forces": forces, "serie": serie, "date": time.strftime("%d/%m/%Y")}
         self._ecrire(slug, bb)
         self._lancer(slug, "banc", {"taches": taches}, len(taches))
         return {"lance": len(taches)}
+
+    def banc_retirer(self, b):
+        """Retire une serie du banc de la page (ses images restent sur le disque, la fiche de capacite n'est pas touchee)."""
+        slug, bb = b["slug"], self._b(b["slug"])
+        if (bb.get("banc") or {}).pop(str(b.get("cle")), None) is None:
+            raise ValueError("série du banc inconnue")
+        self._ecrire(slug, bb)
+        return self.vue(slug)
 
     def banc_noter(self, b):
         """Le proprietaire a coche les images du banc qui tiennent ("bonnes") : la ligne de la fiche de capacite est ecrite. Cadrages : ceux
@@ -606,7 +620,7 @@ class Biblio:
         f = {"/api/a/b/creer": self.creer, "/api/a/b/ajouter": self.ajouter, "/api/a/b/retirer": self.retirer, "/api/a/b/choix": self.choix,
              "/api/a/b/visage": self.visage, "/api/a/b/planches": self.planches, "/api/a/b/garde": self.garde, "/api/a/b/entrainer": self.entrainer,
              "/api/a/b/adopter": self.adopter, "/api/a/b/revenir": self.revenir, "/api/a/b/importer": self.importer, "/api/a/b/essayer": self.essayer,
-             "/api/a/b/banc": self.banc, "/api/a/b/banc/noter": self.banc_noter}.get(path)
+             "/api/a/b/banc": self.banc, "/api/a/b/banc/noter": self.banc_noter, "/api/a/b/banc/retirer": self.banc_retirer}.get(path)
         if not f:
             return None
         with self.at.lock:
