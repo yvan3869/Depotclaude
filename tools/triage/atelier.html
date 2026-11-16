@@ -949,9 +949,13 @@ async function defautsSauver() {
 // --- Personnages -----------------------------------------------------------------------------------
 function vuePersos() {
   vue.innerHTML = `<div class="row tete"><a class="lien" href="#/">${ic('retour')}Retour aux projets</a><span class="sp"></span><button class="p" onclick="location.hash='#/perso'">${ic('ajouter')}Nouveau personnage</button></div>
-    <h2>Casting</h2>` + E.personnages.map(p => `<a class="card" href="#/perso/${esc(p.slug)}"><div><b>${esc(p.nom)}${p.statut === 'archive' ? ' (archivé)' : ''}</b>
+    <h2>Casting</h2>
+    <details class="pli panel" data-sec="castaide"${ouv('castaide', !E.personnages.some(p => p.lora))}><summary>Créer un personnage : comment ça se passe</summary>
+      <div class="mut" style="line-height:1.55"><b>1.</b> Votre directeur de casting écrit sa fiche et la livre : elle apparaît ici, sous « Fiches livrées ». Vous pouvez aussi l'écrire vous-même : « Nouveau personnage ».<br>
+      <b>2.</b> Vous la relisez, la corrigez et l'enregistrez.<br>
+      <b>3.</b> « Débuter » vous guide ensuite pas à pas : son visage, ses expressions, son corps, sa LoRA, ses lieux et ses tenues. Chaque étape a un bouton et annonce son coût ; l'ensemble revient à environ 2 $.</div></details>` + E.personnages.map(p => `<a class="card" href="#/perso/${esc(p.slug)}"><div><b>${esc(p.nom)}${p.statut === 'archive' ? ' (archivé)' : ''}</b>
       <span class="mut">${esc(p.accroche)}</span><span class="mut">${p.age} ans, publie en ${esc(p.langue)}, ${p.lora ? 'LoRA en place' : 'sans LoRA'}, ${E.projets.filter(x => x.personnage === p.slug).length} vidéo(s)</span></div></a>
-      <div class="row" style="margin:-4px 0 12px"><a class="lien" href="#/atelier/${esc(p.slug)}">${ic('image')}Atelier : lieux, garde-robe, corps, LoRA</a></div>`).join('')
+      <div class="row" style="margin:-4px 0 12px">${p.lora ? '' : `<a class="lien" href="#/atelier/${esc(p.slug)}/debut" style="font-weight:600">${ic('lancer')}Débuter : visage, expressions, corps, LoRA</a>`}<a class="lien" href="#/atelier/${esc(p.slug)}/lieux">${ic('image')}Atelier : lieux, garde-robe, corps, LoRA</a></div>`).join('')
     + ((E.fiches || []).some(x => !x.fait) ? `<h2>Fiches livrées par votre directeur de casting <small>à relire puis enregistrer</small></h2><div class="panel">${E.fiches.filter(x => !x.fait).map(x => `<div class="var"><b>${esc(x.nom || x.fichier)}</b> <span class="mut">${esc(x.fichier)}, ${esc(x.date)}</span>
       ${x.erreur ? `<div class="err">Refusée : ${esc(x.erreur)}</div>` : `<div class="mut">${x.age} ans${x.accroche ? ' ; ' + esc(x.accroche) : ''}${x.perime ? ' ; écrite d\'après un modèle périmé' : ''}${x.remarques.length ? ` ; ${x.remarques.length} remarque(s)` : ''}${x.existe ? ' ; remplacera la fiche du même nom' : ''}</div>
       <div class="row" style="margin-top:6px"><button class="p s" onclick="location.hash='#/fiche/${esc(x.fichier)}'">${ic('importer')}Ouvrir la fiche</button></div>`}</div>`).join('')}</div>` : '');
@@ -960,7 +964,7 @@ const FICHE = [['identite', 'Identité (métier, ville, situation)'], ['apparenc
   ['seduction', 'Manière de séduire'], ['univers', 'Univers, routine, fil rouge'], ['limites', 'Limites']];
 async function vuePerso(slug, depot) {
   const dep = depot ? await api('/api/a/fiche?f=' + encodeURIComponent(depot)) : null;
-  const p = slug ? await api('/api/a/personnage?slug=' + encodeURIComponent(slug)) : dep ? dep.personnage : {nom: '', age: '', langue: 'en', fiche: {}, lieux: [], tenues: [], ecriture: {plateforme: 'Fanvue'}, generation: {lora_strength: 1}};
+  const p = slug ? await api('/api/a/personnage?slug=' + encodeURIComponent(slug)) : dep ? dep.personnage : {nom: '', age: '', langue: 'en', fiche: {}, lieux: [], tenues: [], expressions: [], ecriture: {plateforme: 'Fanvue'}, generation: {lora_strength: 1}};
   const i = (k, lab, v, o = {}) => `<label>${lab}${o.area ? `<textarea data-p="${k}" rows="${o.rows || 2}" placeholder="${esc(o.ph || '')}">${esc(v)}</textarea>`
     : `<input data-p="${k}" type="${o.type || 'text'}" ${o.step ? `step="${o.step}"` : ''} value="${esc(v)}" placeholder="${esc(o.ph || '')}">`}${aide(o.aide)}</label>`;
   const g = p.generation || {}, w = p.ecriture || {};
@@ -979,9 +983,10 @@ async function vuePerso(slug, depot) {
       ${i('accroche', 'La phrase qui la résume', p.accroche, {aide: 'Affichée dans la liste des personnages et rappelée au rédacteur.'})}
       ${FICHE.map(([k, l]) => i('fiche.' + k, l, p.fiche?.[k], {area: 1})).join('')}
     </div>
-    <h2>Lieux et tenues <small>un par ligne : français | anglais</small></h2>
+    <h2>Lieux, tenues, expressions <small>un par ligne : français | anglais</small></h2>
     <div class="panel"><div class="mut">Le rédacteur pioche dedans pour la fiche de continuité : la partie française lui sert à choisir, la partie anglaise part dans la description de l'image.</div>${i('lieux', 'Lieux', (p.lieux || []).join('\n'), {area: 1, rows: 5, ph: 'sa cuisine | in her small kitchen with a wooden counter'})}
-      ${i('tenues', 'Tenues', (p.tenues || []).join('\n'), {area: 1, rows: 5, ph: 'robe d\'été | a light summer dress with thin straps'})}</div>
+      ${i('tenues', 'Tenues', (p.tenues || []).join('\n'), {area: 1, rows: 5, ph: 'robe d\'été | a light summer dress with thin straps'})}
+      ${i('expressions', 'Expressions à elle', (p.expressions || []).join('\n'), {area: 1, rows: 4, ph: 'sourire en coin, un sourcil levé | smirk with one eyebrow raised, looking at the camera', aide: 'Trois à six mimiques qui sont les siennes, le visage seul (ni tenue, ni lieu). Elles ouvrent sa galerie d\'expressions, dans son atelier.'})}</div>
     <h2>Écriture</h2>
     <div class="panel">${i('ecriture.ton', 'Ton', w.ton, {aide: 'Comment elle écrit ses accroches et ses légendes.'})}
       ${i('ecriture.cta', 'Appel à l\'action habituel', w.cta, {aide: 'Proposé comme carton de fin de chaque accroche.'})}
@@ -1018,7 +1023,7 @@ function persoLoras(fichier, force, slug) {
 function lirePerso() {
   const o = {};
   for (const el of $$('[data-p]', vue)) {
-    const ks = el.dataset.p.split('.'), v = ['lieux', 'tenues'].includes(ks[0]) ? el.value.split('\n').map(x => x.trim()).filter(Boolean) : el.value;
+    const ks = el.dataset.p.split('.'), v = ['lieux', 'tenues', 'expressions'].includes(ks[0]) ? el.value.split('\n').map(x => x.trim()).filter(Boolean) : el.value;
     if (ks.length === 1) o[ks[0]] = v; else (o[ks[0]] ||= {})[ks[1]] = v;
   }
   return o;
@@ -1034,7 +1039,7 @@ async function persoIA() {
   const c = $('#concept').value.trim(); if (!c) return toast('Décrire le personnage en une ou deux phrases');
   ecrire({kind: 'personnage', consigne: c}, r => {
     const p = r.resultat, put = (k, v) => { const el = $(`[data-p="${k}"]`, vue); if (el && v != null) el.value = Array.isArray(v) ? v.join('\n') : v; };
-    for (const k of ['nom', 'age', 'langue', 'accroche', 'lieux', 'tenues']) put(k, p[k]);
+    for (const k of ['nom', 'age', 'langue', 'accroche', 'lieux', 'tenues', 'expressions']) put(k, p[k]);
     for (const grp of ['fiche', 'ecriture', 'generation']) for (const [k, v] of Object.entries(p[grp] || {})) put(grp + '.' + k, v);
     toast('Fiche rédigée : relire puis enregistrer', true);
   }, 'Rédaction de la fiche');
@@ -1044,13 +1049,15 @@ async function persoIA() {
 let A = null, AO = 'lieux', aT = null;
 const AC = {t: '', l: '', p: 0};  // cabine d'essayage : tenue, lieu et pose choisis
 const GR = {};  // garde-robe d'un personnage (tenues qui ont une image retenue), lue une fois pour la Production
-const ATABS = [['lieux', 'image', 'Lieux'], ['tenues', 'personnage', 'Garde-robe'], ['cabine', 'camera', 'Cabine'], ['corps', 'planche', 'Corps'], ['lora', 'lora', 'LoRA'], ['banc', 'camera', 'Banc d\'essai']];
+const ATABS = [['debut', 'lancer', 'Débuter'], ['lieux', 'image', 'Lieux'], ['tenues', 'personnage', 'Garde-robe'], ['cabine', 'camera', 'Cabine'], ['corps', 'planche', 'Corps'], ['lora', 'lora', 'LoRA'], ['banc', 'camera', 'Banc d\'essai']];
 let AB = {lora: '', acte: '', phrase: '', partenaire: '', personnes: '1', force: '0.8', forces: ['0.6', '0.8', '1'], avec: [], image: '', coche: {}, orig: {}};  // banc d'essai : formulaire et images cochees, gardes entre deux rafraichissements
 const af = n => `/afile/perso-${A.slug}/${n}`;
 const acout = n => usd((A.pod ? 0 : 0.05) + n * 0.01), CLIP3 = 0.15;  // CLIP3 : cout constate d'un banc de trois clips
 async function vueAtelier(slug, onglet) {
   if (ATABS.some(x => x[0] === onglet)) AO = onglet;
   A = await api('/api/a/b?slug=' + encodeURIComponent(slug));
+  if (!onglet && vueAtelier.vu !== slug) AO = A.lora ? 'lieux' : 'debut';  // personnage sans LoRA : la page s'ouvre sur le parcours guide
+  vueAtelier.vu = slug;
   rendreAtelier();
   clearInterval(aT); aT = setInterval(async () => {  // un calcul en cours : la page se met a jour seule
     if (!location.hash.startsWith('#/atelier/')) return clearInterval(aT);
@@ -1074,12 +1081,54 @@ function aAjout(q) {
     <label>Photo (facultatif)<input type="file" id="bfichier" accept="image/*">${aide(lieu ? 'La photo devient l\'image du lieu. Une pièce vide, sans personne.' : 'L\'outil en tire le vêtement seul, à plat sur fond blanc (deux images, quelques centimes). Un vêtement seul ou porté ; la photo elle-même n\'est pas gardée dans la galerie.')}</label>
     <div class="row"><button class="p" data-a="bajouter" data-q="${q}">${ic('ajouter')}Ajouter à la fiche</button></div></div>`;
 }
+const bToutes = () => [...A.expressions.flatMap(x => x.images), ...A.planches];  // tout ce qui peut entrer dans le jeu d'entrainement
+// Galerie d'expressions : une vignette par expression ; toucher = garder pour l'entrainement, loupe = agrandir, fleche = une autre image
+function aExpr() {
+  const m = A.expressions.filter(x => !x.images.length).length, n = A.expressions.length - m, g = A.expressions.flatMap(x => x.images).filter(y => y.garde).length, pret = A.lora || A.visage.choix;
+  return `<div class="mut">Son visage dans ${A.expressions.length} expressions${A.expressions.some(x => x.fiche) ? ', celles de sa fiche en tête' : ''}. Elle sert trois fois : vous voyez ce que le visage sait faire, les images gardées entrent dans l'entraînement de sa LoRA (sans elles, le visage reste figé), et le scénariste reprend les mêmes mots dans ses scripts.</div>
+    ${m ? `<div class="row" style="margin-top:6px"><button class="p" data-a="bexpr" ${pret ? '' : 'disabled'}>${ic('image')}${n ? 'Créer celles qui manquent' : 'Créer la galerie'}</button><span class="mut">${pret ? `${m} image(s), environ ${acout(m)}, deux à trois minutes` : 'Retenir d\'abord un portrait.'}</span></div>` : ''}
+    ${n ? `<div class="bgal pl">${A.expressions.filter(x => x.images.length).map(x => x.images.map(y => `<div style="position:relative;flex:none;text-align:center;width:92px"><img loading="lazy" class="${y.garde ? 'on' : ''}" src="${af(y.nom)}" data-a="bgarde" data-n="${y.nom}" alt="${esc(x.fr)}">${bi('chercher', 'Agrandir', `data-a="bzoom" data-l="x" data-n="${y.nom}" style="position:absolute;top:5px;right:5px;opacity:.85"`)}<div class="mut" style="font-size:11.5px;line-height:1.2">${esc(x.fr)}${x.fiche ? ' *' : ''}</div></div>`).join('')
+        + `<div style="flex:none;width:36px;align-self:center">${bi('refaire', 'Une autre image de « ' + x.fr + ' »', `data-a="bexpr" data-cle="${x.cle}"`)}</div>`).join('')}</div>
+      <div class="mut">${g} gardée(s) sur ${A.expressions.flatMap(x => x.images).length}. Toucher une image pour la garder (encadrée) : le visage est bien le sien et l'expression se lit. La flèche en refait une.${A.expressions.some(x => x.fiche) ? ' L\'astérisque marque les expressions de sa fiche.' : ''}</div>
+      <div class="row" style="margin-top:4px"><button class="s" data-a="bexprtout" data-o="1">Tout garder</button><button class="s" data-a="bexprtout">Tout écarter</button></div>` : ''}`;
+}
+// Parcours « Debuter » : les etapes dans l'ordre, chacune avec son etat et son bouton ; l'etape a faire est ouverte et mise en avant
+function aDebut(pris) {
+  const X = A.expressions.flatMap(x => x.images), gx = X.filter(y => y.garde).length, gp = A.planches.filter(x => x.garde).length, g = A.gardees;
+  const prete = A.loras.find(x => x.etat === 'prete' && !x.en_place), entr = A.loras.find(x => x.etat === 'en cours');
+  const ml = A.lieux.filter(x => !x.images.length).length, mt = A.tenues.filter(x => !x.images.length).length;
+  const E_ = [
+    ['Sa fiche', true, `<div class="mut">Qui elle est, comment elle parle, ses lieux, ses tenues, ses expressions. Écrite par votre directeur de casting ou par vous, elle guide tout le reste.</div>
+      <div class="row" style="margin-top:6px"><a class="lien" href="#/perso/${esc(A.slug)}">${ic('texte')}Relire ou corriger sa fiche</a></div>
+      ${A.prefixe ? '' : '<div class="err" style="margin-top:6px">Il manque le « Début de chaque description » (âge, cheveux, yeux, en anglais) : sans lui, les portraits sont tirés au hasard.</div>'}`],
+    ['Son visage', A.lora || !!A.visage.choix, A.lora ? '<div class="mut">Fait : sa LoRA tient son visage.</div>' : `<div class="mut">Quatre portraits créés d'après sa description. Touchez celui qui est elle : tout le reste en sera tiré. Aucun ne convient : « Quatre autres », ou corrigez sa description dans sa fiche.</div>
+      ${A.visage.images.length ? `<div class="bgal">${A.visage.images.map(n => `<img loading="lazy" class="${n === A.visage.choix ? 'on' : ''}" src="${af(n)}" data-a="bchoix" data-n="${n}" alt="">`).join('')}</div>` : ''}
+      <div class="row" style="margin-top:6px"><button class="${A.visage.choix ? '' : 'p'}" data-a="bvisage" ${pris ? 'disabled' : ''}>${ic('image')}${A.visage.images.length ? 'Quatre autres portraits' : 'Créer quatre portraits'}</button><span class="mut">environ ${acout(4)}, une minute</span></div>`],
+    ['Ses expressions', gx >= 6, aExpr()],
+    ['Son corps', gp >= 12, `<div class="mut">Des photos d'elle habillée, en buste et en pied, dans des poses et des décors variés : c'est ce qui apprend son corps à sa LoRA. Créez une série, puis gardez les bonnes (visage identique, mains et corps sans défaut).</div>
+      <div class="row" style="margin-top:6px"><button class="${gp >= 12 ? '' : 'p'}" data-a="bplanches24" ${pris || (!A.lora && !A.visage.choix) ? 'disabled' : ''}>${ic('planche')}Créer 24 planches</button><span class="mut">${A.lora || A.visage.choix ? `environ ${acout(24)}, cinq minutes` : 'Retenir d\'abord un portrait.'}</span></div>
+      ${A.planches.length ? `<div class="row" style="margin-top:6px"><button class="${gp >= 12 ? '' : 'p'}" data-a="bonglet" data-o="corps">${ic('valider')}Trier les planches</button><span class="mut">${gp} gardée(s) sur ${A.planches.length}</span></div>` : ''}
+      <div class="mut" style="margin-top:4px">Tenue précise, série pour adultes, LoRA en plus : onglet Corps.</div>`],
+    ['Sa LoRA', A.lora, `<div class="mut">Le petit modèle qui tient son visage et son corps d'une image à l'autre. Il s'entraîne sur les images gardées aux étapes 3 et 4 : il en faut 20 à 40 (10 au strict minimum). Environ une demi-heure et 1 $ ; le devis exact est affiché avant de lancer.</div>
+      <div class="mut" style="margin-top:4px"><b style="color:var(--txt)">${g} image(s) gardée(s)</b> : ${gx} expression(s), ${gp} planche(s).${g < 20 ? ' Encore ' + (20 - g) + ' pour un bon résultat.' : ''}</div>
+      <div class="row" style="margin-top:6px"><button class="${!A.lora && g >= 10 ? 'p' : ''}" data-a="bonglet" data-o="lora">${ic('lora')}${entr ? 'Entraînement en cours : suivre' : prete ? 'Version prête : voir les essais et l\'adopter' : A.lora ? 'Voir ou refaire sa LoRA' : 'Voir le devis et entraîner'}</button></div>`],
+    ['Ses lieux et sa garde-robe', A.lieux.some(x => x.choix) && A.tenues.some(x => x.choix), `<div class="mut">Une image par lieu et par tenue de sa fiche, pour qu'ils restent les mêmes d'une vidéo à l'autre. Créez les images, puis touchez celle à retenir sur chaque ligne.</div>
+      <div class="row" style="margin-top:6px;flex-wrap:wrap">${ml ? `<button data-a="bcreer" data-q="lieux" ${pris ? 'disabled' : ''}>${ic('image')}Créer les lieux (${ml}, ${acout(ml * 2)})</button>` : ''}${mt ? `<button data-a="bcreer" data-q="tenues" ${pris ? 'disabled' : ''}>${ic('image')}Créer les tenues (${mt}, ${acout(mt * 2)})</button>` : ''}
+        <button class="s" data-a="bonglet" data-o="lieux">Choisir les lieux</button><button class="s" data-a="bonglet" data-o="tenues">Choisir les tenues</button></div>`],
+    ['Ses débuts', false, `<div class="mut">Elle est prête. Deux façons de la lancer :</div>
+      <div class="row" style="margin-top:6px;flex-wrap:wrap"><a class="lien" href="/social">${ic('image')}Diffusion : sa première semaine de publications</a><a class="lien" href="#/">${ic('camera')}Production : sa première vidéo</a></div>
+      <div class="mut" style="margin-top:4px">Pour une vidéo, demandez un script à votre scénariste en lui donnant son nom court : <b style="color:var(--txt)">${esc(A.slug)}</b>.</div>`]];
+  const cur = E_.findIndex(x => !x[1]);
+  return `<div class="panel"><div class="mut">Les étapes pour mettre ${esc(A.nom)} en service, dans l'ordre. L'étape à faire est ouverte ; les autres se déplient d'un toucher. Chaque bouton annonce son coût.</div></div>`
+    + E_.map(([l, ok, h], i) => `<details class="pli panel" data-sec="deb:${A.slug}:${i}"${i === cur ? ' open' : ouv(`deb:${A.slug}:${i}`, false)} style="${i === cur ? 'border-color:var(--acc)' : ''}"><summary><b>${i + 1}. ${l}</b> ${i === E_.length - 1 ? '' : `<span class="badge ${ok ? 'v' : i === cur ? 'i' : ''}">${ok ? 'fait' : i === cur ? 'à faire' : 'ensuite'}</span>`}</summary>${h}</details>`).join('');
+}
 function rendreAtelier() {
   const j = A.job, enc = j && j.etat === 'en cours', pris = false, manq = k => A[k].filter(x => !x.images.length).length;
-  const etapes = [['Fiche', true], ['Lieux', A.lieux.some(x => x.choix)], ['Garde-robe', A.tenues.some(x => x.choix)], ['Planches', A.planches.filter(x => x.garde).length >= 10], ['LoRA', A.lora]];
+  const etapes = [['Fiche', true], ['Lieux', A.lieux.some(x => x.choix)], ['Garde-robe', A.tenues.some(x => x.choix)], ['Visage', A.lora || !!A.visage.choix], ['Images', A.gardees >= 10], ['LoRA', A.lora]];
   const proch = etapes.findIndex(x => !x[1]);
   let corps = '';
-  if (AO === 'lieux' || AO === 'tenues') {
+  if (AO === 'debut') corps = aDebut(pris);
+  else if (AO === 'lieux' || AO === 'tenues') {
     const lieu = AO === 'lieux', m = manq(AO), grp = lieu ? [['', A.lieux]] : [['Tenues', A.tenues.filter(x => x.genre !== 'dessous')], ['Sous-vêtements', A.tenues.filter(x => x.genre === 'dessous')]];
     corps = `<div class="panel"><div class="mut">${lieu ? 'Une image par lieu : la pièce vide, telle qu\'elle doit rester d\'une vidéo à l\'autre.' : 'Une image par tenue : les vêtements seuls, à plat sur fond blanc, pour qu\'ils restent les mêmes d\'une vidéo à l\'autre.'} Les lignes sont celles de la fiche du personnage.</div>
       ${m ? `<div class="row" style="margin-top:6px"><button class="p" data-a="bcreer" data-q="${AO}" ${pris ? 'disabled' : ''}>${ic('image')}Créer les images qui manquent</button><span class="mut">${m} ligne(s), 2 images chacune, environ ${acout(m * 2)}</span></div>` : ''}</div>`
@@ -1103,6 +1152,7 @@ function rendreAtelier() {
     corps = (A.lora ? `<h2>Portrait de départ</h2><div class="panel"><div class="mut">Sans objet ici : ce personnage a déjà une LoRA, qui tient son visage. Les planches en sont tirées. Le choix d'un portrait de départ n'apparaît que pour un personnage qui n'en a pas encore.</div></div>` : `<h2>Portrait de départ <small>ce personnage n'a pas encore de LoRA</small></h2><div class="panel"><div class="mut">Quatre portraits créés d'après sa description. Celui que vous retenez fixe son visage : les planches en sont tirées.</div>
         ${A.visage.images.length ? `<div class="bgal">${A.visage.images.map(n => `<img loading="lazy" class="${n === A.visage.choix ? 'on' : ''}" src="${af(n)}" data-a="bchoix" data-n="${n}" alt="">`).join('')}</div>` : ''}
         <div class="row" style="margin-top:6px"><button class="${A.visage.choix ? '' : 'p'}" data-a="bvisage" ${pris ? 'disabled' : ''}>${ic('image')}${A.visage.images.length ? 'Quatre autres portraits' : 'Créer quatre portraits'}</button><span class="mut">environ ${acout(4)}</span></div></div>`)
+      + `<h2>Galerie d'expressions</h2><div class="panel">${aExpr()}</div>`
       + `<h2>Nouvelle série de planches</h2><div class="panel"><div class="mut">Une planche est une photo d'elle. Une série varie les cadrages (visage, buste, en pied), les poses et les fonds : c'est ce qu'il faut pour entraîner sa LoRA (le petit modèle qui tient son visage et son corps). Il en faut 20 à 40 gardées.</div>
         <div class="row haut"><div style="width:110px"><label>Nombre<select id="bn"><option>12</option><option selected>24</option><option>36</option></select></label></div>
           <div class="g"><label>Tenue de la série (anglais, facultatif)<input id="btenue" placeholder="wearing ...">${aide('Vide : les tenues de sa garde-robe à tour de rôle. Rempli : ce texte est repris tel quel dans chaque planche de la série, à votre main, sans rien ajouter devant. Pour un vêtement, commencer par « wearing ».')}</label></div></div>
@@ -1198,14 +1248,14 @@ function rendreAtelier() {
             ${bi('supprimer', 'Retirer cette position', `data-a="bancretirer" data-n="${esc(x.name)}" data-acte="${esc(l.acte)}"`)}</div>`).join('')}</div>`).join('')
         : '<div class="panel mut">Aucune fiche pour l\'instant. Tant que la liste est vide, le script écrit ses positions librement et les scènes gardent les LoRA de leur temps.</div>');
   } else {
-    const g = A.planches.filter(x => x.garde).length;
-    corps = `<h2>Entraîner sa LoRA</h2><div class="panel"><div class="mut">La LoRA est le petit modèle qui tient son visage et son corps d'une image à l'autre. Elle s'entraîne sur les planches gardées, sur une machine louée pour l'occasion puis rendue. ${A.lora ? 'Ce personnage en a déjà une : une nouvelle version ne la remplace que si vous l\'adoptez.' : ''}</div>
+    const g = A.gardees;
+    corps = `<h2>Entraîner sa LoRA</h2><div class="panel"><div class="mut">La LoRA est le petit modèle qui tient son visage et son corps d'une image à l'autre. Elle s'entraîne sur les images gardées (planches et expressions), sur une machine louée pour l'occasion puis rendue. ${A.lora ? 'Ce personnage en a déjà une : une nouvelle version ne la remplace que si vous l\'adoptez.' : ''}</div>
         <div class="row haut"><div style="width:150px"><label>Passages<select id="bpass"><option value="10">10 (léger)</option><option value="15">15 (plus de détail)</option><option value="20">20 (rapide)</option><option value="30" selected>30 (conseillé)</option><option value="40">40 (appuyé)</option></select>${aide('Nombre de fois où chaque planche est revue. Plus de passages : visage mieux tenu, mais images plus figées.')}</label></div>
-          <div class="g mut" id="bdevis" style="align-self:center">${g} planche(s) gardée(s)</div></div>
-        <div class="row"><button class="p" id="bentr" data-a="bentrainer" data-pris="${pris ? 1 : 0}" ${pris || g < 10 ? 'disabled' : ''}>${ic('lancer')}Entraîner</button><span class="mut" id="bmanque">${g < 10 ? 'Il faut au moins 10 planches gardées (onglet Corps).' : ''}</span></div>
+          <div class="g mut" id="bdevis" style="align-self:center">${g} image(s) gardée(s)</div></div>
+        <div class="row"><button class="p" id="bentr" data-a="bentrainer" data-pris="${pris ? 1 : 0}" ${pris || g < 10 ? 'disabled' : ''}>${ic('lancer')}Entraîner</button><span class="mut" id="bmanque">${g < 10 ? 'Il faut au moins 10 images gardées (onglets Débuter ou Corps).' : ''}</span></div>
         <details class="pli" data-sec="sel:${A.slug}"${ouv(`sel:${A.slug}`, true)}><summary>La sélection : les planches sur lesquelles elle s'entraînera</summary>
           <div class="mut">Toucher une planche la retire de la sélection (elle reste dans l'onglet Corps, où on peut la reprendre) ; la loupe l'agrandit. Pour en ajouter : onglet Corps.</div>
-          ${g ? `<div class="bgal pl">${A.planches.filter(x => x.garde).map(x => `<div style="position:relative;flex:none"><img loading="lazy" class="on" src="${af(x.nom)}" data-a="bsel" data-n="${x.nom}" alt="">${bi('chercher', 'Agrandir', `data-a="bzoom" data-l="g" data-n="${x.nom}" style="position:absolute;top:5px;right:5px;opacity:.85"`)}</div>`).join('')}</div>` : '<div class="mut">Aucune planche gardée pour l\'instant.</div>'}</details></div>`
+          ${g ? `<div class="bgal pl">${bToutes().filter(x => x.garde).map(x => `<div style="position:relative;flex:none"><img loading="lazy" class="on" src="${af(x.nom)}" data-a="bsel" data-n="${x.nom}" alt="">${bi('chercher', 'Agrandir', `data-a="bzoom" data-l="g" data-n="${x.nom}" style="position:absolute;top:5px;right:5px;opacity:.85"`)}</div>`).join('')}</div>` : '<div class="mut">Aucune planche gardée pour l\'instant.</div>'}</details></div>`
       + (A.loras.length ? '<h2>Versions entraînées</h2>' + A.loras.slice().reverse().map(x => `<div class="panel"><div class="row"><b class="g">${esc(x.nom)}</b><span class="badge">${x.en_place ? 'en place' : esc(x.etat)}</span></div>
           <div class="mut">${esc(x.date)}, ${x.images} planches, ${x.passages} passages${x.cout != null ? ', ' + usd(x.cout) : ''}</div>
           ${x.essais.length ? `<div class="mut" style="margin-top:6px">Images d'essai : ce ne sont pas les planches d'entraînement, mais ${new Set(x.essais.map(n => parseInt(n.split('_')[3]))).size} scènes habillées refaites avec cette LoRA, chacune à ${new Set(x.essais.map(n => n.split('_')[2])).size} forces. Une même scène se ressemble donc d'une force à l'autre : c'est voulu, pour choisir la force.</div>
@@ -1241,7 +1291,7 @@ async function bDepart(f) {  // image de depart du banc des clips : reduite a 12
 async function bDevis() {
   const el = $('#bdevis'); if (!el) return;
   const d = await api(`/api/a/b/devis?slug=${A.slug}&passages=${$('#bpass').value}`);
-  el.textContent = `${d.images} planche(s) gardée(s) : environ ${d.minutes} min et ${usd(d.usd)}` + (d.minutes > 70 ? ' ; trop long, 70 min au plus : baisser les passages ou garder moins de planches' : '');
+  el.textContent = `${d.images} image(s) gardée(s) : environ ${d.minutes} min et ${usd(d.usd)}` + (d.minutes > 70 ? ' ; trop long, 70 min au plus : baisser les passages ou garder moins de planches' : '');
 }
 const bMaj = r => { if (r && r.lieux) A = r; return vueAtelier(A.slug); };
 Object.assign(actions, {
@@ -1279,7 +1329,7 @@ Object.assign(actions, {
   bzoom: el => {  // grande image d'une planche : precedente, suivante, garder ou ecarter sans revenir a la grille
     const mode = el.dataset.l || '', serie = el.dataset.n.split('_')[1], ess = mode === 'e';  // 'g' : la selection d'entrainement ; 'e' : les images d'essai d'une version
     const l = ess ? A.loras.flatMap(y => y.essais).filter(n => n.split('_')[1] === serie).sort((a, b) => (parseInt(a.split('_')[3]) + a).localeCompare(parseInt(b.split('_')[3]) + b)).map(n => ({nom: n, garde: false, titre: `scène ${parseInt(n.split('_')[3])}, force ${(n.split('_')[2] / 10).toFixed(1).replace('.', ',')}`}))
-      : A.planches.filter(y => mode === 'g' ? y.garde : y.nom.split('_')[1] === serie); let i = l.findIndex(y => y.nom === el.dataset.n);
+      : mode === 'x' ? A.expressions.flatMap(y => y.images) : mode === 'g' ? bToutes().filter(y => y.garde) : A.planches.filter(y => y.nom.split('_')[1] === serie); let i = l.findIndex(y => y.nom === el.dataset.n);
     const o = document.createElement('div'); o.style.cssText = 'position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.94);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:8px';
     const dessin = () => { const x = l[i]; o.innerHTML = `<img src="${af(x.nom)}" alt="" style="max-width:100%;max-height:calc(100% - 64px);object-fit:contain;border-radius:6px;border:3px solid ${x.garde ? 'var(--acc)' : 'transparent'}">
       <div class="row" style="justify-content:center;flex-wrap:nowrap"><button class="s" data-z="-1" ${i ? '' : 'disabled'}>${ic('retour')}</button><span class="mut">${i + 1} / ${l.length}${x.titre ? ' : ' + x.titre : ''}</span>${ess ? '' : `<button class="${x.garde ? 's' : 'p'}" data-z="g">${ic(x.garde ? 'fermer' : 'valider')}${x.garde ? (mode === 'g' ? 'Retirer' : 'Écarter') : (mode === 'g' ? 'Reprendre' : 'Garder')}</button>`}<button class="s" data-z="1" ${i < l.length - 1 ? '' : 'disabled'}>Suivante</button><button class="s" data-z="x">${ic('fermer')}Fermer</button></div>`; };
@@ -1291,9 +1341,15 @@ Object.assign(actions, {
       i += +z; dessin(); });
     let x0 = null; o.ontouchstart = e => { x0 = e.touches[0].clientX; }; o.ontouchend = e => { if (x0 == null) return; const d = e.changedTouches[0].clientX - x0; x0 = null; if (d < -50 && i < l.length - 1) { i++; dessin(); } else if (d > 50 && i) { i--; dessin(); } };
     document.addEventListener('keydown', touche); dessin(); document.body.appendChild(o); },
-  bsel: async el => { const x = A.planches.find(y => y.nom === el.dataset.n); x.garde = !x.garde; el.classList.toggle('on', x.garde); await api('/api/a/b/garde', {slug: A.slug, image: x.nom, garde: x.garde});
-    const g = A.planches.filter(y => y.garde).length, b = $('#bentr'); if (b) b.disabled = g < 10 || b.dataset.pris === '1'; $('#bmanque').textContent = g < 10 ? 'Il faut au moins 10 planches gardées (onglet Corps).' : ''; bDevis(); },
-  bgarde: async el => { const x = A.planches.find(y => y.nom === el.dataset.n); x.garde = !x.garde; el.classList.toggle('on', x.garde); await api('/api/a/b/garde', {slug: A.slug, image: x.nom, garde: x.garde}); },
+  bsel: async el => { const x = bToutes().find(y => y.nom === el.dataset.n); x.garde = !x.garde; el.classList.toggle('on', x.garde); await api('/api/a/b/garde', {slug: A.slug, image: x.nom, garde: x.garde});
+    const g = A.gardees = bToutes().filter(y => y.garde).length, b = $('#bentr'); if (b) b.disabled = g < 10 || b.dataset.pris === '1'; $('#bmanque').textContent = g < 10 ? 'Il faut au moins 10 images gardées (onglets Débuter ou Corps).' : ''; bDevis(); },
+  bgarde: async el => { const x = bToutes().find(y => y.nom === el.dataset.n); x.garde = !x.garde; el.classList.toggle('on', x.garde); await api('/api/a/b/garde', {slug: A.slug, image: x.nom, garde: x.garde}); A.gardees = bToutes().filter(y => y.garde).length; },
+  bexpr: async el => { const c = el.dataset.cle; if (c && !confirm(`Créer une autre image de cette expression, environ ${acout(1)} ?`)) return;
+    const r = await api('/api/a/b/expressions', {slug: A.slug, cles: c ? [c] : []}); toast(`${r.lance} expression(s) lancée(s)`, true); await bMaj(); },
+  bexprtout: async el => { const o = !!el.dataset.o, l = A.expressions.flatMap(x => x.images).filter(y => !!y.garde !== o); for (const x of l) x.garde = o; rendreAtelier();
+    for (const x of l) await api('/api/a/b/garde', {slug: A.slug, image: x.nom, garde: o}); await bMaj(); },
+  bplanches24: async () => { if (!confirm(`Créer 24 planches habillées, environ ${acout(24)} ?`)) return;
+    await api('/api/a/b/planches', {slug: A.slug, n: 24, tenue: '', nsfw: false, loras: []}); toast('Série lancée', true); await bMaj(); },
   bvider: async el => { const tout = !!el.dataset.o, l = A.planches.filter(y => y.nom.split('_')[1] === el.dataset.s && (tout || !y.garde)); if (!l.length) return alert('Aucune planche écartée dans cette série : toucher d\'abord celles à supprimer pour les écarter.');
     if (!confirm(tout ? `Supprimer toute la série ${el.dataset.s} (${l.length} planches, gardées comprises) ?` : `Supprimer les ${l.length} planche(s) écartée(s) de la série ${el.dataset.s} ? Les planches gardées restent.`)) return;
     el.disabled = true; let r, i = 0; try { for (const x of l) { el.textContent = `${++i} / ${l.length}`; r = await api('/api/a/b/retirer', {slug: A.slug, image: x.nom}); } } finally { await bMaj(r); } toast(`${i} planche(s) supprimée(s)`, true); },

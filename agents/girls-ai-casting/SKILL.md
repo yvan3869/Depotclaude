@@ -36,7 +36,9 @@ d'écrire la fiche, ces points sont fixés avec lui :
 4. Le caractère, avec un vrai défaut et une contradiction ; sa manière de parler et d'écrire.
 5. Son univers : métier, ville, routine, objets, le fil rouge qui revient d'une vidéo à l'autre.
 6. Ses lieux et ses tenues (4 à 8 de chaque).
-7. Le ton de ses publications, son appel à l'action, ce qu'on ne lui fait jamais dire ni montrer.
+7. Ses expressions à elle : trois à six mimiques qu'on reconnaît (un sourire en coin, une façon de lever les
+   yeux au ciel).
+8. Le ton de ses publications, son appel à l'action, ce qu'on ne lui fait jamais dire ni montrer.
 
 ## 3. Ce qui rend une fiche utile à la machine
 
@@ -48,11 +50,21 @@ d'écrire la fiche, ces points sont fixés avec lui :
   mot dans toutes les images d'une vidéo : c'est elle qui tient le décor. Pas de personnes, rien qui bouge.
 - **`tenues`** : forme `français | anglais`. La partie anglaise nomme le vêtement, sa couleur, sa matière, sa
   coupe, sans « wearing » devant. Des tenues qui peuvent se défaire par étapes servent mieux les quatre temps.
+- La **première tenue** de la liste habille ses premières images (planches du corps, galerie d'expressions) :
+  mets-y une tenue simple, de tous les jours.
+- **`expressions`** : forme `français | anglais`, trois à six lignes. Le visage seul (bouche, yeux, sourcils,
+  regard), ni tenue, ni lieu. La Production en tire sa galerie d'expressions ; les bonnes images entrent dans
+  l'entraînement de sa LoRA, et le scénariste reprend ensuite la partie anglaise mot pour mot dans ses scènes.
+  Inutile d'y mettre « sourire », « rire », « surprise » : une liste commune est ajoutée d'office.
 - **`fiche`** : en français, concret. Des faits et des habitudes (« renverse son café sur ses notes ») plutôt
   que des adjectifs (« maladroite »). Le scénariste en tire des scènes.
 - **`generation.lora`** reste vide : la LoRA du visage est entraînée par le propriétaire (environ 2 $). Tant
-  qu'elle n'existe pas, le visage change d'une image à l'autre. Dis-le-lui, et propose-lui la suite : une
-  série d'images d'entraînement tirées de la fiche.
+  qu'elle n'existe pas, le visage change d'une image à l'autre.
+- **Ce que ta fiche déclenche.** Une fois la fiche enregistrée, la page « Débuter » guide le propriétaire :
+  quatre portraits tirés de `zimage_prefix` (il en retient un), la galerie d'expressions, les planches du
+  corps tirées de `generation.corps` et de la première tenue, l'entraînement de la LoRA, puis une image par
+  lieu et par tenue. Un `zimage_prefix` vague donne quatre visages sans rapport : sois précis sur les cheveux
+  (longueur, couleur, texture), les yeux, la peau et un ou deux traits.
 - **Aucune personne réelle** : ni nom existant, ni « ressemble à », ni célébrité comme modèle. Vérifie que le
   nom choisi n'est pas celui d'une personne connue.
 
@@ -66,7 +78,8 @@ d'écrire la fiche, ces points sont fixés avec lui :
        python3 tools/triage/verifier.py server/jobs/atelier/personnages/<nom_court>.yaml
 
 3. Annonce au propriétaire : la fiche de casting livrée, le résultat du vérificateur, et ce qu'il lui reste à faire
-   (ouvrir la Production, Casting, « Fiches livrées par votre directeur de casting », relire, enregistrer ; puis la LoRA du visage).
+   (ouvrir la Production, Casting, « Fiches livrées par votre directeur de casting », relire, enregistrer ; la page
+   « Débuter » s'ouvre alors et le guide : visage, expressions, corps, LoRA, lieux et tenues, environ 2 $ en tout).
 4. Correction : modifie le même fichier, revérifie. Une fiche déjà enregistrée par lui se corrige ensuite dans
    la page ; un nouveau dépôt du même nom court la remplacerait, préviens-le.
 

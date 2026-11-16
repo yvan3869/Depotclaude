@@ -58,6 +58,24 @@ FONDS = (
 ESSAIS = ("medium shot, eye-level, front view, she stands, soft smile, looking at the camera, in a bright living room, wearing a white t-shirt and jeans",
           "full-body shot, eye-level, three-quarter view, she stands, one hand on her hip, on a city street, wearing a black dress")
 FORCES = (1.0, 1.3, 1.6)
+# Galerie d'expressions : un visage par expression, tire du portrait de depart (ou de la LoRA). Tous publics.
+# Elle montre ce que le visage sait faire, nourrit l'entrainement de la LoRA (un jeu sans expressions donne un visage fige)
+# et donne au scenariste les mots anglais qui marchent. Celles de la fiche du personnage ("expressions") passent en tete.
+EXPRESSIONS = (("Neutre", "neutral relaxed face, lips closed, looking at the camera"),
+               ("Sourire doux", "soft closed-lip smile, looking at the camera"),
+               ("Grand sourire", "big bright smile showing her teeth, looking at the camera"),
+               ("Rire", "laughing out loud, eyes half closed, head slightly tilted back"),
+               ("Clin d'œil", "playful wink with one eye closed, slight smile"),
+               ("Sourire en coin", "smirk with one corner of her mouth raised, knowing look at the camera"),
+               ("Surprise", "surprised, eyebrows raised, mouth slightly open"),
+               ("Moue", "pouting, lips pushed forward, looking at the camera"),
+               ("Pensive", "thoughtful, looking away to the side, lips closed"),
+               ("Timide", "shy smile, looking down, chin slightly lowered"),
+               ("Sérieuse", "serious determined look straight into the camera, lips closed"),
+               ("Agacée", "annoyed, one eyebrow raised, lips pressed together"),
+               ("Triste", "sad, eyes lowered, corners of her mouth down"),
+               ("Yeux fermés", "eyes closed, peaceful face, slight smile"))
+VUES = ("front view", "three-quarter view", "front view, head slightly tilted")
 # Cabine d'essayage : poses proposees (nom affiche, texte pour le modele).
 POSES = (("Debout, de face", "full-body shot, eye-level, front view, she stands facing the camera, arms relaxed along her body"),
          ("Debout, de trois quarts", "full-body shot, eye-level, three-quarter view, she stands, one hand on her hip"),
@@ -178,11 +196,14 @@ class Biblio:
             return out
         g = p.get("generation") or {}
         vis = [n for n in noms if n.startswith("v_")]
+        expr = [{"cle": h, "fr": fr, "en": en, "fiche": fi, "images": [{"nom": n, "garde": bool(b["planches"].get(n, {}).get("garde"))}
+                                                                    for n in noms if n.startswith(f"x_{h}_")]} for h, fr, en, fi in self._expressions(p)]
         series = self._series(slug)
         j = self.job if self.job and self.job["slug"] == slug else None
         return {"slug": slug, "nom": p["nom"], "lora": bool(g.get("lora")), "lora_force": g.get("lora_strength"), "prefixe": bool(g.get("zimage_prefix")),
                 "lieux": lignes("lieux", "l"), "tenues": lignes("tenues", "t"),
                 "visage": {"images": vis, "choix": b["choix"].get("visage") if b["choix"].get("visage") in vis else ""},
+                "expressions": expr, "gardees": sum(1 for x in b["planches"].values() if x.get("garde")),
                 "banc": [{"cle": k, **x, "images": [n for n in noms if n.startswith(f"b_{k}_")], "clips": sorted(f.name for f in d.glob(f"bv_{k}_*.mp4"))}
                          for k, x in reversed(list((b.get("banc") or {}).items()))],
                 "departs": [n for n in noms if n.startswith("bd_")],
@@ -425,6 +446,50 @@ class Biblio:
                              f"in front of a plain light grey wall, wearing a white t-shirt, soft natural daylight{FIN}"}
                   for s in [s for s in range(1, 60) if s not in deja][:4]]
         self._lancer(slug, "visage", {"taches": taches}, len(taches))
+        return {"lance": len(taches)}
+
+    def _expressions(self, p):
+        """Expressions de la galerie : celles de la fiche du personnage ("français | anglais"), puis la liste commune."""
+        out, vus = [], set()
+        for fr, en, fi in [(_s(x.partition("|")[0], 60), _s(x.rpartition("|")[2], 200).strip(" ."), True) for x in p.get("expressions") or [] if "|" in x] \
+                + [(fr, en, False) for fr, en in EXPRESSIONS]:
+            h = h8(en)
+            if en and h not in vus:
+                vus.add(h)
+                out.append((h, fr, en, fi))
+        return out
+
+    def expressions(self, b):
+        """Galerie d'expressions : une image par expression qui n'en a pas ("cles" : une image de plus pour celles-la).
+        Avec la LoRA du personnage si elle existe ; sinon par retouche du portrait choisi. Cadrage serre, fonds et vues varies,
+        tenue habillee de la fiche : ces images entrent dans le jeu d'entrainement comme les planches (case « garder »)."""
+        slug = b["slug"]
+        self._libre()
+        p, v, bb = self.at.perso(slug), self.vue(slug), self._b(slug)
+        ref = None
+        if not v["lora"]:
+            if not v["visage"]["choix"]:
+                raise ValueError("choisir d'abord un portrait : les expressions en sont tirées")
+            ref = str(self.fichier(slug, v["visage"]["choix"]))
+        cles = {str(x) for x in b.get("cles") or []}
+        tenues = [x["en"] for x in v["tenues"] if x["genre"] != "dessous"] or ["a white t-shirt"]
+        pre, taches = self._prefixe(p), []
+        for i, x in enumerate(v["expressions"]):
+            if (x["cle"] not in cles) if cles else x["images"]:
+                continue
+            k = max([int(y["nom"][:-4].split("_")[2]) for y in x["images"]] or [0]) + 1
+            habit = "wearing " + re.sub(r"^wearing ", "", tenues[(i + k) % len(tenues)])
+            desc = f"close-up portrait, eye-level, {VUES[(i + k) % len(VUES)]}, {x['en']}, {FONDS[(i + k) % len(FONDS)]}, {habit}"
+            nom = f"x_{x['cle']}_{k}"
+            bb["planches"][nom + ".png"] = {"garde": False, "legende": f"{pre}{desc}"}
+            t = {"sortie": nom, "seed": 7000 + 53 * i + k, "taille": [720, 1280]}
+            t |= {"ref": ref, "prompt": f"Same woman, same face, same hair. New photo of her: {desc}. Natural smartphone photo."} if ref \
+                else {"lora": True, "prompt": f"{pre}vertical {desc}{FIN}"}
+            taches.append(t)
+        if not taches:
+            raise ValueError("chaque expression a déjà son image : toucher « une autre » sur celle à refaire")
+        self._ecrire(slug, bb)
+        self._lancer(slug, "expressions", {"taches": taches}, len(taches))
         return {"lance": len(taches)}
 
     def planches(self, b):
@@ -689,7 +754,7 @@ class Biblio:
 
     def post(self, path, b):
         f = {"/api/a/b/creer": self.creer, "/api/a/b/ajouter": self.ajouter, "/api/a/b/retirer": self.retirer, "/api/a/b/choix": self.choix,
-             "/api/a/b/visage": self.visage, "/api/a/b/planches": self.planches, "/api/a/b/garde": self.garde, "/api/a/b/entrainer": self.entrainer,
+             "/api/a/b/visage": self.visage, "/api/a/b/expressions": self.expressions, "/api/a/b/planches": self.planches, "/api/a/b/garde": self.garde, "/api/a/b/entrainer": self.entrainer,
              "/api/a/b/adopter": self.adopter, "/api/a/b/revenir": self.revenir, "/api/a/b/importer": self.importer, "/api/a/b/essayer": self.essayer,
              "/api/a/b/banc": self.banc, "/api/a/b/banc/noter": self.banc_noter, "/api/a/b/banc/retirer": self.banc_retirer,
              "/api/a/b/banc/depart": self.banc_depart, "/api/a/b/banc/depart/retirer": self.banc_depart_retirer}.get(path)

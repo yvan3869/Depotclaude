@@ -621,6 +621,18 @@ la corrige et l'enregistre. Rien n'entre en service sans lui ; une fiche de moin
 `generation.lora` reste vide : la LoRA du visage est entrainee par le proprietaire, et sans elle le visage change
 d'une image a l'autre. Le nom court du fichier est celui qu'on ecrit ensuite dans `atelier.personnage`.
 
+Une fois la fiche enregistree, l'atelier du personnage s'ouvre sur l'onglet "Debuter", qui guide le proprietaire
+etape par etape : quatre portraits tires de `generation.zimage_prefix` (il en retient un), la galerie
+d'expressions, les planches du corps (tirees de `generation.corps` et de la premiere tenue de la liste, qui doit
+etre simple et tous publics), l'entrainement de la LoRA sur les images gardees, puis une image par lieu et par
+tenue. La fiche fournit donc tout ce que ces etapes consomment : la soigner a ces endroits.
+
+**Expressions** (modele de fiche 2026-11-16) : `expressions` liste 3 a 6 mimiques propres au personnage, forme
+"francais | anglais", le visage seul (ni tenue, ni lieu). La Production fabrique une image du visage pour chacune,
+puis pour une liste commune (neutral expression, soft smile, laughing, surprised, pouting, pensive...). Les
+images gardees entrent dans le jeu d'entrainement de la LoRA, legendees avec ces memes mots anglais : le
+scenariste a donc interet a reprendre la partie anglaise mot pour mot dans `still` quand il veut cette mimique.
+
 ## Skills de l'agent
 `agents/girls-ai-scenariste/SKILL.md` et `agents/girls-ai-casting/SKILL.md` : deux skills a installer dans
 l'agent du proprietaire (par un lien vers ces dossiers). Ils ne contiennent pas le format : ils imposent de

@@ -14,12 +14,25 @@
 #     francaise sert a choisir, la partie anglaise part telle quelle dans la description des images.
 #     Ces listes grandissent : la page repere la tenue et le lieu nouveaux d'un script, et le proprietaire les
 #     ajoute d'un appui. Une fiche redeposee remplace ces ajouts : les y reprendre.
+#   - "expressions" : ses mimiques a elle. La Production en tire sa galerie d'expressions (son visage dans chacune),
+#     dont les bonnes images entrent dans l'entrainement de sa LoRA ; le scenariste reprend ensuite la partie
+#     anglaise, mot pour mot, dans la description de ses scenes.
 #   - "generation" : colle dans chaque description d'image. En anglais, sans accent.
+#
+# Ce que le proprietaire fait de la fiche, dans l'ordre (page Production, Casting, "Debuter") :
+#   1. son visage      quatre portraits tires de "generation.zimage_prefix" ; il en retient un.
+#   2. ses expressions une image par ligne de "expressions", puis une liste commune (sourire, rire, surprise...).
+#   3. son corps       des planches habillees tirees de "generation.corps" et de la premiere tenue de "tenues".
+#   4. sa LoRA         entrainee sur les images gardees aux etapes 2 et 3.
+#   5. ses lieux et sa garde-robe : une image par ligne de "lieux" et de "tenues".
+# Une fiche precise a ces endroits lui epargne des essais : c'est la que le directeur de casting est attendu.
 #
 # Historique
 #   2026-11-15   premiere version.
+#   2026-11-16   champ "expressions" (3 a 6 mimiques, le visage seul) ; la premiere tenue de la liste habille les
+#                premieres images : elle doit etre simple et tous publics.
 
-modele: "2026-11-15"
+modele: "2026-11-16"
 nom: "Prenom Nom"            # invente ; verifier qu'il n'est pas celui d'une personne connue
 age: 27                      # 21 au moins
 langue: en                   # langue de ses publications : en ou fr
@@ -42,6 +55,12 @@ lieux:                       # 4 a 8 lieux ou elle peut etre filmee, "francais |
 tenues:                      # 4 a 8 tenues, "francais | anglais"
   - "robe d'ete | a light summer dress with thin straps"
   # La partie anglaise : le vetement, sa couleur, sa matiere, sa coupe ; sans "wearing" devant.
+  # La PREMIERE tenue habille ses planches et sa galerie d'expressions : simple, de tous les jours, tous publics.
+
+expressions:                 # 3 a 6 mimiques a elle, "francais | anglais" (12 au plus)
+  - "sourire en coin, un sourcil leve | smirk with one eyebrow raised, looking at the camera"
+  # Le visage seul : bouche, yeux, sourcils, regard, port de tete. Ni tenue, ni lieu, ni geste du corps, tous publics.
+  # Ce qui la distingue : la liste commune (neutre, sourire, rire, surprise, moue, pensive...) est ajoutee d'office.
 
 ecriture:
   ton: ""                    # comment elle ecrit ses accroches et legendes (400 caracteres au plus)

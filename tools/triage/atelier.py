@@ -664,6 +664,7 @@ class Atelier:
              "fiche": {k: _s(fiche.get(k), 1500) for k in ("identite", "apparence", "voix", "personnalite", "seduction", "univers", "limites")},
              "lieux": [_s(x, 300) for x in b.get("lieux") or [] if _s(x)][:30],
              "tenues": [_s(x, 300) for x in b.get("tenues") or [] if _s(x)][:30],
+             "expressions": [_s(x, 200) for x in b.get("expressions") or [] if _s(x)][:12],
              "ecriture": {k: _s(ecr.get(k), 400) for k in ("ton", "cta", "plateforme", "hashtags", "interdits")},
              "generation": {"zimage_prefix": (prefix + " ") if prefix else "", "lora": _s(gen.get("lora"), 120),
                             "lora_strength": float(gen.get("lora_strength") or 1.0), "corps": _s(gen.get("corps"), 600),
@@ -689,12 +690,12 @@ class Atelier:
         for k in ("fiche", "ecriture", "generation"):
             if j.get(k) is not None and not isinstance(j[k], dict):
                 raise ValueError(f'"{k}" : un bloc de champs')
-        for k in ("lieux", "tenues"):
+        for k in ("lieux", "tenues", "expressions"):
             if j.get(k) is not None and not (isinstance(j[k], list) and all(isinstance(x, str) for x in j[k])):
                 raise ValueError(f'"{k}" : une liste de lignes "français | anglais"')
         p = self._norme_perso({**j, "slug": f.stem, "statut": "actif"})
         rem, ascii_ = [], lambda x: all(ord(c) < 128 for c in x)
-        connus = {"modele", "nom", "age", "langue", "accroche", "fiche", "lieux", "tenues", "ecriture", "generation"}
+        connus = {"modele", "nom", "age", "langue", "accroche", "fiche", "lieux", "tenues", "expressions", "ecriture", "generation"}
         for k in sorted(set(j) - connus):
             rem.append(f'champ "{k}" inconnu : il est ignoré')
         for grp in ("fiche", "ecriture", "generation"):
@@ -716,6 +717,16 @@ class Atelier:
                     rem.append(f'"{k}" : « {x[:40]} » n\'a pas la forme "français | anglais"')
                 elif not ascii_(en):
                     rem.append(f'"{k}" : la partie anglaise de « {x[:40]} » contient des accents, elle doit être en anglais')
+        if len(p["expressions"]) < 3:
+            rem.append('"expressions" : en donner 3 à 6, les mimiques à elle ; elles ouvrent sa galerie d\'expressions')
+        for x in p["expressions"]:
+            fr, sep, en = x.partition(" | ")
+            if not sep or not fr.strip() or not en.strip():
+                rem.append(f'"expressions" : « {x[:40]} » n\'a pas la forme "français | anglais"')
+            elif not ascii_(en):
+                rem.append(f'"expressions" : la partie anglaise de « {x[:40]} » contient des accents, elle doit être en anglais')
+            elif re.search(r"\b(wearing|dress|shirt|naked|nude)\b", en, re.I):
+                rem.append(f'"expressions" : « {x[:40]} » décrit autre chose que le visage (tenue ou lieu) : ne garder que la mimique')
         for k in ("ton", "cta", "plateforme", "interdits"):
             if not p["ecriture"][k]:
                 rem.append(f'"ecriture.{k}" vide')
@@ -1272,9 +1283,10 @@ class Atelier:
                       f"Le personnage est une femme adulte de {AGE_MIN} ans au moins, d'apparence clairement adulte, sans ressemblance avec une personne réelle ou célèbre, "
                       "avec un prénom et un nom inventés. Donne-lui un métier, des défauts, des tics de langage, un univers visuel et une manière précise de séduire. "
                       "\"lieux\" et \"tenues\" : 6 éléments chacun, au format \"français | anglais\" (l'anglais commence par \"in\"/\"on\" pour un lieu, par \"a\"/\"an\" pour une tenue). "
+                      "\"expressions\" : 4 mimiques du visage qui sont les siennes, tous publics, au format \"français | anglais\" (le visage seul : ni tenue, ni lieu). "
                       "\"zimage_prefix\" : en anglais, \"a woman with ...\" (âge apparent, cheveux, yeux, teint, silhouette), une ligne.\n\nFORMAT\n"
                       '{"nom": "...", "age": 27, "langue": "en", "accroche": "phrase qui la résume", "fiche": {"identite": "...", "apparence": "...", "voix": "...", '
-                      '"personnalite": "...", "seduction": "...", "univers": "...", "limites": "..."}, "lieux": ["..."], "tenues": ["..."], '
+                      '"personnalite": "...", "seduction": "...", "univers": "...", "limites": "..."}, "lieux": ["..."], "tenues": ["..."], "expressions": ["..."], '
                       '"ecriture": {"ton": "...", "cta": "...", "plateforme": "Fanvue", "hashtags": "...", "interdits": "..."}, "generation": {"zimage_prefix": "..."}}')
         elif kind == "biblio":  # atelier du personnage : une phrase du proprietaire devient une ligne "français | anglais"
             if not consigne:
