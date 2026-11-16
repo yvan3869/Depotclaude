@@ -477,7 +477,7 @@ class Biblio:
             raise ValueError("le banc essaie les LoRA d'image ; une LoRA de clip s'inscrit sans essai")
         if not v["lora"]:
             raise ValueError("ce personnage n'a pas encore sa LoRA de visage : le banc en a besoin")
-        acte, phrase = _s(b.get("acte"), 80), _s(b.get("phrase"), 300)
+        acte, phrase = _s(b.get("acte"), 80), _s(b.get("phrase"), 500)
         if not acte:
             raise ValueError("écrire la position à essayer")
         k = hashlib.sha1(f"{nom}|{_cle(acte)}".encode()).hexdigest()[:8]

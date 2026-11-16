@@ -500,7 +500,7 @@ class Atelier:
                 force = round(float(l.get("force") or 0), 2)
             except (TypeError, ValueError):
                 force = 0
-            lignes.append({"acte": a, "phrase": _s(l.get("phrase"), 300), "personnes": 2 if str(l.get("personnes")) == "2" else 1,
+            lignes.append({"acte": a, "phrase": _s(l.get("phrase"), 500), "personnes": 2 if str(l.get("personnes")) == "2" else 1,
                            "cadrages": [k for k, *_ in BANC_CADRES if k in (l.get("cadrages") or [])], "force": force if 0 < force <= 2 else 0, "ok": bool(l.get("ok"))})
         if len(lignes) > 30:
             raise ValueError("30 positions au plus par LoRA")

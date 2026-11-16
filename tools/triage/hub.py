@@ -5,6 +5,7 @@ Le serveur ne telecharge aucune image : les vignettes sont des adresses que char
 Une LoRA n'est retenue qu'a partir de sa fiche relue chez la source (jamais d'une adresse fournie par la page), et
 n'est chargee que sur clic : un lot = un pod, annonce et consigne comme toute depense.
 """
+import html
 import json
 import os
 import re
@@ -36,6 +37,36 @@ def _get(url, tok=""):
         raise RuntimeError(f"la source a répondu {e.code}") from None
     except (urllib.error.URLError, TimeoutError, ValueError) as e:
         raise RuntimeError(f"source injoignable ({str(e)[:80]})") from None
+
+
+def _texte(url):
+    """Texte brut d'une adresse (page README de Hugging Face), 200 ko au plus."""
+    try:
+        with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": UA}), timeout=40) as r:
+            return r.read(200_000).decode("utf-8", errors="replace")
+    except urllib.error.HTTPError as e:
+        raise RuntimeError(f"la source a répondu {e.code}") from None
+    except (urllib.error.URLError, TimeoutError) as e:
+        raise RuntimeError(f"source injoignable ({str(e)[:80]})") from None
+
+
+def _clair(h, n=4000):
+    """Texte lisible d'une description (HTML ou Markdown) : balises retirees, paragraphes gardes."""
+    t = re.sub(r"(?is)<(script|style)\b.*?</\1>", "", str(h or ""))
+    t = re.sub(r"(?i)<br\s*/?>|</(p|div|li|h[1-6]|tr|pre|blockquote)>", "\n", t)
+    t = html.unescape(re.sub(r"<[^>]+>", "", t))
+    t = re.sub(r"!\[[^\]]*\]\([^)]*\)", "", t)
+    t = "\n".join(l.strip() for l in t.splitlines())
+    return re.sub(r"\n{3,}", "\n\n", re.sub(r"[ \t]+", " ", t)).strip()[:n]
+
+
+def _uniques(l, n=12, lg=1500):
+    out = []
+    for p in l:
+        p = re.sub(r"\s+", " ", str(p or "")).strip()[:lg]
+        if p and p not in out:
+            out.append(p)
+    return out[:n]
 
 
 # Les sources ne marquent pas toutes leurs fiches pour adultes (Hugging Face surtout) : le nom tranche aussi.
@@ -120,6 +151,7 @@ class Hub:
         self.f = data / "hub.json"
         self.log = data / "hub_sync.log"
         self.proc = None
+        self._orig = {}  # pages d'origine deja relues (le temps du service)
 
     # --- etat -----------------------------------------------------------------------------------------------
     def _retenues(self):
@@ -367,9 +399,59 @@ class Hub:
         return {"lance": len(todo)}
 
     # --- routes ---------------------------------------------------------------------------------------------
+    # --- page d'origine d'une LoRA --------------------------------------------------------------------------
+    def origine(self, nom):
+        """Ce que l'auteur d'une LoRA en dit chez la source : mots declencheurs, description, prompts de ses images
+        d'exemple. Relu chez la source a partir de l'adresse gardee au catalogue ; rien n'est trie ni reecrit ici."""
+        v = self.at._catalogue().get(nom)
+        if not isinstance(v, dict):
+            raise ValueError("LoRA inconnue")
+        src = str(v.get("source") or "")
+        if nom in self._orig and self._orig[nom]["page"] == src:
+            return self._orig[nom]
+        out = {"name": nom, "page": src, "mots": [], "description": "", "exemples": []}
+        mc = re.match(r"https://civitai\.com/models/(\d+)(?:\?modelVersionId=(\d+))?$", src)
+        mh = re.match(r"https://huggingface\.co/([\w.\-]+/[\w.\-]+)$", src)
+        if mc:
+            tok = os.environ.get("CIVITAI_TOKEN", "")
+            d = _get(f"https://civitai.com/api/v1/models/{mc.group(1)}", tok)
+            vs = [x for x in d.get("modelVersions") or [] if isinstance(x, dict)]
+            ver = next((x for x in vs if str(x.get("id")) == mc.group(2)), vs[0] if vs else {})
+            out["mots"] = _uniques(ver.get("trainedWords") or [], 20, 200)
+            out["description"] = "\n\n".join(x for x in (_clair(ver.get("description"), 1500), _clair(d.get("description"))) if x)
+            ex = [(i.get("meta") or {}).get("prompt") for i in ver.get("images") or [] if isinstance(i, dict)]
+            if not any(ex) and ver.get("id"):  # la fiche du modele ne porte pas toujours les prompts : la galerie de la version les a
+                try:
+                    r = _get("https://civitai.com/api/v1/images?" + urllib.parse.urlencode(
+                        {"modelVersionId": ver["id"], "limit": 20, "nsfw": "X", "sort": "Most Reactions"}), tok)
+                    ex = [(i.get("meta") or {}).get("prompt") for i in r.get("items") or [] if isinstance(i, dict)]
+                except RuntimeError:
+                    ex = []
+            out["exemples"] = _uniques(ex)
+        elif mh:
+            t = _texte(f"https://huggingface.co/{mh.group(1)}/raw/main/README.md")
+            m = re.match(r"(?s)\s*---\n(.*?)\n---\n?(.*)", t)
+            if m:
+                try:
+                    import yaml
+                    tete = yaml.safe_load(m.group(1))
+                except Exception:
+                    tete = None
+                tete = tete if isinstance(tete, dict) else {}
+                out["mots"] = _uniques([tete.get("instance_prompt")], 20, 200)
+                out["exemples"] = _uniques([w.get("text") for w in tete.get("widget") or [] if isinstance(w, dict)])
+                t = m.group(2)
+            out["description"] = _clair(t)
+        else:
+            return out  # LoRA sans page d'origine (entrainee ici) : rien a montrer
+        self._orig[nom] = out
+        return out
+
     def get(self, path, q):
         if path == "/api/h/etat":
             return self.etat()
+        if path == "/api/h/origine":
+            return self.origine(str((q.get("name") or [""])[0])[:120])
         if path == "/api/h/chercher":
             return self.chercher(q)
         return None
