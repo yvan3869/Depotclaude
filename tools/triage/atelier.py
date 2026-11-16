@@ -1657,7 +1657,7 @@ class Atelier:
         slug = pl.get("personnage") or pr.get("personnage") or ""
         if pl.get("modele", "") >= MODELE_ETAT and fiche.get("lieu") and slug and not self.biblio.image(slug, "l", fiche["lieu"]):
             try:
-                connus = [x["en"] for x in self.biblio.vue(slug)["lieux"] if x.get("choix")]
+                connus = [x.rpartition("|")[2].strip() for x in self.perso(slug).get("lieux") or [] if self.biblio.image(slug, "l", x)]
             except Exception:
                 connus = []
             out.append({"scene": "", "grave": False, "msg": "le lieu de la fiche de continuité n'est pas, mot pour mot, un lieu du personnage qui a une image : "
