@@ -1,4 +1,5 @@
-"""Espace reseaux : selfies tous publics qui font vivre les comptes grand public des personnages.
+"""Espace reseaux : publications tous publics qui font vivre les comptes grand public des personnages (selfies, mais aussi
+ce qu'elle mange, les lieux ou elle passe, ses sorties avec des amis : voir GENRES).
 
 Un lot = une semaine d'un personnage. Le redacteur ecrit les publications (moment, description de la photo, legende,
 hashtags), puis les images sont calculees sur le pod de veille du studio, quand rien d'autre ne tourne et tant que
@@ -21,7 +22,10 @@ from pathlib import Path
 from atelier import JOURS, MOIS, REPERES, _dump, _ff, _json_de, _load, _loras_plan, _s
 
 FORMATS = {"4:5": [832, 1040], "9:16": [720, 1280], "1:1": [1024, 1024]}
-DEFAUT = {"auto": False, "nb": 7, "jour": 5, "mention": "AI-generated character", "format": "4:5"}
+# Types de publication : (intitule, le personnage est-il dans l'image)
+GENRES = {"selfie": ("Selfie", True), "objet": ("Assiette, objet", False), "lieu": ("Lieu, sans elle", False),
+          "amis": ("Avec des amis", True), "visite": ("Elle, dans un lieu", True)}
+DEFAUT = {"auto": False, "nb": 7, "jour": 5, "mention": "AI-generated character", "format": "4:5", "genres": list(GENRES)}
 MAX_NB = 14        # publications par semaine et par personnage
 COUT_IMAGE = 0.02  # constate sur le pod de veille
 COUT_POD = 0.05    # demarrage du pod quand il n'est pas deja la
@@ -31,16 +35,23 @@ _HORS_CADRE = re.compile(r"\b(nsfw|nud(e|ity)|naked|topless|bottomless|lingerie|
                          r"seductive\w*|bare (breasts?|chest|butt|ass))\b", re.I)
 
 SYSTEME = """Tu écris les publications tous publics d'un personnage fictif, adulte, généré par IA, pour ses comptes de réseaux sociaux grand public.
-Ces publications font vivre le compte : des selfies du quotidien, comme en poste une vraie personne. Elles ne vendent rien.
+Ces publications font vivre le compte comme celui d'une vraie personne : des selfies, mais aussi ce qu'elle mange, les lieux où elle passe, ses sorties avec des amis. Elles ne vendent rien.
+
+Chaque jour demandé porte un TYPE, à respecter :
+- "selfie" : photo qu'elle prend elle-même au téléphone (à bout de bras, ou dans un miroir). Elle est seule dans l'image. Hors miroir, le téléphone n'apparaît pas.
+- "objet" : photo qu'elle prend de ce qu'elle a devant elle, SANS ELLE et sans personne : une assiette, une boisson, un dessert, un étal, un livre, un détail. Vue de dessus ou de près, à sa place à table.
+- "lieu" : photo qu'elle prend d'un endroit où elle passe, SANS ELLE : une rue, un monument, un paysage, une salle, une vitrine. Personne au premier plan ; au loin, des passants anonymes sont admis. Le lieu peut être connu et nommé (ville, monument) ou anonyme, en accord avec la fiche.
+- "amis" : photo d'elle avec un ou deux amis, prise par l'un d'eux ou posée à table. Les amis sont des adultes fictifs, sans nom, décrits en quelques mots (cheveux, vêtement) et vus de dos, de trois quarts dos, de profil ou légèrement flous : seul son visage à elle est net et face à l'objectif.
+- "visite" : photo d'elle prise par quelqu'un d'autre dans un lieu qu'elle visite, en pied ou à mi-corps, le lieu bien visible derrière elle. Le lieu peut être connu et nommé ou anonyme.
 
 Règles :
-- Une publication = une photo qu'elle prend elle-même au téléphone (selfie à bout de bras, ou dans un miroir) et sa légende.
-- Tous publics strict : elle est entièrement habillée, en tenue de tous les jours adaptée au lieu et à la saison. Rien de suggestif, pas de sous-vêtements, pas de nudité, pas de pose aguicheuse.
+- Tous publics strict : toute personne visible est adulte et entièrement habillée, en tenue de tous les jours adaptée au lieu et à la saison. Rien de suggestif, pas de sous-vêtements, pas de nudité, pas de pose aguicheuse. Aucun enfant ni adolescent dans l'image.
+- Aucune personne réelle : ni célébrité, ni nom de personne, ni ressemblance demandée. Aucune marque, aucune enseigne lisible, aucun texte dans l'image.
 - Aucune mention ni allusion à un contenu payant, à un lien, à une autre plateforme, à des messages privés. Aucun appel à l'action commercial.
 - Ne nommer aucun réseau social : les textes servent sur plusieurs.
-- Varier d'un jour à l'autre le lieu, le moment de la journée, la tenue, le cadrage et l'humeur. Tenir compte de la saison, du jour de la semaine et des repères du calendrier. Rester cohérent avec la fiche (lieux, univers, ton) et ne pas répéter ce qui est déjà prévu ou publié.
+- Varier d'un jour à l'autre le lieu, le moment de la journée, la tenue, le cadrage et l'humeur. Tenir compte de la saison, du jour de la semaine et des repères du calendrier. Rester cohérent avec la fiche (lieux, univers, ton) et ne pas répéter ce qui est déjà prévu ou publié. Les publications d'une même semaine peuvent se répondre (le plat du restaurant où elle est allée avec ses amis, la rue du musée visité).
 - "moment" : 3 à 8 mots en français, pour le propriétaire.
-- "still" : description de la photo en anglais, 25 à 55 mots, concrète, au présent, sans nom propre. Dire le cadrage ("selfie at arm's length" ou "mirror selfie, holding her phone"), le lieu, la tenue complète et précise, l'expression, la lumière. Ne décrire ni son visage ni son corps (ils sont déjà fixés). Une seule personne, aucun texte dans l'image. Hors miroir, le téléphone n'apparaît pas dans l'image.
+- "still" : description de la photo en anglais, 25 à 55 mots, concrète, au présent. Dire le cadrage, le lieu, l'expression, la lumière. Pour les types où elle apparaît : sa tenue complète et précise ; ne décrire ni son visage ni son corps (ils sont déjà fixés) ; la désigner par "she" ou "her". Pour "objet" et "lieu" : décrire seulement ce qu'on voit, sans "she" ni "her", et écrire "no people" quand il n'y a personne.
 - "legende" : dans la langue des publications de la fiche, à la première personne, dans son ton, une ou deux phrases courtes et naturelles. Pas d'emoji, sauf si le ton de la fiche en demande. Ne pas écrire qu'elle est une IA : la mention est ajoutée à part.
 - "hashtags" : 3 à 6, en minuscules, liés au moment, sans mot-clé pour adultes.
 
@@ -49,6 +60,36 @@ Réponds par le seul JSON, sans commentaire :
 Une entrée par jour demandé, dans l'ordre."""
 
 # Publications types quand le redacteur ne repond pas : (moment, photo, legende en anglais, legende en francais, hashtags)
+SECOURS_AUTRES = {
+    "objet": (
+        ("Petit-déjeuner en terrasse", "overhead photo of a small round cafe table, a cup of coffee with milk foam, a croissant on a white plate, a folded "
+         "newspaper, morning sunlight and soft shadows, no people", "Breakfast first, the rest later.", "D'abord le petit-déjeuner, le reste après.", "#breakfast #coffee #morning"),
+        ("Assiette de pâtes maison", "close photo of a plate of fresh pasta with tomato sauce and basil on a wooden table, a fork beside the plate, a glass of "
+         "water, warm evening lamp light, no people", "Homemade. I'm a little proud.", "Fait maison. Je suis un peu fière.", "#homemade #pasta #dinner"),
+        ("Retour du marché", "overhead photo of a kitchen counter with a paper bag of vegetables, tomatoes, a loaf of bread and a bunch of flowers, daylight "
+         "from a window, no people", "Back from the market.", "Retour du marché.", "#market #fresh #weekend")),
+    "lieu": (
+        ("Rue calme le matin", "photo of a quiet cobbled street in an old european town in the morning, closed shutters, a bicycle against a wall, soft low "
+         "sun, no people in the foreground", "The city before everyone wakes up.", "La ville avant que tout le monde se réveille.", "#morningwalk #city #quiet"),
+        ("Bord de l'eau", "photo of a river bank at golden hour, stone bridge in the distance, trees along the water, reflections on the surface, calm sky, "
+         "no people in the foreground", "I could stay here for hours.", "Je pourrais rester là des heures.", "#river #goldenhour #walk"),
+        ("Allée du parc", "photo of a park path covered with fallen leaves, empty wooden bench, tall trees, overcast soft light, no people in the foreground",
+         "Favourite bench, favourite season.", "Mon banc préféré, ma saison préférée.", "#park #autumn #quiet")),
+    "amis": (
+        ("Café avec une amie", "candid photo at a cafe table, she sits facing the camera wearing a cream sweater and jeans, laughing, a friend with short dark "
+         "hair in a green jacket seen from behind in the foreground, slightly out of focus, cups on the table, afternoon daylight",
+         "Two hours of talking, one coffee.", "Deux heures à parler, un seul café.", "#friends #coffee #afternoon"),
+        ("Dîner entre amis", "candid photo at a restaurant table in the evening, she faces the camera wearing a black turtleneck, smiling with a glass of water "
+         "in hand, two friends seen from behind in the foreground, blurred, plates on the table, warm light",
+         "Good people, good food.", "Les bonnes personnes, la bonne table.", "#friends #dinner #evening")),
+    "visite": (
+        ("Devant la fontaine", "photo of her standing in front of an old stone fountain on a town square, full body, wearing a beige trench coat, jeans and "
+         "white sneakers, hands in her pockets, relaxed smile, soft afternoon light", "Tourist in my own city.", "Touriste dans ma propre ville.", "#citywalk #weekend #explore"),
+        ("Au musée", "photo of her from the waist up in a bright museum hall, wearing a navy blazer over a white t-shirt, looking over her shoulder at the "
+         "camera, large framed paintings blurred behind her, soft indoor light", "A slow afternoon, well spent.", "Un après-midi lent, bien employé.", "#museum #art #sunday")),
+}
+_MINEUR = re.compile(r"\b(child(ren)?|kids?|teen\w*|toddlers?|bab(y|ies)|infants?|schoolgirls?|schoolboys?|minors?|boys?|little girls?|young girls?)\b", re.I)
+
 SECOURS = (
     ("Café du matin", "selfie at arm's length at a small cafe table by the window, wearing a cream knit sweater and blue jeans, holding a cup of coffee "
      "in her other hand, soft smile, morning daylight", "Slow morning, strong coffee.", "Matin tranquille, café serré.", "#coffee #morning #slowliving"),
@@ -75,9 +116,26 @@ SECOURS = (
 
 def public(still):
     """Leve une erreur si la description de photo sort du cadre tous publics."""
-    m = _HORS_CADRE.search(still or "")
+    m = _HORS_CADRE.search(still or "") or _MINEUR.search(still or "")
     if m:
         raise ValueError(f"cet espace est tous publics : « {m.group(0)} » n'y a pas sa place. Le reste se fait dans la Production.")
+
+
+def _genre(g):
+    return g if g in GENRES else "selfie"
+
+
+def _melange(n, admis):
+    """Types des n publications d'une semaine : environ la moitie de selfies, le reste reparti entre les autres types admis."""
+    admis = [g for g in GENRES if g in (admis or [])] or ["selfie"]
+    autres = [g for g in admis if g != "selfie"]
+    if not autres:
+        return ["selfie"] * n
+    random.shuffle(autres)
+    ns = (n + 1) // 2 if "selfie" in admis else 0
+    out = ["selfie"] * ns + [autres[i % len(autres)] for i in range(n - ns)]
+    random.shuffle(out)
+    return out
 
 
 def _lundi(d):
@@ -109,13 +167,17 @@ class Social:
 
     # --- Donnees ----------------------------------------------------------------------------------
     def _posts(self):
-        return _load(self.d / "posts.json") or {"n": 0, "runs": 0, "posts": []}
+        P = _load(self.d / "posts.json") or {"n": 0, "runs": 0, "posts": []}
+        for k in P["posts"]:  # publications d'avant les types
+            k["genre"] = _genre(k.get("genre"))
+        return P
 
     def _lots(self):
         return _load(self.d / "lots.json") or {"n": 0, "lots": []}
 
     def reglages(self, slug):
         r = {**DEFAUT, **((_load(self.d / "reglages.json") or {}).get(slug) or {})}
+        r["genres"] = [g for g in GENRES if g in (r.get("genres") or [])] or ["selfie"]
         return r
 
     def _loras_dispo(self):
@@ -164,7 +226,7 @@ class Social:
                 "posts": sorted((k for k in P["posts"] if not (k["etat"] in ("publie", "refuse") and k["jour"] < vieux)), key=lambda k: (k["jour"], k["id"])),
                 "lots": self._lots()["lots"][-6:][::-1], "redacteur": self.at.redacteur_actif(), "depense": self.at.depense(),
                 "occupe": self.studio.running(), "can_run": self.studio.can_run(), "calcul": bool(self.run), "attente": self.attente,
-                "formats": list(FORMATS), "jours": list(JOURS), "max_nb": MAX_NB, "cout_image": COUT_IMAGE, "cout_pod": COUT_POD,
+                "genres": [[g, lab, avec] for g, (lab, avec) in GENRES.items()], "formats": list(FORMATS), "jours": list(JOURS), "max_nb": MAX_NB, "cout_image": COUT_IMAGE, "cout_pod": COUT_POD,
                 "semaines": {"courante": _lundi(auj).isoformat(), "suivante": (_lundi(auj) + datetime.timedelta(days=7)).isoformat()},
                 "depense_7j": round(sum(float(x.get("usd") or 0) for x in dep), 2)}
 
@@ -191,6 +253,8 @@ class Social:
             r["format"] = b.get("format") if b.get("format") in FORMATS else r["format"]
             if isinstance(b.get("loras"), str):
                 r["loras"] = self.loras({"loras": _s(b["loras"], 400)})
+            if isinstance(b.get("genres"), list):
+                r["genres"] = [g for g in GENRES if g in b["genres"]] or ["selfie"]
             tous[p["slug"]] = r
             _dump(self.d / "reglages.json", tous)
         self.ev.set()
@@ -213,12 +277,13 @@ class Social:
             if any(x["etat"] == "texte" and x["perso"] == p["slug"] for x in L["lots"]):
                 raise ValueError("un lot de ce personnage est déjà en cours d'écriture")
             L["n"] += 1
-            lot = {"id": f"l{L['n']:04d}", "perso": p["slug"], "semaine": lundi.isoformat(), "jours": jours, "etat": "texte", "auto": auto,
+            lot = {"id": f"l{L['n']:04d}", "perso": p["slug"], "semaine": lundi.isoformat(), "jours": jours, "genres": _melange(len(jours), r["genres"]),
+                   "etat": "texte", "auto": auto,
                    "cree": time.strftime("%Y-%m-%d %H:%M"), "moteur": "ia", "rid": "", "erreur": ""}
             if self.at.redacteur_actif():
                 lot["rid"] = f"{time.strftime('%Y%m%d%H%M%S')}{random.randint(100, 999)}"
                 req = self.at.de / f"{lot['rid']}.req.json"
-                _dump(req, {"systeme": SYSTEME, "demande": self._demande(p, lundi, jours), "kind": "social", "projet": "", "scene": ""})
+                _dump(req, {"systeme": SYSTEME, "demande": self._demande(p, lundi, jours, lot["genres"]), "kind": "social", "projet": "", "scene": ""})
                 os.chmod(req, 0o666)
             else:
                 self._creer(lot, [])
@@ -227,7 +292,7 @@ class Social:
         self.ev.set()
         return self.etat()
 
-    def _demande(self, p, lundi, jours):
+    def _demande(self, p, lundi, jours, genres):
         f = p.get("fiche") or {}
         fiche = {"nom": p["nom"], "age": p["age"], "langue_des_publications": p.get("langue"), "phrase": p.get("accroche"),
                  **{k: f.get(k) for k in ("identite", "voix", "personnalite", "univers")}, "lieux (français | anglais)": p.get("lieux"),
@@ -235,7 +300,7 @@ class Social:
         dim = lundi + datetime.timedelta(days=6)
         rep = [f"{j} {MOIS[m - 1]} : {nom}" for (m, j), nom in REPERES
                if lundi <= datetime.date(lundi.year if m >= lundi.month else dim.year, m, j) <= dim]
-        deja = [f"- {k['jour']} : {k['moment']}" for k in self._posts()["posts"] if k["perso"] == p["slug"] and k["etat"] != "refuse"][-30:]
+        deja = [f"- {k['jour']} ({k['genre']}) : {k['moment']}" for k in self._posts()["posts"] if k["perso"] == p["slug"] and k["etat"] != "refuse"][-30:]
 
         def dit(iso):
             d = datetime.date.fromisoformat(iso)
@@ -244,22 +309,24 @@ class Social:
                 + f"\n\nSEMAINE du {dit(lundi.isoformat())} au {dit(dim.isoformat())}."
                 + (" Repères du calendrier : " + " ; ".join(rep) + "." if rep else "")
                 + ("\n\nDÉJÀ PRÉVU OU PUBLIÉ (ne pas répéter)\n" + "\n".join(deja) if deja else "")
-                + f"\n\nDEMANDE\n{len(jours)} publication(s), une par jour dans cet ordre : " + ", ".join(dit(j) for j in jours) + ".")
+                + f"\n\nDEMANDE\n{len(jours)} publication(s), une par ligne, dans cet ordre :\n"
+                + "\n".join(f"{i + 1}. {dit(j)} - type \"{g}\"" for i, (j, g) in enumerate(zip(jours, genres))))
 
     def _creer(self, lot, ecrits):
         """Cree les publications d'un lot a partir de ce qu'a ecrit le redacteur ; une publication type remplace une entree
         manquante ou hors cadre."""
         fr = str(self.at.perso(lot["perso"]).get("langue") or "").lower().startswith("fr")
-        types, secours = random.sample(SECOURS, len(SECOURS)), 0
+        types, secours = {"selfie": random.sample(SECOURS, len(SECOURS)), **{g: random.sample(v, len(v)) for g, v in SECOURS_AUTRES.items()}}, 0
         P = self._posts()
         for i, jour in enumerate(lot["jours"]):
             e = ecrits[i] if i < len(ecrits) and isinstance(ecrits[i], dict) else {}
+            genre = _genre((lot.get("genres") or [])[i] if i < len(lot.get("genres") or []) else "")
             still, legende = _s(e.get("still"), 700), _s(e.get("legende"), 600)
-            if not still or not legende or _HORS_CADRE.search(still):
-                t = types[i % len(types)]
+            if not still or not legende or _HORS_CADRE.search(still) or _MINEUR.search(still):
+                t = types[genre][i % len(types[genre])]
                 e, still, legende, secours = {"moment": t[0], "hashtags": t[4]}, t[1], t[3] if fr else t[2], secours + 1
             P["n"] += 1
-            P["posts"].append({"id": f"k{P['n']:04d}", "lot": lot["id"], "perso": lot["perso"], "jour": jour, "moment": _s(e.get("moment"), 120),
+            P["posts"].append({"id": f"k{P['n']:04d}", "lot": lot["id"], "perso": lot["perso"], "jour": jour, "genre": genre, "moment": _s(e.get("moment"), 120),
                                "still": still, "legende": legende, "hashtags": _tags(e.get("hashtags")), "seed": random.randint(1, 999999),
                                "image": "", "prises": [], "etat": "attente_image", "erreur": ""})
         _dump(self.d / "posts.json", P)
@@ -335,6 +402,7 @@ class Social:
                     job = {"name": nom, "character": at.char_override(perso),
                            "defaults": {"still_size": FORMATS[r["format"]], "mode": "natural", "smooth": True, "grain": True, "same_seed": True, "loras": []},
                            "shots": [{"name": k["id"], "still": k["still"], "seed": k["seed"], "tattoos": True, "body": False}
+                                     | ({} if GENRES[k["genre"]][1] else {"sans_perso": True})
                                      | ({"loras": _loras_plan(loras)} if loras else {}) for k in att]}
                     _dump(self.runs / f"{nom}.json", job)
                     cmd = [sys.executable, "-m", "pilot", "run", str(self.runs / f"{nom}.json"), "--data", str(self.d.parent), "--out", str(self.media),
@@ -413,6 +481,12 @@ class Social:
                     raise ValueError("description de la photo obligatoire")
                 public(still)
                 k["still"] = still
+            if "genre" in b and b["genre"] != k["genre"]:
+                if k["etat"] == "calcul":
+                    raise ValueError("image en cours de calcul : attendre sa fin")
+                if b["genre"] not in GENRES:
+                    raise ValueError("type de publication inconnu")
+                k["genre"] = b["genre"]
             if "jour" in b:
                 k["jour"] = datetime.date.fromisoformat(str(b["jour"])).isoformat()
             for c, n in (("moment", 120), ("legende", 600)):
@@ -421,6 +495,29 @@ class Social:
             if "hashtags" in b:
                 k["hashtags"] = _tags(b["hashtags"])
             _dump(self.d / "posts.json", P)
+        return self.etat()
+
+    def ajouter(self, b):
+        """Publication ecrite a la main : meme cadre, meme file ; l'image se calcule comme les autres."""
+        p = self.at.perso(b.get("perso"))
+        if p.get("statut") == "archive":
+            raise ValueError("personnage archivé")
+        if b.get("genre") not in GENRES:
+            raise ValueError("type de publication inconnu")
+        still = _s(b.get("still"), 700)
+        if not still:
+            raise ValueError("description de la photo obligatoire")
+        public(still)
+        jour = datetime.date.fromisoformat(str(b.get("jour") or datetime.date.today().isoformat())).isoformat()
+        with self.lock:
+            P = self._posts()
+            P["n"] += 1
+            P["posts"].append({"id": f"k{P['n']:04d}", "lot": "", "perso": p["slug"], "jour": jour, "genre": b["genre"], "moment": _s(b.get("moment"), 120),
+                               "still": still, "legende": _s(b.get("legende"), 600), "hashtags": _tags(b.get("hashtags")), "seed": random.randint(1, 999999),
+                               "image": "", "prises": [], "etat": "attente_image", "erreur": ""})
+            _dump(self.d / "posts.json", P)
+            self.pause = 0
+        self.ev.set()
         return self.etat()
 
     def decider(self, b):
@@ -495,5 +592,5 @@ class Social:
 
     def post(self, path, b):
         f = {"/api/s/reglages": self.regler, "/api/s/lot": self.lot, "/api/s/post": self.modifier, "/api/s/decider": self.decider,
-             "/api/s/refaire": self.refaire, "/api/s/supprimer": self.supprimer, "/api/s/annuler": self.annuler}.get(path)
+             "/api/s/refaire": self.refaire, "/api/s/ajouter": self.ajouter, "/api/s/supprimer": self.supprimer, "/api/s/annuler": self.annuler}.get(path)
         return f(b) if f else None

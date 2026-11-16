@@ -495,11 +495,14 @@ def cmd_run(a):
                     use_body = s.get("body", s.get("dest") in (char.get("zimage_body_dests") or []))
                     body = char.get("zimage_body", "") if use_body else ""
                     prompt = f"{char.get('zimage_prefix', char['prefix'])}{tat}{body}{s['still']}{char.get('zimage_suffix', '')}"
+                    ch = char
+                    if s.get("sans_perso"):  # photo sans le personnage (assiette, lieu) : ni sa description ni sa LoRA
+                        prompt, ch = f"{s['still']}{char.get('zimage_suffix', '')}", {**char, "lora_still_zimage": None}
                     extra = loras_image(resolve_loras(cfg, s.get("loras")))
                     trig = ", ".join(x["trigger"] for x in extra or [] if x.get("trigger"))
                     if trig:  # mots declencheurs des LoRA supplementaires
                         prompt = f"{prompt} {trig}"
-                    graph = workflows.still_zimage(models, char, prompt, *s["still_size"], seed, f"ga_{name}", loras=extra,
+                    graph = workflows.still_zimage(models, ch, prompt, *s["still_size"], seed, f"ga_{name}", loras=extra,
                                                    char_strength=s.get("char_strength"))
                     if (s["name"], s["still"]) in poses:  # pose imposee : le squelette du brouillon guide le corps et le cadrage
                         workflows.imposer_pose(graph, models, poses[(s["name"], s["still"])])
