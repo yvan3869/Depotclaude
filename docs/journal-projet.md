@@ -732,3 +732,10 @@ LoRA de pose et une phrase tous publics : 9 images sur 9. Depense : 0,06 $ ; com
 demarre avec ses mots declencheurs ; un volet « Page d'origine » montre ce que l'auteur en dit chez la source (mots, description, prompts de ses
 images d'exemple pour Civitai ; texte de la page pour Hugging Face), relu a la demande, avec un bouton pour prendre un prompt comme phrase.
 Phrase portee a 500 caracteres. Verifie sur les 8 LoRA inscrites (comptes seulement : 3 a 12 exemples chacune). Aucune depense GPU.
+
+**16/11, soir : banc a deux, champs expliques, LoRA ajoutees a l'essai** (commits 7554268 a la suite). A 2 personnes, le banc dit le partenaire dans
+la phrase et passe aux cadrages mi-corps, en pied, plan large ; les quatre champs sont numerotes et expliques en clair ; d'autres LoRA peuvent etre
+cochees pour etre chargees avec celle de l'essai (cas d'une LoRA qui en demande une autre), elles sont gardees dans la fiche (`avec`) et la Production
+les charge ensemble. Trois essais tous publics « valse » avec une LoRA de pose : le premier lance par erreur a 1 personne, les deux suivants a 2
+(9 images sur 9 avec deux personnes ; mi-corps et en pied bons ; « plan large » reste serre avec cette LoRA malgre un texte renforce). Depense :
+environ 0,06 $ par essai ; compteur du jour 10,34 $ sur 20. Series d'essai retirees de l'atelier de Lea.

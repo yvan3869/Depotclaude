@@ -280,3 +280,13 @@ Restes : le proprietaire passe ses LoRA au banc, puis lance et juge deux scenes 
   donne plus). Hugging Face : `README.md` (en-tete : `instance_prompt`, `widget[].text`). Garde en memoire le temps du service.
 - Un bouton prend un prompt d'exemple comme phrase (coupee a 500 caracteres, nouvelle limite) ; un mot declencheur s'ajoute d'un toucher.
 - Rien n'est trie ni reecrit : l'outil montre, le proprietaire choisit.
+
+### Ajoute le 16/11, soir : banc a deux et LoRA ajoutees a l'essai
+
+- A 2 personnes : le partenaire est ajoute a la phrase (`BANC_PARTENAIRE`, ou le champ « Partenaire ») et les cadrages sont `BANC_DEUX`
+  (mi-corps, en pied, plan large) au lieu de `BANC_SEUL`. La phrase gardee dans la fiche reste sans le partenaire : en Production il vient du script.
+- « LoRA ajoutees a l'essai » (`avec`, 4 au plus, LoRA d'image, chacune a sa force du catalogue) : chargees dans les 9 images avec le style par
+  defaut et la LoRA essayee ; gardees dans la serie puis dans la ligne de fiche ; `_loras_scene` les ajoute a cote de la LoRA de la fiche si leur
+  categorie est admise au temps de la scene. « Inscrire sans essai » les prend aussi. Le mot nsfw est ajoute si l'une d'elles est de categorie adulte.
+- Limite connue : « plan large » reste serre avec une LoRA de pose qui tire vers le portrait ; le texte ne suffit pas.
+- Les trois poids essayes (0,6 ; 0,8 ; 1,0) ne se choisissent pas encore dans la page.
