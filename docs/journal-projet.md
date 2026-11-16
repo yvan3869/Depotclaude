@@ -739,3 +739,7 @@ cochees pour etre chargees avec celle de l'essai (cas d'une LoRA qui en demande 
 les charge ensemble. Trois essais tous publics « valse » avec une LoRA de pose : le premier lance par erreur a 1 personne, les deux suivants a 2
 (9 images sur 9 avec deux personnes ; mi-corps et en pied bons ; « plan large » reste serre avec cette LoRA malgre un texte renforce). Depense :
 environ 0,06 $ par essai ; compteur du jour 10,34 $ sur 20. Series d'essai retirees de l'atelier de Lea.
+
+**16/11, soir (suite) : poids au choix dans le banc, marche a suivre, chargement de deux LoRA retenues** (commit 6cb3189). A la demande du
+proprietaire, ses deux LoRA retenues en attente ont ete chargees sur le volume des que la Production a ete libre (premier essai refuse par RunPod,
+faute de machine ; second reussi). Depense du chargement : environ 0,11 $ ; compteur du jour 10,76 $ sur 20.
