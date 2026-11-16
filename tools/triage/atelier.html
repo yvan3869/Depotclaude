@@ -499,6 +499,10 @@ function rendreProjet() {
         ${POSE.map(c => f(c[0], c[1], s[c[0]] || '', {at: `data-s="${s.id}"`, ph: c[2]})).join('')}
         ${f('autres', 'Autres personnes à l\'image', s.autres || '', {at: `data-s="${s.id}"`, ph: 'a man standing behind her, seen from the chest down',
           aide: 'Vide : elle est seule, et le contrôle signale toute autre personne. À remplir seulement si quelqu\'un d\'autre est visible à l\'image (pas hors champ) : qui, où, quelle partie du corps.'})}
+        ${f('retire', 'Vêtements qu\'elle ne porte plus', s.retire || '', {at: `data-s="${s.id}"`, ph: 'the beige blazer; the white sneakers',
+          aide: 'La liste entière à cet instant, en anglais, avec les mots de la tenue de la fiche de continuité, séparés par des points-virgules. Vide avec « État » vide : comme à la scène d\'avant. Chaque vêtement est vérifié sur l\'image.'})}
+        ${f('etat', 'État de la tenue', s.etat || '', {at: `data-s="${s.id}"`, ph: 'the blazer lies folded on the armrest',
+          aide: 'Où sont passés les vêtements retirés, comment le reste est porté. « fully dressed » : elle porte tout. Dès qu\'une scène dit l\'état, les images en tirage « lieu de la bibliothèque » partent toutes d\'une même image d\'elle en tenue complète dans le lieu.'})}
         <div class="gt">Place dans la vidéo</div>
         <div class="row haut"><label class="g">Rôle<select data-s="${s.id}" data-k="role">${opt([['accroche', 'Accroche'], ['montee', 'Montée'], ['chute', 'Chute']], s.role)}</select></label>
           <label class="g">Cran<select data-s="${s.id}" data-k="cran">${[0, 1, 2, 3, 4, 5].map(v => `<option value="${v}" ${v === (s.cran || 0) ? 'selected' : ''}>${v ? v + (v === 1 ? ' : anodin' : v === 5 ? ' : le plus osé' : '') : 'Non renseigné'}</option>`).join('')}</select>
@@ -555,6 +559,8 @@ function rendreProjet() {
     ${pan('projet', `
       ${f('suite', 'Ce que la suite payante montre', P.suite, {area: 1, rows: 1, aide: 'Facultatif, à votre main. Le rédacteur s\'en sert pour que l\'accroche promette quelque chose de vrai ; il n\'écrit pas cette suite.'})}
       ${f('date_perso', 'Date du personnage', P.date_perso, {type: 'date', aide: 'Fictive : le jour où elle vit la scène. Viser le jour de publication. La saison et les fêtes proches en sont déduites.'})}
+      ${f('partenaire', 'Partenaire', P.partenaire || '', {area: 1, rows: 1, ph: 'a 30 year old man, short brown hair, grey sweater, dark jeans',
+        aide: 'L\'autre personne, décrite une seule fois, en anglais (adulte, fictive). Son image est faite une fois puis ajoutée aux scènes où « Autres personnes à l\'image » est rempli.'})}
       ${f('contexte', 'Contexte du moment', P.contexte, {area: 1, rows: 1, ph: 'Premier froid sur Lyon, elle prépare ses cadeaux de Noël',
         aide: 'Facultatif. Météo, événement, ce qu\'elle vit ces jours-ci. Guide l\'idée, la tenue, la lumière et les textes de tous les temps.'})}
       <div class="mut" style="margin-top:10px">${P.id}, créé le ${esc(P.cree || '')}, modifié le ${esc(P.modifie || '')}.</div>

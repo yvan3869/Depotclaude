@@ -95,6 +95,14 @@ def lieu_depart(g, lieu, w, h, denoise=0.8):
     return g
 
 
+def accorder(g, image=("ls", 0)):
+    """Couleurs de l'image finale accordees a celles d'une image du graphe (par defaut celle dont lieu_depart est parti :
+    le brouillon ou la photo du lieu) : la lumiere reste celle des scenes d'avant. A appeler en dernier (noeud ColorMatch)."""
+    g["cm"] = {"class_type": "ColorMatch", "inputs": {"image_ref": list(image), "image_target": g["save"]["inputs"]["images"], "method": "mkl"}}
+    g["save"]["inputs"]["images"] = ["cm", 0]
+    return g
+
+
 def finition(g, w, h, facteur=1.5, denoise=0.3, steps=6):
     """Seconde passe d'un graphe de still_zimage : l'image finie est agrandie, puis redessinee legerement a cette taille
     (meme texte, memes LoRA, sans pose imposee : la composition ne bouge plus). La peau, les yeux et les mains gagnent en

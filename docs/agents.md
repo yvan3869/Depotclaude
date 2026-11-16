@@ -410,6 +410,7 @@ y placer un geste ni un texte important. Elle est remplacee par une coupe si l'u
            cheveux: ""
            lumiere: "..."
            pdv: "..."
+         partenaire: "a 30 year old man, short brown hair, grey sweater, dark jeans"   # des qu'un plan remplit "autres" (modele 2026-11-16a)
          reference: plan01          # nom d'un plan du temps 1 de ce fichier
          garder:                    # facultatif : nom francais d'une tenue ou d'un lieu nouveau (proposes d'office)
            tenues: ["robe rouge a fines bretelles | wearing a red slip dress with thin straps"]
@@ -438,9 +439,11 @@ y placer un geste ni un texte important. Elle est remplacee par une coupe si l'u
              regard: "head turned to the left, eyes looking away toward the window, not looking at the camera"
            contact: ""        # facultatif : ce que son corps touche et ou
            autres: ""         # facultatif : les autres personnes visibles a l'image ; vide quand elle est seule
+           retire: []         # temps 2 a 4, obligatoire : liste entiere des vetements de la fiche qu'elle ne porte plus
+           etat: ""           # facultatif : ou ils sont passes, comment le reste est porte
 
    Champs repris par plan : `name`, `still`, `motion`, `end_edit`, `tattoos`, `loras`, `seed`,
-   `temps`, `titre`, `texte`, `voix`, `son`, `role`, `raccord`, `transition`, `camera`, `libre`, `cran`, `pose`, `contact`, `autres`. 30 plans au plus par fichier, 10 par temps. `steps`, `image`,
+   `temps`, `titre`, `texte`, `voix`, `son`, `role`, `raccord`, `transition`, `camera`, `libre`, `cran`, `pose`, `contact`, `autres`, `retire`, `etat`. 30 plans au plus par fichier, 10 par temps. `steps`, `image`,
    `edit`, `suite_de`, `end_image` et `character` ne sont pas repris (un depot qui en porte est refuse) ; `body` et `dest` sont inutiles (le temps et la fiche du personnage en
    tiennent lieu).
    **Une video, un fichier** (modele `2026-11-15e`) : les quatre temps, ou ceux qui sont demandes, dans le meme
@@ -499,6 +502,32 @@ Les scenes ecrites dans la page et les scripts d'un modele anterieur gardent ces
 `autres` decrit les autres personnes visibles a l'image (qui, ou, quelle partie du corps). Vide dans le cas courant :
 elle est seule, et le controle signale toute autre personne. Ne pas le remplir pour quelqu'un qui reste hors champ.
 Toute personne decrite est adulte et fictive (`docs/compliance.md`).
+
+**Continuite des vetements et partenaire (modele `2026-11-16a`).** Une video se passe dans un lieu, sous une lumiere,
+avec une tenue de depart (celle de la fiche de continuite) qui se defait peu a peu. Pour que la piece, la lumiere et
+les habits tiennent d'une image a l'autre, le script dit l'etat, la Production fait le reste :
+
+- `retire` (par plan, obligatoire aux temps 2 a 4 sur tout plan qui a sa propre image) : la liste **entiere** des
+  vetements de la tenue de la fiche qu'elle ne porte plus a cet instant, un par ligne, avec les mots de la fiche
+  (`"the beige blazer"`). `retire: []` : elle porte encore tout. La liste s'allonge d'un plan a l'autre ; un vetement
+  n'en sort que s'il est remis. Chaque vetement de la liste est verifie sur l'image (« le porte-t-elle encore ? »).
+- `etat` (par plan, facultatif) : ou sont passes les vetements retires (`"the blazer lies on the armrest"`) et comment
+  le reste est porte (ouvert, releve, glisse). C'est l'etat entier a cet instant : le redire tant qu'il est vrai.
+- `still` continue de dire ce qu'elle porte a cet instant ; `retire` et `etat` ne le remplacent pas, ils doivent dire
+  la meme chose.
+- `atelier.partenaire` : l'autre personne, decrite **une seule fois** (age adulte, physique, habits). Obligatoire des
+  qu'un plan remplit `autres`. Dans `autres`, ne dire que ou il est et ce qu'il fait (`"he sits next to her on the
+  sofa, turned toward her"`) : son image est faite une fois puis ajoutee a chaque plan, il reste donc le meme.
+- Choisir la vue **par temps et s'y tenir** : soit le partenaire est visible en entier (plan vu de l'exterieur, `autres`
+  rempli), soit la scene est vue par ses yeux (`angle: "seen through his eyes, point of view"` ; `autres` ne decrit
+  alors que ce qu'on voit de lui, ses mains par exemple). Ne pas alterner les deux d'un plan a l'autre d'un meme temps.
+- Le lieu et la lumiere ne se redisent pas : ce sont ceux de la fiche de continuite pour toute la video.
+
+Ce que fait la Production (tirage « lieu de la bibliotheque », ou `auto`, et image du lieu presente) : une image d'elle
+en tenue complete dans le lieu est faite une fois ; chaque plan en part, avec la photo du lieu et l'etat ; le brouillon
+est relu (pose, vetements retires, partenaire) et refait une fois s'il est faux ; elle seule : pose imposee et decor
+gele ; a deux : le partenaire est ajoute au brouillon et l'image finale part du brouillon ; les couleurs sont accordees
+sur le brouillon. Sans `retire` ni `etat` (scripts anterieurs), rien ne change.
 
 Tenues et lieux nouveaux. Les listes `tenues` et `lieux` de la fiche du personnage sont sa garde-robe et ses lieux
 de vie : on y pioche, mais une discussion peut en inventer d'autres, et rien ne l'interdit. Le scenariste n'a rien a

@@ -56,8 +56,14 @@
 #                quelqu'un la filme). "pose" : telephone pose sur un meuble ou un pied, image stable. Un seul rendu par
 #                video ; absent : "main". Les clips et le montage le suivent. En "pose", les plans sont presque tous en
 #                "camera: fixe" et le "pdv" decrit un telephone pose ; le controle des plans signale un desaccord.
+#   2026-11-16a  CONTINUITE DES VETEMENTS : tout plan des temps 2 a 4 qui a sa propre image ecrit "retire", la liste
+#                ENTIERE des vetements de la fiche de continuite qu'elle ne porte plus a cet instant ("retire: []" si elle
+#                porte encore tout), et au besoin "etat" (ou ils sont passes, comment le reste est porte). La Production
+#                fabrique alors chaque image a partir d'une meme image d'elle en tenue complete dans le lieu, et fait
+#                relire les vetements par le controle. Bloc "atelier" : partenaire (obligatoire des qu'un plan remplit
+#                "autres" sans etre vu par ses yeux) : il est decrit une fois, son image est faite une fois.
 
-modele: "2026-11-15h"
+modele: "2026-11-16a"
 name: monlot                 # prefixe des fichiers produits (lettres, chiffres, _), unique par lancement
 
 # --- Facultatif : script livre a la Production (docs/agents.md, "Livrer un script a la Production") --------------
@@ -101,6 +107,9 @@ name: monlot                 # prefixe des fichiers produits (lettres, chiffres,
 #   garder:
 #     tenues: ["robe rouge a fines bretelles | wearing a red slip dress with thin straps"]
 #     lieux: []
+#   partenaire: "a 30 year old man, short brown hair, light stubble, grey crew-neck sweater, dark jeans"
+#                            # obligatoire des qu'un plan remplit "autres" : l'autre personne (adulte, fictive), decrite une
+#                            # seule fois pour toute la video, physique et habits. Les plans disent seulement ce qu'elle fait.
 #   reference: plan01        # nom d'un plan du temps 1 de ce fichier : les autres images du projet en sont tirees par retouche
 
 # --- Facultatif : autre personnage que celui de persona/production.yaml --------------------------
@@ -182,7 +191,15 @@ shots:
     # contact: ""            # ce que son corps touche et ou ("her cheek against the pillow")
     # autres: ""             # les autres personnes VISIBLES a l'image : qui, ou, quelle partie du corps. Laisser vide
     #                        # quand elle est seule a l'image (le cas courant, meme si quelqu'un est suppose hors champ) :
-    #                        # le controle signale alors toute autre personne.
+    #                        # le controle signale alors toute autre personne. Ne pas y redire son physique
+    #                        # ("atelier.partenaire" le dit) : seulement ou il est et ce qu'il fait.
+    # retire: ["the beige blazer", "the white sneakers"]
+    #                        # OBLIGATOIRE aux temps 2 a 4 : la liste ENTIERE des vetements de la tenue de la fiche de
+    #                        # continuite qu'elle ne porte plus a cet instant, avec les memes mots que la fiche. Elle ne
+    #                        # fait que s'allonger d'un plan a l'autre, sauf vetement remis. "retire: []" : elle porte tout.
+    # etat: "the blazer lies folded on the armrest, the sneakers stand on the floor in front of the sofa"
+    #                        # facultatif : ou sont passes les vetements retires, et comment le reste est porte (ouvert,
+    #                        # releve, glisse). A redire a chaque plan tant que c'est vrai : c'est l'etat entier.
 
   # 2. Image puis clip de 5 s : un seul geste lent, phrase en anglais commencant par "She".
   - name: clip01

@@ -42,6 +42,7 @@ FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 TEMPS = {1: "accroche", 2: "montee", 3: "devoile", 4: "final"}
 V = 4            # version des donnees : 4 = quatre temps (l'ancien temps 3, le final, est devenu le temps 4)
 GARDER = ("tenues", "lieux")  # listes de la fiche du personnage qu'un script peut allonger, sur accord du proprietaire
+MODELE_ETAT = "2026-11-16a"  # premier modele de plans ou chaque plan des temps 2 a 4 dit ce qu'elle ne porte plus ("retire")
 MODELE_UN = "2026-11-15e"  # premier modele de plans ou une video entiere tient dans un fichier, importe sans bouton
 MODELE_CADRE = "2026-11-15g"  # premier modele de plans ou chaque plan qui a son image dit cadrage, angle, position et regard
 MODELE_DEC = "2026-11-15d"  # premier modele de plans ou chaque plan dit son passage et sa camera
@@ -184,6 +185,25 @@ VERDICTS = ("ok", "tenue", "geste", "objet", "visage", "corps", "decor", "cadrag
 def _gros_plan(s):
     """Plan serre : le decor et la tenue entiere n'y sont pas visibles, et une retouche de la reference ne le cadre pas."""
     return bool(GROS_PLAN.search(f"{s.get('cadrage') or ''} {s.get('still') or ''}"))
+
+
+def _etat(p, s):
+    """Etat des vetements a une scene (continuite, 16/11/2026) : ce qu'elle ne porte plus ("retire", un vetement par
+    point-virgule) et ou c'est passe ("etat"). Une scene qui ne dit ni l'un ni l'autre garde l'etat de la scene d'avant,
+    dans l'ordre du projet, d'un temps a l'autre."""
+    r = e = ""
+    for x in p["scenes"]:
+        if x.get("retire") or x.get("etat"):
+            r, e = x.get("retire") or "", x.get("etat") or ""
+        if x["id"] == s["id"]:
+            break
+    return [v.strip(" .,") for v in r.split(";") if v.strip(" .,")], e.strip()
+
+
+def _pov(s):
+    """Scene vue par les yeux du partenaire : il n'est pas a l'image en entier, on ne l'y ajoute pas."""
+    return bool(re.search(r"\bpov\b|point[- ]of[- ]view|first[- ]person|through (his|the|someone's|her partner's|the partner's) eyes",
+                          f"{s.get('angle') or ''} {s.get('cadrage') or ''} {s.get('still') or ''}", re.I))
 
 
 def _tirage(p, t):
@@ -681,9 +701,10 @@ class Atelier:
             s.setdefault("temps", 1), s.setdefault("loras", ""), s.setdefault("origine", "")
             s.setdefault("raccord", "coupe"), s.setdefault("libre", False), s.setdefault("cran", 0)
             s.setdefault("transition", ""), s.setdefault("camera", "")
-            for k in CHAMPS:
+            for k in (*CHAMPS, "retire", "etat"):
                 s.setdefault(k, "")
         p["continuite"] = _cont(p.get("continuite"))
+        p.setdefault("partenaire", "")
         p.setdefault("reference", "")
         p.setdefault("brief2", ""), p.setdefault("nb2", 3), p.setdefault("depots", {})
         p.setdefault("date_perso", ""), p.setdefault("contexte", "")
@@ -704,6 +725,7 @@ class Atelier:
                 "camera": d.get("camera") if d.get("camera") in CAMERAS else "",
                 "cran": min(5, max(0, int(d.get("cran") or 0))) if str(d.get("cran") or 0).isdigit() else 0,
                 **{k: _s(d.get(k), 300 if k == "autres" else 160) for k in CHAMPS},
+                "retire": _s(d.get("retire"), 300), "etat": _s(d.get("etat"), 300),
                 "still": _s(d.get("still"), 1200), "motion": _s(d.get("motion"), 600), "end_edit": _s(d.get("end_edit"), 600),
                 "texte": _s(d.get("texte"), 120), "voix": _s(d.get("voix"), 240), "son": _s(d.get("son"), 200), "son_t": _son_t(d.get("son_t")), "tattoos": bool(d.get("tattoos", True)),
                 "seed": int(d.get("seed") or random.randint(1, 999999)), "image": _s(d.get("image"), 80), "clip": _s(d.get("clip"), 80),
@@ -735,6 +757,7 @@ class Atelier:
                  "depots": old.get("depots") or {}, "garder": old.get("garder") or {}, "garder_non": old.get("garder_non") or [], "continuite": _cont(b.get("continuite", old.get("continuite"))),
                  # date_perso : date fictive, celle du jour ou le personnage vit la scene ; cree et modifie : dates reelles
                  "date_perso": _date(b.get("date_perso", old.get("date_perso"))), "contexte": _s(b.get("contexte", old.get("contexte")), 400),
+                 "partenaire": _s(b.get("partenaire", old.get("partenaire")), 300),
                  "pitch": _s(b.get("pitch", old.get("pitch")), 400), "ambiance": _s(b.get("ambiance", old.get("ambiance")), 300), "accroche": _s(b.get("accroche", old.get("accroche")), 120),
                  "legende": _s(b.get("legende", old.get("legende")), 600), "cta": _s(b.get("cta", old.get("cta")), 120),
                  "hashtags": _s(b.get("hashtags", old.get("hashtags")), 200), "attente": old.get("attente") or "",
@@ -1502,6 +1525,16 @@ class Atelier:
                 if tp == 1 and not sh.get("libre") and _gros_plan({"cadrage": pose.get("cadrage"), "still": sh["still"]}) and not tenue_dite(sh["still"]):
                     raise ValueError(f"plan {nom} : sur un gros plan, \"still\" dit ce qu'on voit de la tenue (\"thin black tank top straps on her "
                                      "shoulders\") ; la tenue entière de la fiche de continuité n'y est pas ajoutée, elle élargirait le cadre")
+            # continuite des vetements : la liste entiere de ce qu'elle ne porte plus a cet instant, et ou c'est passe
+            ret = sh.get("retire")
+            if ret is not None and (not isinstance(ret, list) or len(ret) > 8 or any(not isinstance(x, str) or not _s(x) or len(x) > 60 or ";" in x for x in ret)):
+                raise ValueError(f"plan {nom} : \"retire\" est une liste de 8 vêtements au plus, un par ligne, en anglais, chacun dit comme dans la "
+                                 "tenue de la fiche de continuité (\"the beige blazer\"), sans point-virgule")
+            if sh.get("etat") is not None and not isinstance(sh["etat"], str):
+                raise ValueError(f"plan {nom} : \"etat\" est un texte")
+            if str(j.get("modele") or "") >= MODELE_ETAT and tp >= 2 and (prem or sh.get("raccord") != "continu") and ret is None:
+                raise ValueError(f"plan {nom} : dans les temps 2 à 4, \"retire\" dit la liste entière des vêtements de la fiche de continuité "
+                                 "qu'elle ne porte plus à cet instant (\"retire: []\" si elle porte encore tout) ; \"etat\" dit où ils sont passés")
             if sh.get("cran") not in (None, 1, 2, 3, 4, 5):
                 raise ValueError(f"plan {nom} : \"cran\" est un entier de 1 à 5")
             seed = sh.get("seed") or (int(d["seed"]) + (0 if d.get("same_seed") else i) if d.get("seed") else 0)
@@ -1510,7 +1543,8 @@ class Atelier:
                            "loras": sh.get("loras", d.get("loras")), "seed": seed, "origine": f"{f.name}:{nom}",
                            "raccord": sh.get("raccord"), "libre": bool(sh.get("libre")), "cran": sh.get("cran"),
                            "transition": sh.get("transition"), "camera": sh.get("camera"),
-                           **{k: pose.get(k) for k in POSE}, "contact": sh.get("contact"), "autres": sh.get("autres")})
+                           **{k: pose.get(k) for k in POSE}, "contact": sh.get("contact"), "autres": sh.get("autres"),
+                           "retire": "; ".join(_s(x) for x in ret or []), "etat": sh.get("etat") or ("fully dressed" if ret == [] else "")})
         # textes de publication : seulement avec le temps 1, et seulement ceux qui sont remplis
         lim = {"pitch": 400, "ambiance": 300, "accroche": 120, "legende": 600, "cta": 120, "hashtags": 200}
         lestemps = sorted({s["temps"] for s in scenes})
@@ -1526,6 +1560,14 @@ class Atelier:
                 textes["date_perso"] = _date(a["date_perso"])
         if un and _s(a.get("contexte"), 400):
             textes["contexte"] = _s(a.get("contexte"), 400)
+        # partenaire : decrit une fois pour toute la video ; son image est faite une fois et ajoutee aux scenes ou il est visible
+        if a.get("partenaire") is not None and not isinstance(a["partenaire"], str):
+            raise ValueError('"atelier.partenaire" : un texte en anglais (âge adulte, physique, habits)')
+        if _s(a.get("partenaire"), 300):
+            textes["partenaire"] = _s(a.get("partenaire"), 300)
+        elif str(j.get("modele") or "") >= MODELE_ETAT and not a.get("projet_de") and [s for s in scenes if _s(s.get("autres")) and not _pov(s)]:
+            raise ValueError('"atelier.partenaire" : un plan montre une autre personne ("autres") ; la décrire une fois ici, en anglais '
+                             '("a 30 year old man, short brown hair, grey sweater, dark jeans"), pour qu\'elle soit la même d\'un plan à l\'autre')
         # fiche de continuite et image de reference : au projet entier, donc portees par le depot du temps 1
         if a.get("continuite") is not None and not isinstance(a["continuite"], dict):
             raise ValueError(f'"atelier.continuite" : un bloc de champs ({", ".join(CONT)})')
@@ -1784,9 +1826,31 @@ class Atelier:
         lieu = self._decor(p, s).get("decor")
         return {"lieu_depart": lieu, "lieu_force": 0.8} if lieu else {}
 
+    def _continuite(self, p, s):
+        """Scene tenue par la methode du chantier continuite (essais du 16/11/2026), des que le projet dit l'etat de ses
+        vetements, a tous les temps : le brouillon part d'une image d'elle en tenue complete dans le lieu (faite une fois),
+        l'etat cumule dit ce qui est retire, le controleur relit le brouillon. Seule : squelette et decor gele. Avec un
+        partenaire visible : il est ajoute au brouillon par une seconde retouche et l'image part du brouillon. Vue par
+        les yeux du partenaire : l'image part du brouillon d'elle seule, le texte ajoute ce qu'on voit de lui."""
+        if _voie(p, s) != "decor" or _gros_plan(s) or s["libre"]:
+            return {}
+        retire, etat = _etat(p, s)
+        tenue, dec = re.sub(r"^\s*wearing\s+", "", (p.get("continuite") or {}).get("tenue") or "", flags=re.I), self._decor(p, s)
+        if not (retire or etat) or not tenue or not dec:
+            return {}
+        out = dec | {"reference_tenue": tenue, "retire": retire, "etat": "" if etat == "fully dressed" else etat}
+        if not s.get("autres"):
+            return out | {"squelette": True}
+        out |= {"still_seule": self._still(p, {**s, "autres": ""}), "depart_brouillon": 0.6}
+        if _pov(s):
+            return out
+        return out | {"partenaire": p["partenaire"], "partenaire_geste": s["autres"]} if p.get("partenaire") else {}
+
     def _voie_dite(self, p, s, tmin):
         """Ce que la Production fera vraiment de la scene (affiche sur chaque scene) : "ref", "decor", "pose" ou "direct"."""
         v = _voie(p, s)
+        if self._continuite(p, s):
+            return "decor"
         if v == "direct" or _gros_plan(s) or s.get("autres"):
             return "decor" if self._lieu_depart(p, s) else "direct"
         if v == "ref":
@@ -1870,9 +1934,10 @@ class Atelier:
                         shots.append({"name": s["id"], "still": self._still(p, s), "seed": s["seed"], "tattoos": s["tattoos"],
                                       "body": bool((perso.get("generation") or {}).get("corps"))}
                                      | ({"loras": _loras_plan(lo)} if lo else {}) | champs
-                                     | ({"squelette": True} if _voie(p, s) != "direct" and not _gros_plan(s) and not s.get("autres") else {})
-                                     | (self._decor(p, s) if _voie(p, s) == "decor" and not _gros_plan(s) and not s.get("autres") and not s["libre"] else {})
-                                     | self._lieu_depart(p, s))
+                                     | (self._continuite(p, s) or (
+                                         ({"squelette": True} if _voie(p, s) != "direct" and not _gros_plan(s) and not s.get("autres") else {})
+                                         | (self._decor(p, s) if _voie(p, s) == "decor" and not _gros_plan(s) and not s.get("autres") and not s["libre"] else {})
+                                         | self._lieu_depart(p, s))))
             else:
                 ids = self._a_cliper(p, ch, int(b.get("temps") or 1), want)
                 suiv = {prec[s["id"]]["id"]: s for s in p["scenes"] if prec[s["id"]]}

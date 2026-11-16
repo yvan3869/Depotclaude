@@ -14,7 +14,7 @@ from .comfy import Comfy
 
 ROOT = Path(__file__).resolve().parents[2]
 PREFIX = "girls-ai-"
-MODELE = "2026-11-15h"  # version du format des plans : la meme que dans server/jobs/modele.yaml
+MODELE = "2026-11-16a"  # version du format des plans : la meme que dans server/jobs/modele.yaml
 INTERP = "minterpolate=fps=32:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1"
 
 
@@ -129,7 +129,7 @@ POSE = ("cadrage", "angle", "position", "appui", "bassin", "genoux", "mains")  #
 PORTRAIT = "close-up photo of her face and shoulders, natural skin texture, sharp eyes, natural smartphone photo"
 
 
-def poses_imposees(c, models, char, shots, data, work, over, decors=None, verif=None):
+def poses_imposees(c, models, char, shots, data, work, over, decors=None, verif=None, departs=None):
     """Pose imposee des plans qui portent "squelette" : un brouillon de la scene est tire d'une image neutre du personnage
     par retouche (elle rend la pose et le cadrage ecrits, pas le visage), son squelette est dessine, et l'image finale
     sera creee sur ce squelette. Un brouillon par scene, commun a ses variantes. Rend {(scene, texte): fichier depose} ;
@@ -140,7 +140,15 @@ def poses_imposees(c, models, char, shots, data, work, over, decors=None, verif=
     `verif` (serie controlee) : fonction qui fait relire les brouillons par le controleur avant que les images en soient
     tirees ; elle recoit [(nom, fichier, texte, champs)] et rend {nom: {champ: probabilite}}. Un brouillon qui manque un
     champ de pose est refait une fois, les champs manques redits en tete ; le meilleur des deux sert. Sans elle, ou si
-    elle echoue, les brouillons servent tels quels."""
+    elle echoue, les brouillons servent tels quels.
+    Continuite (essais du 16/11/2026), plans a "decor" :
+    - "reference_tenue" (la tenue complete, en clair) : une image d'elle debout dans le lieu, vetue ainsi, est faite une
+      fois et gardee ; chaque brouillon en est tire, avec la photo du lieu : la meme robe revient a chaque scene.
+      "etat" dit ce qui a change depuis (retire, pose ou). Ne jamais tirer un brouillon du brouillon d'avant : il derive.
+    - "partenaire" (qui il est) et "partenaire_geste" (ce qu'il fait) : elle est d'abord placee seule ("still_seule"),
+      puis il est ajoute dans cette image par une seconde retouche ; tout dire d'un coup fait perdre l'etat.
+    - "depart_brouillon" (force, 0,6) : pas de squelette (il ne place qu'une personne) ; l'image finale part du brouillon,
+      `departs` recoit {(scene, texte): brouillon depose}."""
     faits, dus, vus = {}, [], {}
 
     def epais():  # trait le plus large que le noeud de dessin accepte, 100 au plus
@@ -161,7 +169,7 @@ def poses_imposees(c, models, char, shots, data, work, over, decors=None, verif=
         return vus[chemin]
 
     for s, name, seed, entry in shots:
-        if s.get("squelette") and s.get("still") and not s.get("image") and not s.get("suite_de") and (s["name"], s["still"]) not in [x[0] for x in dus]:
+        if (s.get("squelette") or s.get("depart_brouillon")) and s.get("still") and not s.get("image") and not s.get("suite_de") and (s["name"], s["still"]) not in [x[0] for x in dus]:
             dus.append(((s["name"], s["still"]), s, name, seed))
     if not dus:
         return faits
@@ -179,12 +187,54 @@ def poses_imposees(c, models, char, shots, data, work, over, decors=None, verif=
             log(f"pose imposee : image neutre du personnage ({round(time.time() - t)} s)")
         up = c.upload("ga_neutre.png", neutre.read_bytes())
         brouillons = {}
+        MEME = "The place is exactly the one of image {n}: same walls, same furniture, same objects, same floor, same light. "
+
+        def plusieurs(g, autres):
+            for i, u in enumerate(autres, 2):
+                g[f"img{i}"] = {"class_type": "LoadImage", "inputs": {"image": u}}
+                g["pos"]["inputs"][f"image{i}"] = g["neg"]["inputs"][f"image{i}"] = [f"img{i}", 0]
+            return g
+
+        def garde(nom, cle, fait):  # image faite une fois par personnage, lieu et tenue, gardee d'un lancement a l'autre
+            import hashlib
+            f = data / "work" / f"girls-ai-{nom}-{hashlib.sha1(json.dumps(cle, sort_keys=True).encode()).hexdigest()[:12]}.png"
+            if str(f) not in vus:
+                if not f.is_file():
+                    t = time.time()
+                    f.write_bytes(c.fetch(c.run(fait())[0]))
+                    log(f"continuite : image « {nom} » faite ({round(time.time() - t)} s)")
+                vus[str(f)] = c.upload(f"ga_{nom}{len(vus)}.png", f.read_bytes())
+            return vus[str(f)]
+
+        def reference(s):
+            autres = ([depose(s["tenue_image"])] if s.get("tenue_image") else []) + [depose(s["decor"])]
+            n = len(autres) + 1
+            return garde("reference", [str(char.get("lora_still_zimage")), s["decor"], s.get("tenue_image"), s["reference_tenue"], list(s["still_size"])],
+                         lambda: plusieurs(workflows.edit_image(
+                             models, up, "The woman from image 1, " + ("dressed with the clothes shown in image 2, " if n == 3 else "")
+                             + f"in the place shown in image {n}. " + MEME.format(n=n) + "New photo of her: vertical full-body shot, eye-level, front view, "
+                             "she stands facing the camera, arms relaxed along her body, wearing " + s["reference_tenue"].strip(" .,")
+                             + ". Only one woman in the picture. Natural smartphone photo.", *s["still_size"], 11, "ga_reference"), autres))
+
+        def partenaire(s):
+            return garde("partenaire", [s["partenaire"], list(s["still_size"])],
+                         lambda: workflows.still_zimage(models, {}, "photo of " + s["partenaire"].strip(" .,") + ", standing facing the camera, arms relaxed, "
+                                                        "plain white room, vertical full-body shot, smartphone photo", *s["still_size"], 77, "ga_partenaire"))
 
         def brouillon(cle, s, name, seed, tete=""):
             try:
                 t = time.time()
-                s = {**s, "still": tete + s["still"]}
-                if s.get("decor"):
+                s = {**s, "still": tete + (s.get("still_seule") or s["still"])}
+                if s.get("decor") and s.get("reference_tenue"):
+                    sans = [str(x).strip(" .,") for x in s.get("retire") or [] if str(x).strip(" .,")]
+                    etat = (f"She no longer wears: {', '.join(sans)}. Not on her body anymore. " if sans else "") + (
+                        f"What has changed since image 1: {s['etat'].strip(' .')}. " if s.get("etat") else "")
+                    etat += "Everything else she wears is exactly as in image 1. " if etat else ""
+                    g = plusieurs(workflows.edit_image(
+                        models, reference(s), "She is the same woman as in image 1 and wears the very same garments as in image 1. " + etat
+                        + "New photo of her in the place shown in image 2: " + s["still"].rstrip(" .") + ". " + MEME.format(n=2)
+                        + "Only one woman in the picture. Natural smartphone photo.", *s["still_size"], seed, f"ga_{name}_b"), [depose(s["decor"])])
+                elif s.get("decor"):
                     autres = ([depose(s["tenue_image"])] if s.get("tenue_image") else []) + [depose(s["decor"])]
                     n = len(autres) + 1
                     g = workflows.edit_image(models, up, "The woman from image 1, " + ("dressed with the clothes shown in image 2, " if n == 3 else "")
@@ -197,6 +247,13 @@ def poses_imposees(c, models, char, shots, data, work, over, decors=None, verif=
                 else:
                     g = workflows.edit_image(models, up, "Same woman. New photo of her: " + s["still"], *s["still_size"], seed, f"ga_{name}_b")
                 b = c.fetch(c.run(g)[0])
+                if s.get("partenaire") and s.get("partenaire_geste"):  # ajoute en second : rien d'autre ne doit changer
+                    (work / f"{name}_brouillon_seule.png").write_bytes(b)
+                    g = plusieurs(workflows.edit_image(
+                        models, c.upload(f"ga_{name}_bs.png", b), "Add the man from image 2 into image 1: " + s["partenaire_geste"].strip(" .")
+                        + ". He looks like the man of image 2. Change nothing else: the woman, her pose, her clothes, the objects around her, the room "
+                        "and the light stay exactly as in image 1. Exactly two people in the picture.", *s["still_size"], seed, f"ga_{name}_b2"), [partenaire(s)])
+                    b = c.fetch(c.run(g)[0])
                 (work / f"{name}_brouillon.png").write_bytes(b)
                 brouillons[cle] = (c.upload(f"ga_{name}_b.png", b), name, bool(s.get("decor")))
                 log(f"{name} : brouillon de la pose ({round(time.time() - t)} s)")
@@ -210,11 +267,19 @@ def poses_imposees(c, models, char, shots, data, work, over, decors=None, verif=
             brouillon(cle, s, name, seed)
         if verif and brouillons:
             try:
+                def points(s):  # ce que le controleur relit sur un brouillon : la pose, les vetements retires, le partenaire
+                    ch = {k: v for k, v in (s.get("champs") or {}).items() if k in POSE} if isinstance(s.get("champs"), dict) else {}
+                    if s.get("reference_tenue"):  # "sansN" : question posee a l'envers (elle le porte ?), la note est retournee
+                        ch |= {f"sans{i}": "she is wearing " + str(x).strip(" .,") for i, x in enumerate(s.get("retire") or []) if str(x).strip(" .,")}
+                        if s.get("partenaire") and s.get("partenaire_geste"):
+                            ch["autres"] = s["partenaire_geste"]
+                    return ch
+
                 def relire(l):
-                    r = verif([(name, work / f"{name}_brouillon.png", s["still"], {k: v for k, v in s["champs"].items() if k in POSE})
-                               for cle, s, name, seed in l])
+                    r = verif([(name, work / f"{name}_brouillon.png", s["still"], points(s)) for cle, s, name, seed in l])
+                    r = {name: {k: round(1 - v, 2) if k.startswith("sans") else v for k, v in ch.items()} for name, ch in r.items()}
                     return {name: (sorted(k for k, v in ch.items() if v < SEUIL_CHAMP), sum(ch.values()) / max(1, len(ch))) for name, ch in r.items() if ch}
-                l = [x for x in dus if x[0] in brouillons and isinstance(x[1].get("champs"), dict) and any(k in POSE for k in x[1]["champs"])]
+                l = [x for x in dus if x[0] in brouillons and points(x[1])]
                 un = relire(l) if l else {}
                 refaits = [x for x in l if un.get(x[2], ([],))[0]]
                 log(f"brouillons relus : {len(un)}, a refaire : {len(refaits)}")
@@ -224,7 +289,9 @@ def poses_imposees(c, models, char, shots, data, work, over, decors=None, verif=
                         break
                     gardes[name] = (brouillons[cle], (work / f"{name}_brouillon.png").read_bytes())
                     (work / f"{name}_brouillon1.png").write_bytes(gardes[name][1])
-                    dire = ", ".join(str(s["champs"][k]).strip(" .,") for k in un[name][0])
+                    pts = points(s)  # un vetement retire encore porte est redit a l'envers ; le partenaire est deja dit
+                    dire = ", ".join(pts[k].replace("she is wearing ", "she does not wear ") if k.startswith("sans") else str(pts[k]).strip(" .,")
+                                     for k in un[name][0] if k != "autres") or "second try"
                     if not brouillon(cle, s, name, seed + 7919, dire + ", "):
                         (work / f"{name}_brouillon.png").write_bytes(gardes[name][1])
                         del gardes[name]
@@ -238,7 +305,12 @@ def poses_imposees(c, models, char, shots, data, work, over, decors=None, verif=
                         log(f"{name} : brouillon refait garde ({len(un[name][0])} point(s) manque(s) avant, {len(deux[name][0])} apres)")
             except Exception as e:  # la relecture est un plus
                 log(f"brouillons non relus : {str(e)[:200]}")
+        libres = {cle for cle, s, name, seed in dus if s.get("depart_brouillon")}
         for cle, (bu, name, decor) in brouillons.items():
+            if cle in libres:
+                if departs is not None:
+                    departs[cle] = bu
+                continue
             try:
                 t = time.time()
                 p = c.fetch(c.run(workflows.squelette(models, bu, f"ga_{name}_p"))[0])
@@ -322,8 +394,17 @@ def cmd_run(a):
                 return True
             return False
 
-        decors, lieux = {}, {}
-        poses = poses_imposees(c, models, char, shots, data, work, over, decors, getattr(a, "verif", None)) if cfg.get("image_model", "wan") == "zimage" else {}
+        decors, lieux, departs = {}, {}, {}
+
+        def accord(vu=[]):  # le noeud d'accord des couleurs est-il sur le volume ? (demande une fois)
+            if not vu:
+                try:
+                    from .http import request
+                    vu.append("ColorMatch" in (request("GET", c.base + "/object_info/ColorMatch", timeout=60) or {}))
+                except Exception:
+                    vu.append(False)
+            return vu[0]
+        poses = poses_imposees(c, models, char, shots, data, work, over, decors, getattr(a, "verif", None), departs) if cfg.get("image_model", "wan") == "zimage" else {}
         # Images creees d'abord, images tirees d'une autre par retouche ensuite : un seul changement de modele
         # (creation <-> retouche) au lieu d'un par plan, qui coutait une minute a chaque fois.
         for s, name, seed, entry in sorted(shots, key=lambda x: bool(x[0].get("image") and x[0].get("edit"))):
@@ -378,6 +459,9 @@ def cmd_run(a):
                         if (s["name"], s["still"]) in decors:  # decor fixe : seule la zone du personnage est refaite
                             workflows.decor_gele(graph, *decors[(s["name"], s["still"])])
                             entry["decor"] = True
+                    elif (s["name"], s["still"]) in departs:  # a deux ou vue subjective : l'image part du brouillon
+                        workflows.lieu_depart(graph, departs[(s["name"], s["still"])], *s["still_size"], float(s.get("depart_brouillon") or 0.6))
+                        entry["depart_brouillon"] = True
                     elif s.get("lieu_depart"):  # lieu tenu sans brouillon : l'image part de la photo du lieu vide
                         if s["lieu_depart"] not in lieux:
                             f = Path(s["lieu_depart"])
@@ -387,6 +471,8 @@ def cmd_run(a):
                     if s.get("finition"):  # seconde passe en plus grand : detail de la peau, des yeux, des mains
                         workflows.finition(graph, *s["still_size"])
                         entry["finition"] = True
+                    if entry.get("depart_brouillon") and accord():  # la lumiere reste celle du brouillon, donc du lieu
+                        workflows.accorder(graph)
                 else:
                     prompt = f"{char['prefix']}{s['still']}{char.get('still_suffix', '')}"
                     graph = workflows.still(models, char, prompt, *s["still_size"], seed, f"ga_{name}")
