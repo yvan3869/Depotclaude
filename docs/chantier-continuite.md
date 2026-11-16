@@ -222,3 +222,15 @@ Pistes cote outil (rien de construit) : regle du scenariste par temps (nombre de
 enchainement (derniere image du clip = depart du suivant) ou clip en boucle (meme image au debut et a la fin, rejoue 2 ou 3 fois) ;
 ralenti par images intermediaires calculees (pas par simple etirement) ; reglage « duree » et « ralenti » par scene dans la Production.
 A traiter dans le chantier video ; essai tous publics sur p0004 d'abord.
+
+## Principe du chantier video (accord du proprietaire, 16/11, 09 h 30)
+
+Travailler leger, tout valider, ne soigner que ce qui est garde :
+1. un clip est genere **une seule fois**, en petite taille, avec les reglages definitifs (pas de brouillon rapide refait ensuite « en beau » :
+   le mouvement ne serait plus le meme) ;
+2. controle et choix sur ces clips en petite taille ;
+3. agrandissement, details et ralenti **clip par clip**, seulement sur les clips gardes, avant le montage (jamais sur la video montee :
+   coupes, textes et cartons en souffriraient) ; surveiller que le visage ne change pas ;
+4. LoRA de rapidite : essai cote a cote avant toute adoption (risque : mouvement reduit, conflit avec les LoRA de mouvement du proprietaire, qui juge) ;
+5. quantization et .gguf : ecartes tant que la memoire du GPU loue suffit ; a recalculer seulement pour passer sur une carte moins chere ;
+6. images : chaine inchangee.
