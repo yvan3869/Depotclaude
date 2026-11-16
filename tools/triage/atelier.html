@@ -1124,7 +1124,7 @@ function aDebut(pris) {
 }
 function rendreAtelier() {
   const j = A.job, enc = j && j.etat === 'en cours', pris = false, manq = k => A[k].filter(x => !x.images.length).length;
-  const etapes = [['Fiche', true], ['Lieux', A.lieux.some(x => x.choix)], ['Garde-robe', A.tenues.some(x => x.choix)], ['Visage', A.lora || !!A.visage.choix], ['Images', A.gardees >= 10], ['LoRA', A.lora]];
+  const etapes = [['Fiche', true], ['Visage', A.lora || !!A.visage.choix], ['Images', A.gardees >= 10], ['LoRA', A.lora], ['Lieux', A.lieux.some(x => x.choix)], ['Garde-robe', A.tenues.some(x => x.choix)]];  // meme ordre que l'onglet Debuter
   const proch = etapes.findIndex(x => !x[1]);
   let corps = '';
   if (AO === 'debut') corps = aDebut(pris);
@@ -1265,7 +1265,7 @@ function rendreAtelier() {
   }
   vue.innerHTML = `<div class="row tete"><a class="lien" href="#/persos">${ic('retour')}Casting</a><span class="sp"></span><a class="lien" href="#/perso/${esc(A.slug)}">${ic('texte')}Sa fiche</a></div>
     <h2>Atelier de ${esc(A.nom)}</h2>
-    <div class="steps">${etapes.map(([l, ok], i) => `<span class="${ok ? 'done' : i === proch ? 'cur' : ''}">${i + 1}. ${l}</span>`).join('')}</div>
+    ${AO === 'debut' ? '' : `<div class="steps">${etapes.map(([l, ok], i) => `<span class="${ok ? 'done' : i === proch ? 'cur' : ''}">${i + 1}. ${l}</span>`).join('')}</div>`}
     <div class="chips" style="margin-bottom:8px">${ATABS.map(([k, i, l]) => `<button class="chip ${k === AO ? 'on' : ''}" data-a="bonglet" data-o="${k}">${l}</button>`).join('')}</div>
     ${j ? `<div class="panel"><b>${enc ? 'Calcul en cours' : j.etat === 'termine' ? 'Dernier calcul terminé' : 'Dernier calcul ' + esc(j.etat)}</b> : ${esc(j.quoi)}, ${j.faites} sur ${j.n}${j.echecs ? `, ${j.echecs} échec(s)` : ''}${j.cout != null ? ', ' + usd(j.cout) : ''}
       ${enc ? '<div class="mut">La page se met à jour seule. Vous pouvez la quitter : le calcul continue.</div>' : ''}${j.log && (enc || j.etat !== 'termine') ? `<div class="mut">${esc(j.log)}</div>` : ''}</div>` : pris ? '<div class="panel mut">Un autre calcul est en cours (Production ou Essais) : les lancements d\'ici attendent sa fin.</div>' : ''}
