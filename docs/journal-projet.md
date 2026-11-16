@@ -724,3 +724,6 @@ A deux, la voie est « image de depart a 0,6 » et non « decor gele » : elle n
 
 **16/11, midi : cinq temps et chemin des actes en service** (commit 83dde34, modele `2026-11-16b`). Aucune depense GPU : verifie hors ligne
 (imports acceptes et refuses, aiguillage). Le script deja depose en `2026-11-16a` est signale perime, sans erreur. Detail : `docs/chantier-continuite.md`.
+
+**16/11, apres-midi : fiches de capacite, banc d'essai et liste fermee des positions en service** (commit c37d204). Essai du banc avec une
+LoRA de pose et une phrase tous publics : 9 images sur 9. Depense : 0,06 $ ; compteur du jour 9,78 $ sur 20. Serie d'essai retiree de l'atelier de Lea.

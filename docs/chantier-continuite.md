@@ -259,4 +259,15 @@ Verification : deux scenes du temps 4 de p0005 par le nouveau chemin, jugees par
 - Controle reduit pour ces plans : personnes en trop, cadrage, corps, visage ; relance seulement si toutes les images de la scene sont ratees.
 - Verifie hors ligne seulement (cas d'import et aiguillage). **Aucune image faite par ce chemin** : c'est le proprietaire qui lance et juge.
 
-Restes : 2) fiches de capacite, 3) banc d'essai, 4) liste fermee des positions et choix automatique de la LoRA, limite d'empilement.
+### Construit le 16/11, apres-midi (commit c37d204) : etapes 2, 3 et 4
+
+- Fiche de capacite par LoRA (champ `capacite` de `data/lora_catalog.yaml`) : position, phrase, personnes, cadrages, force, validee ou non.
+- Banc d'essai (atelier du personnage, onglet « Banc d'essai ») : une position a trois cadrages et trois forces, meme graine par cadrage ;
+  le proprietaire coche, la fiche se remplit. « Inscrire sans essai » pour une position deja eprouvee ou une LoRA de clip.
+- Liste fermee : les positions validees (`verifier.py --positions`). Hors liste : fichier refuse. Liste vide : `acte` libre, LoRA du temps.
+- Choix automatique : pour une position de la liste, la LoRA de la fiche a sa force, la phrase a la place du mot, une LoRA de style a cote
+  (clip : mouvement et vitesse) ; les autres LoRA du temps ne s'empilent pas. Les LoRA ecrites sur la scene restent.
+- Essai reel du banc, tous publics (LoRA de pose, « assise en tailleur ») : 9 images sur 9, 0,06 $. Constat : les trois cadrages se
+  ressemblent quand la phrase impose de montrer les jambes ; la phrase l'emporte sur le cadrage.
+
+Restes : le proprietaire passe ses LoRA au banc, puis lance et juge deux scenes du temps 4 de p0005. Pas de bouton pour retirer une serie du banc.
