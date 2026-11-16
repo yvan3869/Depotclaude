@@ -419,14 +419,17 @@ class Hub:
             ver = next((x for x in vs if str(x.get("id")) == mc.group(2)), vs[0] if vs else {})
             out["mots"] = _uniques(ver.get("trainedWords") or [], 20, 200)
             out["description"] = "\n\n".join(x for x in (_clair(ver.get("description"), 1500), _clair(d.get("description"))) if x)
-            ex = [(i.get("meta") or {}).get("prompt") for i in ver.get("images") or [] if isinstance(i, dict)]
-            if not any(ex) and ver.get("id"):  # la fiche du modele ne porte pas toujours les prompts : la galerie de la version les a
+            ex = []
+            if ver.get("id"):  # les prompts ne sont plus dans la fiche du modele : la galerie de la version les donne sur demande
                 try:
                     r = _get("https://civitai.com/api/v1/images?" + urllib.parse.urlencode(
-                        {"modelVersionId": ver["id"], "limit": 20, "nsfw": "X", "sort": "Most Reactions"}), tok)
-                    ex = [(i.get("meta") or {}).get("prompt") for i in r.get("items") or [] if isinstance(i, dict)]
+                        {"modelVersionId": ver["id"], "limit": 20, "nsfw": "X", "sort": "Most Reactions", "withMeta": "true"}), tok)
+                    for i in r.get("items") or []:
+                        me = i.get("meta") if isinstance(i, dict) else None
+                        me = me.get("meta") if isinstance(me, dict) and isinstance(me.get("meta"), dict) else me
+                        ex.append(me.get("prompt") if isinstance(me, dict) else None)
                 except RuntimeError:
-                    ex = []
+                    pass
             out["exemples"] = _uniques(ex)
         elif mh:
             t = _texte(f"https://huggingface.co/{mh.group(1)}/raw/main/README.md")
