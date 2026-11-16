@@ -727,3 +727,8 @@ A deux, la voie est « image de depart a 0,6 » et non « decor gele » : elle n
 
 **16/11, apres-midi : fiches de capacite, banc d'essai et liste fermee des positions en service** (commit c37d204). Essai du banc avec une
 LoRA de pose et une phrase tous publics : 9 images sur 9. Depense : 0,06 $ ; compteur du jour 9,78 $ sur 20. Serie d'essai retiree de l'atelier de Lea.
+
+**16/11, fin d'apres-midi : banc d'essai, mots declencheurs et page d'origine** (commits a la suite de 962f2f0). Au choix d'une LoRA, la phrase
+demarre avec ses mots declencheurs ; un volet « Page d'origine » montre ce que l'auteur en dit chez la source (mots, description, prompts de ses
+images d'exemple pour Civitai ; texte de la page pour Hugging Face), relu a la demande, avec un bouton pour prendre un prompt comme phrase.
+Phrase portee a 500 caracteres. Verifie sur les 8 LoRA inscrites (comptes seulement : 3 a 12 exemples chacune). Aucune depense GPU.

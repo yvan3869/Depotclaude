@@ -271,3 +271,12 @@ Verification : deux scenes du temps 4 de p0005 par le nouveau chemin, jugees par
   ressemblent quand la phrase impose de montrer les jambes ; la phrase l'emporte sur le cadrage.
 
 Restes : le proprietaire passe ses LoRA au banc, puis lance et juge deux scenes du temps 4 de p0005. Pas de bouton pour retirer une serie du banc.
+
+### Ajoute le 16/11, fin d'apres-midi : mots declencheurs et page d'origine dans le banc
+
+- Au choix d'une LoRA, la phrase du banc demarre avec ses mots declencheurs (ceux gardes au catalogue).
+- Volet « Page d'origine » : `GET /api/h/origine?name=` (`hub.py`, `Hub.origine`) relit la source a partir de l'adresse du catalogue.
+  Civitai : mots de la version, description, prompts des images d'exemple (galerie de la version, `withMeta=true` : la fiche du modele ne les
+  donne plus). Hugging Face : `README.md` (en-tete : `instance_prompt`, `widget[].text`). Garde en memoire le temps du service.
+- Un bouton prend un prompt d'exemple comme phrase (coupee a 500 caracteres, nouvelle limite) ; un mot declencheur s'ajoute d'un toucher.
+- Rien n'est trie ni reecrit : l'outil montre, le proprietaire choisit.
