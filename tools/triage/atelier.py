@@ -1654,6 +1654,16 @@ class Atelier:
                         "un téléphone posé ne bouge pas, mettre ces plans en « fixe » ou choisir le rendu « main »"})
         if rendu == "main" and re.search(r"tripod|propped|phone (is )?(set|placed|resting|leaning)|static camera|fixed camera", str(fiche.get("pdv") or ""), re.I):
             out.append({"scene": "", "grave": False, "msg": "rendu « filmé à la main » mais le point de vue de la fiche de continuité décrit un téléphone posé : accorder les deux"})
+        slug = pl.get("personnage") or pr.get("personnage") or ""
+        if pl.get("modele", "") >= MODELE_ETAT and fiche.get("lieu") and slug and not self.biblio.image(slug, "l", fiche["lieu"]):
+            try:
+                connus = [x["en"] for x in self.biblio.vue(slug)["lieux"] if x.get("choix")]
+            except Exception:
+                connus = []
+            out.append({"scene": "", "grave": False, "msg": "le lieu de la fiche de continuité n'est pas, mot pour mot, un lieu du personnage qui a une image : "
+                        "la pièce ne sera pas tenue d'une scène à l'autre sans réglage du propriétaire. Recopier exactement une de ces lignes dans "
+                        "« continuite.lieu » (les détails propres à la vidéo vont dans les plans)" + (" : " + " ; ".join(connus) if connus else "")
+                        + ". Lieu vraiment nouveau : le laisser, le propriétaire l'ajoutera à la bibliothèque."})
         vus = set()  # une remarque sur le projet entier ne se repete pas a chaque temps
         return [r for r in out if not ((k := (r.get("scene"), r["msg"])) in vus or vus.add(k))]
 
@@ -1749,6 +1759,13 @@ class Atelier:
                 raise ValueError("trop de scènes dans ce projet")
             p["scenes"] = sorted(reste + neuves, key=lambda s: s["temps"])
             p.update(pl["textes"])
+            # le lieu de la fiche est un lieu du personnage qui a une image : la piece est tenue sans reglage (tirage "decor")
+            if pl["modele"] >= MODELE_ETAT and self.biblio.image(p["personnage"], "l", (p.get("continuite") or {}).get("lieu") or ""):
+                for tp in pl["lestemps"]:
+                    if (p.get("tirage") or {}).get(str(tp)) not in ("decor", "auto", "direct"):
+                        p["tirage"] = {**(p.get("tirage") or {}), str(tp): "decor"}
+                    if (p.get("decors") or {}).get(str(tp)):
+                        p["decors"] = {k: v for k, v in p["decors"].items() if k != str(tp)}
             if pl.get("rendu"):  # le script propose le rendu de la video ; le proprietaire le change dans les reglages du montage
                 p["montage"]["rendu"] = RENDU_SCRIPT[pl["rendu"]]
             if pl["reference"]:

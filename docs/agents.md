@@ -517,6 +517,12 @@ les habits tiennent d'une image a l'autre, le script dit l'etat, la Production f
   la meme chose.
 - Au temps 1, un plan dont `retire` n'est pas vide dit lui aussi dans `still` ce qu'elle porte encore (`"wearing a white
   t-shirt and blue jeans, barefoot"`) : la tenue entiere de la fiche n'est alors plus ajoutee (elle remettrait le vetement).
+- `atelier.continuite.lieu` : **recopier mot pour mot** la ligne anglaise d'un lieu du personnage (liste `lieux` de sa
+  fiche) quand la video s'y passe. Si ce lieu a une image retenue dans sa bibliotheque, l'import regle tout seul le
+  projet sur le tirage « lieu de la bibliotheque » aux temps du script : la piece et la lumiere sont alors tenues sans
+  aucun reglage du proprietaire. Les details propres a la video (un tapis, un objet) vont dans les plans, pas dans cette
+  ligne. Une ligne differente n'est pas refusee (lieu nouveau, que le proprietaire ajoutera), mais le verificateur le
+  signale et donne les lignes connues.
 - `atelier.partenaire` : l'autre personne, decrite **une seule fois** (age adulte, physique, habits). Obligatoire des
   qu'un plan remplit `autres`. Dans `autres`, ne dire que ou il est et ce qu'il fait (`"he sits next to her on the
   sofa, turned toward her"`) : son image est faite une fois puis ajoutee a chaque plan, il reste donc le meme.

@@ -108,6 +108,8 @@ name: monlot                 # prefixe des fichiers produits (lettres, chiffres,
 #     tenues: ["robe rouge a fines bretelles | wearing a red slip dress with thin straps"]
 #     lieux: []
 #   partenaire: "a 30 year old man, short brown hair, light stubble, grey crew-neck sweater, dark jeans"
+#   continuite.lieu : recopier mot pour mot la ligne anglaise d'un lieu de la fiche du personnage (liste "lieux") : s'il a une
+#                image retenue, le projet est regle tout seul sur le tirage « lieu de la bibliotheque » (piece et lumiere tenues).
 #                            # obligatoire des qu'un plan remplit "autres" : l'autre personne (adulte, fictive), decrite une
 #                            # seule fois pour toute la video, physique et habits. Les plans disent seulement ce qu'elle fait.
 #   reference: plan01        # nom d'un plan du temps 1 de ce fichier : les autres images du projet en sont tirees par retouche
