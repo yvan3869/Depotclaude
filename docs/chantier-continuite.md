@@ -234,3 +234,17 @@ Travailler leger, tout valider, ne soigner que ce qui est garde :
 4. LoRA de rapidite : essai cote a cote avant toute adoption (risque : mouvement reduit, conflit avec les LoRA de mouvement du proprietaire, qui juge) ;
 5. quantization et .gguf : ecartes tant que la memoire du GPU loue suffit ; a recalculer seulement pour passer sur une carte moins chere ;
 6. images : chaine inchangee.
+
+## Nouvelle approche pour les actes (discussion du 16/11, 10 h 45 ; pas encore construite)
+
+Constat du proprietaire sur le temps 4 de p0005 : rien ne va (cadrage serre perdu, gens en trop, corps incoherents, glam perdu) ; visage correct.
+Deux chemins, choisis d'apres la scene :
+- scene seule (habillee ou a moitie denudee) : methode actuelle (lieu, image d'etat, pose) ;
+- acte ou deux personnes : chemin « actes », sans brouillon ni pose imposee ni image du partenaire ; la LoRA commande, cadrage serre par defaut.
+Etapes : 1) aiguillage automatique ; 2) fiche de capacite par LoRA du catalogue (ce qu'elle fait, 1 ou 2 personnes, cadrages, force, phrase) ;
+3) banc d'essai a l'ajout d'une LoRA (planche, le proprietaire coche, la fiche se remplit) ; 4) script court : position choisie dans la liste
+tiree des fiches, expression, vetements restants, sens de l'image ; position hors liste refusee ; 5) controle reduit (nombre de personnes,
+cadrage, corps, visage). Limite d'empilement des LoRA. Vetement qui s'enleve ou tombe : en video, image de depart et image de fin.
+Structure du temps 4 voulue par le proprietaire : **deux moments chauds, puis le final, puis toujours un temps calme a la fin** ;
+plans de transition (changement de position) rares, juste de quoi dynamiser.
+Verification : deux scenes du temps 4 de p0005 par le nouveau chemin, jugees par le proprietaire ; sinon on arrete.
