@@ -754,3 +754,16 @@ faute de machine ; second reussi). Depense du chargement : environ 0,11 $ ; comp
 - Montage : option « Amorce (ouvre sur la fin) » et duree visee de 10 s, eteintes par defaut. Aucun calcul GPU.
 - Correction : une video montee du temps 5 ne pouvait pas etre supprimee ni recevoir sa planche (nom refuse).
 - Depense GPU : aucune.
+
+### 16/11/2026, soir - RunPod : passage a l'API v2
+
+- Ce n'etait pas une panne : RunPod a retire son API v1 (`rest.runpod.io`) le 15/11/2026, comme annonce par courriel.
+  Entre l'arret et la correction (environ de 16 h a 18 h 20 UTC), aucun pod ne pouvait etre cree et le filet de securite
+  (`girls-ai-pod-reaper`) echouait ; aucun pod n'etait allume pendant ce temps (liste vide verifiee).
+- `server/pilot/runpod.py` passe a `https://api.runpod.io/v2` (commit 93e82f7) : champs renommes, liste paginee, volume
+  monte explicitement sur `/workspace`. La v2 ne place qu'un type de carte par demande : la liste `gpu_types` est essayee
+  dans l'ordre a chaque tentative. Une demande refusee pour une autre raison que le manque de machine s'arrete tout de suite.
+- Verifie : liste des pods, lecture du modele et du volume, compteur de depense de nouveau lisible, demande de creation
+  acceptee dans sa forme (aucun refus de champ). La creation elle-meme a ete refusee faute de machine libre a EU-RO-1
+  ce soir-la (meme sans volume) : preuve complete a la premiere machine disponible.
+- Depense GPU : aucune.
