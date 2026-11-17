@@ -118,6 +118,7 @@ pre { background:var(--fond); border-radius:6px; padding:8px; margin:8px 0 0; fo
 .lt.on { border-color:var(--acc); background:var(--acc-bg); }
 .lt.on > button::after { background:var(--acc); border-color:var(--acc); }
 .lt.off { opacity:.55; } .lt.off > button { cursor:default; }
+.lt.kl:not(.on) .fo { display:none; }
 .lt .fo { display:flex; align-items:center; gap:8px; padding:0 10px 9px; color:var(--mut); font-size:12px; }
 .lt .fo[hidden] { display:none; }
 .lt .fo input { width:74px; margin:0; padding:4px 6px; font-size:14px; }

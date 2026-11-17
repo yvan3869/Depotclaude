@@ -194,6 +194,15 @@ def texte_angle(k, fiche, corps, tenue):
             f"arms slightly away from her body, feet slightly apart, {CORPS_POSE if k != 2 else CORPS_POSE_DOS}, {tenue}, only one woman in the picture{FIN}")
 
 
+def _lora_force(x):
+    """« nom:0.8 » devient {name, strength} pour le pilote ; « nom » seul garde la force du catalogue."""
+    n, _, f = str(x).rpartition(":")
+    try:
+        return {"name": n, "strength": max(0.0, min(2.0, float(f)))} if n else str(x)
+    except ValueError:
+        return str(x)
+
+
 def taille_corps(s):
     """La taille tiree pour le corps de face numero s (meme tirage que traits_corps)."""
     r = random.Random(104729 * s)
@@ -533,7 +542,7 @@ class Biblio:
     def texte(self, b):
         """Le texte reellement envoye pour une image (portrait, corps, expression) ; vide pour une image creee avant qu'il soit conserve."""
         t = self._taches(b["slug"]).get(str(b.get("image") or "")[:-4]) or {}
-        return {"prompt": t.get("prompt") or "", "retouche": bool(t.get("ref")), "loras": len(t.get("loras") or [])}
+        return {"prompt": t.get("prompt") or "", "retouche": bool(t.get("ref")), "loras": [{"nom": x["name"], "force": x.get("strength")} if isinstance(x, dict) else {"nom": str(x), "force": None} for x in t.get("loras") or []]}
 
     def refaire(self, b):
         """Une image de plus d'apres une image existante, avec le texte ajuste par le proprietaire : meme reference, meme graine,
@@ -712,12 +721,13 @@ class Biblio:
             bb["corps_variantes"] = [_s(x, 200) for x in str(b.get("variantes") or "").splitlines() if x.strip()][:30]
             self._ecrire(slug, bb)
         if "loras" in b:  # LoRA choisies par le proprietaire : face et dos sont alors dessines par Z-Image avec elles, d'apres la description
-            bb["corps_loras"] = [str(x) for x in b.get("loras") or []][:4]
+            bb["corps_loras"] = [_s(x, 140) for x in b.get("loras") or [] if _s(x, 140)][:4]  # « nom » ou « nom:force »
             self._ecrire(slug, bb)
         tenue, var, lo = bb.get("corps_tenue") or CORPS_TENUE, bb.get("corps_variantes") or [], bb.get("corps_loras") or []
         # Sa description d'abord (les traits tires au sort ne font que la completer), sans ce qui decrit le visage : pour une image
         # du corps seuls comptent l'origine, la peau, les cheveux et le corps ; un visage tres decrit tire l'image vers lui.
         fiche = self._prefixe_corps(p)
+        lo = [_lora_force(x) for x in lo]
 
         def plus(s):
             return (", " + random.Random(15485863 * s).choice(var)) if var else ""
