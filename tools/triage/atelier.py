@@ -1124,7 +1124,7 @@ class Atelier:
     def _file_nom(path, b):
         q = {"/api/a/produire": {"images": "Images", "clips": "Clips"}.get(b.get("quoi"), "Production"), "/api/a/comparer": "Comparaison",
              "/api/a/son": "Sons", "/api/a/chaine": "Chaîne", "/api/a/b/creer": "Images de la bibliothèque", "/api/a/b/planches": "Planches",
-             "/api/a/b/visage": "Portraits", "/api/a/b/corps": "Corps de référence", "/api/a/b/entrainer": "Entraînement de la LoRA", "/api/a/b/essayer": "Essai de la LoRA"}.get(path)
+             "/api/a/b/visage": "Portraits", "/api/a/b/corps": "Corps de référence", "/api/a/b/refaire": "Image refaite avec un texte ajusté", "/api/a/b/entrainer": "Entraînement de la LoRA", "/api/a/b/essayer": "Essai de la LoRA"}.get(path)
         return f"{q or 'Calcul'} ({b.get('id') or b.get('slug') or ''})"
 
     def _file_ajout(self, path, b, e):
@@ -1133,7 +1133,7 @@ class Atelier:
             raise e
         with self.fverrou:
             # les lancements qui donnent du neuf a chaque fois (portraits, corps, planches) peuvent attendre a plusieurs
-            if path not in ("/api/a/b/visage", "/api/a/b/corps", "/api/a/b/planches") and any(x["path"] == path and x["b"] == b for x in self.file):
+            if path not in ("/api/a/b/visage", "/api/a/b/corps", "/api/a/b/planches", "/api/a/b/refaire") and any(x["path"] == path and x["b"] == b for x in self.file):
                 raise ValueError("Déjà dans la file d'attente : partira tout seul à la fin du calcul en cours")
             if len(self.file) >= self.FILE_MAX:
                 raise ValueError(f"file d'attente pleine ({self.FILE_MAX} lancements) : attendre ou en retirer")

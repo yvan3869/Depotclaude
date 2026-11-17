@@ -446,6 +446,8 @@ class Biblio:
         nom = f"{quoi}-{time.strftime('%Y%m%d-%H%M%S')}"
         lot |= {"nom": f"{slug}-{quoi}", "out": str(d), "character": self.at.char_override(self.at.perso(slug))} | ({"nom": lot["nom"]} if lot.get("nom") else {})
         (d / "lots" / f"{nom}.json").write_text(json.dumps(lot, ensure_ascii=False, indent=1), encoding="utf-8")
+        tt = self._taches(slug) | {t["sortie"]: t for t in lot.get("taches") or [] if t.get("sortie") and t.get("prompt")}
+        (d / "taches.json").write_text(json.dumps(tt, ensure_ascii=False), encoding="utf-8")  # le texte reel de chaque image, pour le relire et l'ajuster
         log = d / "lots" / f"{nom}.log"
         cmd = [sys.executable, "-m", "pilot", "perso" if veille else "entrainer", str(d / "lots" / f"{nom}.json")]
         if veille:  # pod de veille du studio, partage avec la Production et la page Essais
@@ -454,6 +456,39 @@ class Biblio:
         self.job = {"slug": slug, "quoi": quoi, "log": str(log), "n": n}
         self.at.studio.poser(f"{NOMS_CALCUL.get(quoi, quoi.capitalize())} ({slug})")
         return log
+
+    def _taches(self, slug):
+        try:
+            return json.loads((self.dir(slug) / "taches.json").read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return {}
+
+    def texte(self, b):
+        """Le texte reellement envoye pour une image (portrait, corps, expression) ; vide pour une image creee avant qu'il soit conserve."""
+        t = self._taches(b["slug"]).get(str(b.get("image") or "")[:-4]) or {}
+        return {"prompt": t.get("prompt") or "", "retouche": bool(t.get("ref")), "loras": len(t.get("loras") or [])}
+
+    def refaire(self, b):
+        """Une image de plus d'apres une image existante, avec le texte ajuste par le proprietaire : meme reference, meme graine,
+        memes LoRA ; seul le texte change, pour voir ce que l'ajustement donne. La nouvelle image prend le numero libre suivant."""
+        slug, anc = b["slug"], str(b.get("image") or "")[:-4]
+        self._libre()
+        t0, texte = self._taches(slug).get(anc), _s(b.get("prompt"), 4000)
+        if not t0 or not re.fullmatch(r"[vkda]_\d+|x_[0-9a-f]+_\d+", anc):
+            raise ValueError("texte non conservé pour cette image : en créer une nouvelle d'abord")
+        if not texte:
+            raise ValueError("texte vide")
+        pre, num = anc.rsplit("_", 1)
+        pre += "_"
+        pris = {int(f.stem.rsplit("_", 1)[1]) for f in self.dir(slug).glob(pre + "*.png") if f.stem.rsplit("_", 1)[1].isdigit()} | self._jetes(slug, pre)
+        pas = len(ANGLES) if pre == "a_" else 1  # un angle refait garde sa vue : numero de meme rang
+        s = next(x for x in range(int(num) + pas, 4000, pas) if x not in pris)
+        if pre.startswith("x_"):
+            bb = self._b(slug)
+            bb["planches"][f"{pre}{s}.png"] = {"garde": False, "legende": texte[:600]}
+            self._ecrire(slug, bb)
+        self._lancer(slug, {"v": "visage", "x": "expressions"}.get(pre[0], "corps"), {"taches": [t0 | {"sortie": f"{pre}{s}", "prompt": texte}]}, 1)
+        return {"lance": 1, "nom": f"{pre}{s}.png"}
 
     def _prefixe(self, p):
         g = p.get("generation") or {}
@@ -985,7 +1020,7 @@ class Biblio:
 
     def post(self, path, b):
         f = {"/api/a/b/creer": self.creer, "/api/a/b/ajouter": self.ajouter, "/api/a/b/retirer": self.retirer, "/api/a/b/choix": self.choix,
-             "/api/a/b/visage": self.visage, "/api/a/b/corps": self.corps, "/api/a/b/expressions": self.expressions, "/api/a/b/planches": self.planches, "/api/a/b/garde": self.garde, "/api/a/b/supprimer": self.supprimer, "/api/a/b/entrainer": self.entrainer,
+             "/api/a/b/visage": self.visage, "/api/a/b/corps": self.corps, "/api/a/b/texte": self.texte, "/api/a/b/refaire": self.refaire, "/api/a/b/expressions": self.expressions, "/api/a/b/planches": self.planches, "/api/a/b/garde": self.garde, "/api/a/b/supprimer": self.supprimer, "/api/a/b/entrainer": self.entrainer,
              "/api/a/b/adopter": self.adopter, "/api/a/b/revenir": self.revenir, "/api/a/b/importer": self.importer, "/api/a/b/essayer": self.essayer,
              "/api/a/b/banc": self.banc, "/api/a/b/banc/noter": self.banc_noter, "/api/a/b/banc/retirer": self.banc_retirer,
              "/api/a/b/banc/depart": self.banc_depart, "/api/a/b/banc/depart/retirer": self.banc_depart_retirer}.get(path)
