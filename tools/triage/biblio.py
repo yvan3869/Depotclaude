@@ -82,10 +82,9 @@ def traits(s):
 
 
 # Corps de reference (personnage sans LoRA) : comme pour le visage, chaque essai tire au sort ce que la fiche ne dit pas.
-# Listes « _F » : la forme seule, quand la fiche donne deja la taille.
-BUSTES = ("small high bust", "small wide-set bust", "medium round bust", "medium teardrop-shaped bust", "medium bust set close together", "full round bust",
-          "full heavy natural bust", "full teardrop-shaped bust", "large round bust", "modest bust on an athletic chest")
-BUSTES_F = ("round high bust", "teardrop-shaped bust", "wide-set bust", "bust set close together", "natural slightly low bust", "firm conical bust")
+# La taille de la poitrine vient de la fiche : seule sa forme varie. Liste « _F » : la forme seule, quand la fiche donne deja la taille.
+BUSTES = ("round high breasts", "teardrop-shaped breasts", "wide-set breasts", "breasts set close together", "natural slightly low breasts", "firm conical breasts",
+          "breasts fuller at the bottom", "perky upturned breasts", "soft natural breasts with a gentle slope", "asymmetric natural breasts")
 TAILLES = ("narrow waist", "straight waist", "soft stomach", "flat toned stomach", "long torso", "short torso")
 FESSES = ("small firm buttocks", "small flat buttocks", "round high buttocks", "round full buttocks", "heart-shaped buttocks", "wide full buttocks",
           "athletic muscular buttocks", "large round buttocks")
@@ -104,7 +103,7 @@ def traits_corps(s, fiche, dos=False):
     r = random.Random(104729 * s + dos)
     if dos:
         return f"{r.choice(FESSES_F if re.search(r'butt|hips|bottom|glute', fiche, re.I) else FESSES)}, {r.choice(HANCHES)}"
-    return f"{r.choice(BUSTES_F if re.search(r'breast|bust|chest|boob', fiche, re.I) else BUSTES)}, {r.choice(TAILLES)}"
+    return f"{r.choice(BUSTES)}, {r.choice(TAILLES)}"
 
 
 ESSAIS = ("medium shot, eye-level, front view, she stands, soft smile, looking at the camera, in a bright living room, wearing a white t-shirt and jeans",
@@ -272,7 +271,7 @@ class Biblio:
                 "visage": {"images": vis, "choix": b["choix"].get("visage") if b["choix"].get("visage") in vis else ""},
                 "corps": {"face": {"images": num("k_"), "choix": b["choix"].get("corps") if b["choix"].get("corps") in noms else ""},
                           "dos": {"images": num("d_"), "choix": b["choix"].get("dos") if b["choix"].get("dos") in noms else ""},
-                          "angles": [{"nom": n, "vue": ANGLES[(int(n[2:-4]) - 1) % len(ANGLES)][0]} for n in num("a_")], "tenue": b.get("corps_tenue") or ""},
+                          "angles": [{"nom": n, "vue": ANGLES[(int(n[2:-4]) - 1) % len(ANGLES)][0]} for n in num("a_")], "tenue": b.get("corps_tenue") or "", "variantes": "\n".join(b.get("corps_variantes") or [])},
                 "expressions": expr, "gardees": sum(1 for x in b["planches"].values() if x.get("garde")),
                 "banc": [{"cle": k, **x, "images": [n for n in noms if n.startswith(f"b_{k}_")], "clips": sorted(f.name for f in d.glob(f"bv_{k}_*.mp4"))}
                          for k, x in reversed(list((b.get("banc") or {}).items()))],
@@ -554,8 +553,15 @@ class Biblio:
         if "tenue" in b:
             bb["corps_tenue"] = _s(b.get("tenue"), 400)
             self._ecrire(slug, bb)
-        tenue = bb.get("corps_tenue") or CORPS_TENUE
-        fiche = _s((p.get("generation") or {}).get("corps"), 300).rstrip(", ")
+        if "variantes" in b:  # details a faire varier, ecrits par le proprietaire : un par ligne, un tire au sort par image
+            bb["corps_variantes"] = [_s(x, 200) for x in str(b.get("variantes") or "").splitlines() if x.strip()][:30]
+            self._ecrire(slug, bb)
+        tenue, var = bb.get("corps_tenue") or CORPS_TENUE, bb.get("corps_variantes") or []
+        fiche = self._prefixe(p).rstrip(", ")  # sa description d'abord ; les traits tires au sort ne font que la completer
+
+        def plus(s):
+            return (", " + random.Random(15485863 * s).choice(var)) if var else ""
+
         elle, c = str(self.fichier(slug, v["visage"]["choix"])), v["corps"]
         pre, base = {"face": ("k_", 7000), "dos": ("d_", 8000), "angles": ("a_", 9000)}[quoi]
         deja = {int(f.stem[2:]) for f in self.dir(slug).glob(pre + "*.png") if f.stem[2:].isdigit()} | self._jetes(slug, pre)
@@ -564,7 +570,7 @@ class Biblio:
             taches = [{"sortie": f"k_{s}", "ref": elle, "seed": base + 53 * s, "taille": [720, 1280],
                        "prompt": f"The woman from image 1, same face, same hair. New photo of her whole body, from head to feet: vertical full-body shot, eye-level, "
                                  f"front view, she stands straight facing the camera, arms slightly away from her body, feet slightly apart, {CORPS_POSE}. "
-                                 f"Her body: {fiche + ', ' if fiche else ''}{traits_corps(s, fiche)}. {tenue}. Only one woman in the picture. Natural smartphone photo."}
+                                 f"She is {fiche}. Her body also has: {traits_corps(s, fiche)}{plus(s)}. {tenue}. Only one woman in the picture. Natural smartphone photo."}
                       for s in libres[:8]]
         elif not c["face"]["choix"]:
             raise ValueError("retenir d'abord son corps de face")
@@ -573,7 +579,7 @@ class Biblio:
             taches = [{"sortie": f"d_{s}", "ref": face, "refs": [elle], "seed": base + 59 * s, "taille": [720, 1280],
                        "prompt": f"The woman from image 1 (her face is shown in image 2): same body, same skin, same hair, same height. New photo of her seen from behind, "
                                  f"from head to feet: vertical full-body shot, eye-level, back view, she stands straight with her back to the camera, head facing away, "
-                                 f"arms slightly away from her body, feet slightly apart, {CORPS_POSE}. Her body from behind: {traits_corps(s, fiche, True)}. {tenue}. "
+                                 f"arms slightly away from her body, feet slightly apart, {CORPS_POSE}. She is {fiche}. Her body from behind also has: {traits_corps(s, fiche, True)}. {tenue}. "
                                  "Only one woman in the picture. Natural smartphone photo."}
                       for s in libres[:8]]
         elif not c["dos"]["choix"]:
