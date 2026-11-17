@@ -900,13 +900,17 @@ class Biblio:
             bb["planches"][nom + ".png"] = {"garde": False, "legende": f"{pre}{desc}"}
             t = {"sortie": nom, "seed": 5000 + 101 * serie + i, "taille": [720, 1280]}
             if ref:
+                # Par retouche : sa case Identite (age, origine, peau, cheveux) est redite, pour que la peau ecrite par le proprietaire
+                # (bronzage) ne tienne pas qu'aux images de reference, que le nouveau fond et la nouvelle lumiere eclaircissent.
+                qui = (self._cases(p) or {}).get("identite") or ""
+                qui = f" She is {qui}." if qui else ""
                 rc = self._refs_corps(slug, v, cadre)
-                t |= {"ref": ref, "prompt": f"Same woman, same face, same hair. New photo of her: {desc}. Natural smartphone photo."}
+                t |= {"ref": ref, "prompt": f"Same woman, same face, same hair.{qui} New photo of her: {desc}. Natural smartphone photo."}
                 if rc:  # son corps de reference : meme corps, mais ni sa tenue ni son fond ; sa tete y est coupee (sauf de dos), un seul visage en jeu
                     t |= {"sans_tete": [x for x in rc if not _de_dos(x)]}
                     t |= {"refs": rc, "prompt": f"The woman from image 1: same face, same hair. Her body is the one shown in image {' and image '.join(str(k) for k in range(2, 2 + len(rc)))}: "
                                                 f"same breasts, same waist, same hips, same buttocks, same legs, same skin; ignore the clothes and the background of "
-                                                f"{'those images' if len(rc) > 1 else 'that image'}. New photo of her: {desc}. Only one woman in the picture. Natural smartphone photo."}
+                                                f"{'those images' if len(rc) > 1 else 'that image'}.{qui} New photo of her: {desc}. Only one woman in the picture. Natural smartphone photo."}
             else:
                 t |= {"lora": True, "loras": [str(x) for x in b.get("loras") or []][:4], "prompt": f"{pre}vertical {desc}{FIN}"}
             taches.append(t)
