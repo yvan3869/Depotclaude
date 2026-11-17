@@ -299,7 +299,7 @@ class Biblio:
                 "visage": {"images": vis, "choix": b["choix"].get("visage") if b["choix"].get("visage") in vis else ""},
                 "corps": {"face": {"images": num("k_"), "choix": b["choix"].get("corps") if b["choix"].get("corps") in noms else ""},
                           "dos": {"images": num("d_"), "choix": b["choix"].get("dos") if b["choix"].get("dos") in noms else ""},
-                          "angles": [{"nom": n, "vue": ANGLES[(int(n[2:-4]) - 1) % len(ANGLES)][0]} for n in num("a_")], "tenue": b.get("corps_tenue") or "", "variantes": "\n".join(b.get("corps_variantes") or [])},
+                          "angles": [{"nom": n, "vue": ANGLES[(int(n[2:-4]) - 1) % len(ANGLES)][0]} for n in num("a_")], "tenue": b.get("corps_tenue") or "", "loras": b.get("corps_loras") or [], "variantes": "\n".join(b.get("corps_variantes") or [])},
                 "expressions": expr, "gardees": sum(1 for x in b["planches"].values() if x.get("garde")),
                 "banc": [{"cle": k, **x, "images": [n for n in noms if n.startswith(f"b_{k}_")], "clips": sorted(f.name for f in d.glob(f"bv_{k}_*.mp4"))}
                          for k, x in reversed(list((b.get("banc") or {}).items()))],
@@ -594,7 +594,12 @@ class Biblio:
         if "variantes" in b:  # details a faire varier, ecrits par le proprietaire : un par ligne, un tire au sort par image
             bb["corps_variantes"] = [_s(x, 200) for x in str(b.get("variantes") or "").splitlines() if x.strip()][:30]
             self._ecrire(slug, bb)
-        tenue, var = bb.get("corps_tenue") or CORPS_TENUE, bb.get("corps_variantes") or []
+        if "loras" in b:  # LoRA choisies par le proprietaire : face et dos sont alors dessines par Z-Image avec elles, d'apres la description
+            bb["corps_loras"] = [str(x) for x in b.get("loras") or []][:4]
+            self._ecrire(slug, bb)
+        tenue, var, lo = bb.get("corps_tenue") or CORPS_TENUE, bb.get("corps_variantes") or [], bb.get("corps_loras") or []
+        nv = v["visage"]["choix"][2:-4]
+        qui = f"full-body photo of {traits(int(nv), self._prefixe_visage(p))}. " if nv.isdigit() else ""  # les traits de son portrait, repris
         fiche = self._prefixe(p).rstrip(", ")  # sa description d'abord ; les traits tires au sort ne font que la completer
 
         def plus(s):
@@ -604,7 +609,15 @@ class Biblio:
         pre, base = {"face": ("k_", 7000), "dos": ("d_", 8000), "angles": ("a_", 9000)}[quoi]
         deja = {int(f.stem[2:]) for f in self.dir(slug).glob(pre + "*.png") if f.stem[2:].isdigit()} | self._jetes(slug, pre)
         libres = [s for s in range(1, 400) if s not in deja]
-        if quoi == "face":
+        if lo and quoi in ("face", "dos"):
+            vue = "back view, she stands straight with her back to the camera, head facing away" if quoi == "dos" else "front view, she stands straight facing the camera"
+            if quoi == "dos" and not c["face"]["choix"]:
+                raise ValueError("retenir d'abord son corps de face")
+            taches = [{"sortie": f"{pre}{s}", "seed": base + 53 * s, "taille": [720, 1280], "lora": False, "loras": lo,
+                       "prompt": f"{qui}{fiche}, {traits_corps(s, fiche, quoi == 'dos')}{plus(s) if quoi == 'face' else ''}, vertical full-body shot from head to feet, "
+                                 f"eye-level, {vue}, arms slightly away from her body, feet slightly apart, {CORPS_POSE}, {tenue}, only one woman in the picture{FIN}"}
+                      for s in libres[:8]]
+        elif quoi == "face":
             taches = [{"sortie": f"k_{s}", "ref": elle, "seed": base + 53 * s, "taille": [720, 1280],
                        "prompt": f"The woman from image 1, same face, same hair. New photo of her whole body, from head to feet: vertical full-body shot, eye-level, "
                                  f"front view, she stands straight facing the camera, arms slightly away from her body, feet slightly apart, {CORPS_POSE}. "
