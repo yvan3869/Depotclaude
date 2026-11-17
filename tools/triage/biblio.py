@@ -81,6 +81,32 @@ def traits(s):
     return f"{r.choice(PRENOMS)}, a woman with a distinctive face: " + ", ".join(r.choice(x) for x in TRAITS)
 
 
+# Corps de reference (personnage sans LoRA) : comme pour le visage, chaque essai tire au sort ce que la fiche ne dit pas.
+# Listes « _F » : la forme seule, quand la fiche donne deja la taille.
+BUSTES = ("small high bust", "small wide-set bust", "medium round bust", "medium teardrop-shaped bust", "medium bust set close together", "full round bust",
+          "full heavy natural bust", "full teardrop-shaped bust", "large round bust", "modest bust on an athletic chest")
+BUSTES_F = ("round high bust", "teardrop-shaped bust", "wide-set bust", "bust set close together", "natural slightly low bust", "firm conical bust")
+TAILLES = ("narrow waist", "straight waist", "soft stomach", "flat toned stomach", "long torso", "short torso")
+FESSES = ("small firm buttocks", "small flat buttocks", "round high buttocks", "round full buttocks", "heart-shaped buttocks", "wide full buttocks",
+          "athletic muscular buttocks", "large round buttocks")
+FESSES_F = ("round high buttocks", "heart-shaped buttocks", "square buttocks", "bubble-shaped buttocks", "soft low buttocks", "athletic muscular buttocks")
+HANCHES = ("narrow hips", "wide hips", "hip dips", "smooth rounded hips", "straight hips")
+CORPS_TENUE = "she wears only a plain fitted grey sports bra and matching briefs, bare stomach, bare legs, barefoot"
+CORPS_POSE = "in front of a plain light grey wall, soft even studio light, neutral face"
+ANGLES = (("de profil", "profile view from her left side, she stands straight, arms slightly away from her body, looking ahead"),
+          ("de trois quarts face", "three-quarter front view, she stands straight, arms slightly away from her body, looking at the camera"),
+          ("de trois quarts dos", "three-quarter back view, she stands straight, arms slightly away from her body, head turned away"),
+          ("de profil, autre côté", "profile view from her right side, she stands straight, arms slightly away from her body, looking ahead"))
+
+
+def traits_corps(s, fiche, dos=False):
+    """Traits du corps numero s (de face : buste et taille ; de dos : fesses et hanches), toujours les memes pour un numero donne."""
+    r = random.Random(104729 * s + dos)
+    if dos:
+        return f"{r.choice(FESSES_F if re.search(r'butt|hips|bottom|glute', fiche, re.I) else FESSES)}, {r.choice(HANCHES)}"
+    return f"{r.choice(BUSTES_F if re.search(r'breast|bust|chest|boob', fiche, re.I) else BUSTES)}, {r.choice(TAILLES)}"
+
+
 ESSAIS = ("medium shot, eye-level, front view, she stands, soft smile, looking at the camera, in a bright living room, wearing a white t-shirt and jeans",
           "full-body shot, eye-level, three-quarter view, she stands, one hand on her hip, on a city street, wearing a black dress")
 FORCES = (1.0, 1.3, 1.6)
@@ -150,7 +176,7 @@ def _sans_elle(en):
     return re.sub(r"^the ", "a ", t).strip()
 
 
-NOMS_CALCUL = {"lieux": "Images des lieux", "tenues": "Images des tenues", "import": "Import d'images", "essayage": "Essayage", "visage": "Portraits",
+NOMS_CALCUL = {"lieux": "Images des lieux", "tenues": "Images des tenues", "import": "Import d'images", "essayage": "Essayage", "visage": "Portraits", "corps": "Corps de référence",
                "expressions": "Expressions", "planches": "Planches", "banc": "Banc d'essai", "entrainement": "Entraînement de la LoRA"}
 
 
@@ -233,7 +259,10 @@ class Biblio:
                            {"cle": h, "fr": _s(x.partition("|")[0]) if "|" in x else "", "en": _s(x.rpartition("|")[2]), "images": imgs, "choix": ch if ch in imgs else ""})
             return out
         g = p.get("generation") or {}
-        vis = sorted((n for n in noms if n.startswith("v_")), key=lambda n: -int(n[2:-4]))  # les plus recents d'abord
+        def num(pre):  # images numerotees d'une famille, les plus recentes d'abord
+            return sorted((n for n in noms if n.startswith(pre) and n[2:-4].isdigit()), key=lambda n: -int(n[2:-4]))
+
+        vis = num("v_")
         expr = [{"cle": h, "fr": fr, "en": en, "fiche": fi, "images": [{"nom": n, "garde": bool(b["planches"].get(n, {}).get("garde"))}
                                                                     for n in noms if n.startswith(f"x_{h}_")]} for h, fr, en, fi in self._expressions(p)]
         series = self._series(slug)
@@ -241,6 +270,9 @@ class Biblio:
         return {"slug": slug, "nom": p["nom"], "lora": bool(g.get("lora")), "lora_force": g.get("lora_strength"), "prefixe": bool(g.get("zimage_prefix")),
                 "lieux": lignes("lieux", "l"), "tenues": lignes("tenues", "t"),
                 "visage": {"images": vis, "choix": b["choix"].get("visage") if b["choix"].get("visage") in vis else ""},
+                "corps": {"face": {"images": num("k_"), "choix": b["choix"].get("corps") if b["choix"].get("corps") in noms else ""},
+                          "dos": {"images": num("d_"), "choix": b["choix"].get("dos") if b["choix"].get("dos") in noms else ""},
+                          "angles": [{"nom": n, "vue": ANGLES[(int(n[2:-4]) - 1) % len(ANGLES)][0]} for n in num("a_")], "tenue": b.get("corps_tenue") or ""},
                 "expressions": expr, "gardees": sum(1 for x in b["planches"].values() if x.get("garde")),
                 "banc": [{"cle": k, **x, "images": [n for n in noms if n.startswith(f"b_{k}_")], "clips": sorted(f.name for f in d.glob(f"bv_{k}_*.mp4"))}
                          for k, x in reversed(list((b.get("banc") or {}).items()))],
@@ -333,8 +365,8 @@ class Biblio:
         m = re.fullmatch(r"([lt])_([0-9a-f]{8})_\d+\.png", nom)
         if m:
             bb["choix"][f"{m.group(1)}_{m.group(2)}"] = nom
-        elif nom.startswith("v_"):
-            bb["choix"]["visage"] = nom
+        elif nom[:2] in ("v_", "k_", "d_"):
+            bb["choix"][{"v_": "visage", "k_": "corps", "d_": "dos"}[nom[:2]]] = nom
         else:
             raise ValueError("image sans choix possible")
         self._ecrire(slug, bb)
@@ -349,7 +381,7 @@ class Biblio:
         ni comptee ; un choix ou une case « garder » qui la visait tombe."""
         slug, bb = b["slug"], self._b(b["slug"])
         f = self.fichier(slug, str(b["image"]))
-        if not re.fullmatch(r"[vxcltp]_[0-9a-f_]+\.png", f.name):
+        if not re.fullmatch(r"[vxcltpkda]_[0-9a-f_]+\.png", f.name):
             raise ValueError("cette image ne se supprime pas d'ici")
         if self.job and self.job["slug"] == slug and self.at.studio.running():
             raise ValueError("un calcul de ce personnage est en cours : attendre sa fin")
@@ -508,6 +540,73 @@ class Biblio:
         self._lancer(slug, "visage", {"taches": taches}, len(taches))
         return {"lance": len(taches)}
 
+    def corps(self, b):
+        """Personnage sans LoRA : son corps de reference, tire du portrait retenu. "quoi" : face (huit essais, buste et taille tires au sort),
+        dos (huit essais d'apres la face retenue, fesses et hanches tirees au sort), angles (profils et trois quarts d'apres face et dos).
+        "tenue" : texte du proprietaire (anglais), tel quel ; vide : brassiere et culotte unies. Les planches sont ensuite tirees de ces images."""
+        slug, quoi = b["slug"], b.get("quoi")
+        self._libre()
+        p, v, bb = self.at.perso(slug), self.vue(slug), self._b(slug)
+        if v["lora"]:
+            raise ValueError("sans objet : sa LoRA tient déjà son corps")
+        if not v["visage"]["choix"]:
+            raise ValueError("choisir d'abord un portrait : son corps en est tiré")
+        if "tenue" in b:
+            bb["corps_tenue"] = _s(b.get("tenue"), 400)
+            self._ecrire(slug, bb)
+        tenue = bb.get("corps_tenue") or CORPS_TENUE
+        fiche = _s((p.get("generation") or {}).get("corps"), 300).rstrip(", ")
+        elle, c = str(self.fichier(slug, v["visage"]["choix"])), v["corps"]
+        pre, base = {"face": ("k_", 7000), "dos": ("d_", 8000), "angles": ("a_", 9000)}[quoi]
+        deja = {int(f.stem[2:]) for f in self.dir(slug).glob(pre + "*.png") if f.stem[2:].isdigit()} | self._jetes(slug, pre)
+        libres = [s for s in range(1, 400) if s not in deja]
+        if quoi == "face":
+            taches = [{"sortie": f"k_{s}", "ref": elle, "seed": base + 53 * s, "taille": [720, 1280],
+                       "prompt": f"The woman from image 1, same face, same hair. New photo of her whole body, from head to feet: vertical full-body shot, eye-level, "
+                                 f"front view, she stands straight facing the camera, arms slightly away from her body, feet slightly apart, {CORPS_POSE}. "
+                                 f"Her body: {fiche + ', ' if fiche else ''}{traits_corps(s, fiche)}. {tenue}. Only one woman in the picture. Natural smartphone photo."}
+                      for s in libres[:8]]
+        elif not c["face"]["choix"]:
+            raise ValueError("retenir d'abord son corps de face")
+        elif quoi == "dos":
+            face = str(self.fichier(slug, c["face"]["choix"]))
+            taches = [{"sortie": f"d_{s}", "ref": face, "refs": [elle], "seed": base + 59 * s, "taille": [720, 1280],
+                       "prompt": f"The woman from image 1 (her face is shown in image 2): same body, same skin, same hair, same height. New photo of her seen from behind, "
+                                 f"from head to feet: vertical full-body shot, eye-level, back view, she stands straight with her back to the camera, head facing away, "
+                                 f"arms slightly away from her body, feet slightly apart, {CORPS_POSE}. Her body from behind: {traits_corps(s, fiche, True)}. {tenue}. "
+                                 "Only one woman in the picture. Natural smartphone photo."}
+                      for s in libres[:8]]
+        elif not c["dos"]["choix"]:
+            raise ValueError("retenir d'abord son corps de dos")
+        else:
+            face, dos = str(self.fichier(slug, c["face"]["choix"])), str(self.fichier(slug, c["dos"]["choix"]))
+            libres = [s for s in libres if (s - 1) % len(ANGLES) == 0][:1]  # un tour complet des angles a la fois
+            taches = [{"sortie": f"a_{s}", "ref": face, "refs": [dos, elle], "seed": base + 61 * s, "taille": [720, 1280],
+                       "prompt": f"The woman from image 1 (front), image 2 (her back) and image 3 (her face): exactly the same body, same breasts, same waist, same hips, "
+                                 f"same buttocks, same skin, same hair. New photo of her from another angle, from head to feet: vertical full-body shot, eye-level, "
+                                 f"{ANGLES[(s - 1) % len(ANGLES)][1]}, {CORPS_POSE}. {tenue}. Only one woman in the picture. Natural smartphone photo."}
+                      for s in range(libres[0], libres[0] + len(ANGLES))]
+        self._lancer(slug, "corps", {"taches": taches}, len(taches))
+        return {"lance": len(taches)}
+
+    def _refs_corps(self, slug, v, cadre):
+        """Images du corps de reference a joindre a une planche, d'apres son cadrage (deux au plus : la retouche lit trois images, portrait compris)."""
+        c = v["corps"]
+        if cadre.startswith("close-up") or not c["face"]["choix"]:
+            return []
+        vue = lambda k: next((x["nom"] for x in c["angles"] if (int(x["nom"][2:-4]) - 1) % len(ANGLES) == k), None)
+        face, dos = c["face"]["choix"], c["dos"]["choix"]
+        if "back view" in cadre:
+            r = [dos, face]
+        elif "profile" in cadre:
+            r = [vue(0) or vue(3), face]
+        elif "three-quarter" in cadre:
+            r = [vue(1), face]
+        else:
+            r = [face, dos]
+        r = [x for x in r if x] or [face]
+        return [str(self.fichier(slug, x)) for x in dict.fromkeys(r)]
+
     def _expressions(self, p):
         """Expressions de la galerie : celles de la fiche du personnage ("français | anglais"), puis la liste commune."""
         out, vus = [], set()
@@ -589,7 +688,12 @@ class Biblio:
             bb["planches"][nom + ".png"] = {"garde": False, "legende": f"{pre}{desc}"}
             t = {"sortie": nom, "seed": 5000 + 101 * serie + i, "taille": [720, 1280]}
             if ref:
+                rc = self._refs_corps(slug, v, cadre)
                 t |= {"ref": ref, "prompt": f"Same woman, same face, same hair. New photo of her: {desc}. Natural smartphone photo."}
+                if rc:  # son corps de reference : meme corps, mais ni sa tenue ni son fond
+                    t |= {"refs": rc, "prompt": f"The woman from image 1: same face, same hair. Her body is the one shown in image {' and image '.join(str(k) for k in range(2, 2 + len(rc)))}: "
+                                                f"same breasts, same waist, same hips, same buttocks, same legs, same skin; ignore the clothes and the background of "
+                                                f"{'those images' if len(rc) > 1 else 'that image'}. New photo of her: {desc}. Only one woman in the picture. Natural smartphone photo."}
             else:
                 t |= {"lora": True, "loras": [str(x) for x in b.get("loras") or []][:4], "prompt": f"{pre}vertical {desc}{FIN}"}
             taches.append(t)
@@ -822,7 +926,7 @@ class Biblio:
 
     def post(self, path, b):
         f = {"/api/a/b/creer": self.creer, "/api/a/b/ajouter": self.ajouter, "/api/a/b/retirer": self.retirer, "/api/a/b/choix": self.choix,
-             "/api/a/b/visage": self.visage, "/api/a/b/expressions": self.expressions, "/api/a/b/planches": self.planches, "/api/a/b/garde": self.garde, "/api/a/b/supprimer": self.supprimer, "/api/a/b/entrainer": self.entrainer,
+             "/api/a/b/visage": self.visage, "/api/a/b/corps": self.corps, "/api/a/b/expressions": self.expressions, "/api/a/b/planches": self.planches, "/api/a/b/garde": self.garde, "/api/a/b/supprimer": self.supprimer, "/api/a/b/entrainer": self.entrainer,
              "/api/a/b/adopter": self.adopter, "/api/a/b/revenir": self.revenir, "/api/a/b/importer": self.importer, "/api/a/b/essayer": self.essayer,
              "/api/a/b/banc": self.banc, "/api/a/b/banc/noter": self.banc_noter, "/api/a/b/banc/retirer": self.banc_retirer,
              "/api/a/b/banc/depart": self.banc_depart, "/api/a/b/banc/depart/retirer": self.banc_depart_retirer}.get(path)
