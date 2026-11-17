@@ -5,6 +5,7 @@ choix. Tout est range dans data/personnages/<slug>/ ; le nom d'un fichier dit ce
 l_<cle>_<tirage>.png lieu, t_<cle>_<tirage>.png tenue, p_<cle>_<tirage>.png tenue portee (cabine d'essayage),
 n_1.png elle en tenue neutre (depart de la cabine), v_<tirage>.png portrait, c_<serie>_<rang>.png planche,
 e_<version>_<force>_<rang>.png essai d'une LoRA. Les calculs passent par le pilote (server/pilot/perso.py)."""
+import random
 import base64
 import hashlib
 import json
@@ -56,15 +57,25 @@ FONDS = (
     "on a balcony at sunset, warm golden light",
 )
 # Portraits de depart : a description egale, le modele rend presque le meme visage d'un tirage a l'autre. Chaque portrait
-# recoit donc une ossature differente (ce que la fiche ne dit pas), pour que le choix porte sur de vrais visages distincts.
-TRAITS = ("oval face, high cheekbones, straight narrow nose, full lips",
-          "heart-shaped face, soft rounded cheeks, small upturned nose, thin lips",
-          "square jaw, strong straight eyebrows, wider nose, medium lips",
-          "long narrow face, defined jawline, aquiline nose, wide mouth",
-          "round face, wide-set eyes, short nose, full lower lip",
-          "diamond-shaped face, deep-set eyes, prominent cheekbones, thin upper lip",
-          "angular face, almond eyes, slightly curved nose, dimpled chin",
-          "broad face, hooded eyes, low nose bridge, pronounced cupid's bow")
+# tire donc au sort un choix par trait (ce que la fiche ne dit pas), place en tete de la description pour qu'il pese.
+TRAITS = (
+    ("oval face", "heart-shaped face", "square face", "long narrow face", "round face", "diamond-shaped face", "angular face", "broad face"),
+    ("very high forehead", "low forehead", "wide forehead", "narrow forehead"),
+    ("wide-set eyes", "close-set eyes", "large round eyes", "narrow almond eyes", "deep-set eyes", "hooded eyes", "upturned eyes", "downturned eyes"),
+    ("thick straight eyebrows", "thin arched eyebrows", "bushy eyebrows", "soft rounded eyebrows", "high angular eyebrows", "low flat eyebrows"),
+    ("small button nose", "long straight nose", "wide nose", "aquiline nose", "upturned nose", "narrow pointed nose", "nose with a low bridge", "slightly crooked nose"),
+    ("very full lips", "thin lips", "wide mouth", "small mouth with a full lower lip", "pronounced cupid's bow", "heavy upper lip"),
+    ("strong jaw", "soft jawline", "pointed chin", "wide chin", "dimpled chin", "small receding chin"),
+    ("prominent cheekbones", "full cheeks", "hollow cheeks", "flat cheeks"),
+)
+
+
+def traits(s):
+    """Traits du portrait numero s : un choix par ligne de TRAITS, toujours le meme pour un numero donne."""
+    r = random.Random(7919 * s)
+    return ", ".join(r.choice(x) for x in TRAITS)
+
+
 ESSAIS = ("medium shot, eye-level, front view, she stands, soft smile, looking at the camera, in a bright living room, wearing a white t-shirt and jeans",
           "full-body shot, eye-level, three-quarter view, she stands, one hand on her hip, on a city street, wearing a black dress")
 FORCES = (1.0, 1.3, 1.6)
@@ -217,7 +228,7 @@ class Biblio:
                            {"cle": h, "fr": _s(x.partition("|")[0]) if "|" in x else "", "en": _s(x.rpartition("|")[2]), "images": imgs, "choix": ch if ch in imgs else ""})
             return out
         g = p.get("generation") or {}
-        vis = [n for n in noms if n.startswith("v_")]
+        vis = sorted((n for n in noms if n.startswith("v_")), key=lambda n: -int(n[2:-4]))  # les plus recents d'abord
         expr = [{"cle": h, "fr": fr, "en": en, "fiche": fi, "images": [{"nom": n, "garde": bool(b["planches"].get(n, {}).get("garde"))}
                                                                     for n in noms if n.startswith(f"x_{h}_")]} for h, fr, en, fi in self._expressions(p)]
         series = self._series(slug)
@@ -479,16 +490,16 @@ class Biblio:
         return {"lance": len(taches)}
 
     def visage(self, b):
-        """Personnage sans LoRA : quatre portraits d'apres sa description, le proprietaire en choisit un ; les planches en seront tirees."""
+        """Personnage sans LoRA : huit portraits d'apres sa description, aux traits tires au sort, le proprietaire en choisit un ; les planches en seront tirees."""
         slug = b["slug"]
         self._libre()
         p = self.at.perso(slug)
         deja = {int(f.stem.split("_")[1]) for f in self.dir(slug).glob("v_*.png")} if self.dir(slug).is_dir() else set()
         deja |= self._jetes(slug, "v_")
         taches = [{"sortie": f"v_{s}", "seed": 1000 + 37 * s, "taille": [720, 1280], "lora": False,
-                   "prompt": f"{self._prefixe(p)}{TRAITS[s % len(TRAITS)]}, vertical medium close-up portrait, eye-level, front view, she looks at the camera, soft smile, "
+                   "prompt": f"portrait of a woman with {traits(s)}. {self._prefixe(p)}vertical medium close-up portrait, eye-level, front view, she looks at the camera, soft smile, "
                              f"in front of a plain light grey wall, wearing a white t-shirt, soft natural daylight{FIN}"}
-                  for s in [s for s in range(1, 60) if s not in deja][:4]]
+                  for s in [s for s in range(1, 400) if s not in deja][:8]]
         self._lancer(slug, "visage", {"taches": taches}, len(taches))
         return {"lance": len(taches)}
 
