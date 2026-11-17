@@ -1296,7 +1296,7 @@ async function bDevis() {
 const bMaj = r => { if (r && r.lieux) A = r; return vueAtelier(A.slug); };
 Object.assign(actions, {
   bonglet: el => { AO = el.dataset.o; history.replaceState(null, '', `#/atelier/${A.slug}/${AO}`); rendreAtelier(); },
-  bsuppr: async el => { if (!confirm('Supprimer cette image ?')) return; await api('/api/a/b/supprimer', {slug: A.slug, image: el.dataset.n}); await bMaj(); },
+  bsuppr: async el => { await api('/api/a/b/supprimer', {slug: A.slug, image: el.dataset.n}); await bMaj(); },
   bchoix: async el => bMaj(await api('/api/a/b/choix', {slug: A.slug, image: el.dataset.n})),
   bcreer: async el => { await api('/api/a/b/creer', {slug: A.slug, quoi: el.dataset.q}); toast('Images lancées', true); await bMaj(); },
   bautres: async el => { if (!confirm(`Créer deux autres images de cette ligne, environ ${acout(2)} ?`)) return; await api('/api/a/b/creer', {slug: A.slug, quoi: el.dataset.q, cles: [el.dataset.cle]}); toast('Images lancées', true); await bMaj(); },
@@ -1339,7 +1339,7 @@ Object.assign(actions, {
     const touche = e => { if (e.key === 'Escape') fin(); else if (e.key === 'ArrowRight' && i < l.length - 1) { i++; dessin(); } else if (e.key === 'ArrowLeft' && i) { i--; dessin(); } };
     o.onclick = essai(async e => { const b = e.target.closest('[data-z]'); if (!b) return e.target === o && fin(); const z = b.dataset.z;
       if (z === 'x') return fin();
-      if (z === 's') { if (!confirm('Supprimer cette image ?')) return; await api('/api/a/b/supprimer', {slug: A.slug, image: l[i].nom}); l.splice(i, 1); if (!l.length) return fin(); i = Math.min(i, l.length - 1); return dessin(); }
+      if (z === 's') { await api('/api/a/b/supprimer', {slug: A.slug, image: l[i].nom}); l.splice(i, 1); if (!l.length) return fin(); i = Math.min(i, l.length - 1); return dessin(); }
       if (z === 'g' && mode === 'v') { if (!l[i].garde) { l.forEach((y, k) => y.garde = k === i); dessin(); src.choix = l[i].nom; await api('/api/a/b/choix', {slug: A.slug, image: l[i].nom}); } return; }
       if (z === 'g') { const x = l[i]; x.garde = !x.garde; dessin(); await api('/api/a/b/garde', {slug: A.slug, image: x.nom, garde: x.garde}); return; }
       i += +z; dessin(); });
