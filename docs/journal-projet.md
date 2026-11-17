@@ -841,3 +841,16 @@ faute de machine ; second reussi). Depense du chargement : environ 0,11 $ ; comp
   (ne rien redire du physique dans un plan) et du casting mises a jour.
 - En attente : mesure des traits tires au sort (un mot change a graine fixe), reportee par le proprietaire.
 - Depense du jour relevee a 1,85 $ (plafond 20 $), calculs du proprietaire compris ; mes essais de la journee : environ 0,75 $.
+
+### 18 novembre 2026 (nuit) - corps de reference et planches par retouche, retours sur le personnage sans LoRA
+
+- Onglet Corps : LoRA du corps choisies par tuiles (nom abrege, force reglable), pastille « LoRA » sur les vignettes dessinees
+  avec LoRA, vignettes plus petites, case « Images pour adultes » (ajoute nsfw apres la tenue). La loupe nomme les LoRA et leur force.
+- Planches par retouche (personnage sans LoRA) : les cases Identite, Allure et Corps de la fiche sont redites dans le texte
+  (le teint, le bronzage et la silhouette n'etaient portes que par les images) ; une seule vue du corps envoyee de face et de dos
+  (les deux vues opposees ensemble brouillaient le corps) ; profil et trois quarts gardent deux vues.
+- Peau : « natural skin texture, visible pores, small skin imperfections » dans toutes les images de l'atelier.
+- Essai sur le personnage d'essai (habille) : 4 planches, textes et references controles dans le lot.
+  Resultat : 4 sur 4 sorties, meme visage que le portrait, grain de peau et taches de rousseur gardes, une seule personne, corps
+  coherent avec la vue de face. Planche `data/inbox/p0004essai_planches_1811.png`. Non essaye : dos, nu (au proprietaire).
+- Depense : 4 images par retouche, quelques centimes (releve du jour encore a 0,00 $ au moment de l'essai, plafond 20 $).
