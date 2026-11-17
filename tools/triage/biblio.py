@@ -70,10 +70,15 @@ TRAITS = (
 )
 
 
+# Un prenom invente deplace aussi le visage que le modele dessine, sans rien contredire dans la fiche.
+PRENOMS = ("Maelle", "Ingrid", "Chiara", "Salome", "Odile", "Tamsin", "Liv", "Rosalind", "Anouk", "Greta", "Noor", "Bianca", "Sunniva", "Mirela",
+           "Oriane", "Thea", "Zelie", "Marit", "Ottilie", "Carmen", "Yael", "Linnea", "Capucine", "Dagny")
+
+
 def traits(s):
-    """Traits du portrait numero s : un choix par ligne de TRAITS, toujours le meme pour un numero donne."""
+    """Traits du portrait numero s : un prenom et un choix par ligne de TRAITS, toujours les memes pour un numero donne."""
     r = random.Random(7919 * s)
-    return ", ".join(r.choice(x) for x in TRAITS)
+    return f"{r.choice(PRENOMS)}, a woman with a distinctive face: " + ", ".join(r.choice(x) for x in TRAITS)
 
 
 ESSAIS = ("medium shot, eye-level, front view, she stands, soft smile, looking at the camera, in a bright living room, wearing a white t-shirt and jeans",
@@ -497,7 +502,7 @@ class Biblio:
         deja = {int(f.stem.split("_")[1]) for f in self.dir(slug).glob("v_*.png")} if self.dir(slug).is_dir() else set()
         deja |= self._jetes(slug, "v_")
         taches = [{"sortie": f"v_{s}", "seed": 1000 + 37 * s, "taille": [720, 1280], "lora": False,
-                   "prompt": f"portrait of a woman with {traits(s)}. {self._prefixe(p)}vertical medium close-up portrait, eye-level, front view, she looks at the camera, soft smile, "
+                   "prompt": f"portrait of {traits(s)}. {self._prefixe(p)}vertical medium close-up portrait, eye-level, front view, she looks at the camera, soft smile, "
                              f"in front of a plain light grey wall, wearing a white t-shirt, soft natural daylight{FIN}"}
                   for s in [s for s in range(1, 400) if s not in deja][:8]]
         self._lancer(slug, "visage", {"taches": taches}, len(taches))
