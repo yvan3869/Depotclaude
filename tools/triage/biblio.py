@@ -138,6 +138,23 @@ def traits_corps(s, fiche, dos=False):
     return f"{r.choice(BUSTES)}, {r.choice(TAILLES)}"
 
 
+# Angles dessines par Z-Image (LoRA du corps choisies) : la vue en tete du texte, comme pour le dos. Meme ordre que ANGLES.
+ANGLES_Z = ("side view, full profile, she stands sideways to the camera, her body and her face turned toward the left edge of the picture, looking straight ahead",
+            "side view, slightly turned toward the camera: she stands sideways, her body turned toward the left edge of the picture, we see her side, "
+            "one hip and part of her chest and stomach, her face in three-quarter profile, looking toward the left edge of the picture",
+            "rear three-quarter view, her whole body is rotated halfway between back and profile, we see her back and the side of one hip and one breast, "
+            "her feet point toward the far left corner, one shoulder closer to the camera, her face is turned away and not visible",
+            "side view, full profile, she stands sideways to the camera, her body and her face turned toward the right edge of the picture, looking straight ahead")
+
+
+def texte_angle(k, fiche, corps, tenue):
+    """Texte Z-Image de l'angle k : la vue d'abord, puis elle (sans son visage de trois quarts dos), puis son corps (celui de la face et du dos retenus)."""
+    if k == 2:
+        fiche = ", ".join(x.strip() for x in fiche.split(",") if x.strip() and not VISAGE_MOTS.search(x))
+    return (f"full-body photo of a woman, {ANGLES_Z[k]}. {fiche}, {corps}, vertical full-body shot from head to feet, eye-level, she stands straight, "
+            f"arms slightly away from her body, feet slightly apart, {CORPS_POSE if k != 2 else CORPS_POSE_DOS}, {tenue}, only one woman in the picture{FIN}")
+
+
 def taille_corps(s):
     """La taille tiree pour le corps de face numero s (meme tirage que traits_corps)."""
     r = random.Random(104729 * s)
@@ -644,8 +661,6 @@ class Biblio:
             bb["corps_loras"] = [str(x) for x in b.get("loras") or []][:4]
             self._ecrire(slug, bb)
         tenue, var, lo = bb.get("corps_tenue") or CORPS_TENUE, bb.get("corps_variantes") or [], bb.get("corps_loras") or []
-        nv = v["visage"]["choix"][2:-4]
-        qui = f"full-body photo of {traits(int(nv), self._prefixe_visage(p))}. " if nv.isdigit() else ""  # les traits de son portrait, repris
         fiche = self._prefixe(p).rstrip(", ")  # sa description d'abord ; les traits tires au sort ne font que la completer
 
         def plus(s):
@@ -673,8 +688,8 @@ class Biblio:
                           for s in libres[:8]]
             else:
                 taches = [{"sortie": f"{pre}{s}", "seed": base + 53 * s, "taille": [720, 1280], "lora": False, "loras": lo,
-                           "prompt": f"{qui}{fiche}, {traits_corps(s, fiche)}{plus(s)}, vertical full-body shot from head to feet, "
-                                     f"eye-level, {vue}, arms slightly away from her body, feet slightly apart, {CORPS_POSE}, {tenue}, only one woman in the picture{FIN}"}
+                           "prompt": f"full-body photo of a woman, {vue}. {fiche}, {traits_corps(s, fiche)}{plus(s)}, vertical full-body shot from head to feet, "
+                                     f"eye-level, arms slightly away from her body, feet slightly apart, {CORPS_POSE}, {tenue}, only one woman in the picture{FIN}"}
                           for s in libres[:8]]
         elif quoi == "face":
             taches = [{"sortie": f"k_{s}", "ref": elle, "seed": base + 53 * s, "taille": [720, 1280],
@@ -697,6 +712,14 @@ class Biblio:
         else:
             face, dos = str(self.fichier(slug, c["face"]["choix"])), str(self.fichier(slug, c["dos"]["choix"]))
             libres = [s for s in libres if (s - 1) % len(ANGLES) == 0][:1]  # un tour complet des angles a la fois
+            nf, nd = c["face"]["choix"][2:-4], c["dos"]["choix"][2:-4]
+            if lo and nf.isdigit() and nd.isdigit():  # LoRA choisies : les angles aussi sont dessines par Z-Image avec elles, la vue en tete du texte
+                corps = f"{traits_corps(int(nf), fiche)}{plus(int(nf))}, {traits_corps(int(nd), fiche, True)}"
+                taches = [{"sortie": f"a_{s}", "seed": base + 61 * s, "taille": [720, 1280], "lora": False, "loras": lo,
+                           "prompt": texte_angle((s - 1) % len(ANGLES), fiche, corps, tenue)}
+                          for s in range(libres[0], libres[0] + len(ANGLES))]
+                self._lancer(slug, "corps", {"taches": taches}, len(taches))
+                return {"lance": len(taches)}
             taches = [{"sortie": f"a_{s}", "ref": face, "refs": [dos, elle], "seed": base + 61 * s, "taille": [720, 1280],
                        "prompt": f"The woman from image 1 (front), image 2 (her back) and image 3 (her face): exactly the same body, same breasts, same waist, same hips, "
                                  f"same buttocks, same skin, same hair. New photo of her from another angle, from head to feet: vertical full-body shot, eye-level, "
