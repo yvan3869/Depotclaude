@@ -793,3 +793,17 @@ faute de machine ; second reussi). Depense du chargement : environ 0,11 $ ; comp
   proches les uns des autres, puis 17 expressions lisibles avec le meme visage, tenues et fonds varies (planche
   `data/inbox/p0004essai_expressions.png`). Personnage archive, fiche deposee retiree.
 - Depense GPU : 0,09 $ (Diffusion) et 0,14 $ (portraits et expressions) ; compteur du jour 11,69 $ sur 20.
+
+## 17 novembre 2026 - atelier du personnage, retours du premier personnage sans LoRA
+
+- **Barre du haut** : le calcul en cours s'affiche (nom, heure de depart), pas seulement la file d'attente.
+- **Planches** : une expression de la galerie ajoutee a un cadrage sur deux (hors cadrages deja souriants ou neutres).
+- **Images** : loupe sur les portraits, lieux et tenues, choix depuis la grande image ; corbeille sur chaque vignette,
+  sans confirmation (l'image va dans `corbeille/`, son numero n'est pas repris).
+- **Expressions** : sept ajoutees a la liste commune (langue, levre mordue, regards, bisou).
+- **Portraits de depart** : huit a la fois, en grille, les plus recents d'abord, bouton au-dessus. Les tirages
+  changeaient bien, mais le modele rend presque le meme visage a texte egal : chaque portrait recoit donc, en tete de
+  description, un prenom invente et un choix tire au sort par trait (forme, front, yeux, sourcils, nez, levres,
+  machoire, pommettes), fixe pour un numero donne. Essai sur « Girls-ai Essai » : visages nettement plus ecartes
+  qu'avant, encore de la meme famille (limite du modele).
+- Depense GPU : 0,10 $ (deux lots de huit portraits d'essai) ; compteur du jour 0,33 $ sur 20.
