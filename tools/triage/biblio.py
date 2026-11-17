@@ -84,7 +84,15 @@ EXPRESSIONS = (("Neutre", "neutral relaxed face, lips closed, looking at the cam
                ("Sérieuse", "serious determined look straight into the camera, lips closed"),
                ("Agacée", "annoyed, one eyebrow raised, lips pressed together"),
                ("Triste", "sad, eyes lowered, corners of her mouth down"),
-               ("Yeux fermés", "eyes closed, peaceful face, slight smile"))
+               ("Yeux fermés", "eyes closed, peaceful face, slight smile"),
+               # Suggestives (visage seul, habillee)
+               ("Tire la langue", "playfully sticking her tongue out, eyes smiling, looking at the camera"),
+               ("Se mord la lèvre", "biting her lower lip, sultry half-lidded eyes, looking at the camera"),
+               ("Regard de braise", "seductive smoldering gaze, lips slightly parted, looking at the camera"),
+               ("Regard par en dessous", "chin lowered, looking up through her lashes, teasing half smile"),
+               ("Bisou", "blowing a kiss, lips puckered, eyes half closed"),
+               ("Langue sur la lèvre", "tip of her tongue touching her upper lip, mischievous look at the camera"),
+               ("Doigt sur la lèvre", "one fingertip resting on her lower lip, lips slightly parted, flirty look at the camera"))
 VUES = ("front view", "three-quarter view", "front view, head slightly tilted")
 # Cabine d'essayage : poses proposees (nom affiche, texte pour le modele).
 POSES = (("Debout, de face", "full-body shot, eye-level, front view, she stands facing the camera, arms relaxed along her body"),
@@ -316,6 +324,26 @@ class Biblio:
         self._ecrire(slug, bb)
         return self.vue(slug)
 
+    def _jetes(self, slug, pre):
+        """Numeros des images supprimees (rangees dans corbeille/) : ils ne sont pas repris, sinon la meme image reviendrait."""
+        return {int(f.stem.rsplit("_", 1)[1]) for f in (self.dir(slug) / "corbeille").glob(pre + "*.png") if f.stem.rsplit("_", 1)[1].isdigit()}
+
+    def supprimer(self, b):
+        """Image retiree de la bibliotheque (portrait, expression, planche, lieu, tenue, essayage) : rangee dans corbeille/, plus montree
+        ni comptee ; un choix ou une case « garder » qui la visait tombe."""
+        slug, bb = b["slug"], self._b(b["slug"])
+        f = self.fichier(slug, str(b["image"]))
+        if not re.fullmatch(r"[vxcltp]_[0-9a-f_]+\.png", f.name):
+            raise ValueError("cette image ne se supprime pas d'ici")
+        if self.job and self.job["slug"] == slug and self.at.studio.running():
+            raise ValueError("un calcul de ce personnage est en cours : attendre sa fin")
+        (f.parent / "corbeille").mkdir(exist_ok=True)
+        f.replace(f.parent / "corbeille" / f.name)
+        bb["planches"].pop(f.name, None)
+        bb["choix"] = {k: n for k, n in bb["choix"].items() if n != f.name}
+        self._ecrire(slug, bb)
+        return self.vue(slug)
+
     def garde(self, b):
         """Planche gardee ou non pour l'entrainement ; "legende" : son texte, modifiable."""
         slug, bb = b["slug"], self._b(b["slug"])
@@ -368,7 +396,7 @@ class Biblio:
             raise ValueError("rien à créer : chaque ligne a déjà ses images")
         taches = []
         for x in dues:
-            deja = {int(i.rsplit("_", 1)[1][:-4]) for i in x["images"]}
+            deja = {int(i.rsplit("_", 1)[1][:-4]) for i in x["images"]} | self._jetes(slug, f"{q}_{x['cle']}_")
             for s in [s for s in range(1, 60) if s not in deja][:n]:
                 if q == "l":
                     pr = f"vertical wide shot, eye-level, photo of an empty deserted place, {_sans_elle(x['en'])}, natural light, smartphone photo"
@@ -396,7 +424,7 @@ class Biblio:
             raise ValueError("photo illisible ou trop lourde")
         d = self.dir(slug)
         (d / "lots").mkdir(parents=True, exist_ok=True)
-        deja = {int(i.rsplit("_", 1)[1][:-4]) for i in x["images"]}
+        deja = {int(i.rsplit("_", 1)[1][:-4]) for i in x["images"]} | self._jetes(slug, f"{q}_{x['cle']}_")
         libres = [s for s in range(1, 60) if s not in deja]
         if q == "l":
             nom = f"l_{x['cle']}_{libres[0]}.png"
@@ -438,7 +466,7 @@ class Biblio:
         refs = [str(self.fichier(slug, x["choix"]))] + ([str(self.fichier(slug, lieu["choix"]))] if lieu else [])
         ou = ("in the place shown in image 3. The place is exactly the one of image 3: same walls, same furniture, same floor, same light"
               if lieu else "in front of a plain light grey wall, soft studio light")
-        deja = {int(i.rsplit("_", 1)[1][:-4]) for i in x["portees"]}
+        deja = {int(i.rsplit("_", 1)[1][:-4]) for i in x["portees"]} | self._jetes(slug, f"p_{x['cle']}_")
         # des sous-vetements : sans le dire, le modele garde les habits de l'image 1 ou en invente (un survetement noir pour un ensemble noir)
         porte = (f"who has taken off all the clothes she wears in image 1 and now wears only the underwear set shown in image 2 ({x['en']}), "
                  "nothing over it: bare shoulders, bare arms, bare stomach, bare legs, no t-shirt, no trousers, no jacket"
@@ -456,6 +484,7 @@ class Biblio:
         self._libre()
         p = self.at.perso(slug)
         deja = {int(f.stem.split("_")[1]) for f in self.dir(slug).glob("v_*.png")} if self.dir(slug).is_dir() else set()
+        deja |= self._jetes(slug, "v_")
         taches = [{"sortie": f"v_{s}", "seed": 1000 + 37 * s, "taille": [720, 1280], "lora": False,
                    "prompt": f"{self._prefixe(p)}{TRAITS[s % len(TRAITS)]}, vertical medium close-up portrait, eye-level, front view, she looks at the camera, soft smile, "
                              f"in front of a plain light grey wall, wearing a white t-shirt, soft natural daylight{FIN}"}
@@ -492,7 +521,7 @@ class Biblio:
         for i, x in enumerate(v["expressions"]):
             if (x["cle"] not in cles) if cles else x["images"]:
                 continue
-            k = max([int(y["nom"][:-4].split("_")[2]) for y in x["images"]] or [0]) + 1
+            k = max([int(y["nom"][:-4].split("_")[2]) for y in x["images"]] + list(self._jetes(slug, f"x_{x['cle']}_")) or [0]) + 1
             habit = "wearing " + re.sub(r"^wearing ", "", tenues[(i + k) % len(tenues)])
             desc = f"close-up portrait, eye-level, {VUES[(i + k) % len(VUES)]}, {x['en']}, {FONDS[(i + k) % len(FONDS)]}, {habit}"
             nom = f"x_{x['cle']}_{k}"
@@ -777,7 +806,7 @@ class Biblio:
 
     def post(self, path, b):
         f = {"/api/a/b/creer": self.creer, "/api/a/b/ajouter": self.ajouter, "/api/a/b/retirer": self.retirer, "/api/a/b/choix": self.choix,
-             "/api/a/b/visage": self.visage, "/api/a/b/expressions": self.expressions, "/api/a/b/planches": self.planches, "/api/a/b/garde": self.garde, "/api/a/b/entrainer": self.entrainer,
+             "/api/a/b/visage": self.visage, "/api/a/b/expressions": self.expressions, "/api/a/b/planches": self.planches, "/api/a/b/garde": self.garde, "/api/a/b/supprimer": self.supprimer, "/api/a/b/entrainer": self.entrainer,
              "/api/a/b/adopter": self.adopter, "/api/a/b/revenir": self.revenir, "/api/a/b/importer": self.importer, "/api/a/b/essayer": self.essayer,
              "/api/a/b/banc": self.banc, "/api/a/b/banc/noter": self.banc_noter, "/api/a/b/banc/retirer": self.banc_retirer,
              "/api/a/b/banc/depart": self.banc_depart, "/api/a/b/banc/depart/retirer": self.banc_depart_retirer}.get(path)
