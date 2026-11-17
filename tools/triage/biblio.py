@@ -58,15 +58,31 @@ FONDS = (
 )
 # Portraits de depart : a description egale, le modele rend presque le meme visage d'un tirage a l'autre. Chaque portrait
 # tire donc au sort un choix par trait (ce que la fiche ne dit pas), place en tete de la description pour qu'il pese.
+# Chaque ligne : (mots de la fiche qui tranchent deja ce trait, variantes). Un trait dont la fiche parle n'est pas tire au sort.
 TRAITS = (
-    ("oval face", "heart-shaped face", "square face", "long narrow face", "round face", "diamond-shaped face", "angular face", "broad face"),
-    ("very high forehead", "low forehead", "wide forehead", "narrow forehead"),
-    ("wide-set eyes", "close-set eyes", "large round eyes", "narrow almond eyes", "deep-set eyes", "hooded eyes", "upturned eyes", "downturned eyes"),
-    ("thick straight eyebrows", "thin arched eyebrows", "bushy eyebrows", "soft rounded eyebrows", "high angular eyebrows", "low flat eyebrows"),
-    ("small button nose", "long straight nose", "wide nose", "aquiline nose", "upturned nose", "narrow pointed nose", "nose with a low bridge", "slightly crooked nose"),
-    ("very full lips", "thin lips", "wide mouth", "small mouth with a full lower lip", "pronounced cupid's bow", "heavy upper lip"),
-    ("strong jaw", "soft jawline", "pointed chin", "wide chin", "dimpled chin", "small receding chin"),
-    ("prominent cheekbones", "full cheeks", "hollow cheeks", "flat cheeks"),
+    (r"\bface\b", ("oval face", "heart-shaped face", "square face", "long narrow face", "round face", "diamond-shaped face", "angular face", "broad face")),
+    (r"forehead", ("very high forehead", "low forehead", "wide forehead", "narrow forehead")),
+    (r"(wide|close|deep)-set|hooded|almond|round eyes|upturned|downturned", ("wide-set eyes", "close-set eyes", "large round eyes", "narrow almond eyes",
+                                                                             "deep-set eyes", "hooded eyes", "upturned eyes", "downturned eyes")),
+    (r"lash|eyelid", ("long thick lashes", "short sparse lashes", "heavy eyelids", "faint shadows under the eyes")),
+    (r"brow", ("thick straight eyebrows", "thin arched eyebrows", "bushy eyebrows", "soft rounded eyebrows", "high angular eyebrows", "low flat eyebrows")),
+    (r"nose", ("small button nose", "long straight nose", "wide nose", "aquiline nose", "upturned nose", "narrow pointed nose", "nose with a low bridge",
+               "slightly crooked nose")),
+    (r"lips?\b|mouth", ("very full lips", "thin lips", "wide mouth", "small mouth with a full lower lip", "pronounced cupid's bow", "heavy upper lip")),
+    (r"teeth|smile|dimple", ("a small gap between her front teeth", "dimples when she smiles", "a slightly crooked smile", "a wide toothy smile",
+                             "slightly prominent front teeth", "a closed-lip smile")),
+    (r"jaw|chin", ("strong jaw", "soft jawline", "pointed chin", "wide chin", "dimpled chin", "small receding chin")),
+    (r"cheek", ("prominent cheekbones", "full cheeks", "hollow cheeks", "flat cheeks")),
+    (r"freckle|mole|beauty mark|birthmark|scar", ("a beauty mark above her lip", "a mole on her cheek", "a few faint freckles across the nose",
+                                                  "two small moles on her neck", "clear even skin", "a beauty mark near her eye",
+                                                  "a tiny scar through one eyebrow", "slightly rosy cheeks")),
+    (r"\bears?\b", ("small ears close to the head", "slightly protruding ears", "long earlobes")),
+    (r"neck", ("long thin neck", "short neck", "strong neck")),
+    (r"bangs|fringe|parted|parting|ponytail|\bbun\b|braid|bob\b|pixie|updo", ("hair parted in the middle", "hair parted on the side", "wispy curtain bangs",
+                                                                              "straight blunt bangs", "hair tucked behind her ears", "hair pulled back in a low ponytail",
+                                                                              "hair in a loose messy bun", "hair swept to one side")),
+    (r"symmetr|\blook\b", ("girl-next-door look", "striking fashion-model look", "sporty tomboyish look", "soft romantic look", "sharp elegant look",
+                           "quirky unconventional look", "slightly asymmetric face", "mature serious look")),
 )
 
 
@@ -81,10 +97,11 @@ CORPS_MOTS = re.compile(r"breast|bust|chest|boob|tits|cleavage|nipple|areola|bod
                         r"\bcm\b|height|shoulders|arms?\b|\bcup\b", re.I)
 
 
-def traits(s):
-    """Traits du portrait numero s : un prenom et un choix par ligne de TRAITS, toujours les memes pour un numero donne."""
+def traits(s, fiche=""):
+    """Traits tires au sort pour le portrait numero s ; ceux dont la fiche parle deja sont laisses a la fiche."""
     r = random.Random(7919 * s)
-    return f"{r.choice(PRENOMS)}, a woman with a distinctive face: " + ", ".join(r.choice(x) for x in TRAITS)
+    tires = [r.choice(v) for _, v in TRAITS]      # tirage complet d'abord : le meme numero donne les memes traits quelle que soit la fiche
+    return f"{r.choice(PRENOMS)}, a woman with a distinctive face: " + ", ".join(x for (m, _), x in zip(TRAITS, tires) if not re.search(m, fiche, re.I))
 
 
 # Corps de reference (personnage sans LoRA) : comme pour le visage, chaque essai tire au sort ce que la fiche ne dit pas.
@@ -544,11 +561,12 @@ class Biblio:
         slug = b["slug"]
         self._libre()
         p = self.at.perso(slug)
+        pv = self._prefixe_visage(p)
         deja = {int(f.stem.split("_")[1]) for f in self.dir(slug).glob("v_*.png")} if self.dir(slug).is_dir() else set()
         deja |= self._jetes(slug, "v_")
         taches = [{"sortie": f"v_{s}", "seed": 1000 + 37 * s, "taille": [720, 1280], "lora": False,
-                   "prompt": f"headshot of {traits(s)}. {self._prefixe_visage(p)}vertical tight close-up headshot, her face fills the frame, cropped at the base of the neck, "
-                             f"eye-level, front view, she looks at the camera, soft smile, in front of a plain light grey wall, "
+                   "prompt": f"headshot of {traits(s, pv)}. {pv}vertical tight close-up headshot, her face fills the frame, cropped at the base of the neck, "
+                             f"eye-level, front view, she looks at the camera, relaxed friendly expression, in front of a plain light grey wall, "
                              f"the collar of a white crew-neck t-shirt barely visible at the bottom edge, soft natural daylight{FIN}"}
                   for s in [s for s in range(1, 400) if s not in deja][:8]]
         self._lancer(slug, "visage", {"taches": taches}, len(taches))
