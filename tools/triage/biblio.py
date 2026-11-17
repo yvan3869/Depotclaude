@@ -687,7 +687,9 @@ class Biblio:
             nom = f"x_{x['cle']}_{k}"
             bb["planches"][nom + ".png"] = {"garde": False, "legende": f"{pre}{desc}"}
             t = {"sortie": nom, "seed": 7000 + 53 * i + k, "taille": [720, 1280]}
-            t |= {"ref": ref, "prompt": f"Same woman, same face, same hair. New photo of her, framed as tightly as image 1: {desc}. Natural smartphone photo."} if ref \
+            t |= {"ref": ref, "prompt": (f"Change the facial expression of the woman in image 1. Her new expression: {x['en']}. The expression is strong and obvious, "
+                                        f"clearly different from image 1: her mouth, eyes and eyebrows move accordingly. She stays the same woman: same "
+                                        f"facial features, same hair. New photo of her: {desc}. Natural smartphone photo.")} if ref \
                 else {"lora": True, "prompt": f"{pre}vertical {desc}{FIN}"}
             taches.append(t)
         if not taches:
