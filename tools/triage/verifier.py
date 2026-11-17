@@ -41,6 +41,12 @@ def etat(a):
     for p in a.persos().values():
         print(f"  {p['slug']} : {p['nom']}, {p['age']} ans, {p.get('statut', 'actif')}, "
               f"{'LoRA du visage en place' if (p.get('generation') or {}).get('lora') else 'sans LoRA du visage'}")
+        g = p.get("generation") or {}  # ce que le pilote ajoute deja devant chaque image : a ne pas redire dans les plans
+        if g.get("identite"):
+            for k in ("identite", "allure", "visage", "corps"):
+                print(f"      {k} : {g.get(k) or '(vide)'}")
+        elif g.get("zimage_prefix"):
+            print(f"      description (un seul bloc) : {g['zimage_prefix'].strip()} {g.get('corps') or ''}".rstrip())
     print("projets :")
     for d in sorted(a.dj.glob("p*/projet.json")):
         p = atelier._load(d, {})

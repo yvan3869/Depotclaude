@@ -657,6 +657,10 @@ class Atelier:
             raise ValueError(f"âge obligatoire, {AGE_MIN} ans au moins : les personnages sont des adultes")
         fiche, ecr, gen = b.get("fiche") or {}, b.get("ecriture") or {}, b.get("generation") or {}
         prefix = _s(gen.get("zimage_prefix"), 400)
+        # Fiche rangee en quatre cases (identite, allure, visage, corps) : le debut de chaque description en est tire, dans cet ordre.
+        cases = {k: _s(gen.get(k), 400).strip(" ,") for k in ("declencheur", "identite", "allure", "visage")}
+        if cases["identite"]:
+            prefix = ", ".join(x for x in cases.values() if x)
         if prefix and not prefix.endswith(","):
             prefix += ","
         p = {"slug": slug, "nom": _s(b["nom"], 60), "statut": b.get("statut") if b.get("statut") in ("actif", "archive") else "actif",
@@ -667,7 +671,7 @@ class Atelier:
              "expressions": [_s(x, 200) for x in b.get("expressions") or [] if _s(x)][:12],
              "ecriture": {k: _s(ecr.get(k), 400) for k in ("ton", "cta", "plateforme", "hashtags", "interdits")},
              "generation": {"zimage_prefix": (prefix + " ") if prefix else "", "lora": _s(gen.get("lora"), 120),
-                            "lora_strength": float(gen.get("lora_strength") or 1.0), "corps": _s(gen.get("corps"), 600),
+                            "lora_strength": float(gen.get("lora_strength") or 1.0), **cases, "corps": _s(gen.get("corps"), 600),
                             "suffixe": _s(gen.get("suffixe"), 400), "note": _s(gen.get("note"), 400)}}
         return p
 
@@ -731,9 +735,20 @@ class Atelier:
             if not p["ecriture"][k]:
                 rem.append(f'"ecriture.{k}" vide')
         g = p["generation"]
-        if not g["zimage_prefix"].strip():
-            rem.append('"generation.zimage_prefix" vide : âge, cheveux, yeux en anglais, repris devant chaque image')
-        for k in ("zimage_prefix", "corps", "suffixe"):
+        if not g["identite"]:
+            rem.append('"generation.identite" vide : âge, origine, peau, cheveux, en anglais ; les quatre cases (identite, allure, visage, corps) '
+                       'remplacent "zimage_prefix"')
+        elif (j.get("generation") or {}).get("zimage_prefix"):
+            rem.append('"generation.zimage_prefix" n\'est plus à remplir : il est composé des cases identite, allure et visage')
+        for k, quoi in (("visage", "yeux, nez, bouche, forme du visage"), ("corps", "poitrine, taille, hanches, fesses, jambes")):
+            if g["identite"] and not g[k]:
+                rem.append(f'"generation.{k}" vide : {quoi}, en anglais ; ce que la fiche ne dit pas est tiré au sort dans les premières images')
+        for k, mots, quoi in (("identite", biblio.VISAGE_MOTS, "du visage"), ("identite", biblio.CORPS_MOTS, "du corps"),
+                              ("visage", biblio.CORPS_MOTS, "du corps"), ("corps", biblio.VISAGE_MOTS, "du visage")):
+            if mots.search(g[k]):
+                rem.append(f'"generation.{k}" parle aussi {quoi} (« {mots.search(g[k])[0]} ») : chaque chose dans sa case, '
+                           "les images du visage et celles du corps ne reprennent pas les mêmes")
+        for k in ("zimage_prefix", "identite", "allure", "visage", "corps", "suffixe"):
             if not ascii_(g[k]):
                 rem.append(f'"generation.{k}" contient des accents : ce champ part dans les images, il doit être en anglais')
         if re.search(r"\b(\d{1,2})[- ]?(year|yo|y\.o)", g["zimage_prefix"], re.I) and str(p["age"]) not in g["zimage_prefix"]:
@@ -1287,10 +1302,12 @@ class Atelier:
                       "avec un prénom et un nom inventés. Donne-lui un métier, des défauts, des tics de langage, un univers visuel et une manière précise de séduire. "
                       "\"lieux\" et \"tenues\" : 6 éléments chacun, au format \"français | anglais\" (l'anglais commence par \"in\"/\"on\" pour un lieu, par \"a\"/\"an\" pour une tenue). "
                       "\"expressions\" : 4 mimiques du visage qui sont les siennes, tous publics, au format \"français | anglais\" (le visage seul : ni tenue, ni lieu). "
-                      "\"zimage_prefix\" : en anglais, \"a woman with ...\" (âge apparent, cheveux, yeux, teint, silhouette), une ligne.\n\nFORMAT\n"
+                      "\"generation\" : quatre cases en anglais, une ligne chacune, sans rien répéter de l'une à l'autre. \"identite\" : \"a 27 year old ... woman with ...\" "
+                      "(âge, origine, peau, cheveux). \"allure\" : taille et silhouette d'ensemble. \"visage\" : forme du visage, yeux, sourcils, nez, bouche. "
+                      "\"corps\" : poitrine, taille, hanches, fesses, jambes.\n\nFORMAT\n"
                       '{"nom": "...", "age": 27, "langue": "en", "accroche": "phrase qui la résume", "fiche": {"identite": "...", "apparence": "...", "voix": "...", '
                       '"personnalite": "...", "seduction": "...", "univers": "...", "limites": "..."}, "lieux": ["..."], "tenues": ["..."], "expressions": ["..."], '
-                      '"ecriture": {"ton": "...", "cta": "...", "plateforme": "Fanvue", "hashtags": "...", "interdits": "..."}, "generation": {"zimage_prefix": "..."}}')
+                      '"ecriture": {"ton": "...", "cta": "...", "plateforme": "Fanvue", "hashtags": "...", "interdits": "..."}, "generation": {"identite": "...", "allure": "...", "visage": "...", "corps": "..."}}')
         elif kind == "biblio":  # atelier du personnage : une phrase du proprietaire devient une ligne "français | anglais"
             if not consigne:
                 raise ValueError("décrire le lieu ou la tenue en une phrase")
@@ -2621,6 +2638,8 @@ class Atelier:
             return self.biblio.post(path, b)
         if path == "/api/a/personnage":
             return {"personnage": self.save_perso(b)}
+        if path == "/api/a/ranger":
+            return biblio.ranger(_s(b.get("texte"), 1200), _s(b.get("corps"), 600))
         if path == "/api/a/projet":
             p = self.save_projet(b)
             return {"projet": p, "controle": {t: self._ctl(p, t) for t in TEMPS}}

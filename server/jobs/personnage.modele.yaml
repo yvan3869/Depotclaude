@@ -17,12 +17,15 @@
 #   - "expressions" : ses mimiques a elle. La Production en tire sa galerie d'expressions (son visage dans chacune),
 #     dont les bonnes images entrent dans l'entrainement de sa LoRA ; le scenariste reprend ensuite la partie
 #     anglaise, mot pour mot, dans la description de ses scenes.
-#   - "generation" : colle dans chaque description d'image. En anglais, sans accent.
+#   - "generation" : son physique, colle dans chaque description d'image. En anglais, sans accent, range en quatre
+#     cases qui ne se repetent pas : identite, allure, visage, corps. Un portrait reprend identite + visage ; une
+#     image du corps identite + allure + corps ; une scene les quatre. Ce qu'une case ne dit pas est tire au sort
+#     dans les premieres images (portraits, corps de reference) : dire ce qui compte, laisser le reste.
 #
 # Ce que le proprietaire fait de la fiche, dans l'ordre (page Production, Casting, "Debuter") :
-#   1. son visage      quatre portraits tires de "generation.zimage_prefix" ; il en retient un.
+#   1. son visage      des portraits tires de "generation.identite" et "generation.visage" ; il en retient un.
 #   2. ses expressions une image par ligne de "expressions", puis une liste commune (sourire, rire, surprise...).
-#   3. son corps       des planches habillees tirees de "generation.corps" et de la premiere tenue de "tenues".
+#   3. son corps       un corps de reference (identite, allure, corps), puis des planches dans la premiere tenue de "tenues".
 #   4. sa LoRA         entrainee sur les images gardees aux etapes 2 et 3.
 #   5. ses lieux et sa garde-robe : une image par ligne de "lieux" et de "tenues".
 # Une fiche precise a ces endroits lui epargne des essais : c'est la que le directeur de casting est attendu.
@@ -31,8 +34,10 @@
 #   2026-11-15   premiere version.
 #   2026-11-16   champ "expressions" (3 a 6 mimiques, le visage seul) ; la premiere tenue de la liste habille les
 #                premieres images : elle doit etre simple et tous publics.
+#   2026-11-17   "generation" range en quatre cases (identite, allure, visage, corps) ; "zimage_prefix" n'est plus a
+#                remplir : il est compose des trois premieres.
 
-modele: "2026-11-16"
+modele: "2026-11-17"
 nom: "Prenom Nom"            # invente ; verifier qu'il n'est pas celui d'une personne connue
 age: 27                      # 21 au moins
 langue: en                   # langue de ses publications : en ou fr
@@ -70,15 +75,19 @@ ecriture:
   interdits: ""              # a ne jamais ecrire ou montrer
 
 generation:
-  zimage_prefix: "a 27 year old woman with long dark hair and brown eyes,"
-  #   Debut de CHAQUE description d'image : age (le meme que "age"), cheveux (longueur, couleur, texture), yeux,
-  #   peau, un ou deux traits du visage. Court (une ligne), que du permanent : ni tenue, ni lieu, ni expression.
-  #   Quand la LoRA du visage sera entrainee, le proprietaire y ajoutera son mot declencheur.
+  #   Quatre cases, une ligne chacune, que du permanent (ni tenue, ni lieu, ni expression), rien de repete de l'une a l'autre.
+  identite: "a 27 year old french woman with fair skin and long dark wavy hair"
+  #   Age (le meme que "age"), origine, peau, cheveux (longueur, couleur, texture). Reprise dans TOUTES ses images.
+  allure: "tall, slender"
+  #   Taille et silhouette d'ensemble, deux ou trois mots.
+  visage: "oval face, brown almond eyes, straight nose, full lips"
+  #   Forme du visage, yeux, sourcils, nez, bouche, un signe particulier. Rien du corps ici.
+  corps: "narrow waist, long legs"
+  #   Taille, hanches, jambes, en mots simples (600 caracteres au plus). Rien du visage ici. Le proprietaire le complete a sa main.
   lora: ""                   # fichier de la LoRA du visage : LAISSER VIDE (entrainement fait par le proprietaire, ~2 $).
                              # Sans elle le visage change d'une image a l'autre : la fiche sert d'abord aux images
                              # d'entrainement, puis aux videos.
   lora_strength: 1.0
-  corps: ""                  # silhouette en anglais, ajoutee a chaque image (600 caracteres au plus)
   suffixe: ""                # vide : reglage commun a tous les personnages (qualite, grain, objectif)
   note: ""                   # pour le scenariste : ce que la LoRA du visage porte deja (tatouages, piercing), a ne
                              # pas redecrire dans les plans. Vide tant qu'il n'y a pas de LoRA.

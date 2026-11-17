@@ -622,10 +622,19 @@ la corrige et l'enregistre. Rien n'entre en service sans lui ; une fiche de moin
 d'une image a l'autre. Le nom court du fichier est celui qu'on ecrit ensuite dans `atelier.personnage`.
 
 Une fois la fiche enregistree, l'atelier du personnage s'ouvre sur l'onglet "Debuter", qui guide le proprietaire
-etape par etape : quatre portraits tires de `generation.zimage_prefix` (il en retient un), la galerie
-d'expressions, les planches du corps (tirees de `generation.corps` et de la premiere tenue de la liste, qui doit
-etre simple et tous publics), l'entrainement de la LoRA sur les images gardees, puis une image par lieu et par
+etape par etape : des portraits tires de `generation.identite` et `generation.visage` (il en retient un), la galerie
+d'expressions, le corps de reference (`generation.identite`, `allure`, `corps`) puis les planches (dans la premiere
+tenue de la liste, qui doit etre simple et tous publics), l'entrainement de la LoRA sur les images gardees, puis une image par lieu et par
 tenue. La fiche fournit donc tout ce que ces etapes consomment : la soigner a ces endroits.
+
+**Physique en quatre cases** (modele de fiche 2026-11-17) : `generation` range la description du personnage, en
+anglais, dans quatre cases qui ne se repetent pas. `identite` : age, origine, peau, cheveux. `allure` : taille et
+silhouette d'ensemble. `visage` : forme du visage, yeux, sourcils, nez, bouche. `corps` : taille, hanches, jambes
+(le proprietaire le complete). La Production compose chaque image a partir de ces cases : un portrait reprend
+identite + visage, une image du corps identite + allure + corps, une scene les quatre, dans cet ordre.
+`zimage_prefix` n'est plus a remplir (il est compose des trois premieres cases). Le verificateur signale une case
+vide et un mot range dans la mauvaise case (un mot du corps dans `visage`, par exemple). Ce qu'une case ne dit pas
+est tire au sort dans les premieres images : ecrire ce qui compte pour le personnage, laisser le reste.
 
 **Expressions** (modele de fiche 2026-11-16) : `expressions` liste 3 a 6 mimiques propres au personnage, forme
 "francais | anglais", le visage seul (ni tenue, ni lieu). La Production fabrique une image du visage pour chacune,
@@ -666,8 +675,13 @@ dossier ni de sa memoire : ils peuvent etre perimes.
 - N'utiliser que les champs presents dans le modele. Un champ inconnu est ignore sans message.
 - Ne pas remplir `body` ni `dest` (reserves au proprietaire).
 
-Le debut du prompt qui decrit le personnage (mot declencheur, cheveux, yeux) est ajoute par le
-pilote : ne pas le repeter, ni decrire les tatouages (le LoRA les porte ; les decrire les double).
+Le physique du personnage est ajoute par le pilote devant chaque image, d'apres les quatre cases de sa fiche
+(identite, allure, visage, corps ; `verifier.py --etat` les affiche pour chaque personnage). Un plan ne redit donc
+jamais son age, son origine, sa peau, ses cheveux au repos, son visage ni ses formes : une seconde description,
+meme proche, entre en concurrence avec la fiche et le personnage change d'un plan a l'autre. Un plan dit seulement
+ce qui change : la pose, le geste, l'expression, la tenue et son etat, le lieu, la lumiere, et `cheveux` quand la
+coiffure differe de la fiche (attaches, mouilles). Ne pas decrire non plus les tatouages (le LoRA les porte ;
+les decrire les double).
 
 ## Resultats et couts
 - Images et clips : `server/data/inbox/<name>_<plan>.png|mp4`, visibles dans le Tri.

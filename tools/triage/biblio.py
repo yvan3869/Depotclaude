@@ -144,6 +144,28 @@ def _de_dos(chemin):
     return bool(m) and (m[1] == "d" or (m[1] == "a" and (int(m[2]) - 1) % 4 == 2))
 
 
+# Mots d'allure : la taille et la silhouette d'ensemble, a part du detail du corps.
+ALLURE_MOTS = re.compile(r"\btall\b|\bshort\b(?! hair)|petite|\bcm\b|height|slim|slender|skinny|athletic|toned|muscular|sporty|curv|hourglass|voluptuous|"
+                         r"thick\b|chubby|plump|bod(y|ied)|figure|silhouette|physique|build\b|frame\b|posture|arched|sexy|elegant|graceful", re.I)
+DETAIL_CORPS = re.compile(r"breast|bust|chest|boob|tits|cleavage|nipple|areola|hips?\b|waist|butt|bottom\b|\bass\b|glute|legs?\b|thigh|stomach|belly|abs\b|"
+                          r"shoulders|arms?\b|\bcup\b", re.I)
+
+
+def ranger(texte, corps=""):
+    """Une description d'un seul bloc repartie dans les quatre cases de la fiche, aux mots : une proposition que le proprietaire corrige.
+    Un morceau « a latina woman with brown eyes and long black hair » est coupe : les yeux au visage, le reste a l'identite."""
+    o = {"identite": [], "allure": [], "visage": [], "corps": [x.strip() for x in corps.split(",") if x.strip()]}
+    for bout in (x.strip() for x in texte.split(",") if x.strip()):
+        tete, *reste = re.split(r"\s+with\s+", bout, maxsplit=1)
+        for i, x in enumerate([tete] + (re.split(r"\s+and\s+", reste[0]) if reste else [])):
+            k = "visage" if VISAGE_MOTS.search(x) else "corps" if DETAIL_CORPS.search(x) else "allure" if ALLURE_MOTS.search(x) and not re.search(r"year|woman|hair", x) else "identite"
+            if k == "identite" and i and o["identite"] and o["identite"][-1].startswith(tete):
+                o["identite"][-1] += (" and " if " with " in o["identite"][-1] else " with ") + x  # reste attache a « a ... woman with »
+            elif x not in o[k]:
+                o[k].append(x)
+    return {k: ", ".join(v) for k, v in o.items()}
+
+
 def sans_visage(fiche):
     """La fiche sans ce qui decrit le visage (yeux, bouche, nez...) : restent l'age, l'origine, la peau, les cheveux et le corps.
     Un morceau du type « a latina woman with brown eyes and long black hair » ne perd que « brown eyes »."""
@@ -539,10 +561,25 @@ class Biblio:
         g = p.get("generation") or {}
         return (g.get("zimage_prefix") or f"a {p.get('age', 25)} year old woman, ") + ((g["corps"].rstrip(", ") + ", ") if g.get("corps") else "")
 
+    @staticmethod
+    def _cases(p):
+        """Fiche rangee en quatre cases (identite, allure, visage, corps) : les cases ; None pour une fiche d'un seul bloc."""
+        g = p.get("generation") or {}
+        return {k: (g.get(k) or "").strip(" ,") for k in ("identite", "allure", "visage", "corps")} if (g.get("identite") or "").strip(" ,") else None
+
+    def _prefixe_corps(self, p):
+        """Description pour une image du corps : identite, allure et corps. Le visage n'y est pas : tres decrit, il tire l'image vers lui."""
+        c = self._cases(p)
+        if c:
+            return ", ".join(x for x in (c["identite"], c["allure"], c["corps"]) if x)
+        return sans_visage(self._prefixe(p).rstrip(", "))  # fiche d'un seul bloc : le visage est devine aux mots et retire
+
     def _prefixe_visage(self, p):
         """Description pour un portrait : le debut de la fiche sans ce qui parle du corps (ni le champ « corps »), sinon le modele
         recule pour le montrer et le portrait devient un buste."""
-        g = p.get("generation") or {}
+        g, c = p.get("generation") or {}, self._cases(p)
+        if c:  # fiche rangee : identite et visage, sans l'allure ni le corps
+            return ", ".join(x for x in (c["identite"], c["visage"]) if x) + ", "
         txt = g.get("zimage_prefix") or f"a {p.get('age', 25)} year old woman, "
         garde = [x.strip() for x in txt.split(",") if x.strip() and not CORPS_MOTS.search(x)]
         return (", ".join(garde) or f"a {p.get('age', 25)} year old woman") + ", "
@@ -680,7 +717,7 @@ class Biblio:
         tenue, var, lo = bb.get("corps_tenue") or CORPS_TENUE, bb.get("corps_variantes") or [], bb.get("corps_loras") or []
         # Sa description d'abord (les traits tires au sort ne font que la completer), sans ce qui decrit le visage : pour une image
         # du corps seuls comptent l'origine, la peau, les cheveux et le corps ; un visage tres decrit tire l'image vers lui.
-        fiche = sans_visage(self._prefixe(p).rstrip(", "))
+        fiche = self._prefixe_corps(p)
 
         def plus(s):
             return (", " + random.Random(15485863 * s).choice(var)) if var else ""

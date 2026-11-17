@@ -42,9 +42,16 @@ d'écrire la fiche, ces points sont fixés avec lui :
 
 ## 3. Ce qui rend une fiche utile à la machine
 
-- **`generation.zimage_prefix`** est collé devant chaque image. Une ligne, en anglais, que du permanent : âge,
-  cheveux, yeux, peau, un ou deux traits. Ni tenue, ni lieu, ni humeur. L'âge écrit est celui de la fiche.
-- **`generation.corps`** : la silhouette, en anglais, en mots simples et constants.
+- **`generation`** range son physique en quatre cases, en anglais, une ligne chacune, que du permanent (ni
+  tenue, ni lieu, ni humeur). Rien ne se répète d'une case à l'autre, et chaque chose va dans sa case : la
+  machine compose un portrait avec identité + visage, une image du corps avec identité + allure + corps, une
+  scène avec les quatre.
+  - **`identite`** : âge (celui de la fiche), origine, peau, cheveux (longueur, couleur, texture).
+  - **`allure`** : taille et silhouette d'ensemble, deux ou trois mots.
+  - **`visage`** : forme du visage, yeux, sourcils, nez, bouche, un signe particulier.
+  - **`corps`** : taille, hanches, jambes, en mots simples et constants ; le propriétaire le complète.
+  Ce qu'une case ne dit pas est tiré au sort dans les premières images : écris ce qui fait le personnage, pas
+  une liste complète. `zimage_prefix` ne se remplit plus.
 - **`lieux`** : forme `français | anglais`. La partie anglaise commence par « in », « on » ou « at » et nomme
   trois ou quatre éléments **fixes** du décor (murs, sol, un meuble, une fenêtre). Elle sera répétée mot pour
   mot dans toutes les images d'une vidéo : c'est elle qui tient le décor. Pas de personnes, rien qui bouge.
@@ -61,9 +68,9 @@ d'écrire la fiche, ces points sont fixés avec lui :
 - **`generation.lora`** reste vide : la LoRA du visage est entraînée par le propriétaire (environ 2 $). Tant
   qu'elle n'existe pas, le visage change d'une image à l'autre.
 - **Ce que ta fiche déclenche.** Une fois la fiche enregistrée, la page « Débuter » guide le propriétaire :
-  quatre portraits tirés de `zimage_prefix` (il en retient un), la galerie d'expressions, les planches du
-  corps tirées de `generation.corps` et de la première tenue, l'entraînement de la LoRA, puis une image par
-  lieu et par tenue. Un `zimage_prefix` vague donne quatre visages sans rapport : sois précis sur les cheveux
+  des portraits tirés de `identite` et `visage` (il en retient un), la galerie d'expressions, le corps de
+  référence et les planches (cases `allure` et `corps`, première tenue), l'entraînement de la LoRA, puis une image par
+  lieu et par tenue. Des cases `identite` et `visage` vagues donnent des visages sans rapport : sois précis sur les cheveux
   (longueur, couleur, texture), les yeux, la peau et un ou deux traits.
 - **Aucune personne réelle** : ni nom existant, ni « ressemble à », ni célébrité comme modèle. Vérifie que le
   nom choisi n'est pas celui d'une personne connue.
