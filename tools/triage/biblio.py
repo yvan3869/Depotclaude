@@ -375,7 +375,7 @@ class Biblio:
                 "visage": {"images": vis, "choix": b["choix"].get("visage") if b["choix"].get("visage") in vis else ""},
                 "corps": {"face": {"images": num("k_"), "choix": b["choix"].get("corps") if b["choix"].get("corps") in noms else ""},
                           "dos": {"images": num("d_"), "choix": b["choix"].get("dos") if b["choix"].get("dos") in noms else ""},
-                          "angles": [{"nom": n, "vue": ANGLES[(int(n[2:-4]) - 1) % len(ANGLES)][0]} for n in num("a_")], "tenue": b.get("corps_tenue") or "", "loras": b.get("corps_loras") or [],
+                          "angles": [{"nom": n, "vue": ANGLES[(int(n[2:-4]) - 1) % len(ANGLES)][0]} for n in num("a_")], "tenue": b.get("corps_tenue") or "", "loras": b.get("corps_loras") or [], "nsfw": bool(b.get("corps_nsfw")),
                           "avec_lora": [n for n in noms if n[:2] in ("k_", "d_", "a_") and (tach.get(n[:-4]) or {}).get("loras")], "variantes": "\n".join(b.get("corps_variantes") or [])},
                 "expressions": expr, "gardees": sum(1 for x in b["planches"].values() if x.get("garde")),
                 "banc": [{"cle": k, **x, "images": [n for n in noms if n.startswith(f"b_{k}_")], "clips": sorted(f.name for f in d.glob(f"bv_{k}_*.mp4"))}
@@ -724,7 +724,12 @@ class Biblio:
         if "loras" in b:  # LoRA choisies par le proprietaire : face et dos sont alors dessines par Z-Image avec elles, d'apres la description
             bb["corps_loras"] = [_s(x, 140) for x in b.get("loras") or [] if _s(x, 140)][:4]  # « nom » ou « nom:force »
             self._ecrire(slug, bb)
+        if "nsfw" in b:  # images pour adultes : le mot nsfw suit la tenue dans chaque texte, comme pour les planches
+            bb["corps_nsfw"] = bool(b.get("nsfw"))
+            self._ecrire(slug, bb)
         tenue, var, lo = bb.get("corps_tenue") or CORPS_TENUE, bb.get("corps_variantes") or [], bb.get("corps_loras") or []
+        if bb.get("corps_nsfw"):
+            tenue += ", nsfw"
         # Sa description d'abord (les traits tires au sort ne font que la completer), sans ce qui decrit le visage : pour une image
         # du corps seuls comptent l'origine, la peau, les cheveux et le corps ; un visage tres decrit tire l'image vers lui.
         fiche = self._prefixe_corps(p)
