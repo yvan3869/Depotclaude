@@ -985,6 +985,15 @@ async function vuePerso(slug, depot) {
       ${i('accroche', 'La phrase qui la résume', p.accroche, {aide: 'Affichée dans la liste des personnages et rappelée au rédacteur.'})}
       ${FICHE.map(([k, l]) => i('fiche.' + k, l, p.fiche?.[k], {area: 1})).join('')}
     </div>
+    <h2>Son physique <small>repris dans chaque image</small></h2>
+    <div class="panel"><div class="mut" style="margin-bottom:8px">Sa description, en anglais, rangée en quatre cases. Chaque chose dans sa case, sans rien répéter : un portrait ne reprend que l'identité et le visage, une image du corps l'identité, l'allure et le corps, une scène les quatre.</div>
+      ${i('generation.identite', '1. Identité : âge, origine, peau, cheveux', g.identite, {area: 1, ph: 'a 27 year old latina woman with tanned skin and long black hair'})}
+      ${i('generation.allure', '2. Allure : taille, silhouette d\'ensemble', g.allure, {area: 1, rows: 1, ph: 'tall, athletic'})}
+      ${i('generation.visage', '3. Visage : forme, yeux, sourcils, nez, bouche', g.visage, {area: 1, ph: 'oval face, brown almond eyes, full lips', aide: 'Ce que vous ne dites pas est tiré au sort dans les portraits de départ.'})}
+      ${i('generation.corps', '4. Corps : poitrine, taille, hanches, fesses, jambes', g.corps, {area: 1, aide: 'À votre main. Ce que vous ne dites pas est tiré au sort dans les corps de référence.'})}
+      <details class="pli" data-sec="pbloc"${ouv('pbloc', !g.identite && !!(g.zimage_prefix || '').trim())}><summary>Description d'un seul bloc (ancienne fiche)</summary>
+        ${i('generation.zimage_prefix', 'Début de chaque description (anglais)', g.zimage_prefix, {area: 1, aide: 'Sert tant que la case Identité est vide. Dès qu\'elle est remplie, ce texte est recomposé des cases 1 à 3 à l\'enregistrement.'})}
+        <div class="row"><button data-a="persoranger">${ic('plier')}Répartir dans les quatre cases</button><span class="mut">Une proposition, aux mots : à relire avant d'enregistrer.</span></div></details></div>
     <h2>Lieux, tenues, expressions <small>un par ligne : français | anglais</small></h2>
     <div class="panel"><div class="mut">Le rédacteur pioche dedans pour la fiche de continuité : la partie française lui sert à choisir, la partie anglaise part dans la description de l'image.</div>${i('lieux', 'Lieux', (p.lieux || []).join('\n'), {area: 1, rows: 5, ph: 'sa cuisine | in her small kitchen with a wooden counter'})}
       ${i('tenues', 'Tenues', (p.tenues || []).join('\n'), {area: 1, rows: 5, ph: 'robe d\'été | a light summer dress with thin straps'})}
@@ -996,15 +1005,7 @@ async function vuePerso(slug, depot) {
         <div class="g">${i('ecriture.hashtags', 'Mots-dièse', w.hashtags, {aide: 'Proposés pour chaque publication.'})}</div></div>
       ${i('ecriture.interdits', 'À ne jamais écrire ou montrer', w.interdits, {area: 1, aide: 'Rappelé au rédacteur à chaque écriture.'})}</div>
     <h2>Génération <small>réglages envoyés au modèle d'image</small></h2>
-    <div class="panel"><div class="mut" style="margin-bottom:8px">Sa description, en anglais, rangée en quatre cases. Chaque chose dans sa case, sans rien répéter : un portrait ne reprend que l'identité et le visage, une image du corps l'identité, l'allure et le corps, une scène les quatre.</div>
-      ${i('generation.identite', '1. Identité : âge, origine, peau, cheveux', g.identite, {area: 1, ph: 'a 27 year old latina woman with tanned skin and long black hair'})}
-      ${i('generation.allure', '2. Allure : taille, silhouette d\'ensemble', g.allure, {area: 1, rows: 1, ph: 'tall, athletic'})}
-      ${i('generation.visage', '3. Visage : forme, yeux, sourcils, nez, bouche', g.visage, {area: 1, ph: 'oval face, brown almond eyes, full lips', aide: 'Ce que vous ne dites pas est tiré au sort dans les portraits de départ.'})}
-      ${i('generation.corps', '4. Corps : poitrine, taille, hanches, fesses, jambes', g.corps, {area: 1, aide: 'À votre main. Ce que vous ne dites pas est tiré au sort dans les corps de référence.'})}
-      ${i('generation.declencheur', 'Mot déclencheur de sa LoRA', g.declencheur, {aide: 'Si sa LoRA en demande un. Placé en tête de chaque description.'})}
-      <details class="pli" data-sec="pbloc"${ouv('pbloc', !g.identite && !!(g.zimage_prefix || '').trim())}><summary>Description d'un seul bloc (ancienne fiche)</summary>
-        ${i('generation.zimage_prefix', 'Début de chaque description (anglais)', g.zimage_prefix, {area: 1, aide: 'Sert tant que la case Identité est vide. Dès qu\'elle est remplie, ce texte est recomposé des cases 1 à 3 à l\'enregistrement.'})}
-        <div class="row"><button data-a="persoranger">${ic('plier')}Répartir dans les quatre cases</button><span class="mut">Une proposition, aux mots : à relire avant d'enregistrer.</span></div></details>
+    <div class="panel">${i('generation.declencheur', 'Mot déclencheur de sa LoRA', g.declencheur, {aide: 'Si sa LoRA en demande un. Placé en tête de chaque description.'})}
       <div id="plora">${persoLoras(g.lora, g.lora_strength, slug)}</div>
       <details class="pli" data-sec="plf"${ouv('plf', !slug)}><summary>Fichier et force, à la main</summary><div class="row haut"><div class="g">${i('generation.lora', 'Fichier LoRA du visage', g.lora, {aide: 'Vide : le visage change d\'une image à l\'autre. Une LoRA s\'entraîne dans son atelier, onglet LoRA.'})}</div>
         <div style="width:90px">${i('generation.lora_strength', 'Force', g.lora_strength, {type: 'number', step: '0.1', aide: '1 en général.'})}</div></div></details>
