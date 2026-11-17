@@ -138,6 +138,12 @@ def traits_corps(s, fiche, dos=False):
     return f"{r.choice(BUSTES)}, {r.choice(TAILLES)}"
 
 
+def _de_dos(chemin):
+    """Image du corps ou la tete ne montre pas de visage : le dos, et l'angle de trois quarts dos."""
+    m = re.fullmatch(r"([kda])_(\d+)\.png", Path(chemin).name)
+    return bool(m) and (m[1] == "d" or (m[1] == "a" and (int(m[2]) - 1) % 4 == 2))
+
+
 def sans_visage(fiche):
     """La fiche sans ce qui decrit le visage (yeux, bouche, nez...) : restent l'age, l'origine, la peau, les cheveux et le corps.
     Un morceau du type « a latina woman with brown eyes and long black hair » ne perd que « brown eyes »."""
@@ -843,7 +849,8 @@ class Biblio:
             if ref:
                 rc = self._refs_corps(slug, v, cadre)
                 t |= {"ref": ref, "prompt": f"Same woman, same face, same hair. New photo of her: {desc}. Natural smartphone photo."}
-                if rc:  # son corps de reference : meme corps, mais ni sa tenue ni son fond
+                if rc:  # son corps de reference : meme corps, mais ni sa tenue ni son fond ; sa tete y est coupee (sauf de dos), un seul visage en jeu
+                    t |= {"sans_tete": [x for x in rc if not _de_dos(x)]}
                     t |= {"refs": rc, "prompt": f"The woman from image 1: same face, same hair. Her body is the one shown in image {' and image '.join(str(k) for k in range(2, 2 + len(rc)))}: "
                                                 f"same breasts, same waist, same hips, same buttocks, same legs, same skin; ignore the clothes and the background of "
                                                 f"{'those images' if len(rc) > 1 else 'that image'}. New photo of her: {desc}. Only one woman in the picture. Natural smartphone photo."}

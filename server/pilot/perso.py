@@ -1,6 +1,7 @@
 """Atelier du personnage : images de sa bibliotheque (lieux vides, tenues a plat, portraits, planches du corps) et
 entrainement de sa LoRA sur le volume. Lance par l'interface (tools/triage/biblio.py) ; le journal a la forme de celui
 du pilote ("<nom> : image", "ECHEC", "rapport : {...}")."""
+import struct
 import base64
 import json
 import secrets
@@ -49,7 +50,7 @@ def _fin(report, t0, pod_id, own):
 def images(a, cfg, resolve_loras, to_mp4=None):
     """Lot d'images d'un personnage : {"nom", "out", "character", "taches": [{"sortie", "prompt", "seed", "taille",
     "lora" (LoRA du personnage ou non), "loras" (en plus), "force", "ref" (image dont celle-ci est tiree par retouche),
-    "refs" (images en plus pour la retouche : « image 2 », « image 3 » du texte)}]}.
+    "refs" (images en plus pour la retouche : « image 2 », « image 3 » du texte), "sans_tete" (celles des refs dont le haut, la tete, est coupe)}]}.
     Tache de clip (banc des LoRA de clip) : "clip" (image de depart), "prompt" (le mouvement), "loras" (LoRA de clip), "images" (duree,
     81 par defaut : 5 s) ; elle rend <sortie>.mp4, fabrique comme un clip de la Production."""
     lot = json.load(open(a.lot, encoding="utf-8"))
@@ -102,7 +103,13 @@ def images(a, cfg, resolve_loras, to_mp4=None):
                     g = workflows.edit_image(models, refs[t["ref"]], t["prompt"], w, h, int(t["seed"]), f"ga_{t['sortie']}")
                     for i, r in enumerate(t.get("refs") or [], 2):
                         g[f"img{i}"] = {"class_type": "LoadImage", "inputs": {"image": refs[r]}}
-                        g["pos"]["inputs"][f"image{i}"] = g["neg"]["inputs"][f"image{i}"] = [f"img{i}", 0]
+                        src = f"img{i}"
+                        if r in (t.get("sans_tete") or []):  # image du corps : la tete est coupee, un seul visage reste en jeu (celui de l'image 1)
+                            rw, rh = struct.unpack(">II", Path(r).read_bytes()[16:24])  # taille lue dans l'en-tete du PNG
+                            haut = int(rh * 0.27) // 8 * 8
+                            src = f"img{i}c"
+                            g[src] = {"class_type": "ImageCrop", "inputs": {"image": [f"img{i}", 0], "width": rw, "height": rh - haut, "x": 0, "y": haut}}
+                        g["pos"]["inputs"][f"image{i}"] = g["neg"]["inputs"][f"image{i}"] = [src, 0]
                 else:
                     ch = char if t.get("lora") else sans
                     extra = [x for x in resolve_loras(cfg, t.get("loras") or []) if not x["video"]]
