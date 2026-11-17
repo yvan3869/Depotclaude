@@ -75,6 +75,12 @@ PRENOMS = ("Maelle", "Ingrid", "Chiara", "Salome", "Odile", "Tamsin", "Liv", "Ro
            "Oriane", "Thea", "Zelie", "Marit", "Ottilie", "Carmen", "Yael", "Linnea", "Capucine", "Dagny")
 
 
+# Mots qui signalent une partie de description sur le corps : ecartee des portraits (voir _prefixe_visage).
+CORPS_MOTS = re.compile(r"breast|bust|chest|boob|tits|cleavage|nipple|areola|bod(y|ied)|figure|silhouette|physique|build\b|frame\b|hips?\b|waist|butt|bottom\b|\bass\b|"
+                        r"glute|legs?\b|thigh|stomach|belly|abs\b|curv|slim|slender|petite|athletic|toned|hourglass|voluptuous|thick|skinny|\btall\b|\bshort\b(?! hair)|"
+                        r"\bcm\b|height|shoulders|arms?\b|\bcup\b", re.I)
+
+
 def traits(s):
     """Traits du portrait numero s : un prenom et un choix par ligne de TRAITS, toujours les memes pour un numero donne."""
     r = random.Random(7919 * s)
@@ -431,6 +437,14 @@ class Biblio:
         g = p.get("generation") or {}
         return (g.get("zimage_prefix") or f"a {p.get('age', 25)} year old woman, ") + ((g["corps"].rstrip(", ") + ", ") if g.get("corps") else "")
 
+    def _prefixe_visage(self, p):
+        """Description pour un portrait : le debut de la fiche sans ce qui parle du corps (ni le champ « corps »), sinon le modele
+        recule pour le montrer et le portrait devient un buste."""
+        g = p.get("generation") or {}
+        txt = g.get("zimage_prefix") or f"a {p.get('age', 25)} year old woman, "
+        garde = [x.strip() for x in txt.split(",") if x.strip() and not CORPS_MOTS.search(x)]
+        return (", ".join(garde) or f"a {p.get('age', 25)} year old woman") + ", "
+
     def creer(self, b):
         """Images des lieux (piece vide) ou des tenues (a plat) : "cles" donnees, sinon toutes les lignes sans image. "n" images par ligne."""
         slug = b["slug"]
@@ -533,8 +547,9 @@ class Biblio:
         deja = {int(f.stem.split("_")[1]) for f in self.dir(slug).glob("v_*.png")} if self.dir(slug).is_dir() else set()
         deja |= self._jetes(slug, "v_")
         taches = [{"sortie": f"v_{s}", "seed": 1000 + 37 * s, "taille": [720, 1280], "lora": False,
-                   "prompt": f"portrait of {traits(s)}. {self._prefixe(p)}vertical medium close-up portrait, eye-level, front view, she looks at the camera, soft smile, "
-                             f"in front of a plain light grey wall, wearing a white t-shirt, soft natural daylight{FIN}"}
+                   "prompt": f"headshot of {traits(s)}. {self._prefixe_visage(p)}vertical tight close-up headshot, her face fills the frame, cropped at the base of the neck, "
+                             f"eye-level, front view, she looks at the camera, soft smile, in front of a plain light grey wall, "
+                             f"the collar of a white crew-neck t-shirt barely visible at the bottom edge, soft natural daylight{FIN}"}
                   for s in [s for s in range(1, 400) if s not in deja][:8]]
         self._lancer(slug, "visage", {"taches": taches}, len(taches))
         return {"lance": len(taches)}
