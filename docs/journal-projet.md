@@ -807,3 +807,19 @@ faute de machine ; second reussi). Depense du chargement : environ 0,11 $ ; comp
   machoire, pommettes), fixe pour un numero donne. Essai sur « Girls-ai Essai » : visages nettement plus ecartes
   qu'avant, encore de la meme famille (limite du modele).
 - Depense GPU : 0,10 $ (deux lots de huit portraits d'essai) ; compteur du jour 0,33 $ sur 20.
+
+### 17 novembre 2026, suite - corps de reference, cadrages, traits
+
+- Portraits : gros plan serre (coupe a la base du cou) ; la description de la fiche est triee, ce qui parle du corps est ecarte.
+  Dix-sept traits tires au sort (yeux en trois tirages, levres et bouche separees, peau, sourire, cou, oreilles, coiffure, allure) ;
+  un trait dont la fiche parle deja n'est pas tire.
+- Corps de reference (personnage sans LoRA) : de face, de dos, quatre angles ; description de la fiche d'abord, seules les formes
+  varient ; champs « tenue » et « details a faire varier » a la main du proprietaire ; LoRA au choix (face et dos alors dessines par
+  Z-Image avec elles, angles par retouche). Les planches s'appuient sur la face et le dos retenus.
+- Expressions par retouche : l'expression demandee passe en tete (sinon une fois sur deux le portrait etait recopie) ; visage seul,
+  la tenue n'est plus nommee (elle faisait reculer le cadre jusqu'au buste).
+- File d'attente : plusieurs lancements identiques admis (portraits, corps, planches).
+- Essais sur le personnage d'essai (habille) : corps de face 8 sur 8 en pied, meme visage, ecarts de silhouette discrets ; expressions
+  10 nettement distinctes, puis 4 au nouveau cadrage (serre ; le grand sourire sorti bouche fermee). Non essayes : dos, angles,
+  planches tirees du corps, LoRA du corps.
+- Depense du jour relevee a 0,93 $ (plafond 20 $), calculs du proprietaire compris ; mes essais : environ 0,35 $.
