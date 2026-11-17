@@ -18,7 +18,9 @@ import time
 from pathlib import Path
 
 GENRES = ("tenue", "dessous")
-FIN = ", smartphone photo, natural skin texture"
+FIN_ANC = ", smartphone photo, natural skin texture"  # fin des textes d'avant le 18/11/2026 (relue pour les anciennes series)
+PEAU = "natural skin texture, visible pores, small skin imperfections"  # sans cela la peau sort lisse
+FIN = f", smartphone photo, {PEAU}"
 # Planches : cadrage et pose, puis fond. Varies expres : une LoRA entrainee sur un seul fond ou un seul cadrage les recopie.
 CADRES = (
     "close-up portrait, eye-level, front view, she looks at the camera, neutral face",
@@ -407,7 +409,7 @@ class Biblio:
                             if "bed" in cadre:
                                 fond = FONDS[1]
                             h = t["prompt"].partition(f"{cadre}, {fond}, ")[2]
-                            for fin in (FIN, ". Natural smartphone photo.", ", nsfw"):
+                            for fin in (FIN, FIN_ANC, f". Natural smartphone photo, {PEAU}.", ". Natural smartphone photo.", ", nsfw"):
                                 h = h[:-len(fin)] if h.endswith(fin) else h
                             habits.append(h)
                         rg = {"tenue": habits[0] if len(set(habits)) == 1 else "", "nsfw": ", nsfw" in T[0]["prompt"],
@@ -806,14 +808,14 @@ class Biblio:
             return []
         vue = lambda k: next((x["nom"] for x in c["angles"] if (int(x["nom"][2:-4]) - 1) % len(ANGLES) == k), None)
         face, dos = c["face"]["choix"], c["dos"]["choix"]
-        if "back view" in cadre:
-            r = [dos, face]
+        if "back view" in cadre:  # de face et de dos : la seule vue qui correspond (une vue opposee en plus brouille le corps)
+            r = [dos]
         elif "profile" in cadre:
             r = [vue(0) or vue(3), face]
         elif "three-quarter" in cadre:
             r = [vue(1), face]
         else:
-            r = [face, dos]
+            r = [face]
         r = [x for x in r if x] or [face]
         return [str(self.fichier(slug, x)) for x in dict.fromkeys(r)]
 
@@ -900,17 +902,18 @@ class Biblio:
             bb["planches"][nom + ".png"] = {"garde": False, "legende": f"{pre}{desc}"}
             t = {"sortie": nom, "seed": 5000 + 101 * serie + i, "taille": [720, 1280]}
             if ref:
-                # Par retouche : sa case Identite (age, origine, peau, cheveux) est redite, pour que la peau ecrite par le proprietaire
-                # (bronzage) ne tienne pas qu'aux images de reference, que le nouveau fond et la nouvelle lumiere eclaircissent.
-                qui = (self._cases(p) or {}).get("identite") or ""
-                qui = f" She is {qui}." if qui else ""
+                # Par retouche : ses cases Identite, Allure et Corps sont redites, pour que la peau (bronzage) et les formes ecrites par le
+                # proprietaire ne tiennent pas qu'aux images de reference, que le nouveau fond et la nouvelle pose font deriver.
+                cs = self._cases(p) or {}
+                qui = ", ".join(x for x in (cs.get("identite"), cs.get("allure")) if x)
+                qui = (f" She is {qui}." if qui else "") + (f" Her body: {cs['corps']}." if cs.get("corps") else "")
                 rc = self._refs_corps(slug, v, cadre)
-                t |= {"ref": ref, "prompt": f"Same woman, same face, same hair.{qui} New photo of her: {desc}. Natural smartphone photo."}
+                t |= {"ref": ref, "prompt": f"Same woman, same face, same hair.{qui} New photo of her: {desc}. Natural smartphone photo, {PEAU}."}
                 if rc:  # son corps de reference : meme corps, mais ni sa tenue ni son fond ; sa tete y est coupee (sauf de dos), un seul visage en jeu
                     t |= {"sans_tete": [x for x in rc if not _de_dos(x)]}
                     t |= {"refs": rc, "prompt": f"The woman from image 1: same face, same hair. Her body is the one shown in image {' and image '.join(str(k) for k in range(2, 2 + len(rc)))}: "
                                                 f"same breasts, same waist, same hips, same buttocks, same legs, same skin; ignore the clothes and the background of "
-                                                f"{'those images' if len(rc) > 1 else 'that image'}.{qui} New photo of her: {desc}. Only one woman in the picture. Natural smartphone photo."}
+                                                f"{'those images' if len(rc) > 1 else 'that image'}.{qui} New photo of her: {desc}. Only one woman in the picture. Natural smartphone photo, {PEAU}."}
             else:
                 t |= {"lora": True, "loras": [str(x) for x in b.get("loras") or []][:4], "prompt": f"{pre}vertical {desc}{FIN}"}
             taches.append(t)
