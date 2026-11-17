@@ -55,6 +55,16 @@ FONDS = (
     "in a cafe with wooden tables, warm light",
     "on a balcony at sunset, warm golden light",
 )
+# Portraits de depart : a description egale, le modele rend presque le meme visage d'un tirage a l'autre. Chaque portrait
+# recoit donc une ossature differente (ce que la fiche ne dit pas), pour que le choix porte sur de vrais visages distincts.
+TRAITS = ("oval face, high cheekbones, straight narrow nose, full lips",
+          "heart-shaped face, soft rounded cheeks, small upturned nose, thin lips",
+          "square jaw, strong straight eyebrows, wider nose, medium lips",
+          "long narrow face, defined jawline, aquiline nose, wide mouth",
+          "round face, wide-set eyes, short nose, full lower lip",
+          "diamond-shaped face, deep-set eyes, prominent cheekbones, thin upper lip",
+          "angular face, almond eyes, slightly curved nose, dimpled chin",
+          "broad face, hooded eyes, low nose bridge, pronounced cupid's bow")
 ESSAIS = ("medium shot, eye-level, front view, she stands, soft smile, looking at the camera, in a bright living room, wearing a white t-shirt and jeans",
           "full-body shot, eye-level, three-quarter view, she stands, one hand on her hip, on a city street, wearing a black dress")
 FORCES = (1.0, 1.3, 1.6)
@@ -447,7 +457,7 @@ class Biblio:
         p = self.at.perso(slug)
         deja = {int(f.stem.split("_")[1]) for f in self.dir(slug).glob("v_*.png")} if self.dir(slug).is_dir() else set()
         taches = [{"sortie": f"v_{s}", "seed": 1000 + 37 * s, "taille": [720, 1280], "lora": False,
-                   "prompt": f"{self._prefixe(p)}vertical medium close-up portrait, eye-level, front view, she looks at the camera, soft smile, "
+                   "prompt": f"{self._prefixe(p)}{TRAITS[s % len(TRAITS)]}, vertical medium close-up portrait, eye-level, front view, she looks at the camera, soft smile, "
                              f"in front of a plain light grey wall, wearing a white t-shirt, soft natural daylight{FIN}"}
                   for s in [s for s in range(1, 60) if s not in deja][:4]]
         self._lancer(slug, "visage", {"taches": taches}, len(taches))
@@ -498,7 +508,7 @@ class Biblio:
         return {"lance": len(taches)}
 
     def planches(self, b):
-        """Serie de planches : photos d'elle, cadrages et fonds varies. "tenue" vide : les tenues de sa fiche a tour de role ;
+        """Serie de planches : photos d'elle, cadrages, fonds et expressions varies. "tenue" vide : les tenues de sa fiche a tour de role ;
         sinon le texte du proprietaire (anglais), tel quel, pour toute la serie. "loras" : LoRA en plus, choisies par lui.
         Avec la LoRA du personnage si elle existe ; sinon par retouche du portrait choisi."""
         slug = b["slug"]
@@ -516,10 +526,18 @@ class Biblio:
         tenues = [x["en"] for x in v["tenues"] if x["genre"] != "dessous"] or ["a white t-shirt and jeans"]
         serie = bb["series"] = int(bb.get("series") or 0) + 1
         pre, taches = self._prefixe(p), []
+        # Expressions de la galerie (celles de la fiche en tete), a tour de role, sur un cadrage sur deux qui n'en dit aucune :
+        # le jeu d'entrainement garde une majorite de visages calmes, et la LoRA apprend que le visage bouge.
+        exprs = [", ".join(y for y in en.split(", ") if not y.startswith("looking")) for _, fr, en, _ in self._expressions(p) if fr != "Neutre"]
+        libres = 0
         for i in range(n):
             cadre, fond = CADRES[(i * 7 + serie) % len(CADRES)], FONDS[(i + serie) % len(FONDS)]
             if "bed" in cadre:
                 fond = FONDS[1]
+            if exprs and not re.search(r"neutral|smile|laugh", cadre):
+                if libres % 2 == 0:
+                    cadre += ", " + exprs[(libres // 2 + serie) % len(exprs)]
+                libres += 1
             habit = tenue or "wearing " + re.sub(r"^wearing ", "", tenues[(i + serie) % len(tenues)])
             desc = f"{cadre}, {fond}, {habit}" + (", nsfw" if b.get("nsfw") else "")
             nom = f"c_{serie}_{i + 1:02d}"
