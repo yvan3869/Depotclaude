@@ -658,7 +658,7 @@ class Atelier:
         fiche, ecr, gen = b.get("fiche") or {}, b.get("ecriture") or {}, b.get("generation") or {}
         prefix = _s(gen.get("zimage_prefix"), 400)
         # Fiche rangee en quatre cases (identite, allure, visage, corps) : le debut de chaque description en est tire, dans cet ordre.
-        cases = {k: _s(gen.get(k), 400).strip(" ,") for k in ("declencheur", "identite", "allure", "visage")}
+        cases = {k: _s(gen.get(k), 400).strip(" ,.") for k in ("declencheur", "identite", "allure", "visage")}
         if cases["identite"]:
             prefix = ", ".join(x for x in cases.values() if x)
         if prefix and not prefix.endswith(","):
