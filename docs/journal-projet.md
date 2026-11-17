@@ -823,3 +823,21 @@ faute de machine ; second reussi). Depense du chargement : environ 0,11 $ ; comp
   10 nettement distinctes, puis 4 au nouveau cadrage (serre ; le grand sourire sorti bouche fermee). Non essayes : dos, angles,
   planches tirees du corps, LoRA du corps.
 - Depense du jour relevee a 0,93 $ (plafond 20 $), calculs du proprietaire compris ; mes essais : environ 0,35 $.
+
+### 17 novembre 2026, fin - corps avec LoRA, texte relu, fiche en quatre cases
+
+- Corps de reference avec LoRA : face, dos et angles dessines par Z-Image (la vue en tete du texte) ; le dos refait (« seen from
+  behind » d'abord), juge bon par le proprietaire ; trois quarts dos obtenu, trois quarts face non (face ou profil).
+- Chaque image de l'atelier garde son texte reel (`taches.json`) : il se relit dans la loupe, s'ajuste, et une image de plus est
+  refaite avec le texte ajuste.
+- Images du corps : la description du visage n'y est plus reprise (elle tirait l'image vers lui).
+- Planches tirees du corps de reference : la tete des images du corps est coupee avant la retouche (27 % du haut, sauf de dos).
+  Essai d'assemblage habille : le visage du portrait tient ; le corps passe bien assise, moins bien debout de trois quarts ; la peau
+  vient du corps de reference. Une image par cas ; poses allongees et planches de dos non essayees.
+- Fiche du personnage, modele 2026-11-17 : le physique range en quatre cases (`generation.identite`, `allure`, `visage`, `corps`),
+  plus `declencheur`. Portrait = identite + visage ; image du corps = identite + allure + corps ; scene = les quatre
+  (`zimage_prefix` compose a l'enregistrement). Une ancienne fiche d'un seul bloc marche comme avant (tri aux mots) et se repartit
+  d'un bouton, a relire. Verificateur : case vide, mot dans la mauvaise case ; `--etat` affiche les cases. Consignes du scenariste
+  (ne rien redire du physique dans un plan) et du casting mises a jour.
+- En attente : mesure des traits tires au sort (un mot change a graine fixe), reportee par le proprietaire.
+- Depense du jour relevee a 1,85 $ (plafond 20 $), calculs du proprietaire compris ; mes essais de la journee : environ 0,75 $.
