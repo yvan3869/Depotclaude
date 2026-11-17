@@ -1149,7 +1149,9 @@ class Atelier:
         return {"file": self.file_vue()}
 
     def file_vue(self):
-        return {"attente": [{k: x[k] for k in ("n", "nom", "quand")} for x in self.file], "faits": self.file_faits}
+        st = self.studio
+        cours = (st.label or {"nom": "Calcul", "depuis": 0}) if st.running() else {"nom": "Chaîne", "depuis": 0} if self.chaine_active() else None
+        return {"attente": [{k: x[k] for k in ("n", "nom", "quand")} for x in self.file], "faits": self.file_faits, "en_cours": cours}
 
     def _file_veille(self):
         libre = 0
@@ -2168,6 +2170,7 @@ class Atelier:
             log = d / "runs" / f"r{n}.log"
             self.studio.proc = subprocess.Popen(cmd, cwd=str(self.repo / "server"), stdout=open(log, "w"), stderr=subprocess.STDOUT)
             self.job = {"projet": pid, "quoi": quoi, "log": str(log), "n": len(shots) * (IMAGES_PAR_SCENE if quoi == "images" else 1)}
+            self.studio.poser(f"{'Images' if quoi == 'images' else 'Clips'} ({pid})")
             return {"lance": self.job["n"], "quoi": quoi}
 
     def prod(self, pid):
@@ -2250,6 +2253,7 @@ class Atelier:
             log = d / f"c{n}.log"
             self.studio.proc = subprocess.Popen(cmd, cwd=str(self.repo / "server"), stdout=open(log, "w"), stderr=subprocess.STDOUT)
             self.job = {"projet": pid, "quoi": "comparaison", "log": str(log), "n": len(shots)}
+            self.studio.poser(f"Comparaison ({pid})")
             return {"lance": len(shots)}
 
     @staticmethod
@@ -2346,6 +2350,7 @@ class Atelier:
             _dump(d / "runs" / "son.json", lot)
             cmd = [sys.executable, "-m", "pilot", "sonimage" if image else "son", "--lot", str(d / "runs" / "son.json"), "--nom", pid, "--data", str(self.data)]
             proc = self.studio.proc = subprocess.Popen(cmd, cwd=str(self.repo / "server"), stdout=open(log, "w"), stderr=subprocess.STDOUT)
+            self.studio.poser(f"Sons ({pid})")
             self.sons[pid] = {"etat": "en cours", "faits": 0, "n": len(lot), "erreur": "", "cout": None}
         threading.Thread(target=self._son_fin, args=(pid, proc, log, lot, image), daemon=True).start()
         return {"lance": len(lot)}

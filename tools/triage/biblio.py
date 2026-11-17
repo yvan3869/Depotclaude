@@ -116,6 +116,10 @@ def _sans_elle(en):
     return re.sub(r"^the ", "a ", t).strip()
 
 
+NOMS_CALCUL = {"lieux": "Images des lieux", "tenues": "Images des tenues", "import": "Import d'images", "essayage": "Essayage", "visage": "Portraits",
+               "expressions": "Expressions", "planches": "Planches", "banc": "Banc d'essai", "entrainement": "Entraînement de la LoRA"}
+
+
 class Biblio:
     def __init__(self, at):
         self.at, self.job = at, None  # job : {"slug", "quoi", "log", "n"}, dernier calcul lance d'ici
@@ -335,6 +339,7 @@ class Biblio:
             cmd += ["--pod-id", os.environ.get("STUDIO_POD_ID") or self.at.studio.ensure_pod()]
         self.at.studio.proc = subprocess.Popen(cmd, cwd=str(self.at.repo / "server"), stdout=open(log, "w"), stderr=subprocess.STDOUT)
         self.job = {"slug": slug, "quoi": quoi, "log": str(log), "n": n}
+        self.at.studio.poser(f"{NOMS_CALCUL.get(quoi, quoi.capitalize())} ({slug})")
         return log
 
     def _prefixe(self, p):

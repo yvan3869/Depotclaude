@@ -367,6 +367,7 @@ class Hub:
             raise ValueError("clé RunPod absente : effacement impossible depuis l'interface")
         self.proc = self.studio.proc = subprocess.Popen([sys.executable, "-m", "pilot", "lora", "purge", "--data", str(self.data)],
                                                         cwd=str(self.repo / "server"), stdout=open(self.log, "w"), stderr=subprocess.STDOUT)
+        self.studio.poser("Effacement de LoRA")
         return {"lance": True}
 
     # --- chargement -----------------------------------------------------------------------------------------
@@ -396,6 +397,7 @@ class Hub:
         (self.data / "hub_charger.json").write_text(json.dumps(todo, ensure_ascii=False), encoding="utf-8")
         self.proc = self.studio.proc = subprocess.Popen([sys.executable, "-m", "pilot", "lora", "sync", "--data", str(self.data)],
                                                         cwd=str(self.repo / "server"), stdout=open(self.log, "w"), stderr=subprocess.STDOUT)
+        self.studio.poser("Chargement de LoRA")
         return {"lance": len(todo)}
 
     # --- routes ---------------------------------------------------------------------------------------------

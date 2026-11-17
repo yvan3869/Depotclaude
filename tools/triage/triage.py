@@ -86,6 +86,7 @@ class Studio:
         self.tests = data / "tests"
         self.repo = Path(os.environ.get("REPO_DIR", HERE.parents[1]))
         self.proc = None
+        self.label = None   # {"nom", "depuis"} : calcul en cours, montre en tete de la file d'attente
         self.podfile = data / "studio_pod.json"
         self.lock = threading.Lock()
         threading.Thread(target=self._watch, daemon=True).start()
@@ -209,6 +210,9 @@ class Studio:
     def running(self):
         return self.proc is not None and self.proc.poll() is None
 
+    def poser(self, nom):
+        self.label = {"nom": nom, "depuis": int(time.time())}
+
     def can_run(self):
         return bool(os.environ.get("RUNPOD_API_KEY")) and (self.repo / "server" / "pilot").exists()
 
@@ -255,6 +259,7 @@ class Studio:
         if self.can_run():
             cmd += ["--pod-id", os.environ.get("STUDIO_POD_ID") or self.ensure_pod()]
             self.proc = subprocess.Popen(cmd, cwd=str(self.repo / "server"), stdout=open(d / "log.txt", "w"), stderr=subprocess.STDOUT)
+            self.poser(f"Essai ({n} image(s))")
             return {"id": tid, "started": True}
         return {"id": tid, "started": False,
                 "command": f"docker compose run --rm pilot run /data/tests/{tid}/job.yaml --stills-only --out /data/tests/{tid}"}

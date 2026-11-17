@@ -409,6 +409,7 @@ class Social:
                            "--stills-only", "--pod-id", os.environ.get("STUDIO_POD_ID") or st.ensure_pod()]
                     log = self.runs / f"{nom}.log"
                     st.proc = subprocess.Popen(cmd, cwd=str(self.repo / "server"), stdout=open(log, "w"), stderr=subprocess.STDOUT)
+                    st.poser(f"Images de la Diffusion ({len(att)})")
             except Exception as e:  # pod refuse (plafond, quota) : on n'insiste pas tout de suite
                 self.attente, self.pause = f"lancement impossible : {str(e)[:200]}", time.time() + 600
                 _dump(self.d / "posts.json", P)
