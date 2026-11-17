@@ -118,8 +118,12 @@ FESSES = ("small firm buttocks", "small flat buttocks", "round high buttocks", "
           "athletic muscular buttocks", "large round buttocks")
 FESSES_F = ("round high buttocks", "heart-shaped buttocks", "square buttocks", "bubble-shaped buttocks", "soft low buttocks", "athletic muscular buttocks")
 HANCHES = ("narrow hips", "wide hips", "hip dips", "smooth rounded hips", "straight hips")
+# Ce qui parle du visage dans une fiche : retire des images de dos, sinon le modele la retourne pour le montrer.
+VISAGE_MOTS = re.compile(r"\bface\b|faced\b|eyes?\b|eyed\b|eyebrow|brows?\b|lash|eyelid|nose|nostril|lips?\b|lipped|mouth|smile|teeth|tooth|jaw|chin\b|cheek|"
+                         r"forehead|dimple|makeup|lipstick|gaze|look(s|ing)?\b|expression", re.I)
 CORPS_TENUE = "she wears only a plain fitted grey sports bra and matching briefs, bare stomach, bare legs, barefoot"
 CORPS_POSE = "in front of a plain light grey wall, soft even studio light, neutral face"
+CORPS_POSE_DOS = "in front of a plain light grey wall, soft even studio light"
 ANGLES = (("de profil", "profile view from her left side, she stands straight, arms slightly away from her body, looking ahead"),
           ("de trois quarts face", "three-quarter front view, she stands straight, arms slightly away from her body, looking at the camera"),
           ("de trois quarts dos", "three-quarter back view, she stands straight, arms slightly away from her body, head turned away"),
@@ -132,6 +136,13 @@ def traits_corps(s, fiche, dos=False):
     if dos:
         return f"{r.choice(FESSES_F if re.search(r'butt|hips|bottom|glute', fiche, re.I) else FESSES)}, {r.choice(HANCHES)}"
     return f"{r.choice(BUSTES)}, {r.choice(TAILLES)}"
+
+
+def taille_corps(s):
+    """La taille tiree pour le corps de face numero s (meme tirage que traits_corps)."""
+    r = random.Random(104729 * s)
+    r.choice(BUSTES)
+    return r.choice(TAILLES)
 
 
 ESSAIS = ("medium shot, eye-level, front view, she stands, soft smile, looking at the camera, in a bright living room, wearing a white t-shirt and jeans",
@@ -645,13 +656,26 @@ class Biblio:
         deja = {int(f.stem[2:]) for f in self.dir(slug).glob(pre + "*.png") if f.stem[2:].isdigit()} | self._jetes(slug, pre)
         libres = [s for s in range(1, 400) if s not in deja]
         if lo and quoi in ("face", "dos"):
-            vue = "back view, she stands straight with her back to the camera, head facing away" if quoi == "dos" else "front view, she stands straight facing the camera"
             if quoi == "dos" and not c["face"]["choix"]:
                 raise ValueError("retenir d'abord son corps de face")
-            taches = [{"sortie": f"{pre}{s}", "seed": base + 53 * s, "taille": [720, 1280], "lora": False, "loras": lo,
-                       "prompt": f"{qui}{fiche}, {traits_corps(s, fiche, quoi == 'dos')}{plus(s) if quoi == 'face' else ''}, vertical full-body shot from head to feet, "
-                                 f"eye-level, {vue}, arms slightly away from her body, feet slightly apart, {CORPS_POSE}, {tenue}, only one woman in the picture{FIN}"}
-                      for s in libres[:8]]
+            vue = "front view, she stands straight facing the camera"
+            if quoi == "dos":
+                # De dos, Z-Image suit le debut du texte : la vue passe en tete, et tout ce qui decrit le visage est retire
+                # (traits du portrait, yeux, bouche...) ; sinon elle se retourne. La taille est celle de la face retenue.
+                nf = c["face"]["choix"][2:-4]
+                dos_f = ", ".join(x.strip() for x in fiche.split(",") if x.strip() and not VISAGE_MOTS.search(x))
+                taille = (", " + taille_corps(int(nf))) if nf.isdigit() and not re.search(r"waist|stomach|torso", fiche, re.I) else ""
+                taches = [{"sortie": f"{pre}{s}", "seed": base + 53 * s, "taille": [720, 1280], "lora": False, "loras": lo,
+                           "prompt": f"full-body photo of a woman seen from behind, rear view, she stands with her back to the camera, facing the wall, "
+                                     f"her face is not visible, only the back of her head and her hair. {dos_f}{taille}, {traits_corps(s, fiche, True)}, "
+                                     f"vertical full-body shot from head to feet, eye-level, arms slightly away from her body, feet slightly apart, "
+                                     f"{CORPS_POSE_DOS}, {tenue}, only one woman in the picture{FIN}"}
+                          for s in libres[:8]]
+            else:
+                taches = [{"sortie": f"{pre}{s}", "seed": base + 53 * s, "taille": [720, 1280], "lora": False, "loras": lo,
+                           "prompt": f"{qui}{fiche}, {traits_corps(s, fiche)}{plus(s)}, vertical full-body shot from head to feet, "
+                                     f"eye-level, {vue}, arms slightly away from her body, feet slightly apart, {CORPS_POSE}, {tenue}, only one woman in the picture{FIN}"}
+                          for s in libres[:8]]
         elif quoi == "face":
             taches = [{"sortie": f"k_{s}", "ref": elle, "seed": base + 53 * s, "taille": [720, 1280],
                        "prompt": f"The woman from image 1, same face, same hair. New photo of her whole body, from head to feet: vertical full-body shot, eye-level, "
