@@ -688,15 +688,14 @@ class Biblio:
                 raise ValueError("choisir d'abord un portrait : les expressions en sont tirées")
             ref = str(self.fichier(slug, v["visage"]["choix"]))
         cles = {str(x) for x in b.get("cles") or []}
-        tenues = [x["en"] for x in v["tenues"] if x["genre"] != "dessous"] or ["a white t-shirt"]
         pre, taches = self._prefixe_visage(p), []
         for i, x in enumerate(v["expressions"]):
             if (x["cle"] not in cles) if cles else x["images"]:
                 continue
             k = max([int(y["nom"][:-4].split("_")[2]) for y in x["images"]] + list(self._jetes(slug, f"x_{x['cle']}_")) or [0]) + 1
-            habit = "wearing " + re.sub(r"^wearing ", "", tenues[(i + k) % len(tenues)])
-            desc = (f"tight close-up headshot, her face fills the frame, cropped at the base of the neck, eye-level, "
-                    f"{VUES[(i + k) % len(VUES)]}, {x['en']}, {FONDS[(i + k) % len(FONDS)]}, {habit}, only the collar visible at the bottom edge")
+            # la tenue n'est plus nommee : la citer fait reculer le cadre jusqu'au buste
+            desc = (f"extreme close-up of her face only, from the chin to the top of her hair, her face fills the whole frame, shoulders out of frame, "
+                    f"eye-level, {VUES[(i + k) % len(VUES)]}, {x['en']}, {FONDS[(i + k) % len(FONDS)]} blurred behind her")
             nom = f"x_{x['cle']}_{k}"
             bb["planches"][nom + ".png"] = {"garde": False, "legende": f"{pre}{desc}"}
             t = {"sortie": nom, "seed": 7000 + 53 * i + k, "taille": [720, 1280]}
