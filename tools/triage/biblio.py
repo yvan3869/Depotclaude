@@ -653,17 +653,18 @@ class Biblio:
             ref = str(self.fichier(slug, v["visage"]["choix"]))
         cles = {str(x) for x in b.get("cles") or []}
         tenues = [x["en"] for x in v["tenues"] if x["genre"] != "dessous"] or ["a white t-shirt"]
-        pre, taches = self._prefixe(p), []
+        pre, taches = self._prefixe_visage(p), []
         for i, x in enumerate(v["expressions"]):
             if (x["cle"] not in cles) if cles else x["images"]:
                 continue
             k = max([int(y["nom"][:-4].split("_")[2]) for y in x["images"]] + list(self._jetes(slug, f"x_{x['cle']}_")) or [0]) + 1
             habit = "wearing " + re.sub(r"^wearing ", "", tenues[(i + k) % len(tenues)])
-            desc = f"close-up portrait, eye-level, {VUES[(i + k) % len(VUES)]}, {x['en']}, {FONDS[(i + k) % len(FONDS)]}, {habit}"
+            desc = (f"tight close-up headshot, her face fills the frame, cropped at the base of the neck, eye-level, "
+                    f"{VUES[(i + k) % len(VUES)]}, {x['en']}, {FONDS[(i + k) % len(FONDS)]}, {habit}, only the collar visible at the bottom edge")
             nom = f"x_{x['cle']}_{k}"
             bb["planches"][nom + ".png"] = {"garde": False, "legende": f"{pre}{desc}"}
             t = {"sortie": nom, "seed": 7000 + 53 * i + k, "taille": [720, 1280]}
-            t |= {"ref": ref, "prompt": f"Same woman, same face, same hair. New photo of her: {desc}. Natural smartphone photo."} if ref \
+            t |= {"ref": ref, "prompt": f"Same woman, same face, same hair. New photo of her, framed as tightly as image 1: {desc}. Natural smartphone photo."} if ref \
                 else {"lora": True, "prompt": f"{pre}vertical {desc}{FIN}"}
             taches.append(t)
         if not taches:
