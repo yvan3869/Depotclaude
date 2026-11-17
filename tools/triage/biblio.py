@@ -365,7 +365,7 @@ class Biblio:
         def num(pre):  # images numerotees d'une famille, les plus recentes d'abord
             return sorted((n for n in noms if n.startswith(pre) and n[2:-4].isdigit()), key=lambda n: -int(n[2:-4]))
 
-        vis = num("v_")
+        vis, tach = num("v_"), self._taches(slug)
         expr = [{"cle": h, "fr": fr, "en": en, "fiche": fi, "images": [{"nom": n, "garde": bool(b["planches"].get(n, {}).get("garde"))}
                                                                     for n in noms if n.startswith(f"x_{h}_")]} for h, fr, en, fi in self._expressions(p)]
         series = self._series(slug)
@@ -375,7 +375,8 @@ class Biblio:
                 "visage": {"images": vis, "choix": b["choix"].get("visage") if b["choix"].get("visage") in vis else ""},
                 "corps": {"face": {"images": num("k_"), "choix": b["choix"].get("corps") if b["choix"].get("corps") in noms else ""},
                           "dos": {"images": num("d_"), "choix": b["choix"].get("dos") if b["choix"].get("dos") in noms else ""},
-                          "angles": [{"nom": n, "vue": ANGLES[(int(n[2:-4]) - 1) % len(ANGLES)][0]} for n in num("a_")], "tenue": b.get("corps_tenue") or "", "loras": b.get("corps_loras") or [], "variantes": "\n".join(b.get("corps_variantes") or [])},
+                          "angles": [{"nom": n, "vue": ANGLES[(int(n[2:-4]) - 1) % len(ANGLES)][0]} for n in num("a_")], "tenue": b.get("corps_tenue") or "", "loras": b.get("corps_loras") or [],
+                          "avec_lora": [n for n in noms if n[:2] in ("k_", "d_", "a_") and (tach.get(n[:-4]) or {}).get("loras")], "variantes": "\n".join(b.get("corps_variantes") or [])},
                 "expressions": expr, "gardees": sum(1 for x in b["planches"].values() if x.get("garde")),
                 "banc": [{"cle": k, **x, "images": [n for n in noms if n.startswith(f"b_{k}_")], "clips": sorted(f.name for f in d.glob(f"bv_{k}_*.mp4"))}
                          for k, x in reversed(list((b.get("banc") or {}).items()))],
