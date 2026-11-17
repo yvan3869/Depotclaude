@@ -138,6 +138,19 @@ def traits_corps(s, fiche, dos=False):
     return f"{r.choice(BUSTES)}, {r.choice(TAILLES)}"
 
 
+def sans_visage(fiche):
+    """La fiche sans ce qui decrit le visage (yeux, bouche, nez...) : restent l'age, l'origine, la peau, les cheveux et le corps.
+    Un morceau du type « a latina woman with brown eyes and long black hair » ne perd que « brown eyes »."""
+    out = []
+    for x in (y.strip() for y in fiche.split(",")):
+        if x and VISAGE_MOTS.search(x):
+            m = [z for z in re.split(r"\s+(?:with|and)\s+", x) if not VISAGE_MOTS.search(z)]
+            x = (m[0] + (" with " + " and ".join(m[1:]) if m[1:] else "")) if m else ""
+        if x:
+            out.append(x)
+    return ", ".join(out)
+
+
 # Angles dessines par Z-Image (LoRA du corps choisies) : la vue en tete du texte, comme pour le dos. Meme ordre que ANGLES.
 ANGLES_Z = ("side view, full profile, she stands sideways to the camera, her body and her face turned toward the left edge of the picture, looking straight ahead",
             "side view, slightly turned toward the camera: she stands sideways, her body turned toward the left edge of the picture, we see her side, "
@@ -149,8 +162,6 @@ ANGLES_Z = ("side view, full profile, she stands sideways to the camera, her bod
 
 def texte_angle(k, fiche, corps, tenue):
     """Texte Z-Image de l'angle k : la vue d'abord, puis elle (sans son visage de trois quarts dos), puis son corps (celui de la face et du dos retenus)."""
-    if k == 2:
-        fiche = ", ".join(x.strip() for x in fiche.split(",") if x.strip() and not VISAGE_MOTS.search(x))
     return (f"full-body photo of a woman, {ANGLES_Z[k]}. {fiche}, {corps}, vertical full-body shot from head to feet, eye-level, she stands straight, "
             f"arms slightly away from her body, feet slightly apart, {CORPS_POSE if k != 2 else CORPS_POSE_DOS}, {tenue}, only one woman in the picture{FIN}")
 
@@ -661,7 +672,9 @@ class Biblio:
             bb["corps_loras"] = [str(x) for x in b.get("loras") or []][:4]
             self._ecrire(slug, bb)
         tenue, var, lo = bb.get("corps_tenue") or CORPS_TENUE, bb.get("corps_variantes") or [], bb.get("corps_loras") or []
-        fiche = self._prefixe(p).rstrip(", ")  # sa description d'abord ; les traits tires au sort ne font que la completer
+        # Sa description d'abord (les traits tires au sort ne font que la completer), sans ce qui decrit le visage : pour une image
+        # du corps seuls comptent l'origine, la peau, les cheveux et le corps ; un visage tres decrit tire l'image vers lui.
+        fiche = sans_visage(self._prefixe(p).rstrip(", "))
 
         def plus(s):
             return (", " + random.Random(15485863 * s).choice(var)) if var else ""
@@ -678,11 +691,10 @@ class Biblio:
                 # De dos, Z-Image suit le debut du texte : la vue passe en tete, et tout ce qui decrit le visage est retire
                 # (traits du portrait, yeux, bouche...) ; sinon elle se retourne. La taille est celle de la face retenue.
                 nf = c["face"]["choix"][2:-4]
-                dos_f = ", ".join(x.strip() for x in fiche.split(",") if x.strip() and not VISAGE_MOTS.search(x))
                 taille = (", " + taille_corps(int(nf))) if nf.isdigit() and not re.search(r"waist|stomach|torso", fiche, re.I) else ""
                 taches = [{"sortie": f"{pre}{s}", "seed": base + 53 * s, "taille": [720, 1280], "lora": False, "loras": lo,
                            "prompt": f"full-body photo of a woman seen from behind, rear view, she stands with her back to the camera, facing the wall, "
-                                     f"her face is not visible, only the back of her head and her hair. {dos_f}{taille}, {traits_corps(s, fiche, True)}, "
+                                     f"her face is not visible, only the back of her head and her hair. {fiche}{taille}, {traits_corps(s, fiche, True)}, "
                                      f"vertical full-body shot from head to feet, eye-level, arms slightly away from her body, feet slightly apart, "
                                      f"{CORPS_POSE_DOS}, {tenue}, only one woman in the picture{FIN}"}
                           for s in libres[:8]]
