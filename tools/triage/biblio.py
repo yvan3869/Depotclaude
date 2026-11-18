@@ -390,7 +390,7 @@ class Biblio:
                 "visage": {"images": vis, "choix": b["choix"].get("visage") if b["choix"].get("visage") in vis else ""},
                 "corps": {"face": {"images": num("k_"), "choix": b["choix"].get("corps") if b["choix"].get("corps") in noms else ""},
                           "dos": {"images": num("d_"), "choix": b["choix"].get("dos") if b["choix"].get("dos") in noms else ""},
-                          "angles": [{"nom": n, "vue": ANGLES[(int(n[2:-4]) - 1) % len(ANGLES)][0]} for n in num("a_")], "tenue": b.get("corps_tenue") or "", "loras": b.get("corps_loras") or [], "nsfw": bool(b.get("corps_nsfw")),
+                          "angles": [{"nom": n, "vue": ANGLES[(int(n[2:-4]) - 1) % len(ANGLES)][0]} for n in num("a_")], "tenue": b.get("corps_tenue") or "", "loras": b.get("corps_loras") or [], "retouche": b.get("corps_retouche") or [], "nsfw": bool(b.get("corps_nsfw")),
                           "avec_lora": [n for n in noms if n[:2] in ("k_", "d_", "a_") and (tach.get(n[:-4]) or {}).get("loras")], "variantes": "\n".join(b.get("corps_variantes") or [])},
                 "expressions": expr, "gardees": sum(1 for x in b["planches"].values() if x.get("garde")),
                 "banc": [{"cle": k, **x, "images": [n for n in noms if n.startswith(f"b_{k}_")], "clips": sorted(f.name for f in d.glob(f"bv_{k}_*.mp4"))}
@@ -743,6 +743,13 @@ class Biblio:
         if "nsfw" in b:  # images pour adultes : le mot nsfw suit la tenue dans chaque texte, comme pour les planches
             bb["corps_nsfw"] = bool(b.get("nsfw"))
             self._ecrire(slug, bb)
+        # LoRA du modele de retouche (famille qwenedit), au choix du proprietaire : le corps est alors tire du portrait par retouche avec
+        # elles (meme visage) ; si des LoRA Z-Image sont aussi choisies, chaque image est ensuite finie par Z-Image avec elles, visage garde.
+        cat = self.at._catalogue()
+        if "retouche" in b:
+            bb["corps_retouche"] = [str(x) for x in b.get("retouche") or [] if (cat.get(str(x)) or {}).get("famille") == "qwenedit"][:3]
+            self._ecrire(slug, bb)
+        ed = [x for x in bb.get("corps_retouche") or [] if (cat.get(x) or {}).get("famille") == "qwenedit"]
         tenue, var, lo = bb.get("corps_tenue") or CORPS_TENUE, bb.get("corps_variantes") or [], bb.get("corps_loras") or []
         if bb.get("corps_nsfw"):
             tenue += ", nsfw"
@@ -758,7 +765,28 @@ class Biblio:
         pre, base = {"face": ("k_", 7000), "dos": ("d_", 8000), "angles": ("a_", 9000)}[quoi]
         deja = {int(f.stem[2:]) for f in self.dir(slug).glob(pre + "*.png") if f.stem[2:].isdigit()} | self._jetes(slug, pre)
         libres = [s for s in range(1, 400) if s not in deja]
-        if lo and quoi in ("face", "dos"):
+        tz = None  # texte Z-Image de l'image s (finition apres retouche)
+        if quoi == "face":
+            def tz(s):
+                return (f"full-body photo of a woman, front view, she stands straight facing the camera. {fiche}, {traits_corps(s, fiche)}{plus(s)}, vertical full-body shot from head to feet, "
+                        f"eye-level, arms slightly away from her body, feet slightly apart, {CORPS_POSE}, {tenue}, only one woman in the picture{FIN_LOIN}")
+        elif quoi == "dos" and c["face"]["choix"]:
+            nf_ = c["face"]["choix"][2:-4]
+            taille_ = (", " + taille_corps(int(nf_))) if nf_.isdigit() and not re.search(r"waist|stomach|torso", fiche, re.I) else ""
+
+            def tz(s):
+                return (f"full-body photo of a woman seen from behind, rear view, she stands with her back to the camera, facing the wall, "
+                        f"her face is not visible, only the back of her head and her hair. {fiche}{taille_}, {traits_corps(s, fiche, True)}, "
+                        f"vertical full-body shot from head to feet, eye-level, arms slightly away from her body, feet slightly apart, "
+                        f"{CORPS_POSE_DOS}, {tenue}, only one woman in the picture{FIN_LOIN}")
+        elif quoi == "angles" and c["face"]["choix"] and c["dos"]["choix"]:
+            nf_, nd_ = c["face"]["choix"][2:-4], c["dos"]["choix"][2:-4]
+            if nf_.isdigit() and nd_.isdigit():
+                corps_ = f"{traits_corps(int(nf_), fiche)}{plus(int(nf_))}, {traits_corps(int(nd_), fiche, True)}"
+
+                def tz(s):
+                    return texte_angle((s - 1) % len(ANGLES), fiche, corps_, tenue)
+        if lo and not ed and quoi in ("face", "dos"):
             if quoi == "dos" and not c["face"]["choix"]:
                 raise ValueError("retenir d'abord son corps de face")
             vue = "front view, she stands straight facing the camera"
@@ -800,7 +828,7 @@ class Biblio:
             face, dos = str(self.fichier(slug, c["face"]["choix"])), str(self.fichier(slug, c["dos"]["choix"]))
             libres = [s for s in libres if (s - 1) % len(ANGLES) == 0][:1]  # un tour complet des angles a la fois
             nf, nd = c["face"]["choix"][2:-4], c["dos"]["choix"][2:-4]
-            if lo and nf.isdigit() and nd.isdigit():  # LoRA choisies : les angles aussi sont dessines par Z-Image avec elles, la vue en tete du texte
+            if lo and not ed and nf.isdigit() and nd.isdigit():  # LoRA choisies : les angles aussi sont dessines par Z-Image avec elles, la vue en tete du texte
                 corps = f"{traits_corps(int(nf), fiche)}{plus(int(nf))}, {traits_corps(int(nd), fiche, True)}"
                 taches = [{"sortie": f"a_{s}", "seed": base + 61 * s, "taille": [720, 1280], "lora": False, "loras": lo,
                            "prompt": texte_angle((s - 1) % len(ANGLES), fiche, corps, tenue)}
@@ -812,8 +840,18 @@ class Biblio:
                                  f"same buttocks, same skin, same hair. New photo of her from another angle, from head to feet: vertical full-body shot, eye-level, "
                                  f"{ANGLES[(s - 1) % len(ANGLES)][1]}, {CORPS_POSE}. {tenue}. Only one woman in the picture. Natural smartphone photo."}
                       for s in range(libres[0], libres[0] + len(ANGLES))]
-        self._lancer(slug, "corps", {"taches": taches}, len(taches))
-        return {"lance": len(taches)}
+        n = len(taches)
+        if ed:
+            taches = [t | {"loras_edit": ed} for t in taches]
+            if lo and tz:  # la retouche devient l'image intermediaire (y...), l'essai est sa finition par Z-Image avec les LoRA, visage garde
+                fin = []
+                for t in taches:
+                    y = "y" + t["sortie"]
+                    fin += [t | {"sortie": y}, {"sortie": t["sortie"], "seed": t["seed"], "taille": t["taille"], "lora": False, "loras": lo,
+                                                 "finir": str(self.dir(slug) / f"{y}.png"), "finition": 0.5, "depuis": y, "prompt": tz(int(t["sortie"][2:]))}]
+                taches = fin
+        self._lancer(slug, "corps", {"taches": taches}, n)
+        return {"lance": n}
 
     def _refs_corps(self, slug, v, cadre):
         """Images du corps de reference a joindre a une planche, d'apres son cadrage (deux au plus : la retouche lit trois images, portrait compris)."""
