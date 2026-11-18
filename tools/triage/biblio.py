@@ -1018,6 +1018,9 @@ class Biblio:
                                                 f"same breasts, same waist, same hips, same buttocks, same legs, same skin; ignore the clothes and the background of "
                                                 f"{'those images' if len(rc) > 1 else 'that image'}.{qui} New photo of her: {desc}. Only one woman in the picture. Natural smartphone photo, {peau}."}
                 if finie:  # la retouche devient l'image intermediaire ; la planche est sa finition par Z-Image, visage garde
+                    # la peau n'est dite qu'une fois, a la finition, et legerement : dite aux deux etapes, avec les LoRA par-dessus, elle sortait trop marquee
+                    t["prompt"] = t["prompt"].replace(f"Natural smartphone photo, {peau}.", "Natural smartphone photo.")
+                    fin_ = FIN_PRES
                     y = f"y_{serie}_{i + 1:02d}"
                     taches.append(t | {"sortie": y})
                     de_dos = "back view" in cadre
