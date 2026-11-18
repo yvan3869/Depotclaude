@@ -854,3 +854,27 @@ faute de machine ; second reussi). Depense du chargement : environ 0,11 $ ; comp
   Resultat : 4 sur 4 sorties, meme visage que le portrait, grain de peau et taches de rousseur gardes, une seule personne, corps
   coherent avec la vue de face. Planche `data/inbox/p0004essai_planches_1811.png`. Non essaye : dos, nu (au proprietaire).
 - Depense : 4 images par retouche, quelques centimes (releve du jour encore a 0,00 $ au moment de l'essai, plafond 20 $).
+
+### 18 novembre 2026 (nuit, suite) - troisieme voie des planches, prises par clip, panne d'un calcul
+
+- Panne : un calcul du proprietaire (une expression du personnage sans LoRA) a perdu sa machine, supprimee par le filet d'age,
+  et ne s'est arrete qu'au delai (01:15 UTC, « delai depasse »). L'expression est a relancer. Correctifs en service : la machine
+  de veille est remplacee a 65 minutes, avant l'age ou le filet la supprime ; un calcul dont la machine a disparu s'arrete en
+  trois minutes au lieu de trente.
+- Troisieme voie des planches (`voie: "lora"`) : le corps est dessine par Z-Image avec les LoRA (image `y_`), puis le visage du
+  portrait est pose par retouche. Deux ecritures essayees sur le personnage d'essai, habille :
+  - A (corps en image 1, « remplace la tete ») : 1 planche sur 4 prend le visage du portrait ; les 3 autres ne changent que les
+    cheveux. Planche `data/inbox/p0004essai_planches_voie3.png`.
+  - B (`pose: "b"`, portrait en image 1, corps en image 2 ; API seulement) : 0 sur 2, l'image 2 est recopiee presque telle
+    quelle. Planche `data/inbox/p0004essai_planches_voie3b.png`.
+  Conclusion : la retouche ne pose pas un visage de facon fiable sur un corps deja dessine. La voie sure reste « planches par
+  retouche » avec un corps de reference (lui-meme dessine avec LoRA dans l'onglet Corps) : 4 sur 4 a l'essai precedent.
+  A noter : sans LoRA de personnage, Z-Image dessine parfois un visage d'allure jeune ; a surveiller (regle « parait 21 ans ou plus »).
+- Clips : « Prises par clip » (1, 2 ou 3 ; 1 par defaut) dans la Production. Chaque prise se range comme un lancement a part
+  (`runs/r<n+k>.json`, graine + 1000 par prise), se choisit dans les prises ; une scene continue suit le clip de sa propre prise.
+  Essai sur p0004 temps 1 (3 scenes dont une continue, 3 prises) : 9 clips sortis sans erreur, environ 96 s chacun, 18 minutes
+  de machine. Mesure du mouvement des 9 clips : trop proche d'une prise a l'autre (0,9 a 1,5) pour choisir a la place du
+  proprietaire ; elle ne sert qu'a reperer un clip fige.
+- Reflexion du producteur (`docs/reflexion-producteur.md`) : suite sur les revenus (trois coupes par projet, series de photos,
+  chiffres, sur-mesure). La proposition « trois prises » est construite ; le reste est a l'etat de proposition.
+- Depense du jour relevee a 0,81 $ (plafond 20 $) : 9 clips d'essai (environ 0,65 $), 12 images d'essai des planches (le reste).
