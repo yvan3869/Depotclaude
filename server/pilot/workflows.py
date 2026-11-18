@@ -231,6 +231,92 @@ def edit_image(m, image_name, prompt, w, h, seed, prefix, steps=8, loras=None):
     }
 
 
+VISAGE = ("Replace only the face of the woman in image 1 with the face of the woman from image 2: exactly her facial features, her eyes, her nose, "
+          "her mouth, her skin and its marks, looking at the camera with a neutral relaxed expression, at the same place and the same size. "
+          "Keep everything else of image 1 exactly unchanged: her hair, her neck, her shoulders, her body, her skin tone, the background, the light "
+          "and the framing. Natural smartphone photo, natural skin texture, fine pores.")
+
+
+def poser_visage(m, image_name, portrait_name, w, h, seed, prefix, part=0.375):
+    """Visage d'un portrait (image 2) repose en grand sur une image en pied (image 1), ou la tete est trop petite pour lui ressembler :
+    le haut de l'image, agrandi deux fois, passe par la retouche, puis seul le visage, bord adouci, est recolle a sa place (cheveux,
+    cou, corps et fond restent ceux de l'image 1). Deuxieme sortie, le temoin : les masques du visage avant et apres, a comparer
+    avec `visage_en_place` (la retouche deplace ou grossit parfois le visage : l'image est alors a jeter)."""
+    hc = int(h * part) // 16 * 16
+    g = edit_image(m, image_name, VISAGE, w * 2, hc * 2, seed, prefix)
+    g |= {"haut": {"class_type": "ImageCrop", "inputs": {"image": ["img", 0], "width": w, "height": hc, "x": 0, "y": 0}},
+          "grand": {"class_type": "ImageScale", "inputs": {"image": ["haut", 0], "upscale_method": "lanczos", "width": w * 2, "height": hc * 2, "crop": "disabled"}},
+          "img2": {"class_type": "LoadImage", "inputs": {"image": portrait_name}},
+          "petit": {"class_type": "ImageScale", "inputs": {"image": ["dec", 0], "upscale_method": "lanczos", "width": w, "height": hc, "crop": "disabled"}},
+          "pck": {"class_type": "CheckpointLoaderSimple", "inputs": {"ckpt_name": m["sdpose"]}}}
+    for n, image in (("a", ["grand", 0]), ("b", ["dec", 0])):  # masque du visage avant et apres : seul ce qui est commun est recolle
+        g |= {"pk" + n: {"class_type": "SDPoseKeypointExtractor", "inputs": {"model": ["pck", 0], "vae": ["pck", 2], "image": image, "batch_size": 1}},
+              "pd" + n: {"class_type": "SDPoseDrawKeypoints", "inputs": {
+                  "keypoints": ["pk" + n, 0], "draw_body": False, "draw_hands": False, "draw_face": True, "draw_feet": False,
+                  "stick_width": 4, "face_point_size": 10, "score_threshold": 0.3, "draw_head": False}},
+              "px" + n: {"class_type": "ImageScale", "inputs": {"image": ["pd" + n, 0], "upscale_method": "bilinear", "width": w * 2, "height": hc * 2, "crop": "disabled"}}}
+        for ch in ("red", "green", "blue"):
+            g["m" + ch[0] + n] = {"class_type": "ImageToMask", "inputs": {"image": ["px" + n, 0], "channel": ch}}
+        g |= {"m1" + n: {"class_type": "MaskComposite", "inputs": {"destination": ["mr" + n, 0], "source": ["mg" + n, 0], "x": 0, "y": 0, "operation": "add"}},
+              "m2" + n: {"class_type": "MaskComposite", "inputs": {"destination": ["m1" + n, 0], "source": ["mb" + n, 0], "x": 0, "y": 0, "operation": "add"}},
+              "mt" + n: {"class_type": "ThresholdMask", "inputs": {"mask": ["m2" + n, 0], "value": 0.04}},
+              "mg1" + n: {"class_type": "GrowMask", "inputs": {"mask": ["mt" + n, 0], "expand": 72, "tapered_corners": True}},
+              "mw" + n: {"class_type": "GrowMask", "inputs": {"mask": ["mg1" + n, 0], "expand": -44, "tapered_corners": True}}}
+    g |= {"mx": {"class_type": "MaskComposite", "inputs": {"destination": ["mwa", 0], "source": ["mwb", 0], "x": 0, "y": 0, "operation": "multiply"}},
+          "mim": {"class_type": "MaskToImage", "inputs": {"mask": ["mx", 0]}},
+          "mbl": {"class_type": "ImageBlur", "inputs": {"image": ["mim", 0], "blur_radius": 16, "sigma": 8.0}},
+          "mps": {"class_type": "ImageScale", "inputs": {"image": ["mbl", 0], "upscale_method": "bilinear", "width": w, "height": hc, "crop": "disabled"}},
+          "mz": {"class_type": "ImageToMask", "inputs": {"image": ["mps", 0], "channel": "red"}},
+          "pose": {"class_type": "ImageCompositeMasked", "inputs": {"destination": ["img", 0], "source": ["petit", 0], "x": 0, "y": 0, "resize_source": False, "mask": ["mz", 0]}}}
+    for k in ("pos", "neg"):
+        g[k]["inputs"] |= {"image1": ["grand", 0], "image2": ["img2", 0]}
+    g["save"]["inputs"]["images"] = ["pose", 0]
+    # temoin : les deux masques (avant, apres) en petit, pour verifier que le visage n'a ni bouge ni change de taille
+    g |= {"ta": {"class_type": "MaskToImage", "inputs": {"mask": ["mwa", 0]}}, "tb": {"class_type": "MaskToImage", "inputs": {"mask": ["mwb", 0]}},
+          "tab": {"class_type": "ImageBatch", "inputs": {"image1": ["ta", 0], "image2": ["tb", 0]}},
+          "tp": {"class_type": "ImageScale", "inputs": {"image": ["tab", 0], "upscale_method": "bilinear", "width": w // 4, "height": hc // 4, "crop": "disabled"}},
+          "temoin": {"class_type": "SaveImage", "inputs": {"images": ["tp", 0], "filename_prefix": prefix + "_temoin"}}}
+    return g
+
+
+def boite_png(b):
+    """Boite (x0, y0, x1, y1) des points clairs d'un PNG 8 bits (gris, RVB ou RVBA), None s'il n'y en a pas. Sans bibliotheque d'images."""
+    import struct, zlib
+    w, h, prof, coul = struct.unpack(">IIBB", b[16:26])
+    n = {0: 1, 2: 3, 6: 4}[coul]
+    data, i = b"", 8
+    while i < len(b):
+        ln, typ = struct.unpack(">I4s", b[i:i + 8])
+        if typ == b"IDAT":
+            data += b[i + 8:i + 8 + ln]
+        i += 12 + ln
+    raw, pas, prec, xs, ys = zlib.decompress(data), w * n, bytes(w * n), [], []
+    for y in range(h):
+        f, l = raw[y * (pas + 1)], bytearray(raw[y * (pas + 1) + 1:(y + 1) * (pas + 1)])
+        for x in range(pas):
+            g, hh, d = (l[x - n] if x >= n else 0), prec[x], (prec[x - n] if x >= n else 0)
+            if f == 1: l[x] = (l[x] + g) & 255
+            elif f == 2: l[x] = (l[x] + hh) & 255
+            elif f == 3: l[x] = (l[x] + (g + hh) // 2) & 255
+            elif f == 4:
+                pa, pb, pc = abs(hh - d), abs(g - d), abs(g + hh - 2 * d)
+                l[x] = (l[x] + (g if pa <= pb and pa <= pc else hh if pb <= pc else d)) & 255
+        prec = bytes(l)
+        cl = [x for x in range(w) if l[x * n] > 127]
+        if cl:
+            xs += [cl[0], cl[-1]]; ys.append(y)
+    return (min(xs), ys[0], max(xs) + 1, ys[-1] + 1) if xs else None
+
+
+def visage_en_place(a, b, tol=0.12):
+    """Vrai si les boites du visage avant (a) et apres (b) retouche se recouvrent a peu pres : meme centre, meme taille."""
+    if not a or not b:
+        return False
+    la, ha, lb, hb = a[2] - a[0], a[3] - a[1], b[2] - b[0], b[3] - b[1]
+    return (abs((a[0] + a[2]) - (b[0] + b[2])) / 2 <= tol * la and abs((a[1] + a[3]) - (b[1] + b[3])) / 2 <= tol * ha
+            and abs(lb - la) <= tol * la and abs(hb - ha) <= tol * ha)
+
+
 def clip(m, char, image_name, prompt, w, h, seed, prefix, mode="natural", frames=81, end_image_name=None, loras=None):
     """Clip : Wan 2.2 I2V. mode 'fast' (4 pas, LoRA rapide partout) ou 'natural'
     (4 pas high-noise sans LoRA rapide avec CFG 3,5, puis 4 pas low-noise rapides).

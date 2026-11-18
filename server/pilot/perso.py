@@ -103,13 +103,24 @@ def images(a, cfg, resolve_loras, to_mp4=None):
                     for r in t.get("refs") or []:
                         if r not in refs:
                             refs[r] = c.upload(f"ga_perso_ref{len(refs)}.png", Path(r).read_bytes())
-                    if t.get("tete"):  # la tete du portrait posee sur un corps dessine (image entiere : aucun raccord)
+                    if t.get("tete"):  # la tete du portrait posee sur un corps dessine (image entiere), puis son visage repose en grand
                         if t["tete"] not in refs:
                             refs[t["tete"]] = c.upload(f"ga_perso_ref{len(refs)}.png", Path(t["tete"]).read_bytes())
                         g = workflows.edit_image(models, refs[t["ref"]], t["prompt"], w, h, int(t["seed"]), f"ga_{t['sortie']}_t")
                         g["img2"] = {"class_type": "LoadImage", "inputs": {"image": refs[t["tete"]]}}
                         g["pos"]["inputs"]["image2"] = g["neg"]["inputs"]["image2"] = ["img2", 0]
                         img = c.fetch(c.run(g)[0])
+                        try:  # en pied la tete est petite : son visage est repose en grand, garde seulement s'il est reste a sa place
+                            up, bon = c.upload(f"ga_perso_tete{len(report['shots'])}.png", img), False
+                            for e in range(3):
+                                fs = c.run(workflows.poser_visage(models, up, refs[t["tete"]], w, h, int(t["seed"]) + 977 * e, f"ga_{t['sortie']}"))
+                                tm = [workflows.boite_png(c.fetch(f)) for f in sorted(fs, key=lambda f: f["filename"]) if "_temoin" in f["filename"]]
+                                if len(tm) == 2 and workflows.visage_en_place(*tm):
+                                    img, bon = c.fetch([f for f in fs if "_temoin" not in f["filename"]][0]), True
+                                    break
+                            log(f"{t['sortie']} : visage repose en grand" if bon else f"{t['sortie']} : visage laisse tel quel (il bougeait a chaque essai)")
+                        except Exception as x:
+                            log(f"{t['sortie']} : visage laisse tel quel ({str(x)[:200]})")
                         (out / f"{t['sortie']}.png").write_bytes(img)
                         log(f"{t['sortie']} : image ({round(time.time() - d)} s)")
                         continue
