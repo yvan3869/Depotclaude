@@ -55,3 +55,41 @@ d'un geste dans les Rushes, serve a toute la suite.
 ## Par quoi commencer
 
 1 (LoRA de Luz), puis 2 (trois prises) et 4 (plans de visage) : ce sont les trois qui changent le plus ce qu'on voit, pour le moins de travail.
+
+## L'argent (suite du 18/11, nuit)
+
+Fabriquer de belles videos ne rapporte rien tout seul. Ce qui rapporte, c'est un chemin que le spectateur suit :
+
+1. **Il la decouvre** sur un reseau ouvert a tous (video courte, tous publics, sexy sans rien montrer).
+2. **Il s'attache** : il la revoit, toujours la meme, avec son caractere, sa facon de parler, ses lieux.
+3. **Il paie** sur une page reservee aux adultes : abonnement, puis contenus vendus a l'unite, puis demandes sur mesure.
+
+Ce que cela change pour la fabrication :
+
+- **Chaque projet doit sortir en trois coupes**, pas une : l'extrait tous publics (temps 1, parfois 2), la version de la page payante
+  (temps 1 a 3), et la version vendue a l'unite (temps 4 et 5). Aujourd'hui la chaine sort un seul montage.
+  Exemple : « le croissant du samedi » = 12 secondes pour le reseau, 40 secondes pour les abonnes, la suite a l'unite.
+- **La regularite compte plus que l'eclat.** Une video correcte tous les jours bat une video superbe par semaine. Le systeme fiable
+  que veut le proprietaire est donc aussi le bon choix pour les revenus : file d'attente la nuit, jugement le matin en dix minutes.
+- **Le personnage est le produit.** Les gens ne s'abonnent pas a des videos, ils s'abonnent a quelqu'un. D'ou l'ordre : sa LoRA,
+  sa voix, ses lieux, ses habitudes (le meme cafe, le meme lit, le meme pull). Les bibliotheques de lieux et de tenues servent a ca.
+- **Les photos rapportent aussi.** Une serie de dix images d'un meme moment coute vingt fois moins qu'une video et se vend.
+  L'atelier sait deja les faire ; il manque seulement la sortie « serie de photos » dans la Diffusion.
+- **Le sur-mesure est ce qui paie le mieux** (une demande, un prix). Il faut pour cela qu'une demande simple devienne un projet
+  en cinq minutes : un prenom, un lieu, une tenue, un acte. La liste fermee des positions et les fiches des LoRA y menent deja.
+- **Compter.** Sans chiffres on travaille a l'aveugle. Pour chaque video publiee : vues, clics vers la page, abonnements.
+  Un tableau simple dans la Diffusion, rempli a la main au debut. C'est lui qui dira quelles recettes refaire.
+
+Ce qu'il faut verifier avant d'ouvrir une page (je ne l'ai pas verifie, les regles changent souvent) : quelles plateformes payantes
+acceptent un personnage entierement fabrique, sous quelle mention, et ce que les reseaux ouverts tolerent comme lien vers une page adulte.
+La regle de la maison ne change pas : personnage adulte et fictif, mention « IA », validation humaine avant toute publication.
+
+Ce que je construirais pour l'argent, a cote de l'existant :
+
+- A. Les **trois coupes** d'un projet (reseau, abonnes, unite), calculees depuis le meme tournage.
+- B. La sortie **serie de photos**.
+- C. Le **tableau des chiffres** par publication.
+- D. Le **projet express** pour une demande sur mesure.
+
+Ordre conseille : d'abord la qualite (1, 2, 4 ci-dessus), ensuite A et C. Vendre trop tot un personnage qui change de visage
+fait perdre les premiers abonnes, et ce sont les plus durs a regagner.
