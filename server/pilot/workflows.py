@@ -144,6 +144,42 @@ def reprise_visage(m, char, image_name, prompt, W, H, boite, seed, prefix, cote=
     return g
 
 
+def finir_planche(m, char, image_name, prompt, w, h, seed, prefix, loras=None, denoise=0.5, steps=9):
+    """Finition d'une planche faite par retouche : l'image (deja deposee) est redessinee en partie par Z-Image, avec le texte de
+    la fiche et les LoRA choisies, sauf le visage, garde au pixel. La retouche tient l'identite (visage du portrait, corps de
+    reference) ; Z-Image rend la peau, le tissu, les cheveux, et les LoRA jouent sur le corps. Le visage est repere par les points
+    du squelette ; sans visage visible (de dos), toute l'image est redessinee. Plus `denoise` est haut, plus le corps bouge."""
+    g = still_zimage(m, char, prompt, w, h, seed, prefix, steps=steps, loras=loras or [])
+    del g["lat"]
+    g["pi"] = {"class_type": "LoadImage", "inputs": {"image": image_name}}
+    g["ps"] = {"class_type": "ImageScale", "inputs": {"image": ["pi", 0], "upscale_method": "lanczos", "width": w, "height": h, "crop": "center"}}
+    g["pck"] = {"class_type": "CheckpointLoaderSimple", "inputs": {"ckpt_name": m["sdpose"]}}
+    g["pkp"] = {"class_type": "SDPoseKeypointExtractor", "inputs": {"model": ["pck", 0], "vae": ["pck", 2], "image": ["ps", 0], "batch_size": 1}}
+    g["pdr"] = {"class_type": "SDPoseDrawKeypoints", "inputs": {
+        "keypoints": ["pkp", 0], "draw_body": False, "draw_hands": False, "draw_face": True, "draw_feet": False,
+        "stick_width": 4, "face_point_size": 10, "score_threshold": 0.3, "draw_head": False}}
+    g["pdx"] = {"class_type": "ImageScale", "inputs": {"image": ["pdr", 0], "upscale_method": "bilinear", "width": w, "height": h, "crop": "disabled"}}
+    for ch in ("red", "green", "blue"):
+        g["m" + ch[0]] = {"class_type": "ImageToMask", "inputs": {"image": ["pdx", 0], "channel": ch}}
+    g["m1"] = {"class_type": "MaskComposite", "inputs": {"destination": ["mr", 0], "source": ["mg", 0], "x": 0, "y": 0, "operation": "add"}}
+    g["m2"] = {"class_type": "MaskComposite", "inputs": {"destination": ["m1", 0], "source": ["mb", 0], "x": 0, "y": 0, "operation": "add"}}
+    g["mt"] = {"class_type": "ThresholdMask", "inputs": {"mask": ["m2", 0], "value": 0.04}}
+    # les points sont elargis jusqu'a se toucher (aucun trou dans la joue), puis la zone est resserree : le front et le menton y sont
+    g["mg1"] = {"class_type": "GrowMask", "inputs": {"mask": ["mt", 0], "expand": 72, "tapered_corners": True}}
+    g["mw"] = {"class_type": "GrowMask", "inputs": {"mask": ["mg1", 0], "expand": -36, "tapered_corners": True}}
+    g["mim"] = {"class_type": "MaskToImage", "inputs": {"mask": ["mw", 0]}}
+    g["mbl"] = {"class_type": "ImageBlur", "inputs": {"image": ["mim", 0], "blur_radius": 10, "sigma": 5.0}}
+    g["mz"] = {"class_type": "ImageToMask", "inputs": {"image": ["mbl", 0], "channel": "red"}}
+    g["minv"] = {"class_type": "InvertMask", "inputs": {"mask": ["mw", 0]}}
+    g["enc"] = {"class_type": "VAEEncode", "inputs": {"pixels": ["ps", 0], "vae": ["vae", 0]}}
+    g["lat"] = {"class_type": "SetLatentNoiseMask", "inputs": {"samples": ["enc", 0], "mask": ["minv", 0]}}
+    g["ks"]["inputs"].update(latent_image=["lat", 0], denoise=denoise)
+    g["comp"] = {"class_type": "ImageCompositeMasked", "inputs": {"destination": ["dec", 0], "source": ["ps", 0], "x": 0, "y": 0,
+                                                                  "resize_source": False, "mask": ["mz", 0]}}
+    g["save"]["inputs"]["images"] = ["comp", 0]
+    return g
+
+
 def imposer_pose(g, m, pose_name, force=0.9):
     """Ajoute a un graphe de still_zimage une pose imposee : le dessin d'un squelette (image deja deposee) guide la
     position du corps et le cadrage ; le visage, la tenue et le lieu restent ceux du texte et de la LoRA."""

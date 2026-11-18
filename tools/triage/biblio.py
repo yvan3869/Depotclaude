@@ -21,6 +21,16 @@ GENRES = ("tenue", "dessous")
 FIN_ANC = ", smartphone photo, natural skin texture"  # fin des textes d'avant le 18/11/2026 (relue pour les anciennes series)
 PEAU = "natural skin texture, visible pores, small skin imperfections"  # sans cela la peau sort lisse
 FIN = f", smartphone photo, {PEAU}"
+PEAU_PRES = "natural skin texture, fine pores"  # de pres, la phrase entiere marque trop la peau
+PEAU_LOIN = "realistic detailed skin, clearly visible skin texture and pores, small moles, slight natural skin imperfections, natural uneven skin tone"  # de loin, elle ne suffit pas
+
+
+def _peau(cadre):
+    """Les mots de la peau selon le cadrage : legers en gros plan (sinon la peau sort trop marquee), appuyes en plan large (sinon elle sort lisse)."""
+    c = cadre.lower()
+    return PEAU_PRES if "close-up" in c and "medium" not in c else PEAU_LOIN if "full-body" in c or "full body" in c else PEAU
+
+
 # Planches : cadrage et pose, puis fond. Varies expres : une LoRA entrainee sur un seul fond ou un seul cadrage les recopie.
 CADRES = (
     "close-up portrait, eye-level, front view, she looks at the camera, neutral face",
@@ -91,6 +101,9 @@ TRAITS = (
     (r"symmetr|\blook\b", ("girl-next-door look", "striking fashion-model look", "sporty tomboyish look", "soft romantic look", "sharp elegant look",
                            "quirky unconventional look", "slightly asymmetric face", "mature serious look")),
 )
+
+
+FIN_PRES, FIN_LOIN = f", smartphone photo, {PEAU_PRES}", f", smartphone photo, {PEAU_LOIN}"
 
 
 # Un prenom invente deplace aussi le visage que le modele dessine, sans rien contredire dans la fiche.
@@ -193,7 +206,7 @@ ANGLES_Z = ("side view, full profile, she stands sideways to the camera, her bod
 def texte_angle(k, fiche, corps, tenue):
     """Texte Z-Image de l'angle k : la vue d'abord, puis elle (sans son visage de trois quarts dos), puis son corps (celui de la face et du dos retenus)."""
     return (f"full-body photo of a woman, {ANGLES_Z[k]}. {fiche}, {corps}, vertical full-body shot from head to feet, eye-level, she stands straight, "
-            f"arms slightly away from her body, feet slightly apart, {CORPS_POSE if k != 2 else CORPS_POSE_DOS}, {tenue}, only one woman in the picture{FIN}")
+            f"arms slightly away from her body, feet slightly apart, {CORPS_POSE if k != 2 else CORPS_POSE_DOS}, {tenue}, only one woman in the picture{FIN_LOIN}")
 
 
 def _lora_force(x):
@@ -543,9 +556,10 @@ class Biblio:
             return {}
 
     def texte(self, b):
-        """Le texte reellement envoye pour une image (portrait, corps, expression) ; vide pour une image creee avant qu'il soit conserve."""
+        """Le texte reellement envoye pour une image (portrait, corps, expression, planche) ; vide pour une image creee avant qu'il soit conserve."""
         t = self._taches(b["slug"]).get(str(b.get("image") or "")[:-4]) or {}
-        return {"prompt": t.get("prompt") or "", "retouche": bool(t.get("ref")), "loras": [{"nom": x["name"], "force": x.get("strength")} if isinstance(x, dict) else {"nom": str(x), "force": None} for x in t.get("loras") or []]}
+        avant = self._taches(b["slug"]).get(str(t.get("depuis") or "")) or {}  # planche en deux etapes : le texte de la retouche qui precede
+        return {"prompt": t.get("prompt") or "", "retouche": bool(t.get("ref")), "avant": avant.get("prompt") or "", "loras": [{"nom": x["name"], "force": x.get("strength")} if isinstance(x, dict) else {"nom": str(x), "force": None} for x in t.get("loras") or []]}
 
     def refaire(self, b):
         """Une image de plus d'apres une image existante, avec le texte ajuste par le proprietaire : meme reference, meme graine,
@@ -553,7 +567,7 @@ class Biblio:
         slug, anc = b["slug"], str(b.get("image") or "")[:-4]
         self._libre()
         t0, texte = self._taches(slug).get(anc), _s(b.get("prompt"), 4000)
-        if not t0 or not re.fullmatch(r"[vkda]_\d+|x_[0-9a-f]+_\d+", anc):
+        if not t0 or not re.fullmatch(r"[vkda]_\d+|x_[0-9a-f]+_\d+|c_\d+_\d+", anc):
             raise ValueError("texte non conservé pour cette image : en créer une nouvelle d'abord")
         if not texte:
             raise ValueError("texte vide")
@@ -562,11 +576,11 @@ class Biblio:
         pris = {int(f.stem.rsplit("_", 1)[1]) for f in self.dir(slug).glob(pre + "*.png") if f.stem.rsplit("_", 1)[1].isdigit()} | self._jetes(slug, pre)
         pas = len(ANGLES) if pre == "a_" else 1  # un angle refait garde sa vue : numero de meme rang
         s = next(x for x in range(int(num) + pas, 4000, pas) if x not in pris)
-        if pre.startswith("x_"):
+        if pre[0] in "xc":
             bb = self._b(slug)
-            bb["planches"][f"{pre}{s}.png"] = {"garde": False, "legende": texte[:600]}
+            bb["planches"][f"{pre}{s}.png"] = {"garde": False, "legende": texte[:600] if pre[0] == "x" else (bb["planches"].get(anc + ".png") or {}).get("legende") or ""}
             self._ecrire(slug, bb)
-        self._lancer(slug, {"v": "visage", "x": "expressions"}.get(pre[0], "corps"), {"taches": [t0 | {"sortie": f"{pre}{s}", "prompt": texte}]}, 1)
+        self._lancer(slug, {"v": "visage", "x": "expressions", "c": "planche"}.get(pre[0], "corps"), {"taches": [t0 | {"sortie": f"{pre}{s}", "prompt": texte}]}, 1)
         return {"lance": 1, "nom": f"{pre}{s}.png"}
 
     def _prefixe(self, p):
@@ -701,7 +715,7 @@ class Biblio:
         taches = [{"sortie": f"v_{s}", "seed": 1000 + 37 * s, "taille": [720, 1280], "lora": False,
                    "prompt": f"headshot of {traits(s, pv)}. {pv}vertical tight close-up headshot, her face fills the frame, cropped at the base of the neck, "
                              f"eye-level, front view, she looks at the camera, relaxed friendly expression, in front of a plain light grey wall, "
-                             f"the collar of a white crew-neck t-shirt barely visible at the bottom edge, soft natural daylight{FIN}"}
+                             f"the collar of a white crew-neck t-shirt barely visible at the bottom edge, soft natural daylight{FIN_PRES}"}
                   for s in [s for s in range(1, 400) if s not in deja][:8]]
         self._lancer(slug, "visage", {"taches": taches}, len(taches))
         return {"lance": len(taches)}
@@ -757,12 +771,12 @@ class Biblio:
                            "prompt": f"full-body photo of a woman seen from behind, rear view, she stands with her back to the camera, facing the wall, "
                                      f"her face is not visible, only the back of her head and her hair. {fiche}{taille}, {traits_corps(s, fiche, True)}, "
                                      f"vertical full-body shot from head to feet, eye-level, arms slightly away from her body, feet slightly apart, "
-                                     f"{CORPS_POSE_DOS}, {tenue}, only one woman in the picture{FIN}"}
+                                     f"{CORPS_POSE_DOS}, {tenue}, only one woman in the picture{FIN_LOIN}"}
                           for s in libres[:8]]
             else:
                 taches = [{"sortie": f"{pre}{s}", "seed": base + 53 * s, "taille": [720, 1280], "lora": False, "loras": lo,
                            "prompt": f"full-body photo of a woman, {vue}. {fiche}, {traits_corps(s, fiche)}{plus(s)}, vertical full-body shot from head to feet, "
-                                     f"eye-level, arms slightly away from her body, feet slightly apart, {CORPS_POSE}, {tenue}, only one woman in the picture{FIN}"}
+                                     f"eye-level, arms slightly away from her body, feet slightly apart, {CORPS_POSE}, {tenue}, only one woman in the picture{FIN_LOIN}"}
                           for s in libres[:8]]
         elif quoi == "face":
             taches = [{"sortie": f"k_{s}", "ref": elle, "seed": base + 53 * s, "taille": [720, 1280],
@@ -884,7 +898,12 @@ class Biblio:
         # « voie » lora (personnage sans LoRA) : le corps est dessine par Z-Image d'apres la fiche, avec les LoRA du proprietaire, puis
         # le visage du portrait retenu y est pose par retouche. Les images du corps de reference ne servent pas.
         pose = bool(ref) and b.get("voie") == "lora"
-        lo = [_lora_force(x) for x in b.get("loras") or []][:4] if pose else []
+        # « voie » finie (personnage sans LoRA) : la planche est faite par retouche (portrait, corps de reference, fiche), puis finie par
+        # Z-Image avec les LoRA du proprietaire, visage garde au pixel (workflows.finir_planche). L'identite vient de la retouche,
+        # le rendu de Z-Image. "finition" : part redessinee (0,35 legere, 0,5, 0,65 forte : le corps suit davantage les LoRA).
+        finie = bool(ref) and b.get("voie") == "finie"
+        fin = min(max(float(b.get("finition") or 0.5), 0.2), 0.8)
+        lo = [_lora_force(x) for x in b.get("loras") or []][:4] if pose or finie else []
         tenues = [x["en"] for x in v["tenues"] if x["genre"] != "dessous"] or ["a white t-shirt and jeans"]
         serie = bb["series"] = int(bb.get("series") or 0) + 1
         pre, taches = self._prefixe(p), []
@@ -896,6 +915,8 @@ class Biblio:
             cadre, fond = CADRES[(i * 7 + serie) % len(CADRES)], FONDS[(i + serie) % len(FONDS)]
             if "bed" in cadre:
                 fond = FONDS[1]
+            peau = _peau(cadre)
+            fin_ = f", smartphone photo, {peau}"
             if exprs and not re.search(r"neutral|smile|laugh", cadre):
                 if libres % 2 == 0:
                     cadre += ", " + exprs[(libres // 2 + serie) % len(exprs)]
@@ -908,39 +929,46 @@ class Biblio:
             if pose:
                 dessin = {"seed": t["seed"], "taille": t["taille"], "lora": False, "loras": lo}
                 if "back view" in cadre:  # de dos, pas de visage a poser : l'image dessinee est la planche (la vue en tete, le visage non decrit)
-                    t |= dessin | {"prompt": f"photo of a woman seen from behind, {self._prefixe_corps(p)}, vertical {desc}{FIN}"}
+                    t |= dessin | {"prompt": f"photo of a woman seen from behind, {self._prefixe_corps(p)}, vertical {desc}{fin_}"}
                 else:
-                    taches.append(dessin | {"sortie": f"y_{serie}_{i + 1:02d}", "prompt": f"{pre}vertical {desc}{FIN}"})
+                    taches.append(dessin | {"sortie": f"y_{serie}_{i + 1:02d}", "prompt": f"{pre}vertical {desc}{fin_}"})
                     y = str(self.dir(slug) / f"y_{serie}_{i + 1:02d}.png")
                     if b.get("pose") == "b":  # essai : le portrait en image 1 (c'est elle), le corps dessine en image 2 (son corps, sa pose, le lieu)
                         t |= {"ref": ref, "refs": [y], "depuis": f"y_{serie}_{i + 1:02d}",
                               "prompt": "Same woman as image 1: same face, same facial features, same hair. New photo of her with exactly the body, the skin tone, "
                                         "the pose, the head position, the clothing, the place, the light and the framing of the woman in image 2. "
-                                        f"Only one woman in the picture: {desc}. Natural smartphone photo, {PEAU}."}
+                                        f"Only one woman in the picture: {desc}. Natural smartphone photo, {peau}."}
                         taches.append(t)
                         continue
                     t |= {"ref": y, "refs": [ref], "depuis": f"y_{serie}_{i + 1:02d}",
                           "prompt": "Replace the head of the woman in image 1 with the head of the woman from image 2: her face, her facial features and her hair, "
                                     "keeping the expression, the gaze and the head position of image 1. Keep everything else of image 1 exactly unchanged: her body, "
-                                    f"her skin tone, her pose, her clothing, the background, the light and the framing. Only one woman in the picture. Natural smartphone photo, {PEAU}."}
+                                    f"her skin tone, her pose, her clothing, the background, the light and the framing. Only one woman in the picture. Natural smartphone photo, {peau}."}
             elif ref:
                 # Par retouche : ses cases Identite, Allure et Corps sont redites, pour que la peau (bronzage) et les formes ecrites par le
                 # proprietaire ne tiennent pas qu'aux images de reference, que le nouveau fond et la nouvelle pose font deriver.
                 cs = self._cases(p) or {}
                 qui = ", ".join(x for x in (cs.get("identite"), cs.get("allure")) if x)
-                qui = (f" She is {qui}." if qui else "") + (f" Her body: {cs['corps']}." if cs.get("corps") else "")
+                qui = (f" She is {qui}." if qui else "") + (f" Her face: {cs['visage']}." if cs.get("visage") else "") + (f" Her body: {cs['corps']}." if cs.get("corps") else "")
                 rc = self._refs_corps(slug, v, cadre)
-                t |= {"ref": ref, "prompt": f"Same woman, same face, same hair.{qui} New photo of her: {desc}. Natural smartphone photo, {PEAU}."}
+                t |= {"ref": ref, "prompt": f"Same woman, same face, same hair.{qui} New photo of her: {desc}. Natural smartphone photo, {peau}."}
                 if rc:  # son corps de reference : meme corps, mais ni sa tenue ni son fond ; sa tete y est coupee (sauf de dos), un seul visage en jeu
                     t |= {"sans_tete": [x for x in rc if not _de_dos(x)]}
                     t |= {"refs": rc, "prompt": f"The woman from image 1: same face, same hair. Her body is the one shown in image {' and image '.join(str(k) for k in range(2, 2 + len(rc)))}: "
                                                 f"same breasts, same waist, same hips, same buttocks, same legs, same skin; ignore the clothes and the background of "
-                                                f"{'those images' if len(rc) > 1 else 'that image'}.{qui} New photo of her: {desc}. Only one woman in the picture. Natural smartphone photo, {PEAU}."}
+                                                f"{'those images' if len(rc) > 1 else 'that image'}.{qui} New photo of her: {desc}. Only one woman in the picture. Natural smartphone photo, {peau}."}
+                if finie:  # la retouche devient l'image intermediaire ; la planche est sa finition par Z-Image, visage garde
+                    y = f"y_{serie}_{i + 1:02d}"
+                    taches.append(t | {"sortie": y})
+                    de_dos = "back view" in cadre
+                    t = {"sortie": nom, "seed": t["seed"], "taille": t["taille"], "lora": False, "loras": lo, "finir": str(self.dir(slug) / f"{y}.png"),
+                         "finition": fin, "depuis": y,
+                         "prompt": f"photo of a woman seen from behind, {self._prefixe_corps(p)}, vertical {desc}{fin_}" if de_dos else f"{pre}vertical {desc}{fin_}"}
             else:
-                t |= {"lora": True, "loras": [str(x) for x in b.get("loras") or []][:4], "prompt": f"{pre}vertical {desc}{FIN}"}
+                t |= {"lora": True, "loras": [str(x) for x in b.get("loras") or []][:4], "prompt": f"{pre}vertical {desc}{fin_}"}
             taches.append(t)
         self._ecrire(slug, bb)
-        self._lancer(slug, "planches", {"taches": taches, "reglages": {"tenue": tenue, "nsfw": bool(b.get("nsfw")), "loras": [str(x) for x in b.get("loras") or []][:4], "voie": "lora" if pose else ""}}, n)
+        self._lancer(slug, "planches", {"taches": taches, "reglages": {"tenue": tenue, "nsfw": bool(b.get("nsfw")), "loras": [str(x) for x in b.get("loras") or []][:4], "voie": "lora" if pose else "finie" if finie else ""} | ({"finition": fin} if finie else {})}, n)
         return {"lance": n}
 
     def banc(self, b):

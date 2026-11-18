@@ -50,7 +50,7 @@ def _fin(report, t0, pod_id, own):
 def images(a, cfg, resolve_loras, to_mp4=None):
     """Lot d'images d'un personnage : {"nom", "out", "character", "taches": [{"sortie", "prompt", "seed", "taille",
     "lora" (LoRA du personnage ou non), "loras" (en plus), "force", "ref" (image dont celle-ci est tiree par retouche),
-    "refs" (images en plus pour la retouche : « image 2 », « image 3 » du texte), "sans_tete" (celles des refs dont le haut, la tete, est coupe)}]}.
+    "refs" (images en plus pour la retouche : « image 2 », « image 3 » du texte), "sans_tete" (celles des refs dont le haut, la tete, est coupe), "finir" (image a finir par Z-Image hors visage, "finition" : sa force)}]}.
     Tache de clip (banc des LoRA de clip) : "clip" (image de depart), "prompt" (le mouvement), "loras" (LoRA de clip), "images" (duree,
     81 par defaut : 5 s) ; elle rend <sortie>.mp4, fabrique comme un clip de la Production."""
     lot = json.load(open(a.lot, encoding="utf-8"))
@@ -70,7 +70,7 @@ def images(a, cfg, resolve_loras, to_mp4=None):
         c.wait_ready()
         log("ComfyUI pret")
         volume, refs, perdue = c.models("loras"), {}, False
-        for t in sorted(lot["taches"], key=lambda t: (bool(t.get("clip")), bool(t.get("ref")))):  # creations, retouches puis clips : un changement de modele a la fois
+        for t in sorted(lot["taches"], key=lambda t: (bool(t.get("clip")), bool(t.get("finir")), bool(t.get("ref")))):  # creations, retouches, finitions puis clips
             e = {"name": t["sortie"]}
             report["shots"].append(e)
             if (time.time() - t0) / 60 > cfg["infra"].get("max_session_min", 90):
@@ -120,8 +120,13 @@ def images(a, cfg, resolve_loras, to_mp4=None):
                         if f and f not in volume:
                             raise RuntimeError("LoRA introuvable sur le volume")
                     trig = ", ".join(x["trigger"] for x in extra if x.get("trigger"))
-                    g = workflows.still_zimage(models, ch, t["prompt"] + (f" {trig}" if trig else ""), w, h, int(t["seed"]), f"ga_{t['sortie']}",
-                                               loras=extra, char_strength=t.get("force"))
+                    if t.get("finir"):  # finition d'une planche faite par retouche (lue maintenant : elle vient d'etre calculee) ; le visage est garde
+                        src = c.upload(f"ga_perso_fin{len(report['shots'])}.png", Path(t["finir"]).read_bytes())
+                        g = workflows.finir_planche(models, sans, src, t["prompt"] + (f" {trig}" if trig else ""), w, h, int(t["seed"]), f"ga_{t['sortie']}",
+                                                    loras=extra, denoise=min(max(float(t.get("finition") or 0.5), 0.2), 0.8))
+                    else:
+                        g = workflows.still_zimage(models, ch, t["prompt"] + (f" {trig}" if trig else ""), w, h, int(t["seed"]), f"ga_{t['sortie']}",
+                                                   loras=extra, char_strength=t.get("force"))
                 (out / f"{t['sortie']}.png").write_bytes(c.fetch(c.run(g)[0]))
                 log(f"{t['sortie']} : image ({round(time.time() - d)} s)")
             except Exception as x:  # une image ratee n'arrete pas le lot
