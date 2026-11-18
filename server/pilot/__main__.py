@@ -128,6 +128,18 @@ def traits(png):
 
 
 POSE = ("cadrage", "angle", "position", "appui", "bassin", "genoux", "mains")  # champs qu'un brouillon doit rendre
+PEAU_PRES = "natural skin texture, fine pores"
+PEAU_LOIN = "realistic detailed skin, clearly visible skin texture and pores, small moles, slight natural skin imperfections, natural uneven skin tone"
+
+
+def peau_cadrage(suffixe, still):
+    """La mention de la peau du suffixe selon le cadrage dit au debut du plan : legere en gros plan (sinon la peau sort
+    trop marquee), appuyee en pied (sinon elle sort lisse), inchangee en plan moyen. Memes mots que l'atelier du personnage."""
+    c = still[:200].lower()
+    mots = PEAU_PRES if re.search(r"close[- ]?up", c) and "medium" not in c else PEAU_LOIN if re.search(r"full[- ]body", c) else ""
+    return re.sub(r"[^,.]*\bskin\b[^,.]*", " " + mots, suffixe, count=1) if mots else suffixe
+
+
 PORTRAIT = "close-up photo of her face and shoulders, natural skin texture, sharp eyes, natural smartphone photo"
 
 
@@ -496,7 +508,7 @@ def cmd_run(a):
                     # la destination figure dans zimage_body_dests (ou qui portent body: true).
                     use_body = s.get("body", s.get("dest") in (char.get("zimage_body_dests") or []))
                     body = char.get("zimage_body", "") if use_body else ""
-                    prompt = f"{char.get('zimage_prefix', char['prefix'])}{tat}{body}{s['still']}{char.get('zimage_suffix', '')}"
+                    prompt = f"{char.get('zimage_prefix', char['prefix'])}{tat}{body}{s['still']}{peau_cadrage(char.get('zimage_suffix', ''), s['still'])}"
                     ch = char
                     if s.get("sans_perso"):  # photo sans le personnage (assiette, lieu) : ni sa description ni sa LoRA
                         # suffixe sans la mention de la peau, qui fait apparaitre un visage au premier plan

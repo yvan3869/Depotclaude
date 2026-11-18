@@ -245,6 +245,8 @@ Trois outils evitent qu'une video change de piece, de tenue ou de personne d'une
   en `decor` : pas de brouillon, l'image part de la photo du lieu et la piece tient. Une scene peut forcer sa facon (`voie` de la scene :
   `decor`, `pose` ou `direct`, pose par le proprietaire dans les reglages de la scene ; ce n'est pas un champ de plan).
   La facon retenue est affichee sur chaque scene. Pour le scenariste : dire le cadrage avec ces mots.
+  Le cadrage regle aussi les mots de la peau, ajoutes par la Production (ne pas les ecrire dans `still`) : legers si le
+  debut du plan dit `close-up`, appuyes s'il dit `full-body`, phrase habituelle sinon.
 - **Raccord** (`raccord`, par plan, par rapport au plan precedent du meme temps) :
   - `coupe` (defaut) : le plan a sa propre image, le montage coupe. Pour un changement de cadrage ou d'angle.
   - `continu` : le plan n'a pas d'image propre. Son clip demarre sur la derniere image du clip precedent et
