@@ -9,7 +9,7 @@ import time
 from pathlib import Path
 
 from . import runpod, workflows
-from .comfy import Comfy
+from .comfy import PERDUE, Comfy
 
 PREFIX = "girls-ai-"
 DOSSIER = "girls-ai-train"  # sur le volume : jeu d'images d'un entrainement, retire a la fin
@@ -69,12 +69,15 @@ def images(a, cfg, resolve_loras, to_mp4=None):
         c = Comfy(pod_id)
         c.wait_ready()
         log("ComfyUI pret")
-        volume, refs = c.models("loras"), {}
+        volume, refs, perdue = c.models("loras"), {}, False
         for t in sorted(lot["taches"], key=lambda t: (bool(t.get("clip")), bool(t.get("ref")))):  # creations, retouches puis clips : un changement de modele a la fois
             e = {"name": t["sortie"]}
             report["shots"].append(e)
             if (time.time() - t0) / 60 > cfg["infra"].get("max_session_min", 90):
                 e["error"] = "non traite : duree maximale atteinte"
+                continue
+            if perdue:
+                e["error"] = "non traite : " + PERDUE
                 continue
             try:
                 d = time.time()
@@ -123,6 +126,7 @@ def images(a, cfg, resolve_loras, to_mp4=None):
                 log(f"{t['sortie']} : image ({round(time.time() - d)} s)")
             except Exception as x:  # une image ratee n'arrete pas le lot
                 e["error"] = str(x)[:300]
+                perdue = perdue or PERDUE in e["error"]
                 log(f"{t['sortie']} : ECHEC image {e['error']}")
     finally:
         code = _fin(report, t0, pod_id, own)

@@ -96,6 +96,7 @@ class Studio:
     # il est supprime. Son nom commence par "girls-ai-" : le service girls-ai-pod-reaper du serveur
     # le supprime de toute facon s'il depasse l'age maximal (filet de securite).
     IDLE_S = int(os.environ.get("STUDIO_IDLE_S", "600"))
+    AGE_S = 65 * 60  # le filet supprime a 105 minutes : il reste 40 minutes au calcul lance sur un pod de cet age
 
     def _rp(self):
         srv = str(self.repo / "server")
@@ -130,6 +131,13 @@ class Studio:
             p = self.pod()
             if p and not any(x.get("id") == p["id"] for x in rp.list_pods()):
                 p = None  # supprime entre-temps (delai, filet de securite, console RunPod)
+            if p and not self.running() and time.time() - p["created"] > self.AGE_S:
+                # Trop pres de l'age ou le filet de securite le supprime : un calcul lance dessus serait coupe en route. Il est remplace.
+                try:
+                    rp.delete_pod(p["id"])
+                except Exception:
+                    pass
+                p = None
             if not p:
                 infra = yaml.safe_load((self.repo / "persona" / "production.yaml").read_text(encoding="utf-8"))["infra"]
                 pid, cost, gpu = rp.create_pod(infra, f"girls-ai-studio-{int(time.time())}")

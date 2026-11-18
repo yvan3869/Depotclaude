@@ -4,6 +4,9 @@ from urllib.parse import urlencode
 from .http import multipart, request
 
 
+PERDUE = "la machine ne repond plus (supprimee en cours de calcul) : relancer"
+
+
 class Comfy:
     def __init__(self, pod_id):
         self.base = f"https://{pod_id}-8188.proxy.runpod.net"
@@ -40,12 +43,15 @@ class Comfy:
         """Lance un workflow et renvoie la liste des fichiers produits (dicts filename/subfolder/type)."""
         r = request("POST", self.base + "/prompt", data={"prompt": graph})
         pid = r["prompt_id"]
-        t = time.time()
+        t = vu = time.time()
         while time.time() - t < timeout:
             try:
                 h = request("GET", f"{self.base}/history/{pid}", timeout=30) or {}
+                vu = time.time()
             except Exception:
                 h = {}
+                if time.time() - vu > 180:  # pod supprime en cours de calcul : ne pas attendre le delai entier
+                    raise RuntimeError(PERDUE)
             if pid in h:
                 for m in h[pid]["status"].get("messages", []):
                     if m[0] == "execution_error":
