@@ -149,6 +149,10 @@ def _hf(m, famille):
             for s in sib if str(s.get("rfilename") or "").endswith(".safetensors")]
     if not noms or not re.fullmatch(r"[\w.\-]+/[\w.\-]+", rid):
         return None
+    # un depot qui garde plusieurs stades d'entrainement du meme fichier (« nom_5 », « nom_10 », « nom_20 ») : le dernier stade passe en tete
+    stades = [re.fullmatch(r"(.*?)[_-](\d+)\.safetensors", x["nom"]) for x in noms]
+    if len(noms) > 1 and all(stades) and len({s.group(1) for s in stades}) == 1:
+        noms = [x for _, x in sorted(zip(stades, noms), key=lambda p: -int(p[0].group(2)))]
     adulte = "not-for-all-audiences" in tags or bool(_ADULTE.search(rid))
     return {"cle": f"hf:{rid}", "source": "hf", "ref": rid, "titre": rid.split("/")[1][:120], "version": rid.split("/")[0][:60],
             "base": next((b for b in FAMILLES[famille]["hf"] if any(b in t for t in tags)), FAMILLES[famille]["hf"][0]), "famille": famille,
