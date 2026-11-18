@@ -103,6 +103,13 @@ def images(a, cfg, resolve_loras, to_mp4=None):
                     for r in t.get("refs") or []:
                         if r not in refs:
                             refs[r] = c.upload(f"ga_perso_ref{len(refs)}.png", Path(r).read_bytes())
+                    if t.get("tete"):  # la tete du portrait posee sur un corps dessine : seul le haut de l'image est retouche
+                        if t["tete"] not in refs:
+                            refs[t["tete"]] = c.upload(f"ga_perso_ref{len(refs)}.png", Path(t["tete"]).read_bytes())
+                        g = workflows.poser_tete(models, refs[t["ref"]], refs[t["tete"]], t["prompt"], w, h, int(t["seed"]), f"ga_{t['sortie']}")
+                        (out / f"{t['sortie']}.png").write_bytes(c.fetch(c.run(g)[0]))
+                        log(f"{t['sortie']} : image ({round(time.time() - d)} s)")
+                        continue
                     ed = [x for x in resolve_loras(cfg, t.get("loras_edit") or []) if x.get("retouche")]  # LoRA du modele de retouche, au choix du proprietaire
                     if any(x["name"] not in volume for x in ed):
                         raise RuntimeError("LoRA introuvable sur le volume")

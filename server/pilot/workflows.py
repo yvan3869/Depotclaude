@@ -231,6 +231,25 @@ def edit_image(m, image_name, prompt, w, h, seed, prefix, steps=8, loras=None):
     }
 
 
+def poser_tete(m, image_name, portrait_name, prompt, w, h, seed, prefix, part=0.375, fondu=96):
+    """Pose la tete d'un portrait (image 2) sur une image en pied (image 1) sans toucher au corps : seul le haut de l'image
+    (tete et epaules) passe par la retouche, agrandi deux fois (en pied, la tete est trop petite pour ressembler au portrait),
+    puis il est remis a sa place, fondu vers le bas dans l'image d'origine. Le reste de l'image n'est pas recalcule."""
+    hc = int(h * part) // 16 * 16
+    g = edit_image(m, image_name, prompt, 2 * w, 2 * hc, seed, prefix)
+    g |= {"haut": {"class_type": "ImageCrop", "inputs": {"image": ["img", 0], "width": w, "height": hc, "x": 0, "y": 0}},
+          "grand": {"class_type": "ImageScale", "inputs": {"image": ["haut", 0], "upscale_method": "lanczos", "width": 2 * w, "height": 2 * hc, "crop": "disabled"}},
+          "img2": {"class_type": "LoadImage", "inputs": {"image": portrait_name}},
+          "petit": {"class_type": "ImageScale", "inputs": {"image": ["dec", 0], "upscale_method": "lanczos", "width": w, "height": hc, "crop": "disabled"}},
+          "plein": {"class_type": "SolidMask", "inputs": {"value": 1.0, "width": w, "height": hc}},
+          "masque": {"class_type": "FeatherMask", "inputs": {"mask": ["plein", 0], "left": 0, "top": 0, "right": 0, "bottom": fondu}},
+          "pose": {"class_type": "ImageCompositeMasked", "inputs": {"destination": ["img", 0], "source": ["petit", 0], "x": 0, "y": 0, "resize_source": False, "mask": ["masque", 0]}}}
+    for k in ("pos", "neg"):
+        g[k]["inputs"] |= {"image1": ["grand", 0], "image2": ["img2", 0]}
+    g["save"]["inputs"]["images"] = ["pose", 0]
+    return g
+
+
 def clip(m, char, image_name, prompt, w, h, seed, prefix, mode="natural", frames=81, end_image_name=None, loras=None):
     """Clip : Wan 2.2 I2V. mode 'fast' (4 pas, LoRA rapide partout) ou 'natural'
     (4 pas high-noise sans LoRA rapide avec CFG 3,5, puis 4 pas low-noise rapides).
