@@ -878,3 +878,15 @@ faute de machine ; second reussi). Depense du chargement : environ 0,11 $ ; comp
 - Reflexion du producteur (`docs/reflexion-producteur.md`) : suite sur les revenus (trois coupes par projet, series de photos,
   chiffres, sur-mesure). La proposition « trois prises » est construite ; le reste est a l'etat de proposition.
 - Depense du jour relevee a 0,81 $ (plafond 20 $) : 9 clips d'essai (environ 0,65 $), 12 images d'essai des planches (le reste).
+
+## 18 novembre 2026 (jour) : planches en deux etapes, « retouche puis finition »
+
+Demande du proprietaire : le meilleur algorithme pour des planches realistes, avec la fiche, les images de reference (visage, corps sous tous les angles) et ses LoRA.
+
+- **Algorithme en service** (onglet Planches, choix par defaut) : etape 1, retouche a plusieurs images (portrait + corps de reference selon le cadrage + les quatre cases de la fiche, la case Visage y est desormais redite) ; etape 2, `workflows.finir_planche` : Z-Image redessine l'image (texte de la fiche + LoRA cochees, force 0,35 / 0,5 / 0,65) sauf le visage, garde au pixel par un masque tire des points du visage (SDPose). De dos, aucun visage : tout est redessine. L'image de l'etape 1 est gardee (`y_<serie>_<nn>`).
+- **Essais** (personnage d'essai, habille, sans LoRA ajoutee) : 4 cadrages x 3 forces, puis un lot de 12 par l'interface. Visage tenu 12 sur 12, composition gardee a 0,35 et 0,5 ; a 0,65 la couleur des cheveux glisse vers celle de la fiche et un objet peut apparaitre. Planche : `data/inbox/p0004essai_planches_finition.png` (haut : etape 1, bas : etape 2).
+- **Texte d'une planche** : bouton « texte » sur la planche ouverte en grand (les deux etapes), ajustable, « refaire » cree une image a cote.
+- **Peau selon le cadrage** (remarque du proprietaire : trop marquee de pres, pas assez de loin) : mots legers en gros plan, phrase habituelle en plan moyen, mots appuyes en plan large ; vaut pour planches, portraits, corps de reference.
+- **Recherche** : pas d'adaptateur d'identite confirme pour Z-Image ; Qwen-Image-Edit 2511 donne meilleur que 2509 (en attente d'accord) ; reprise des petits visages par recadrage a construire.
+- **Erreur** : un premier essai a tourne pendant un calcul du proprietaire et l'a ralenti ; arrete, les essais attendent desormais la file libre.
+- **Depense** : environ 0,30 $ (releve du jour 1,39 $, calculs du proprietaire compris).
