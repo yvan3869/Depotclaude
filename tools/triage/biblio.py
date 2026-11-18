@@ -881,6 +881,10 @@ class Biblio:
             if not v["visage"]["choix"]:
                 raise ValueError("choisir d'abord un portrait : les planches en sont tirées")
             ref = str(self.fichier(slug, v["visage"]["choix"]))
+        # « voie » lora (personnage sans LoRA) : le corps est dessine par Z-Image d'apres la fiche, avec les LoRA du proprietaire, puis
+        # le visage du portrait retenu y est pose par retouche. Les images du corps de reference ne servent pas.
+        pose = bool(ref) and b.get("voie") == "lora"
+        lo = [_lora_force(x) for x in b.get("loras") or []][:4] if pose else []
         tenues = [x["en"] for x in v["tenues"] if x["genre"] != "dessous"] or ["a white t-shirt and jeans"]
         serie = bb["series"] = int(bb.get("series") or 0) + 1
         pre, taches = self._prefixe(p), []
@@ -901,7 +905,17 @@ class Biblio:
             nom = f"c_{serie}_{i + 1:02d}"
             bb["planches"][nom + ".png"] = {"garde": False, "legende": f"{pre}{desc}"}
             t = {"sortie": nom, "seed": 5000 + 101 * serie + i, "taille": [720, 1280]}
-            if ref:
+            if pose:
+                dessin = {"seed": t["seed"], "taille": t["taille"], "lora": False, "loras": lo}
+                if "back view" in cadre:  # de dos, pas de visage a poser : l'image dessinee est la planche (la vue en tete, le visage non decrit)
+                    t |= dessin | {"prompt": f"photo of a woman seen from behind, {self._prefixe_corps(p)}, vertical {desc}{FIN}"}
+                else:
+                    taches.append(dessin | {"sortie": f"y_{serie}_{i + 1:02d}", "prompt": f"{pre}vertical {desc}{FIN}"})
+                    t |= {"ref": str(self.dir(slug) / f"y_{serie}_{i + 1:02d}.png"), "refs": [ref], "depuis": f"y_{serie}_{i + 1:02d}",
+                          "prompt": "Replace the head of the woman in image 1 with the head of the woman from image 2: her face, her facial features and her hair, "
+                                    "keeping the expression, the gaze and the head position of image 1. Keep everything else of image 1 exactly unchanged: her body, "
+                                    f"her skin tone, her pose, her clothing, the background, the light and the framing. Only one woman in the picture. Natural smartphone photo, {PEAU}."}
+            elif ref:
                 # Par retouche : ses cases Identite, Allure et Corps sont redites, pour que la peau (bronzage) et les formes ecrites par le
                 # proprietaire ne tiennent pas qu'aux images de reference, que le nouveau fond et la nouvelle pose font deriver.
                 cs = self._cases(p) or {}
@@ -918,7 +932,7 @@ class Biblio:
                 t |= {"lora": True, "loras": [str(x) for x in b.get("loras") or []][:4], "prompt": f"{pre}vertical {desc}{FIN}"}
             taches.append(t)
         self._ecrire(slug, bb)
-        self._lancer(slug, "planches", {"taches": taches, "reglages": {"tenue": tenue, "nsfw": bool(b.get("nsfw")), "loras": [str(x) for x in b.get("loras") or []][:4]}}, n)
+        self._lancer(slug, "planches", {"taches": taches, "reglages": {"tenue": tenue, "nsfw": bool(b.get("nsfw")), "loras": [str(x) for x in b.get("loras") or []][:4], "voie": "lora" if pose else ""}}, n)
         return {"lance": n}
 
     def banc(self, b):

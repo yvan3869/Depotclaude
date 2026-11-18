@@ -1194,6 +1194,7 @@ function rendreAtelier() {
         <div class="row haut"><div style="width:110px"><label>Nombre<select id="bn"><option>12</option><option selected>24</option><option>36</option></select></label></div>
           <div class="g"><label>Tenue de la série (anglais, facultatif)<input id="btenue" placeholder="wearing ...">${aide('Vide : les tenues de sa garde-robe à tour de rôle. Rempli : ce texte est repris tel quel dans chaque planche de la série, à votre main, sans rien ajouter devant. Pour un vêtement, commencer par « wearing ».')}</label></div></div>
         <label class="c"><input type="checkbox" id="bnsfw"><span>Série pour adultes</span>${aide('Ajoute le mot nsfw à chaque planche. Le texte de la tenue et les LoRA ci-dessous restent à votre main.')}</label>
+        ${A.lora ? '' : `<label class="c"><input type="checkbox" id="bv3"><span>Corps dessiné avec mes LoRA, puis son visage posé</span>${aide('Chaque planche se fait en deux temps : son corps est dessiné d\'après sa fiche avec les LoRA cochées plus haut (« LoRA pour son corps »), puis le visage du portrait retenu est posé dessus. Les images du corps de face et de dos ne servent pas : le corps vient du texte et des LoRA, il varie donc un peu d\'une planche à l\'autre. Deux images calculées par planche : compter le double du prix.')}</label>`}
         ${A.lora && B.loras.some(x => x.famille !== 'wan22') ? `<details class="pli"><summary>LoRA en plus pour cette série</summary><div class="tuiles">${B.loras.filter(x => x.famille !== 'wan22').map(x => `<label class="c"><input type="checkbox" data-bl="${esc(x.name)}"><span>${esc(x.label)}</span></label>`).join('')}</div></details>` : ''}
         <div class="row" style="margin-top:6px"><button class="p" data-a="bplanches" ${pris || (!A.lora && !A.visage.choix) ? 'disabled' : ''}>${ic('planche')}Créer la série</button><span class="mut" id="bcout">${A.lora || A.visage.choix ? 'environ ' + acout(24) : 'Retenir d\'abord un portrait.'}</span></div></div>`
       + (A.planches.length ? `<h2>Planches <small>${g} gardée(s) sur ${A.planches.length}</small></h2><div class="panel"><div class="mut">Toucher une planche pour la garder (encadrée) ou l'écarter ; la loupe l'agrandit, avec passage à la suivante et choix depuis la grande image. Seules les planches gardées servent à l'entraînement. « Supprimer les écartées » retire de la page celles qui ne sont pas encadrées. Écarter : visage différent, mains ratées, corps déformé. Les séries sont rangées de la plus récente à la plus ancienne ; toucher son titre pour l'ouvrir ou la replier. Chacune rappelle ses réglages, que « Reprendre ces réglages » recopie dans « Nouvelle série ».</div>
@@ -1358,8 +1359,10 @@ Object.assign(actions, {
   bvisage: async () => { await api('/api/a/b/visage', {slug: A.slug}); toast('Portraits lancés', true); await bMaj(); },
   bplanches: async () => {
     const n = +$('#bn').value, tenue = $('#btenue').value.trim();
-    if (!confirm(`Créer ${n} planches, environ ${acout(n)} ?`)) return;
-    await api('/api/a/b/planches', {slug: A.slug, n, tenue, nsfw: $('#bnsfw').checked, loras: $$('[data-bl]:checked', vue).map(x => x.dataset.bl)});
+    const v3 = !!$('#bv3')?.checked;
+    if (!confirm(`Créer ${n} planches, environ ${acout(v3 ? 2 * n : n)} ?`)) return;
+    await api('/api/a/b/planches', {slug: A.slug, n, tenue, nsfw: $('#bnsfw').checked, voie: v3 ? 'lora' : '',
+      loras: v3 ? $$('.lt.kl.on', vue).map(x => `${x.dataset.kl}:${$('input', x).value || 1}`) : $$('[data-bl]:checked', vue).map(x => x.dataset.bl)});
     toast('Série lancée', true); await bMaj();
   },
   breprendre: el => { const I = (A.series || {})[el.dataset.s]; if (!I) return;
