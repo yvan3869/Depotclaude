@@ -100,6 +100,19 @@ def _vignette(url, video):
     return re.sub(r"\.(mp4|webm)$", ".jpeg", u) if video else u
 
 
+def _usage_qwen(*textes):
+    """Civitai range sous « Qwen » les LoRA de creation (Qwen-Image) et de retouche (Qwen-Image-Edit) : le nom, la version et les
+    fichiers disent laquelle. Rend (rang, mention) ; les LoRA de retouche du modele en service passent en tete."""
+    s = " ".join(textes).lower()
+    if "2511" in s:
+        return 0, "Retouche 2511"
+    if "2509" in s or re.search(r"edit[\s_-]*plus", s):
+        return 1, "Retouche 2509"
+    if re.search(r"edit|kontext", s):
+        return 2, "Retouche"
+    return 3, "Création (Qwen-Image)"
+
+
 def _civitai(m, famille):
     """Fiche normalisee d'un modele Civitai pour une famille, ou None s'il n'a pas de version pour elle."""
     bases = FAMILLES[famille]["civitai"]
@@ -115,6 +128,7 @@ def _civitai(m, famille):
     com = [com] if isinstance(com, str) else com or []
     return {"cle": f"civitai:{vs[0]['id']}", "source": "civitai", "ref": str(m["id"]), "titre": str(m.get("name") or "")[:120],
             "version": str(vs[0].get("name") or "")[:60], "base": str(vs[0].get("baseModel") or ""), "famille": famille,
+            "usage": _usage_qwen(str(m.get("name") or ""), str(vs[0].get("name") or ""), *(x["nom"] for x in noms))[1] if famille == "qwenedit" else "",
             "fichiers": _fichiers(noms), "telechargements": (m.get("stats") or {}).get("downloadCount") or 0,
             "licence": "usage commercial admis" if any(x in com for x in ("Image", "Rent", "Sell")) else "usage commercial non admis",
             "commercial": any(x in com for x in ("Image", "Rent", "Sell")), "adulte": bool(m.get("nsfw")) or bool(_ADULTE.search(str(m.get("name") or ""))),
@@ -210,7 +224,7 @@ class Hub:
         doux = temps_min(cat) <= 2
         deja = self._retenues()
         if source == "civitai":
-            p = [("types", "LORA"), ("sort", "Most Downloaded"), ("limit", "24"), ("nsfw", "false" if doux else "true")]
+            p = [("types", "LORA"), ("sort", "Most Downloaded"), ("limit", "100" if famille == "qwenedit" else "24"), ("nsfw", "false" if doux else "true")]
             p += [("baseModels", b) for b in FAMILLES[famille]["civitai"]]
             if mots:
                 p.append(("query", mots))
@@ -219,6 +233,8 @@ class Hub:
             r = _get("https://civitai.com/api/v1/models?" + urllib.parse.urlencode(p), os.environ.get("CIVITAI_TOKEN", ""))
             items = [x for x in (_civitai(m, famille) for m in r.get("items") or []) if x]
             suite = str((r.get("metadata") or {}).get("nextCursor") or "")
+            if famille == "qwenedit":  # les LoRA de retouche d'abord (2511, 2509, autres), celles de creation ensuite ; l'ordre des telechargements est garde dans chaque groupe
+                items.sort(key=lambda x: next(k for k, v in enumerate(("Retouche 2511", "Retouche 2509", "Retouche", "Création (Qwen-Image)")) if v == x["usage"]))
         else:
             page = int(un("cursor", "0") or 0) if un("cursor", "0").isdigit() else 0
             items = []

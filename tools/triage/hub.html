@@ -53,7 +53,7 @@ function vueCatalogue() {
         <label>Source<select data-f="source"><option value="civitai"${F.source === 'civitai' ? ' selected' : ''}>Civitai</option><option value="hf"${F.source === 'hf' ? ' selected' : ''}>Hugging Face</option></select></label>
       </div>
       <label>Catégorie${selCat(F.cat, 'data-f="cat"')}${aide(esc(c.aide) + ' Utilisable aux temps ' + [1, 2, 3, 4, 5].filter(t => t >= c.temps).join(', ') + '.')}</label>
-      <label>Recherche (anglais)<input data-f="q" value="${esc(F.q)}" placeholder="${esc(E.requetes[F.cat] || 'mots libres')}">${aide('Vide : la recherche habituelle de la catégorie. Les résultats sont triés par nombre de téléchargements.')}</label>
+      <label>Recherche (anglais)<input data-f="q" value="${esc(F.q)}" placeholder="${esc(E.requetes[F.cat] || 'mots libres')}">${aide('Vide : la recherche habituelle de la catégorie. Les résultats sont triés par nombre de téléchargements. Pour Qwen-Image-Edit : celles faites pour la retouche passent en tête (2511, puis 2509), celles faites pour créer une image viennent après.')}</label>
       <div class="row"><button class="p" data-a="chercher">${ic('chercher')}Chercher</button><span class="mut">${fam.usage === 'clips' ? 'LoRA vidéo : appliquées au clip, pas à l\'image.' : 'LoRA d\'image.'}</span></div></div>
     <div id="res"></div>`;
   resultats();
@@ -62,7 +62,7 @@ function resultats() {
   const el = $('#res'); if (!el) return;
   el.innerHTML = R.resultats.length ? `<div class="mut" style="margin-top:12px">${R.resultats.length} fiche(s) pour « ${esc(R.mots)} ». Retenir une fiche la range dans « Retenues » ; rien n'est téléchargé à ce stade.</div>
     <div class="grille">${R.resultats.map((x, i) => `<div class="fiche">${vg(x.vignette)}<div class="tx"><b>${esc(x.titre)}</b>
-      <span class="mut">${esc(x.base)} · ${x.mo ? x.mo + ' Mo' : 'taille ?'} · ${nb(x.telechargements)} téléch.</span>
+      ${x.usage ? `<span class="badge ${x.usage.startsWith('Retouche') ? 'v' : ''}">${esc(x.usage)}</span>` : ''}<span class="mut">${esc(x.base)} · ${x.mo ? x.mo + ' Mo' : 'taille ?'} · ${nb(x.telechargements)} téléch.</span>
       <span class="mut ${x.commercial ? '' : 'avt'}">${esc(x.licence)}${x.fichiers.length > 1 ? ' · paire high/low' : ''}</span>
       <div class="row"><button class="s${x.retenue ? '' : ' p'}" data-a="retenir" data-i="${i}"${x.retenue ? ' disabled' : ''}>${x.retenue ? 'Retenue' : ic('ajouter') + 'Retenir'}</button><a href="${esc(x.page)}" target="_blank" rel="noopener">Fiche</a></div></div></div>`).join('')}</div>
     ${R.suite ? `<div class="row"><button data-a="suite">Voir la suite</button></div>` : ''}` : R.mots ? '<p class="mut">Aucune fiche pour cette recherche.</p>' : '';
