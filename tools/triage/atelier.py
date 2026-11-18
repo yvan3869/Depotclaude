@@ -180,6 +180,7 @@ TIRAGES = ("ref", "direct", "pose", "decor", "auto")
 VOIES = ("pose", "decor", "direct")
 PLAN_LARGE = re.compile(r"\b(wide|full[- ]?(body|length|figure|shot)|long shot|establishing|head[- ]to[- ]toe)\b", re.I)
 # Verdict du proprietaire sur une image : des cases, pas de texte (l'assistant corrige les reglages sans voir l'image)
+PRISES_MAX = 3  # prises par clip, au plus (une par defaut)
 IMAGES_PAR_SCENE = 3  # images creees par scene a chaque lancement ; le controleur les note (pilot serie), la mieux notee est proposee
 # Pose decomposee d'une scene : chaque champ rempli est mis en tete de la description, dans cet ordre (le modele d'image
 # donne le plus de poids au debut), et verifie a part par le controleur. Sans cadrage, angle, position et regard ecrits,
@@ -963,7 +964,9 @@ class Atelier:
                 continue
             if m.group(1) not in runs:
                 j = _load(d / "runs" / f"{m.group(1)}.json") or {}
-                runs[m.group(1)] = {x["name"]: x for x in j.get("shots", [])} | {"": j.get("serie")}
+                # un lancement a plusieurs prises range aussi les plans des prises en plus ("sortie") : ils ne sont pas les siens
+                runs[m.group(1)] = {x["name"]: x for x in j.get("shots", [])
+                                    if not x.get("sortie") or x["sortie"].startswith(f"{pid}{m.group(1)}_")} | {"": j.get("serie")}
             sh = runs[m.group(1)].get(m.group(2)) or {}
             t = out.setdefault(m.group(2), {"images": [], "clips": [], "source": {}, "depuis": {}, "fin": {}, "serie": {}})
             if m.group(3) == "png":
@@ -2070,7 +2073,7 @@ class Atelier:
                 "clips": {"n": len(clp), "usd": round(sum(0.07 if s["end_edit"] else 0.035 for s in clp) + 0.12, 2),
                           "usd_hd": round(sum(0.26 if s["end_edit"] else 0.13 for s in clp) + 0.12, 2)}}
 
-    def _fin_clip(self, clip, dest):
+    def _fin_clip(self, clip, dest):  # une prise en plus n'a pas d'image gardee : elle est tiree du mp4
         """Derniere image d'un clip deja produit : celle gardee par le pilote, sinon tiree du fichier mp4."""
         run = clip.split("_")[0]
         src = self.data / "work" / run / f"{clip[:-4]}_fin.png"
@@ -2159,6 +2162,16 @@ class Atelier:
                         sh["loras"] = _loras_plan(lo)
                     s["clip"] = ""
                     shots.append(sh)
+                # Plusieurs prises par clip (eteint par defaut : une seule) : les memes plans, autre tirage, a la suite des
+                # premiers (si le temps manque, chaque scene a au moins sa prise). Chaque prise porte son numero de
+                # lancement, comme si elle avait ete lancee a part : le proprietaire choisit ensuite dans les prises.
+                np, un = min(max(int(b.get("prises") or 1), 1), PRISES_MAX), list(shots)
+                for k in range(1, np):
+                    for sh in un:
+                        v = {**sh, "seed": sh["seed"] + 1000 * k, "sortie": f"{pid}r{n + k}_{sh['name']}"}
+                        if sh.get("suite_de"):
+                            v["depuis"] = f"{pid}r{n + k}_{sh['suite_de']}.mp4"
+                        shots.append(v)
             if not shots:
                 raise ValueError("rien à lancer : " + ("toutes les scènes ont déjà une image" if quoi == "images" else "il faut une image et un mouvement par scène"))
             job = {"name": f"{pid}r{n}", "character": self.char_override(perso),
@@ -2183,6 +2196,9 @@ class Atelier:
                        "--pod-id", os.environ.get("STUDIO_POD_ID") or self.studio.ensure_pod()]  # pod de veille du studio, partage avec la page Test
             else:
                 _dump(d / "runs" / f"r{n}.json", job)
+                for k in range(1, np):  # fiche de chaque prise en plus : lue par prises(), jamais lancee
+                    _dump(d / "runs" / f"r{n + k}.json", {"name": f"{pid}r{n + k}", "prise_de": n,
+                                                          "shots": [sh for sh in shots if (sh.get("sortie") or "").startswith(f"{pid}r{n + k}_")]})
                 cmd = [sys.executable, "-m", "pilot", "run", str(d / "runs" / f"r{n}.json"), "--data", str(self.data), "--out", str(d / "media")]
             _dump(d / "projet.json", p)
             log = d / "runs" / f"r{n}.log"

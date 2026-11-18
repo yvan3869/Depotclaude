@@ -712,6 +712,8 @@ function majDyn() {
     ${T < 3 ? `${R.etat === 'erreur' ? `<div class="err" style="margin-top:6px">Relecture : ${esc(R.erreur)}</div>` : R.etat === 'pret' ? `<div style="margin-top:6px;font-size:14px"><b>Relecture du ${esc(R.date)}</b> :
         ${(n => n ? `<span class="err">${n} image(s) à refaire</span>` : '<span class="okc">rien à refaire</span>')(Object.entries(R.scenes).filter(([k, v]) => !v.ok && v.image === (D.choix[k] || {}).image).length)}. ${esc(R.ensemble)}</div>` : ''}` : ''}
     <label class="c" style="margin-top:8px"><input type="checkbox" id="hd" ${sig.hd ? 'checked' : ''}>Clips en 720p (quatre fois plus cher : à garder pour la version finale)</label>
+    <label class="c" style="margin-top:6px">Prises par clip <select id="np" style="width:auto;margin-left:6px">${[1, 2, 3].map(k => `<option ${(sig.np || 1) == k ? 'selected' : ''}>${k}</option>`).join('')}</select>
+      <span class="mut" style="margin-left:6px">Plusieurs prises : le même clip tourné deux ou trois fois, vous gardez la meilleure. Le prix suit.</span></label>
     ${E.can_run ? '<div class="aide">Chaque lancement passe par le plafond GPU du jour. Les clips démarrent leur propre pod (2 à 5 minutes d\'attente).</div>' : '<div class="err">Clé RunPod absente : lancement impossible.</div>'}
     ${pr.etat ? `<div style="margin-top:8px"><b class="${pr.etat === 'en cours' ? '' : pr.etat === 'termine' ? 'okc' : 'err'}">${{'en cours': 'Calcul en cours', termine: 'Dernier calcul terminé', arrete: 'Dernier calcul arrêté', interrompu: 'Dernier calcul interrompu'}[pr.etat]}</b>
       ${pr.cout != null ? ` <span class="mut">${usd(pr.cout)}</span>` : ''}${pr.echecs ? ` <span class="err">${pr.echecs} échec(s)</span>` : ''}<pre>${esc(pr.log)}</pre></div>` : ''}`, 'prod');
@@ -760,8 +762,8 @@ function surveiller() {
 }
 async function produire(quoi, scenes) {
   await sauver();
-  const hd = $('#hd')?.checked;
-  await api('/api/a/produire', {id: P.id, quoi, scenes, hd, temps: T});
+  const hd = $('#hd')?.checked, prises = quoi === 'clips' ? +($('#np')?.value || 1) : 1;
+  await api('/api/a/produire', {id: P.id, quoi, scenes, hd, prises, temps: T});
   toast(quoi === 'images' ? 'Images lancées' : 'Clips lancés', true);
   await recharger();
 }
@@ -803,7 +805,7 @@ const actions = {
   nouveau: () => creer('', ''),
   idees,
   idee: el => { const x = idees.r[+el.dataset.i]; return creer(x.titre, `${x.pitch} Accroche : ${x.accroche}`); },
-  temps: el => { T = +el.dataset.t; const hd = sig.hd; sig = {hd}; rendreProjet(); window.scrollTo(0, 0); },
+  temps: el => { T = +el.dataset.t; const hd = sig.hd, np = sig.np; sig = {hd, np}; rendreProjet(); window.scrollTo(0, 0); },
   ecrire2: async () => {
     if (P.scenes.some(s => s.temps === 2) && !confirm('Réécrire toute la montée ? Ses images et clips ne seront plus rattachés.')) return;
     const c = await demander('Écrire la montée : une consigne ? (facultatif)', CONSIGNES_T2);
@@ -850,8 +852,8 @@ const actions = {
   analyser: async el => { await api('/api/a/analyser', {id: P.id, fichier: el.dataset.n}); toast('Analyse demandée', true); await recharger(); },
   relire: async () => { await api('/api/a/relire', {id: P.id, temps: T}); toast('Relecture demandée', true); await recharger(); },
   clips: () => {
-    const d = D.devis[T].clips, hd = $('#hd').checked;
-    if (confirm(`Lancer ${d.n} clip(s), environ ${usd(hd ? d.usd_hd : d.usd)} ? Vérifier d'abord que les images conviennent.`)) return produire('clips');
+    const d = D.devis[T].clips, hd = $('#hd').checked, np = +($('#np')?.value || 1);
+    if (confirm(`Lancer ${d.n} clip(s)${np > 1 ? ` en ${np} prises` : ''}, environ ${usd(((hd ? d.usd_hd : d.usd) - 0.12) * np + 0.12)} ? Vérifier d'abord que les images conviennent.`)) return produire('clips');
   },
   son: async () => { await sauver(); await api('/api/a/son', {id: P.id}); toast('Sons lancés', true); await recharger(); },
   sonimage: async () => { if (!confirm(`Fabriquer le son d'après l'image de ${D.son.image[T]} clip(s), environ ${usd(0.1)} ?`)) return; await sauver(); await api('/api/a/son', {id: P.id, image: true, temps: T}); toast('Sons lancés', true); await recharger(); },
@@ -875,6 +877,7 @@ vue.addEventListener('click', e => {
 vue.addEventListener('input', e => {
   const t = e.target, k = t.dataset.k;
   if (t.id === 'hd') return sig.hd = t.checked;
+  if (t.id === 'np') return sig.np = +t.value;
   if (t.dataset.ch) { CH[t.dataset.ch] = t.type === 'checkbox' ? t.checked : t.value; delete sig.prod; return majDyn(); }
   if (t.dataset.df && DEFS) { const y = DEFS[t.dataset.df].find(x => x.n === t.dataset.n); if (y) y.f = t.value; return; }
   if (t.dataset.lf && P) { P.loras = {...(P.loras || {}), [t.dataset.lf]: LP(t.dataset.lf).map(x => x.n === t.dataset.n ? `${x.n}:${t.value}` : x.f ? `${x.n}:${x.f}` : x.n).join(', ')}; return planifier(); }

@@ -593,7 +593,8 @@ def cmd_run(a):
             try:
                 t = time.time()
                 if s.get("suite_de"):  # plan continu : il part de la derniere image du clip du plan nomme
-                    src = f"{job['name']}_{s['suite_de']}"
+                    # prise en plus ("sortie") : elle suit le clip de la meme prise, pas celui de la premiere
+                    src = f"{name[:-len(s['name']) - 1] if s.get('sortie') else job['name']}_{s['suite_de']}"
                     if src not in fins:
                         raise RuntimeError(f"suite_de : le clip du plan {s['suite_de']} manque (il doit etre place avant et reussir)")
                     stills[name] = fins[src]
