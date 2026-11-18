@@ -911,7 +911,15 @@ class Biblio:
                     t |= dessin | {"prompt": f"photo of a woman seen from behind, {self._prefixe_corps(p)}, vertical {desc}{FIN}"}
                 else:
                     taches.append(dessin | {"sortie": f"y_{serie}_{i + 1:02d}", "prompt": f"{pre}vertical {desc}{FIN}"})
-                    t |= {"ref": str(self.dir(slug) / f"y_{serie}_{i + 1:02d}.png"), "refs": [ref], "depuis": f"y_{serie}_{i + 1:02d}",
+                    y = str(self.dir(slug) / f"y_{serie}_{i + 1:02d}.png")
+                    if b.get("pose") == "b":  # essai : le portrait en image 1 (c'est elle), le corps dessine en image 2 (son corps, sa pose, le lieu)
+                        t |= {"ref": ref, "refs": [y], "depuis": f"y_{serie}_{i + 1:02d}",
+                              "prompt": "Same woman as image 1: same face, same facial features, same hair. New photo of her with exactly the body, the skin tone, "
+                                        "the pose, the head position, the clothing, the place, the light and the framing of the woman in image 2. "
+                                        f"Only one woman in the picture: {desc}. Natural smartphone photo, {PEAU}."}
+                        taches.append(t)
+                        continue
+                    t |= {"ref": y, "refs": [ref], "depuis": f"y_{serie}_{i + 1:02d}",
                           "prompt": "Replace the head of the woman in image 1 with the head of the woman from image 2: her face, her facial features and her hair, "
                                     "keeping the expression, the gaze and the head position of image 1. Keep everything else of image 1 exactly unchanged: her body, "
                                     f"her skin tone, her pose, her clothing, the background, the light and the framing. Only one woman in the picture. Natural smartphone photo, {PEAU}."}
