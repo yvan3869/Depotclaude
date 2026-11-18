@@ -890,3 +890,13 @@ Demande du proprietaire : le meilleur algorithme pour des planches realistes, av
 - **Recherche** : pas d'adaptateur d'identite confirme pour Z-Image ; Qwen-Image-Edit 2511 donne meilleur que 2509 (en attente d'accord) ; reprise des petits visages par recadrage a construire.
 - **Erreur** : un premier essai a tourne pendant un calcul du proprietaire et l'a ralenti ; arrete, les essais attendent desormais la file libre.
 - **Depense** : environ 0,30 $ (releve du jour 1,39 $, calculs du proprietaire compris).
+
+## 18/11/2026 (matin) : Qwen-Image-Edit 2511, LoRA de retouche, pod partage
+
+- **Qwen-Image-Edit 2511** remplace le 2509 pour toutes les retouches (`models.edit`, `models.edit_fast_lora` de `persona/production.yaml`). Fichier retenu : `qwen_image_edit_2511_fp8mixed.safetensors` (Comfy-Org, 20,5 Go) + LoRA Lightning 2511 8 pas (lightx2v). Le fichier `fp8_e4m3fn_scaled` de lightx2v ne donne que du bruit dans notre ComfyUI : retire du volume.
+- **Essai** (personnage d'essai, habille, 4 cadrages, memes textes et tirages) : le 2511 met la tenue demandee (le 2509 recopiait le t-shirt du portrait), garde les taches de rousseur et la matiere des cheveux, visage plus proche du portrait ; 26 s par image. Le noeud `index_timestep_zero` ne change presque rien : non retenu. Limite : « en pied » sort encore cadre aux cuisses. Planches : `data/inbox/p0004essai_qwen2511_1.png` et `_2.png` (gauche 2509, milieu 2511, droite 2511 + noeud).
+- **Le 2509 reste sur le volume** (20 Go + sa LoRA) : les outils de `hrafnvik/` l'appellent par son nom. A effacer quand ils seront passes au 2511.
+- **LoRA de retouche** : nouvelle famille « Qwen-Image-Edit (retouche) » au Materiel. Une LoRA de cette famille ne sert qu'a l'etape 1 des planches (case « LoRA de retouche (etape 1) », trois au plus) ; elle n'apparait ni dans les LoRA d'image ni au banc. Le modele n'a pas de verrou : il est seulement peu entraine au nu, ce que ces LoRA corrigent. Choix au proprietaire.
+- **Pod partage** : le pod de veille est cree avec l'acces aux fichiers (mot de passe Jupyter garde dans `data/studio_pod.json`, jamais servi a l'interface). Les sons, le son d'apres l'image, le chargement et l'effacement des LoRA le reprennent (`pod_commun` du pilote) au lieu de louer un pod a part ; avant le son d'apres l'image, ComfyUI rend la memoire de la carte. Restent a part : l'entrainement d'une LoRA (40 minutes, bloquerait la file) et le controleur d'images.
+- **Recherche approfondie** : verifiee, suffisante en questions courtes (Perplexity, recherche web, lecture de pages, API Hugging Face et Civitai) ; rien a regler.
+- **Depense** : 0,54 $ (pose du modele 0,10 ; essais 0,16 + 0,02 + 0,26).
