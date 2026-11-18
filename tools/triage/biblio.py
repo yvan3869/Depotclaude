@@ -150,7 +150,9 @@ def traits_corps(s, fiche, dos=False):
     r = random.Random(104729 * s + dos)
     if dos:
         return f"{r.choice(FESSES_F if re.search(r'butt|hips|bottom|glute', fiche, re.I) else FESSES)}, {r.choice(HANCHES)}"
-    return f"{r.choice(BUSTES)}, {r.choice(TAILLES)}"
+    buste, taille = r.choice(BUSTES), r.choice(TAILLES)
+    # ce que la fiche decrit deja n'est pas tire au sort : un buste tire (« natural », « conical ») contredit celui de la fiche
+    return ", ".join(x for x, deja in ((buste, r"breast|bust\b|chest|boobs|\bcup\b"), (taille, r"waist|stomach|torso|belly|abs\b")) if not re.search(deja, fiche, re.I)) or "natural proportions"
 
 
 def _de_dos(chemin):
@@ -848,7 +850,7 @@ class Biblio:
                 for t in taches:
                     y = "y" + t["sortie"]
                     fin += [t | {"sortie": y}, {"sortie": t["sortie"], "seed": t["seed"], "taille": t["taille"], "lora": False, "loras": lo,
-                                                 "finir": str(self.dir(slug) / f"{y}.png"), "finition": 0.5, "depuis": y, "prompt": tz(int(t["sortie"][2:]))}]
+                                                 "finir": str(self.dir(slug) / f"{y}.png"), "finition": 0.65, "depuis": y, "prompt": tz(int(t["sortie"][2:]))}]
                 taches = fin
         self._lancer(slug, "corps", {"taches": taches}, n)
         return {"lance": n}
