@@ -726,12 +726,12 @@ SON_NEG = "music, melody, speech, voice, talking, singing, distortion, low quali
 SON_NEG_BRUIT = "music, melody, speech, voice, talking, singing, room tone, background noise, reverb, echo, low quality"
 
 
-def telecharger(url, dest: Path):
+def telecharger(url, dest: Path, headers=None):
     """Telecharge un gros fichier sur le disque, sans le garder en memoire."""
     import urllib.request
-    from .http import UA, _ctx
+    from .http import UA, _opener
     dest.parent.mkdir(parents=True, exist_ok=True)
-    with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": UA}), timeout=120, context=_ctx) as r, dest.open("wb") as f:
+    with _opener.open(urllib.request.Request(url, headers={"User-Agent": UA} | (headers or {})), timeout=120) as r, dest.open("wb") as f:
         shutil.copyfileobj(r, f, 4 * 1024 * 1024)
     return dest
 
@@ -1454,15 +1454,17 @@ def lora_sync(a, data, catp, cat):
             try:
                 noms = {}
                 for f in x["fichiers"]:
-                    blob = request("GET", f["url"], headers={"Authorization": f"Bearer {tok}"} if f.get("auth") == "civitai" and tok else {},
-                                   raw=True, timeout=1800)
-                    if len(blob) < 100000:
-                        raise RuntimeError("telechargement refuse (cle Civitai absente ou fichier reserve)")
                     fname = f"{x['name']}{'_' + f['role'] if f.get('role') else ''}.safetensors"
-                    deposer(pod_id, jtok, fname, blob)
+                    blob = data / "work" / "lora" / fname  # par le disque : un gros fichier ne tient pas en memoire
+                    try:
+                        telecharger(f["url"], blob, {"Authorization": f"Bearer {tok}"} if f.get("auth") == "civitai" and tok else None)
+                        if blob.stat().st_size < 100000:
+                            raise RuntimeError("telechargement refuse (cle Civitai absente ou fichier reserve)")
+                        deposer(pod_id, jtok, fname, blob)
+                    finally:
+                        blob.unlink(missing_ok=True)
                     noms[f.get("role") or ""] = fname
                     deposes.append(fname)
-                    del blob
                 haut = noms.get("high") or noms.get("") or noms.get("low")
                 cat[x["name"]] = {"label": x.get("label") or x["name"], "file": haut, "strength": float(x.get("strength") or 0.6),
                                   "base": x.get("base", ""), "famille": x.get("famille", "zimage"), "cat": x.get("cat", "autre"),

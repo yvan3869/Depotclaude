@@ -18,7 +18,7 @@ import urllib.request
 from categories import CATS, FAMILLES, temps_min
 
 UA = "girls-ai-hub/1.0"
-MAX_MO = 1500   # taille d'un fichier : il transite par la memoire du serveur
+MAX_MO = 4000   # taille d'un fichier : il transite par le disque du serveur
 MAX_LOT = 6     # LoRA par lot
 # Recherche par defaut de chaque categorie (le champ de recherche de la page la remplace)
 REQ = {"realisme": "realism", "smartphone": "amateur photo", "peau": "skin detail", "lumiere": "lighting", "pose": "selfie",
