@@ -5,7 +5,7 @@ Relevé du 14/11/2026. Sources : articles et guides publics, à recouper avec le
 ## Ce que nous utilisons
 
 - **Images** : Z-Image Turbo, LoRA de visage à 1,4.
-- **Retouche** : Qwen-Image-Edit 2509.
+- **Retouche** : Qwen-Image-Edit 2511 (depuis le 18/11/2026 ; le 2509 reste sur le volume tant que hrafnvik s'en sert).
 - **Vidéo** : Wan 2.2 I2V 14B, deux passes (high et low noise), LoRA rapide lightx2v en 4 pas.
 
 ## Vidéo

@@ -6,7 +6,7 @@ le volume RunPod `lea-models`, dossier `/workspace/runpod-slim/ComfyUI/output`
 
 ## Methode
 - Casting : Wan 2.2 T2V low-noise + LoRA lightx2v, 8 pas, res_multistep/beta, 864x1152 (~10 s/image).
-- Declinaisons : Qwen-Image-Edit 2509 + LoRA Lightning 8 pas, image maitre en reference (~16 s/image).
+- Declinaisons : Qwen-Image-Edit 2511 + LoRA Lightning 8 pas, image maitre en reference (~16 s/image).
 - Sans maquillage : seconde passe d'edition avec cette seule consigne (melangee a d'autres, elle est ignoree).
 
 ## Tri (40 images + 14 sans maquillage)
