@@ -727,7 +727,8 @@ class Biblio:
         dos (huit essais d'apres la face retenue, fesses et hanches tirees au sort), angles (profils et trois quarts d'apres face et dos).
         "tenue" : texte du proprietaire (anglais), tel quel ; vide : brassiere et culotte unies. Les planches sont ensuite tirees de ces images."""
         slug, quoi = b["slug"], b.get("quoi")
-        self._libre()
+        if quoi != "reglages":  # "reglages" : la page garde ce qui vient d'etre saisi, sans rien lancer (admis pendant un calcul)
+            self._libre()
         p, v, bb = self.at.perso(slug), self.vue(slug), self._b(slug)
         if v["lora"]:
             raise ValueError("sans objet : sa LoRA tient déjà son corps")
@@ -751,6 +752,8 @@ class Biblio:
         if "retouche" in b:
             bb["corps_retouche"] = [str(x) for x in b.get("retouche") or [] if (cat.get(str(x)) or {}).get("famille") == "qwenedit"][:3]
             self._ecrire(slug, bb)
+        if quoi == "reglages":
+            return {"garde": True}
         ed = [x for x in bb.get("corps_retouche") or [] if (cat.get(x) or {}).get("famille") == "qwenedit"]
         tenue, var, lo = bb.get("corps_tenue") or CORPS_TENUE, bb.get("corps_variantes") or [], bb.get("corps_loras") or []
         if bb.get("corps_nsfw"):

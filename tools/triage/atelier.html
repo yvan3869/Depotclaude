@@ -1360,8 +1360,8 @@ Object.assign(actions, {
   cmplancer: async () => { const r = await api('/api/a/comparer', {id: C.id, temps: CM.t.map(Number), scenes: CM.t.flatMap(t => C.temps[t].liste.map(s => s.id)).filter(s => !CM.x.includes(s)), lieu: CM.l, tenue: CM.ten, variantes: +CM.n, force: +CM.f}); toast(`Comparaison lancée : ${r.lance} images`, true); await vueComparer(C.id); },
   bessayer: async () => { await api('/api/a/b/essayer', {slug: A.slug, tenue: AC.t, lieu: AC.l, pose: +AC.p}); toast('Essayage lancé', true); await bMaj(); },
   bjeter: async el => { if (!confirm('Retirer cette image ?')) return; bMaj(await api('/api/a/b/retirer', {slug: A.slug, image: el.dataset.n})); },
-  kltog: el => { el.parentNode.classList.toggle('on'); $('#klnb').textContent = `${$$('.lt.kl.on', vue).length} choisie(s)`; },
-  bcorps: async el => { const r = await api('/api/a/b/corps', {slug: A.slug, quoi: el.dataset.q, tenue: $('#ktenue').value.trim(), variantes: $('#kvar').value, nsfw: $('#knsfw').checked, loras: $$('.lt.kl.on', vue).map(x => `${x.dataset.kl}:${$('input', x).value || 1}`), retouche: $$('[data-kr]:checked', vue).map(x => x.dataset.kr)}); toast('Corps de référence lancé', true); await bMaj(); },
+  kltog: el => { el.parentNode.classList.toggle('on'); $('#klnb').textContent = `${$$('.lt.kl.on', vue).length} choisie(s)`; kGarder(); },
+  bcorps: async el => { clearTimeout(kGarder.t); const r = await api('/api/a/b/corps', {...kCorps(), quoi: el.dataset.q}); toast('Corps de référence lancé', true); await bMaj(); },
   bvisage: async () => { await api('/api/a/b/visage', {slug: A.slug}); toast('Portraits lancés', true); await bMaj(); },
   bplanches: async () => {
     const n = +$('#bn').value, tenue = $('#btenue').value.trim();
@@ -1468,6 +1468,16 @@ Object.assign(actions, {
     E.bibliotheque = (await api('/api/a/lora/capacite', {name: x.name, capacite: x.capacite.filter(y => y.acte !== el.dataset.acte)})).bibliotheque; rendreAtelier(); },
   brevenir: async () => { if (!confirm('Remettre la LoRA précédente ?')) return; bMaj(await api('/api/a/b/revenir', {slug: A.slug})); await etat(); },
 });
+// Son corps : les reglages sont gardes des la saisie (et non au seul lancement), sinon la page, redessinee a chaque rafraichissement, les remet
+const kCorps = () => ({slug: A.slug, tenue: $('#ktenue').value.trim(), variantes: $('#kvar').value, nsfw: $('#knsfw').checked,
+  loras: $$('.lt.kl.on', vue).map(x => `${x.dataset.kl}:${$('input', x).value || 1}`), retouche: $$('[data-kr]:checked', vue).map(x => x.dataset.kr)});
+function kGarder() {
+  if (!$('#kvar') || !A || !A.corps) return;
+  const k = kCorps();
+  Object.assign(A.corps, {tenue: $('#ktenue').value, variantes: k.variantes, nsfw: k.nsfw, loras: k.loras, retouche: k.retouche});
+  clearTimeout(kGarder.t); kGarder.t = setTimeout(() => api('/api/a/b/corps', {...k, quoi: 'reglages'}).catch(() => {}), 500);
+}
+vue.addEventListener('input', e => { const x = e.target; if (['ktenue', 'kvar', 'knsfw'].includes(x.id) || x.dataset.kr || x.closest('.lt.kl')) kGarder(); });
 vue.addEventListener('input', e => { if (e.target.dataset.ab) AB[e.target.dataset.ab] = e.target.value; if (e.target.dataset.abf) AB.forces[+e.target.dataset.abf] = e.target.value; });
 // Banc : au choix d'une LoRA, la phrase demarre avec ses mots declencheurs et sa page d'origine est relue chez la source
 async function bancOrigine(n) {
