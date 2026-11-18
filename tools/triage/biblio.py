@@ -844,16 +844,16 @@ class Biblio:
                       for s in range(libres[0], libres[0] + len(ANGLES))]
         n = len(taches)
         if lo and not ed and quoi == "face":
-            # Z-Image dessine le corps seul (ses LoRA et la fiche font les formes), puis la retouche pose la tete du portrait sur le
-            # haut de l'image, agrandi (`poser_tete`) : le corps n'est pas recalcule, le visage est celui du portrait.
+            # Z-Image dessine le corps seul (ses LoRA et la fiche font les formes), puis la retouche repose la tete du portrait sur l'image
+            # entiere (un haut d'image retouche a part puis recolle laissait un raccord visible : essais du 18/11/2026).
             pose = []
             for t in taches:
                 y = "y" + t["sortie"]
                 pose += [t | {"sortie": y}, {"sortie": t["sortie"], "seed": t["seed"], "taille": t["taille"], "ref": str(self.dir(slug) / f"{y}.png"), "tete": elle, "depuis": y,
-                                             "prompt": "Replace the head of the woman in image 1 with the head of the woman from image 2: exactly her face, her facial features "
-                                                       "and her whole hair (same colour, same length, same cut as in image 2), looking at the camera with a neutral relaxed expression, at the same place and the same size as the head "
-                                                       "of image 1. Keep everything else of image 1 exactly unchanged: her neck, her shoulders, her skin tone, the background, "
-                                                       f"the light and the framing. Only one woman in the picture. Natural smartphone photo, {PEAU}."}]
+                                             "prompt": "Replace the head of the woman in image 1 with the head of the woman from image 2: her face, her facial features and her "
+                                                       "whole hair (same colour, same length, same cut as in image 2), looking at the camera with a neutral relaxed expression. "
+                                                       "Keep everything else of image 1 exactly unchanged: her body, her breasts, her skin tone, her pose, the background, "
+                                                       f"the light and the framing. Only one woman in the picture. Natural smartphone photo, {PEAU_LOIN}."}]
             taches = pose
         if ed:
             taches = [t | {"loras_edit": ed} for t in taches]
