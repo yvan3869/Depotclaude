@@ -843,6 +843,18 @@ class Biblio:
                                  f"{ANGLES[(s - 1) % len(ANGLES)][1]}, {CORPS_POSE}. {tenue}. Only one woman in the picture. Natural smartphone photo."}
                       for s in range(libres[0], libres[0] + len(ANGLES))]
         n = len(taches)
+        if lo and not ed and quoi == "face":
+            # Z-Image dessine le corps seul (ses LoRA et la fiche font les formes), puis la retouche repose la tete du portrait :
+            # le corps ecrit par le proprietaire est garde, le visage est le sien.
+            pose = []
+            for t in taches:
+                y = "y" + t["sortie"]
+                pose += [t | {"sortie": y}, {"sortie": t["sortie"], "seed": t["seed"], "taille": t["taille"], "ref": str(self.dir(slug) / f"{y}.png"), "refs": [elle], "depuis": y,
+                                             "prompt": "Replace the head of the woman in image 1 with the head of the woman from image 2: her face, her facial features and her hair, "
+                                                       "looking at the camera with a neutral relaxed expression. Keep everything else of image 1 exactly unchanged: her body, her breasts, "
+                                                       "her skin tone, her pose, the background, the light and the framing. Only one woman in the picture. "
+                                                       f"Natural smartphone photo, {PEAU_LOIN}."}]
+            taches = pose
         if ed:
             taches = [t | {"loras_edit": ed} for t in taches]
             if lo and tz:  # la retouche devient l'image intermediaire (y...), l'essai est sa finition par Z-Image avec les LoRA, visage garde
