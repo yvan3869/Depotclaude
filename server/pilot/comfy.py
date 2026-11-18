@@ -32,6 +32,10 @@ class Comfy:
                     raise
                 time.sleep(10)
 
+    def liberer(self):
+        """Fait rendre a ComfyUI la memoire de la carte (modeles decharges) : un autre programme va s'en servir."""
+        request("POST", self.base + "/free", data={"unload_models": True, "free_memory": True}, timeout=60, raw=True)
+
     def has_model(self, folder, name):
         return name in self.models(folder)
 

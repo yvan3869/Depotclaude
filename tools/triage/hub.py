@@ -365,7 +365,8 @@ class Hub:
             raise ValueError("un calcul est déjà en cours : attendre sa fin")
         if not self.studio.can_run():
             raise ValueError("clé RunPod absente : effacement impossible depuis l'interface")
-        self.proc = self.studio.proc = subprocess.Popen([sys.executable, "-m", "pilot", "lora", "purge", "--data", str(self.data)],
+        self.proc = self.studio.proc = subprocess.Popen([sys.executable, "-m", "pilot", "lora", "purge", "--data", str(self.data),
+                                                         "--pod-id", os.environ.get("STUDIO_POD_ID") or self.studio.ensure_pod()],
                                                         cwd=str(self.repo / "server"), stdout=open(self.log, "w"), stderr=subprocess.STDOUT)
         self.studio.poser("Effacement de LoRA")
         return {"lance": True}
@@ -395,7 +396,8 @@ class Hub:
                          "vignette": next((i["u"] for i in x.get("images") or [] if i["n"] <= lim), ""),
                          "fichiers": [{"role": f["role"], "url": f["url"], "auth": f["auth"]} for f in x["fichiers"]]})
         (self.data / "hub_charger.json").write_text(json.dumps(todo, ensure_ascii=False), encoding="utf-8")
-        self.proc = self.studio.proc = subprocess.Popen([sys.executable, "-m", "pilot", "lora", "sync", "--data", str(self.data)],
+        self.proc = self.studio.proc = subprocess.Popen([sys.executable, "-m", "pilot", "lora", "sync", "--data", str(self.data),
+                                                         "--pod-id", os.environ.get("STUDIO_POD_ID") or self.studio.ensure_pod()],
                                                         cwd=str(self.repo / "server"), stdout=open(self.log, "w"), stderr=subprocess.STDOUT)
         self.studio.poser("Chargement de LoRA")
         return {"lance": len(todo)}

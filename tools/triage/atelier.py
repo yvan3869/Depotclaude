@@ -2382,7 +2382,8 @@ class Atelier:
             (d / "runs").mkdir(exist_ok=True)
             log = d / "runs" / "son.log"
             _dump(d / "runs" / "son.json", lot)
-            cmd = [sys.executable, "-m", "pilot", "sonimage" if image else "son", "--lot", str(d / "runs" / "son.json"), "--nom", pid, "--data", str(self.data)]
+            cmd = [sys.executable, "-m", "pilot", "sonimage" if image else "son", "--lot", str(d / "runs" / "son.json"), "--nom", pid, "--data", str(self.data),
+                   "--pod-id", os.environ.get("STUDIO_POD_ID") or self.studio.ensure_pod()]
             proc = self.studio.proc = subprocess.Popen(cmd, cwd=str(self.repo / "server"), stdout=open(log, "w"), stderr=subprocess.STDOUT)
             self.studio.poser(f"Sons ({pid})")
             self.sons[pid] = {"etat": "en cours", "faits": 0, "n": len(lot), "erreur": "", "cout": None}

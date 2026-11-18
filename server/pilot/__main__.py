@@ -675,6 +675,25 @@ def cmd_pods(a):
         print(p["id"], p.get("name"), p.get("status"), p.get("cost"), p.get("createdAt"))
 
 
+def pod_commun(a, cfg, data, nom):
+    """Le pod de veille du studio quand il est donne (--pod-id) et qu'il ouvre l'acces aux fichiers : ni cree ni supprime.
+    Sinon un pod a soi, a supprimer a la fin. Renvoie (pod, mot de passe Jupyter, a soi, cout horaire, carte)."""
+    import secrets
+    pid = getattr(a, "pod_id", None)
+    if pid:
+        try:
+            p = json.loads((Path(data) / "studio_pod.json").read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            p = {}
+        if p.get("id") == pid and p.get("j"):
+            log("pod de veille du studio repris")
+            return pid, p["j"], False, p.get("cost"), p.get("gpu")
+    jtok = secrets.token_urlsafe(24)
+    pod_id, cost, gpu = runpod.create_pod(cfg["infra"], f"{PREFIX}{nom}-{int(time.time())}", env={"JUPYTER_PASSWORD": jtok})
+    log(f"pod {pod_id} cree ({gpu}, {cost} $/h)")
+    return pod_id, jtok, True, cost, gpu
+
+
 def deposer(pod_id, jtok, fname, blob, dossier="loras"):
     """Depose un fichier dans un dossier de modeles du volume (les LoRA par defaut) par l'API de fichiers de Jupyter, en
     morceaux : le proxy RunPod coupe les envois de plus de 100 Mo. Le dossier racine de Jupyter est /workspace (le
@@ -738,7 +757,6 @@ def cmd_son(a):
     ff = os.environ.get("FFMPEG_BIN") or shutil.which("ffmpeg")
     if not ff:
         raise RuntimeError("ffmpeg introuvable")
-    jtok = secrets.token_urlsafe(24)
     marque = data / "son_modeles.json"  # ecrit quand les modeles ont ete vus sur le volume
     pre = {}
     if not marque.exists():  # premier usage : telecharger avant de louer le pod
@@ -746,8 +764,7 @@ def cmd_son(a):
             log(f"telechargement de {fname}")
             pre[fname] = telecharger(url, data / "work" / "son" / fname)
     t0 = time.time()
-    pod_id, cost, gpu = runpod.create_pod(cfg["infra"], f"{PREFIX}son-{int(time.time())}", env={"JUPYTER_PASSWORD": jtok})
-    log(f"pod {pod_id} cree ({gpu}, {cost} $/h)")
+    pod_id, jtok, a_soi, cost, gpu = pod_commun(a, cfg, data, "son")
     faits = []
     try:
         c = Comfy(pod_id)
@@ -794,8 +811,9 @@ def cmd_son(a):
             except Exception as e:  # un son rate n'arrete pas les suivants
                 log(f"ECHEC {x['sortie']} : {e}")
     finally:
-        runpod.delete_pod(pod_id)
-        log(f"pod {pod_id} supprime")
+        if a_soi:
+            runpod.delete_pod(pod_id)
+            log(f"pod {pod_id} supprime")
         for f in pre.values():
             f.unlink(missing_ok=True)
     mins = (time.time() - t0) / 60
@@ -826,11 +844,14 @@ def cmd_sonimage(a):
     ff = os.environ.get("FFMPEG_BIN") or shutil.which("ffmpeg")
     if not ff:
         raise RuntimeError("ffmpeg introuvable")
-    jtok = secrets.token_urlsafe(24)
-    H, D = {"Authorization": f"token {jtok}"}, si.DOSSIER
     t0 = time.time()
-    pod_id, cost, gpu = runpod.create_pod(cfg["infra"], f"{PREFIX}sonimage-{int(t0)}", env={"JUPYTER_PASSWORD": jtok})
-    log(f"pod {pod_id} cree ({gpu}, {cost} $/h)")
+    pod_id, jtok, a_soi, cost, gpu = pod_commun(a, cfg, data, "sonimage")
+    H, D = {"Authorization": f"token {jtok}"}, si.DOSSIER
+    if not a_soi:  # ComfyUI rend la memoire de la carte : MMAudio tourne a cote de lui
+        try:
+            Comfy(pod_id).liberer()
+        except Exception:
+            pass
     hote = f"{pod_id}-8888.proxy.runpod.net"
 
     def api(m, p, d=None, essais=None, **k):
@@ -938,8 +959,9 @@ def cmd_sonimage(a):
             except Exception:
                 pass
     finally:
-        runpod.delete_pod(pod_id)
-        log(f"pod {pod_id} supprime")
+        if a_soi:
+            runpod.delete_pod(pod_id)
+            log(f"pod {pod_id} supprime")
     mins = (time.time() - t0) / 60
     print(json.dumps({"son": faits, "minutes": round(mins, 1), "cost_usd": round(mins / 60 * float(cost or 0), 2)}))
     return 0
@@ -1393,9 +1415,7 @@ def lora_purge(a, data):
         log("rien a effacer")
         return 0
     cfg = load_config(a)
-    jtok = secrets.token_urlsafe(24)
-    pod_id, cost, gpu = runpod.create_pod(cfg["infra"], f"{PREFIX}lora-{int(time.time())}", env={"JUPYTER_PASSWORD": jtok})
-    log(f"pod {pod_id} cree ({gpu}, {cost} $/h)")
+    pod_id, jtok, a_soi, cost, gpu = pod_commun(a, cfg, data, "lora")
     try:
         c = Comfy(pod_id)
         c.wait_ready()
@@ -1404,8 +1424,9 @@ def lora_purge(a, data):
         vus = set(inventaire(c, data)) - set(faits)  # ComfyUI peut lister encore un moment un fichier efface
         (data / "lora_volume.json").write_text(json.dumps({"date": time.strftime("%d/%m/%Y %H:%M"), "fichiers": sorted(vus)}), encoding="utf-8")
     finally:
-        runpod.delete_pod(pod_id)
-        log(f"pod {pod_id} supprime")
+        if a_soi:
+            runpod.delete_pod(pod_id)
+            log(f"pod {pod_id} supprime")
     log(f"rapport : {len(faits)} fichier(s) efface(s)")
     return 0
 
@@ -1423,9 +1444,7 @@ def lora_sync(a, data, catp, cat):
         return 0
     cfg = load_config(a)
     tok = os.environ.get("CIVITAI_TOKEN", "")
-    jtok = secrets.token_urlsafe(24)
-    pod_id, cost, gpu = runpod.create_pod(cfg["infra"], f"{PREFIX}lora-{int(time.time())}", env={"JUPYTER_PASSWORD": jtok})
-    log(f"pod {pod_id} cree ({gpu}, {cost} $/h)")
+    pod_id, jtok, a_soi, cost, gpu = pod_commun(a, cfg, data, "lora")
     ok, deposes = 0, []
     try:
         c = Comfy(pod_id)
@@ -1459,8 +1478,9 @@ def lora_sync(a, data, catp, cat):
         if set(deposes) - set(vus) or set(effaces) & set(vus):  # ComfyUI ne voit un fichier neuf ou efface qu'apres un moment
             (data / "lora_volume.json").write_text(json.dumps({"date": time.strftime("%d/%m/%Y %H:%M"), "fichiers": sorted((set(vus) | set(deposes)) - (set(effaces) - set(deposes)))}), encoding="utf-8")
     finally:
-        runpod.delete_pod(pod_id)
-        log(f"pod {pod_id} supprime")
+        if a_soi:
+            runpod.delete_pod(pod_id)
+            log(f"pod {pod_id} supprime")
     file.unlink(missing_ok=True)
     log(f"rapport : {ok} LoRA chargee(s) sur {len(todo)}")
     return 0
@@ -1598,11 +1618,13 @@ def main():
     so.add_argument("--seed", type=int, default=100)
     so.add_argument("--neg", default=SON_NEG, help="ce qu'on ne veut pas entendre")
     so.add_argument("--data", default=os.environ.get("DATA_DIR", str(ROOT / "server" / "data")))
+    so.add_argument("--pod-id", help="pod de veille du studio (ni cree ni supprime)")
     so.set_defaults(fn=cmd_son)
     sm = sub.add_parser("sonimage", help="son d'apres l'image des clips d'un projet (MMAudio, licence non commerciale), range dans data/audio/image")
     sm.add_argument("--lot", required=True, help="fichier JSON du lot (ecrit par l'atelier)")
     sm.add_argument("--nom", required=True, help="identifiant du projet (pNNNN)")
     sm.add_argument("--data", default=os.environ.get("DATA_DIR", str(ROOT / "server" / "data")))
+    sm.add_argument("--pod-id", help="pod de veille du studio (ni cree ni supprime)")
     sm.set_defaults(fn=cmd_sonimage)
     co = sub.add_parser("controle", help="essai : fait noter les images de projets par un mesureur de visage et un modele de vision")
     co.add_argument("--nom", required=True, help="identifiants de projet separes par des virgules (pNNNN,pNNNN)")

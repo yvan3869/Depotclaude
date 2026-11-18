@@ -121,10 +121,12 @@ class Studio:
                 "idle_s": 0 if self.running() else int(now - p["last_used"]), "idle_max_s": self.IDLE_S}
 
     def _save_pod(self, p):
+        self.podfile.touch(mode=0o600)
         self.podfile.write_text(json.dumps(p), encoding="utf-8")
 
     def ensure_pod(self):
         """Renvoie l'identifiant du pod de veille, en le creant s'il n'existe pas ou plus."""
+        import secrets
         import yaml
         rp = self._rp()
         with self.lock:
@@ -140,8 +142,11 @@ class Studio:
                 p = None
             if not p:
                 infra = yaml.safe_load((self.repo / "persona" / "production.yaml").read_text(encoding="utf-8"))["infra"]
-                pid, cost, gpu = rp.create_pod(infra, f"girls-ai-studio-{int(time.time())}")
-                p = {"id": pid, "cost": cost, "gpu": gpu, "created": time.time()}
+                # Acces aux fichiers du volume (Jupyter) : les sons, le depot et l'effacement des LoRA passent par ce pod
+                # au lieu d'en louer un autre. Le mot de passe reste dans le fichier du pod, jamais servi a l'interface.
+                j = secrets.token_urlsafe(24)
+                pid, cost, gpu = rp.create_pod(infra, f"girls-ai-studio-{int(time.time())}", env={"JUPYTER_PASSWORD": j})
+                p = {"id": pid, "cost": cost, "gpu": gpu, "created": time.time(), "j": j}
             p["last_used"] = time.time()
             self._save_pod(p)
             return p["id"]
