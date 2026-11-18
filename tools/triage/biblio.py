@@ -851,7 +851,7 @@ class Biblio:
                 y = "y" + t["sortie"]
                 pose += [t | {"sortie": y}, {"sortie": t["sortie"], "seed": t["seed"], "taille": t["taille"], "ref": str(self.dir(slug) / f"{y}.png"), "tete": elle, "depuis": y,
                                              "prompt": "Replace the head of the woman in image 1 with the head of the woman from image 2: her face, her facial features and her "
-                                                       "whole hair (same colour, same length, same cut as in image 2), looking at the camera with a neutral relaxed expression. The skin tone of her face and the light on it match her body. "
+                                                       "whole hair (same colour, same length, same cut as in image 2), with the same expression as in image 2, looking at the camera. The skin tone of her face and the light on it match her body. "
                                                        "Keep everything else of image 1 exactly unchanged: her body, her breasts, her skin tone, her pose, the background, "
                                                        f"the light and the framing. Only one woman in the picture. Natural smartphone photo, {PEAU_LOIN}."}]
             taches = pose

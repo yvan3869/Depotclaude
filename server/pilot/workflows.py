@@ -232,7 +232,7 @@ def edit_image(m, image_name, prompt, w, h, seed, prefix, steps=8, loras=None):
 
 
 VISAGE = ("Replace only the face of the woman in image 1 with the face of the woman from image 2: exactly her facial features, her eyes, her nose, "
-          "her mouth, her skin and its marks, looking at the camera with a neutral relaxed expression, at the same place and the same size. "
+          "her mouth, her eyebrows, her skin and its marks, her age, the natural colour of her eyes (not more saturated), with the same expression as in image 2, looking at the camera, at the same place and the same size. "
           "Keep everything else of image 1 exactly unchanged: her hair, her neck, her shoulders, her body, her skin tone, the background, the light "
           "and the framing. Natural smartphone photo, natural skin texture, fine pores.")
 
