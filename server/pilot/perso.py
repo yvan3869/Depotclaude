@@ -103,7 +103,11 @@ def images(a, cfg, resolve_loras, to_mp4=None):
                     for r in t.get("refs") or []:
                         if r not in refs:
                             refs[r] = c.upload(f"ga_perso_ref{len(refs)}.png", Path(r).read_bytes())
-                    g = workflows.edit_image(models, refs[t["ref"]], t["prompt"], w, h, int(t["seed"]), f"ga_{t['sortie']}")
+                    ed = [x for x in resolve_loras(cfg, t.get("loras_edit") or []) if x.get("retouche")]  # LoRA du modele de retouche, au choix du proprietaire
+                    if any(x["name"] not in volume for x in ed):
+                        raise RuntimeError("LoRA introuvable sur le volume")
+                    trig = ", ".join(x["trigger"] for x in ed if x.get("trigger"))
+                    g = workflows.edit_image(models, refs[t["ref"]], t["prompt"] + (f" {trig}" if trig else ""), w, h, int(t["seed"]), f"ga_{t['sortie']}", loras=ed)
                     for i, r in enumerate(t.get("refs") or [], 2):
                         g[f"img{i}"] = {"class_type": "LoadImage", "inputs": {"image": refs[r]}}
                         src = f"img{i}"
@@ -115,7 +119,7 @@ def images(a, cfg, resolve_loras, to_mp4=None):
                         g["pos"]["inputs"][f"image{i}"] = g["neg"]["inputs"][f"image{i}"] = [src, 0]
                 else:
                     ch = char if t.get("lora") else sans
-                    extra = [x for x in resolve_loras(cfg, t.get("loras") or []) if not x["video"]]
+                    extra = [x for x in resolve_loras(cfg, t.get("loras") or []) if not x["video"] and not x.get("retouche")]
                     for f in [ch.get("lora_still_zimage")] + [x["name"] for x in extra]:
                         if f and f not in volume:
                             raise RuntimeError("LoRA introuvable sur le volume")

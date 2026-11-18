@@ -422,7 +422,7 @@ function lorasBloc(k, titre, liste) {  // tuiles a cocher : image d'abord, clip 
   const B = E.bibliotheque, sel = LP(k), deja = k === '0' ? [] : LP('0').map(y => y.n);
   const tuile = x => { const y = sel.find(y => y.n === x.name), pr = deja.includes(x.name);
     return `<div class="lt ${y ? 'on' : ''} ${pr ? 'off' : ''}"><button data-a="loratog" data-k="${k}" data-n="${esc(x.name)}" ${pr ? 'disabled' : ''} title="${esc(x.note || x.label)}">
-      <b>${esc(x.label)}</b><span class="tg"><span class="badge">${esc(B.categories[x.cat].label)}</span><span class="badge ${x.famille === 'wan22' ? 'i' : 'v'}">${x.famille === 'wan22' ? 'clip' : 'image'}</span>${k === '0' && x.temps_min > 1 ? `<span class="badge">dès le temps ${x.temps_min}</span>` : ''}</span>
+      <b>${esc(x.label)}</b><span class="tg"><span class="badge">${esc(B.categories[x.cat].label)}</span><span class="badge ${x.famille === 'wan22' ? 'i' : 'v'}">${x.famille === 'wan22' ? 'clip' : x.famille === 'qwenedit' ? 'retouche' : 'image'}</span>${k === '0' && x.temps_min > 1 ? `<span class="badge">dès le temps ${x.temps_min}</span>` : ''}</span>
       <small>${pr ? 'Déjà dans tout le projet' : y ? (x.trigger ? `Mots ajoutés d'office : « ${esc(x.trigger)} »` : 'Choisie, sans mot à ajouter') : 'Toucher pour choisir'}${x.volume === false ? ' <span class="err">Fichier absent du volume.</span>' : ''}</small></button>
       ${y ? `<div class="fo">Force<input type="number" step="0.05" min="0" max="2" data-lf="${k}" data-n="${esc(x.name)}" value="${y.f || x.strength}" title="Force"></div>` : ''}</div>`; };
   const perdues = sel.filter(y => !liste.some(x => x.name === y.n));
@@ -453,7 +453,7 @@ function tenueTemps() {  // tirage « bibliotheque » : le lieu et la tenue du p
 function rendreProjet() {
   const p = perso() || {nom: P.personnage}, vide = !P.scenes.some(s => s.temps === 1);
   const SC = P.scenes.filter(s => s.temps === T), dep = D.depots.filter(x => (x.lestemps || []).includes(T) || x.erreur);
-  const LT = E.bibliotheque.loras.filter(x => x.temps_min <= T);  // LoRA que la categorie admet a ce temps
+  const LT = E.bibliotheque.loras.filter(x => x.temps_min <= T && x.famille !== 'qwenedit');  // LoRA que la categorie admet a ce temps
   const L0 = LP('0').filter(y => ((E.bibliotheque.loras.find(x => x.name === y.n) || {}).temps_min || 1) <= T).length;
   const occSon = D.son.etat === 'en cours' || D.prod.etat === 'en cours' || D.chaine.etat === 'en cours';
   let no = 0;  // numero de section, dans l'ordre du travail
@@ -948,7 +948,7 @@ let DEFS = null;  // LoRA par defaut de chaque temps, telles que touchees et pas
 const defLire = () => Object.fromEntries(NT.map(t => [t, ((E.bibliotheque.defauts || {})[t] || '').split(', ').filter(Boolean).map(x => { const [n, f] = x.split(':'); return {n, f}; })]));
 function defautsBloc() {  // les memes tuiles que dans un projet : image d'abord, clip ensuite ; un toucher choisit ou retire
   const B = E.bibliotheque; DEFS ||= defLire();
-  return NT.map(t => { const sel = DEFS[t], adm = B.loras.filter(x => x.temps_min <= t).sort((x, y) => (x.famille === 'wan22') - (y.famille === 'wan22'));
+  return NT.map(t => { const sel = DEFS[t], adm = B.loras.filter(x => x.temps_min <= t && x.famille !== 'qwenedit').sort((x, y) => (x.famille === 'wan22') - (y.famille === 'wan22'));
     return `<div class="gt">${t}. ${TEMPS[t][0]} <small style="text-transform:none;letter-spacing:0;color:var(--mut)">${sel.length} choisie(s) sur ${adm.length}</small></div>
       ${adm.length ? `<div class="tuiles">${adm.map(x => { const y = sel.find(y => y.n === x.name);
         return `<div class="lt ${y ? 'on' : ''}"><button data-a="deftog" data-t="${t}" data-n="${esc(x.name)}" title="${esc(x.note || x.label)}"><b>${esc(x.label)}</b>
@@ -1107,7 +1107,7 @@ const bToutes = () => [...A.expressions.flatMap(x => x.images), ...A.planches]; 
 // Galerie d'expressions : une vignette par expression ; toucher = garder pour l'entrainement, loupe = agrandir, fleche = une autre image
 function aCorps() {  // corps de reference d'un personnage sans LoRA : de face, de dos, puis les autres angles
   const C = A.corps, ok = !!A.visage.choix;
-  const LI = E.bibliotheque.loras.filter(x => x.famille !== 'wan22');
+  const LI = E.bibliotheque.loras.filter(x => x.famille !== 'wan22' && x.famille !== 'qwenedit');
   const gal = (L, ch, choisir) => L.length ? `<div class="bgal gr">${L.map(n => `<div style="position:relative;flex:none"><img loading="lazy" class="${n === ch ? 'on' : ''}" src="${af(n)}" ${choisir ? `data-a="bchoix" data-n="${n}"` : `data-a="bzoom" data-l="v" data-n="${n}"`} alt="">${(C.avec_lora || []).includes(n) ? '<span class="badge v pst" title="Image dessinée avec LoRA : la loupe dit lesquelles">LoRA</span>' : ''}${bi('chercher', 'Agrandir', `data-a="bzoom" data-l="v" data-n="${n}" style="position:absolute;top:5px;right:5px;opacity:.85"`)}${bi('supprimer', 'Supprimer cette image', `data-a="bsuppr" data-n="${n}" style="position:absolute;top:41px;right:5px;opacity:.85"`)}</div>`).join('')}</div>` : '';
   const btn = (q, n, t, on, si) => `<div class="row" style="margin-top:6px"><button class="${on ? 'p' : ''}" data-a="bcorps" data-q="${q}" ${si ? '' : 'disabled'}>${ic('image')}${t}</button><span class="mut">environ ${acout(n)}</span></div>`;
   return `<div class="mut">Comme pour le visage : des essais de son corps, tirés de son portrait, chacun avec ses propres formes. Vous retenez celui de face, puis celui de dos, puis les autres angles sont créés d'après eux. Les planches seront ensuite tirées de ces images : même corps d'une photo à l'autre.</div>
@@ -1199,7 +1199,8 @@ function rendreAtelier() {
         <label class="c"><input type="checkbox" id="bnsfw"><span>Série pour adultes</span>${aide('Ajoute le mot nsfw à chaque planche. Le texte de la tenue et les LoRA ci-dessous restent à votre main.')}</label>
         ${A.lora ? '' : `<div class="row haut"><div class="g"><label>Fabrication<select id="bvoie"><option value="finie">Retouche, puis finition avec mes LoRA (conseillé)</option><option value="">Retouche seule</option><option value="lora">Corps dessiné avec mes LoRA, puis visage posé (peu fiable)</option></select>${aide('Retouche : la planche est tirée du portrait retenu, des images du corps de référence (face, dos, angles, selon le cadrage) et des quatre cases de sa fiche. C\'est ce qui tient le mieux son visage et son corps. Finition : cette image est ensuite redessinée en partie par Z-Image avec les LoRA cochées plus haut (« LoRA pour son corps »), sauf le visage, gardé tel quel : la peau, les cheveux et le tissu deviennent plus vrais, et les LoRA jouent sur le corps. Deux images calculées par planche : compter le double du prix. Corps dessiné puis visage posé : à l\'essai, une planche sur six seulement a pris son visage.')}</label></div>
           <div style="width:150px"><label>Finition<select id="bfin"><option value="0.35">Légère</option><option value="0.5" selected>Moyenne</option><option value="0.65">Forte</option></select>${aide('Légère : le corps de la retouche ne bouge presque pas, seule la matière change. Forte : les LoRA redessinent davantage le corps, qui s\'éloigne un peu des images de référence.')}</label></div></div>`}
-        ${A.lora && B.loras.some(x => x.famille !== 'wan22') ? `<details class="pli"><summary>LoRA en plus pour cette série</summary><div class="tuiles">${B.loras.filter(x => x.famille !== 'wan22').map(x => `<label class="c"><input type="checkbox" data-bl="${esc(x.name)}"><span>${esc(x.label)}</span></label>`).join('')}</div></details>` : ''}
+        ${!A.lora && B.loras.some(x => x.famille === 'qwenedit') ? `<details class="pli"><summary>LoRA de retouche (étape 1)</summary><div class="mut">Elles agissent sur le modèle de retouche, avant la finition. Force : celle de la Bibliothèque de LoRA.</div><div class="tuiles">${B.loras.filter(x => x.famille === 'qwenedit').map(x => `<label class="c"><input type="checkbox" data-br="${esc(x.name)}"><span>${esc(x.label)}</span></label>`).join('')}</div></details>` : ''}
+        ${A.lora && B.loras.some(x => x.famille !== 'wan22' && x.famille !== 'qwenedit') ? `<details class="pli"><summary>LoRA en plus pour cette série</summary><div class="tuiles">${B.loras.filter(x => x.famille !== 'wan22' && x.famille !== 'qwenedit').map(x => `<label class="c"><input type="checkbox" data-bl="${esc(x.name)}"><span>${esc(x.label)}</span></label>`).join('')}</div></details>` : ''}
         <div class="row" style="margin-top:6px"><button class="p" data-a="bplanches" ${pris || (!A.lora && !A.visage.choix) ? 'disabled' : ''}>${ic('planche')}Créer la série</button><span class="mut" id="bcout">${A.lora || A.visage.choix ? 'environ ' + acout(24) : 'Retenir d\'abord un portrait.'}</span></div></div>`
       + (A.planches.length ? `<h2>Planches <small>${g} gardée(s) sur ${A.planches.length}</small></h2><div class="panel"><div class="mut">Toucher une planche pour la garder (encadrée) ou l'écarter ; la loupe l'agrandit, avec passage à la suivante et choix depuis la grande image. Seules les planches gardées servent à l'entraînement. « Supprimer les écartées » retire de la page celles qui ne sont pas encadrées. Écarter : visage différent, mains ratées, corps déformé. Les séries sont rangées de la plus récente à la plus ancienne ; toucher son titre pour l'ouvrir ou la replier. Chacune rappelle ses réglages, que « Reprendre ces réglages » recopie dans « Nouvelle série ».</div>
         ${series.map((s, k) => { const L = A.planches.filter(x => x.nom.split('_')[1] === s), I = (A.series || {})[s], gs = L.filter(x => x.garde).length;
@@ -1217,7 +1218,7 @@ function rendreAtelier() {
         ${o.exemples.length ? `<div class="mut" style="margin-top:8px">Prompts des images d'exemple de l'auteur</div>` + o.exemples.map((p, i) => `<div class="row haut" style="margin:6px 0"><div class="g" style="font-size:13px;white-space:pre-wrap;overflow-wrap:anywhere">${esc(p)}</div>${bi('copier', 'Utiliser comme phrase', `data-a="bancex" data-i="${i}"`)}</div>`).join('') : ''}
         ${o.description ? `<details class="pli"><summary>Description de l'auteur</summary><div style="font-size:13px;white-space:pre-wrap;overflow-wrap:anywhere">${esc(o.description)}</div></details>` : ''}
         <div class="mut"><a href="${esc(x.source)}" target="_blank" rel="noopener">Ouvrir la page</a></div></details>`; };
-    const B = E.bibliotheque, LI = B.loras.filter(x => x.famille !== 'wan22'), nomL = n => esc((B.loras.find(x => x.name === n) || {}).label || n);
+    const B = E.bibliotheque, LI = B.loras.filter(x => x.famille !== 'wan22' && x.famille !== 'qwenedit'), nomL = n => esc((B.loras.find(x => x.name === n) || {}).label || n);
     const cadre = k => (B.banc.cadres.find(c => c[0] === k) || [k, k])[1], avec = B.loras.filter(x => x.capacite.length);
     if (HUBATT === null) { HUBATT = []; api('/api/h/etat').then(r => { HUBATT = r.retenues.filter(x => !x.chargee).map(x => x.label); if (HUBATT.length && AO === 'banc') rendreAtelier(); }).catch(() => {}); }
     const fv = f => String(f).replace('.', ','), ligneDe = x => ((B.loras.find(y => y.name === x.lora) || {capacite: []}).capacite.find(l => l.acte.trim().toLowerCase() === x.acte.trim().toLowerCase()));
@@ -1238,7 +1239,7 @@ function rendreAtelier() {
         <b>LoRA de clip :</b> même chemin. On choisit une image de départ qui montre déjà la position, on écrit le mouvement, et le banc rend trois clips de 5 secondes, un par poids. On coche ceux qui tiennent.</div></details>
       ${HUBATT && HUBATT.length ? `<div class="aide avt">${HUBATT.length} LoRA retenue(s) dans le Matériel ne sont pas encore chargées : elles ne peuvent pas être essayées. <a href="/hub">Les charger</a></div>` : ''}</div>
       <h2>Essayer une position</h2><div class="panel">
-        <label>1. LoRA à essayer<select data-ab="lora"><option value="">Choisir</option>${B.loras.map(x => `<option value="${esc(x.name)}" ${AB.lora === x.name ? 'selected' : ''}>${esc(x.label)}${x.famille === 'wan22' ? ' (clip)' : ''}</option>`).join('')}</select>${aide('Les LoRA inscrites. Une LoRA d\'image donne 9 images ; une LoRA de clip, marquée « (clip) », donne 3 clips à partir d\'une image de départ.')}</label>
+        <label>1. LoRA à essayer<select data-ab="lora"><option value="">Choisir</option>${B.loras.filter(x => x.famille !== 'qwenedit').map(x => `<option value="${esc(x.name)}" ${AB.lora === x.name ? 'selected' : ''}>${esc(x.label)}${x.famille === 'wan22' ? ' (clip)' : ''}</option>`).join('')}</select>${aide('Les LoRA inscrites. Une LoRA d\'image donne 9 images ; une LoRA de clip, marquée « (clip) », donne 3 clips à partir d\'une image de départ.')}</label>
         <label>2. Nom de la position (anglais, deux ou trois mots)<input data-ab="acte" maxlength="80" placeholder="exemple : sitting cross-legged" value="${esc(AB.acte)}"></label>
         <div class="mut" style="font-size:12.5px;margin:-2px 0 10px">Une simple étiquette, pour la liste où le script choisit. Elle ne sert pas à fabriquer l'image.</div>
         ${clipL ? `<label>3. Mouvement (anglais)<textarea data-ab="phrase" rows="3" maxlength="500" placeholder="ce qui bouge, à quel rythme, et ce que fait la caméra">${esc(AB.phrase)}</textarea></label>
@@ -1269,7 +1270,7 @@ function rendreAtelier() {
         <div class="row"><button class="p" data-a="banclancer" ${A.lora ? '' : 'disabled'}>${ic('lancer')}Lancer le banc</button><span class="mut">${A.lora ? `9 images, environ ${acout(9)}` : 'Il faut d\'abord la LoRA du visage (onglet LoRA).'}</span></div>`}
         <details class="pli" data-sec="bancsans"${ouv('bancsans', false)}><summary>Inscrire sans essai</summary>
           <div class="mut">Pour une position déjà éprouvée. Elle entre dans la liste tout de suite, aux trois cadrages.</div>
-          <div class="row haut"><div class="g"><label>LoRA<select data-ab="lora2"><option value="">Choisir</option>${B.loras.map(x => `<option value="${esc(x.name)}" ${AB.lora2 === x.name ? 'selected' : ''}>${esc(x.label)}${x.famille === 'wan22' ? ' (clip)' : ''}</option>`).join('')}</select></label></div>
+          <div class="row haut"><div class="g"><label>LoRA<select data-ab="lora2"><option value="">Choisir</option>${B.loras.filter(x => x.famille !== 'qwenedit').map(x => `<option value="${esc(x.name)}" ${AB.lora2 === x.name ? 'selected' : ''}>${esc(x.label)}${x.famille === 'wan22' ? ' (clip)' : ''}</option>`).join('')}</select></label></div>
             <div style="width:110px"><label>Force<input data-ab="force" type="number" step="0.05" min="0.1" max="2" value="${esc(AB.force)}"></label></div></div>
           <div class="row"><button data-a="bancinscrire">${ic('valider')}Inscrire la position ci-dessus</button></div></details></div>`
       + (A.banc.length ? '<h2>Séries du banc</h2>' + A.banc.map(x => { const I = x.images.filter(n => n.split('_')[2] === String(x.serie)), co = AB.coche[x.cle] || [];
@@ -1365,13 +1366,14 @@ Object.assign(actions, {
     const n = +$('#bn').value, tenue = $('#btenue').value.trim();
     const voie = $('#bvoie')?.value || '', v3 = !!voie;
     if (!confirm(`Créer ${n} planches, environ ${acout(v3 ? 2 * n : n)} ?`)) return;
-    await api('/api/a/b/planches', {slug: A.slug, n, tenue, nsfw: $('#bnsfw').checked, voie, finition: +($('#bfin')?.value || 0.5),
+    await api('/api/a/b/planches', {slug: A.slug, n, tenue, nsfw: $('#bnsfw').checked, voie, finition: +($('#bfin')?.value || 0.5), retouche: $$('[data-br]:checked', vue).map(x => x.dataset.br),
       loras: v3 ? $$('.lt.kl.on', vue).map(x => `${x.dataset.kl}:${$('input', x).value || 1}`) : $$('[data-bl]:checked', vue).map(x => x.dataset.bl)});
     toast('Série lancée', true); await bMaj();
   },
   breprendre: el => { const I = (A.series || {})[el.dataset.s]; if (!I) return;
     $('#btenue').value = I.tenue; $('#bnsfw').checked = !!I.nsfw; if ([12, 24, 36].includes(I.n)) $('#bn').value = I.n;
     $$('[data-bl]', vue).forEach(x => { x.checked = I.loras.includes(x.dataset.bl); if (x.checked) x.closest('details').open = true; });
+    $$('[data-br]', vue).forEach(x => { x.checked = (I.retouche || []).includes(x.dataset.br); if (x.checked) x.closest('details').open = true; });
     $('#bn').dispatchEvent(new Event('change', {bubbles: true})); $('#btenue').scrollIntoView({block: 'center'}); toast(`Réglages de la série ${el.dataset.s} repris`, true); },
   bzoom: el => {  // grande image d'une planche : precedente, suivante, garder ou ecarter sans revenir a la grille
     const mode = el.dataset.l || '', serie = el.dataset.n.split('_')[1], ess = mode === 'e';  // 'g' : la selection d'entrainement ; 'e' : les images d'essai d'une version

@@ -904,6 +904,9 @@ class Biblio:
         finie = bool(ref) and b.get("voie") == "finie"
         fin = min(max(float(b.get("finition") or 0.5), 0.2), 0.8)
         lo = [_lora_force(x) for x in b.get("loras") or []][:4] if pose or finie else []
+        # LoRA du modele de retouche (famille qwenedit du catalogue), au choix du proprietaire : elles ne vont qu'a l'etape de retouche.
+        cat = self.at._catalogue()
+        ed = [str(x) for x in b.get("retouche") or [] if (cat.get(str(x)) or {}).get("famille") == "qwenedit"][:3] if ref else []
         tenues = [x["en"] for x in v["tenues"] if x["genre"] != "dessous"] or ["a white t-shirt and jeans"]
         serie = bb["series"] = int(bb.get("series") or 0) + 1
         pre, taches = self._prefixe(p), []
@@ -952,6 +955,8 @@ class Biblio:
                 qui = (f" She is {qui}." if qui else "") + (f" Her face: {cs['visage']}." if cs.get("visage") else "") + (f" Her body: {cs['corps']}." if cs.get("corps") else "")
                 rc = self._refs_corps(slug, v, cadre)
                 t |= {"ref": ref, "prompt": f"Same woman, same face, same hair.{qui} New photo of her: {desc}. Natural smartphone photo, {peau}."}
+                if ed:
+                    t |= {"loras_edit": ed}
                 if rc:  # son corps de reference : meme corps, mais ni sa tenue ni son fond ; sa tete y est coupee (sauf de dos), un seul visage en jeu
                     t |= {"sans_tete": [x for x in rc if not _de_dos(x)]}
                     t |= {"refs": rc, "prompt": f"The woman from image 1: same face, same hair. Her body is the one shown in image {' and image '.join(str(k) for k in range(2, 2 + len(rc)))}: "
@@ -968,7 +973,7 @@ class Biblio:
                 t |= {"lora": True, "loras": [str(x) for x in b.get("loras") or []][:4], "prompt": f"{pre}vertical {desc}{fin_}"}
             taches.append(t)
         self._ecrire(slug, bb)
-        self._lancer(slug, "planches", {"taches": taches, "reglages": {"tenue": tenue, "nsfw": bool(b.get("nsfw")), "loras": [str(x) for x in b.get("loras") or []][:4], "voie": "lora" if pose else "finie" if finie else ""} | ({"finition": fin} if finie else {})}, n)
+        self._lancer(slug, "planches", {"taches": taches, "reglages": {"tenue": tenue, "nsfw": bool(b.get("nsfw")), "loras": [str(x) for x in b.get("loras") or []][:4], "voie": "lora" if pose else "finie" if finie else ""} | ({"finition": fin} if finie else {}) | ({"retouche": ed} if ed else {})}, n)
         return {"lance": n}
 
     def banc(self, b):
@@ -982,6 +987,8 @@ class Biblio:
         cat, nom = self.at._catalogue(), str(b.get("lora") or "")
         if nom not in cat:
             raise ValueError("choisir une LoRA du catalogue")
+        if cat[nom].get("famille") == "qwenedit":
+            raise ValueError("LoRA de retouche : elle s'essaie sur une série de planches, pas au banc")
         if cat[nom].get("famille") == "wan22":
             return self._banc_clip(b, p, bb, cat, nom)
         if not v["lora"]:
@@ -995,7 +1002,7 @@ class Biblio:
                   and fi.get(x["name"] if isinstance(x, dict) else x, ("", "zimage"))[1] != "wan22"]
         avec = []  # LoRA empilees a celle qu'on essaie, au choix du proprietaire, chacune a sa force du catalogue
         for n in b.get("avec") or []:
-            if n in cat and n != nom and n not in avec and cat[n].get("famille") != "wan22" and not any((x["name"] if isinstance(x, dict) else x) == n for x in styles):
+            if n in cat and n != nom and n not in avec and cat[n].get("famille") not in ("wan22", "qwenedit") and not any((x["name"] if isinstance(x, dict) else x) == n for x in styles):
                 avec.append(n)
         if len(avec) > 4:
             raise ValueError("4 LoRA ajoutées au plus")

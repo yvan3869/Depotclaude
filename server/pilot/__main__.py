@@ -80,13 +80,14 @@ def resolve_loras(cfg, wanted):
         w = {"name": w} if isinstance(w, str) else dict(w)
         ref = cat.get(w["name"], {})
         out.append({"name": ref.get("file", w["name"]), "strength": float(w.get("strength", ref.get("strength", 1.0))),
-                    "trigger": ref.get("trigger", ""), "low": ref.get("file_low", ""), "video": ref.get("famille") == "wan22"})
+                    "trigger": ref.get("trigger", ""), "low": ref.get("file_low", ""), "video": ref.get("famille") == "wan22",
+                    "retouche": ref.get("famille") == "qwenedit"})
     return out
 
 
 def loras_image(l):
     """LoRA d'image d'un plan (None : le plan ne dit rien, on garde extra_loras_still)."""
-    return None if l is None else [x for x in l if not x["video"]]
+    return None if l is None else [x for x in l if not x["video"] and not x.get("retouche")]
 
 
 def loras_video(l):

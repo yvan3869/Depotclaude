@@ -26,6 +26,10 @@ FAMILLES = {
                "hf": ["Tongyi-MAI/Z-Image-Turbo", "Tongyi-MAI/Z-Image"]},
     "wan22": {"label": "Wan 2.2 image vers vidéo", "usage": "clips", "civitai": ["Wan Video 2.2 I2V-A14B"],
               "hf": ["Wan-AI/Wan2.2-I2V-A14B"]},
+    # LoRA du modele de retouche : elles ne servent qu'a l'etape de retouche (planches du personnage), jamais a Z-Image ni aux clips.
+    # Civitai range sous « Qwen » les LoRA de Qwen-Image et de Qwen-Image-Edit : prendre celles dont le nom dit « Edit ».
+    "qwenedit": {"label": "Qwen-Image-Edit (retouche)", "usage": "retouches", "civitai": ["Qwen"],
+                 "hf": ["Qwen/Qwen-Image-Edit-2511", "Qwen/Qwen-Image-Edit-2509", "Qwen/Qwen-Image-Edit"]},
 }
 
 

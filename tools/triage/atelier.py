@@ -527,7 +527,7 @@ class Atelier:
 
     def _lora_image(self, s):
         """Vrai si la scene porte une LoRA d'image : son image est alors tiree directement, pas par retouche de la reference."""
-        return any(v.get("famille") != "wan22" for v in self._fiches(s))
+        return any(v.get("famille") not in ("wan22", "qwenedit") for v in self._fiches(s))
 
     def _lib(self):
         """Ce que le controle des plans doit savoir des LoRA : fichier de chaque nom du catalogue, fichiers du volume (None si inconnu)."""

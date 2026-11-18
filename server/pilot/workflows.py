@@ -204,12 +204,17 @@ def squelette(m, image_name, prefix):
     }
 
 
-def edit_image(m, image_name, prompt, w, h, seed, prefix, steps=8):
+def edit_image(m, image_name, prompt, w, h, seed, prefix, steps=8, loras=None):
     """Variante d'une image par edition (Qwen-Image-Edit + LoRA rapide) : meme personnage, meme decor,
-    pose ou etat different. Sert a fabriquer l'image de fin d'un clip debut/fin."""
-    return {
-        "unet": {"class_type": "UNETLoader", "inputs": {"unet_name": m["edit"], "weight_dtype": "default"}},
-        "fast": {"class_type": "LoraLoaderModelOnly", "inputs": {"model": ["unet", 0], "lora_name": m["edit_fast_lora"], "strength_model": 1.0}},
+    pose ou etat different. Sert a fabriquer l'image de fin d'un clip debut/fin.
+    `loras` : LoRA de la famille du modele de retouche, {"name": fichier, "strength"}, chargees avant la LoRA rapide."""
+    g = {"unet": {"class_type": "UNETLoader", "inputs": {"unet_name": m["edit"], "weight_dtype": "default"}}}
+    src = "unet"
+    for i, x in enumerate(loras or []):
+        g[f"ex{i}"] = {"class_type": "LoraLoaderModelOnly", "inputs": {"model": [src, 0], "lora_name": x["name"], "strength_model": float(x.get("strength", 1.0))}}
+        src = f"ex{i}"
+    return g | {
+        "fast": {"class_type": "LoraLoaderModelOnly", "inputs": {"model": [src, 0], "lora_name": m["edit_fast_lora"], "strength_model": 1.0}},
         "shift": {"class_type": "ModelSamplingAuraFlow", "inputs": {"model": ["fast", 0], "shift": 3.0}},
         "norm": {"class_type": "CFGNorm", "inputs": {"model": ["shift", 0], "strength": 1.0}},
         "clip": {"class_type": "CLIPLoader", "inputs": {"clip_name": m["edit_text_encoder"], "type": "qwen_image", "device": "default"}},
