@@ -995,10 +995,10 @@ class Biblio:
             t = {"sortie": nom, "seed": 5000 + 101 * serie + i, "taille": [720, 1280]}
             if pose:
                 dessin = {"seed": t["seed"], "taille": t["taille"], "lora": False, "loras": lo}
-                if "back view" in cadre:  # de dos, pas de visage a poser : l'image dessinee est la planche (la vue en tete, le visage non decrit)
-                    t |= dessin | {"prompt": f"photo of a woman seen from behind, {self._prefixe_corps(p)}, vertical {desc}{fin_}"}
-                else:
-                    taches.append(dessin | {"sortie": f"y_{serie}_{i + 1:02d}", "prompt": f"{pre}vertical {desc}{fin_}"})
+                if True:  # de dos aussi (elle regarde par-dessus son epaule) : sans cela ses cheveux n'etaient pas ceux du portrait
+                    de_dos = "back view" in cadre
+                    taches.append(dessin | {"sortie": f"y_{serie}_{i + 1:02d}", "prompt": f"photo of a woman seen from behind, {self._prefixe_corps(p)}, vertical {desc}{fin_}"
+                                                                                           if de_dos else f"{pre}vertical {desc}{fin_}"})
                     y = str(self.dir(slug) / f"y_{serie}_{i + 1:02d}.png")
                     if b.get("pose") == "b":  # essai : le portrait en image 1 (c'est elle), le corps dessine en image 2 (son corps, sa pose, le lieu)
                         t |= {"ref": ref, "refs": [y], "depuis": f"y_{serie}_{i + 1:02d}",
@@ -1012,7 +1012,8 @@ class Biblio:
                     # L'expression : la retouche recopie celle de l'image 2 quoi qu'on ecrive. La tete est donc prise dans la galerie
                     # d'expressions (l'image de cette expression-la) quand elle existe ; sinon dans le portrait, et la planche a son expression.
                     xt = tete_de(cle) if cle else None
-                    port = (" Her head stays in profile, exactly as in image 1: she does not turn towards the camera." if "profile view" in cadre
+                    port = (" She stays seen from behind, her back to the camera, looking over her shoulder exactly as in image 1: she does not turn round." if de_dos
+                            else " Her head stays in profile, exactly as in image 1: she does not turn towards the camera." if "profile view" in cadre
                             else " She keeps looking away, as in image 1: she does not look at the camera." if "looking away" in cadre else "")
                     t |= {"ref": y, "tete": xt or ref, "libre": True, "grand": "full-body" in cadre or "full body" in cadre, "depuis": f"y_{serie}_{i + 1:02d}",
                           "prompt": "Replace the head of the woman in image 1 with the head of the woman from image 2: her face, her facial features and her whole hair "
