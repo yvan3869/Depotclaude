@@ -945,3 +945,17 @@ Planches de comparaison : `data/inbox/p0004essai_planches_pose*.jpg`. La serie n
   et angles sont dessines directement (plus de tete posee) ; les planches dessinees redisent les traits du corps retenu.
 - Non essaye : rien de cela n'a tourne. L'entrainement de Luz (25 images, 60 passages, 54 min et 0,88 $ estimes) est lance par le
   proprietaire depuis l'onglet LoRA. Aucune depense de ma part ; compteur du jour a 1,79 $ apres sa serie.
+
+## 19/11/2026 (soir) : atelier repliable, gestes de la bouche des expressions
+
+- Atelier du personnage : parcours « Debuter » en dix etapes, une seule ouverte a la fois, resume sous chaque titre ; onglets Corps et
+  LoRA en parties repliables. Controle au telephone sur `girls_ai_essai` (onglet Corps : 7132 px de haut avant, 2468 apres). Non
+  verifie : le cas « LoRA du visage en place » (aucun personnage dans cet etat).
+- Expressions par retouche du portrait : « se mord la levre » et « langue sur la levre » sortaient mal (levre non mordue, langue tiree
+  en entier). Redire le geste en detail a la suite du texte n'a rien change (0 sur 6). Ce qui marche : remplacer le geste par des
+  termes que le modele suit (`APPUIS` de `biblio.py`), le regard etant garde. Levre : « le coin de la levre tenu entre les dents,
+  sourire » (formulation choisie par le proprietaire sur planche, 3 sur 3 ensuite : sourire, levre du bas prise sous les dents du
+  haut). Langue : « levres entrouvertes, un petit bout de langue entre les levres » (2 sur 2 : la langue reste dans la bouche).
+  La levre n'est pas mordue franchement : le modele de retouche ne sait pas faire mieux. Avec la LoRA du personnage (Z-Image) le
+  texte reste tel quel, non essaye.
+- Essais sur `girls_ai_essai` seulement, 31 images, 0,17 $ ; compteur du jour a 2,06 $.
