@@ -237,13 +237,18 @@ VISAGE = ("Replace only the face of the woman in image 1 with the face of the wo
           "and the framing. Natural smartphone photo, natural skin texture, fine pores.")
 
 
-def poser_visage(m, image_name, portrait_name, w, h, seed, prefix, part=0.375):
+# pour les planches : l'expression, le regard et le port de tete restent ceux de l'image, seuls les traits viennent du portrait
+VISAGE_LIBRE = VISAGE.replace("with the same expression as in image 2, looking at the camera,", "keeping the expression, the gaze and the head position of image 1,")
+assert VISAGE_LIBRE != VISAGE
+
+
+def poser_visage(m, image_name, portrait_name, w, h, seed, prefix, part=0.375, texte=None):
     """Visage d'un portrait (image 2) repose en grand sur une image en pied (image 1), ou la tete est trop petite pour lui ressembler :
     le haut de l'image, agrandi deux fois, passe par la retouche, puis seul le visage, bord adouci, est recolle a sa place (cheveux,
     cou, corps et fond restent ceux de l'image 1). Deuxieme sortie, le temoin : les masques du visage avant et apres, a comparer
     avec `visage_en_place` (la retouche deplace ou grossit parfois le visage : l'image est alors a jeter)."""
     hc = int(h * part) // 16 * 16
-    g = edit_image(m, image_name, VISAGE, w * 2, hc * 2, seed, prefix)
+    g = edit_image(m, image_name, texte or VISAGE, w * 2, hc * 2, seed, prefix)
     g |= {"haut": {"class_type": "ImageCrop", "inputs": {"image": ["img", 0], "width": w, "height": hc, "x": 0, "y": 0}},
           "grand": {"class_type": "ImageScale", "inputs": {"image": ["haut", 0], "upscale_method": "lanczos", "width": w * 2, "height": hc * 2, "crop": "disabled"}},
           "img2": {"class_type": "LoadImage", "inputs": {"image": portrait_name}},

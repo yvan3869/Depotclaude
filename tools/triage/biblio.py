@@ -998,10 +998,13 @@ class Biblio:
                                         f"Only one woman in the picture: {desc}. Natural smartphone photo, {peau}."}
                         taches.append(t)
                         continue
-                    t |= {"ref": y, "refs": [ref], "depuis": f"y_{serie}_{i + 1:02d}",
-                          "prompt": "Replace the head of the woman in image 1 with the head of the woman from image 2: her face, her facial features and her hair, "
-                                    "keeping the expression, the gaze and the head position of image 1. Keep everything else of image 1 exactly unchanged: her body, "
-                                    f"her skin tone, her pose, her clothing, the background, the light and the framing. Only one woman in the picture. Natural smartphone photo, {peau}."}
+                    # comme pour son corps de face : la tete du portrait posee sur l'image entiere, puis, en pied, son visage repose en grand
+                    # (workflows.poser_visage). L'expression et le port de tete restent ceux de la planche. La peau n'est pas redite : elle est celle du dessin.
+                    t |= {"ref": y, "tete": ref, "libre": True, "grand": "full-body" in cadre or "full body" in cadre, "depuis": f"y_{serie}_{i + 1:02d}",
+                          "prompt": "Replace the head of the woman in image 1 with the head of the woman from image 2: her face, her facial features and her whole hair "
+                                    "(same colour, same length, same cut as in image 2), keeping the expression, the gaze and the head position of image 1. "
+                                    "The skin tone of her face and the light on it match her body. Keep everything else of image 1 exactly unchanged: her body, "
+                                    "her breasts, her skin tone, her pose, her clothing, the background, the light and the framing. Only one woman in the picture. Natural smartphone photo."}
             elif ref:
                 # Par retouche : ses cases Identite, Allure et Corps sont redites, pour que la peau (bronzage) et les formes ecrites par le
                 # proprietaire ne tiennent pas qu'aux images de reference, que le nouveau fond et la nouvelle pose font deriver.
