@@ -258,7 +258,7 @@ EXPRESSIONS = (("Neutre", "neutral relaxed face, lips closed, looking at the cam
 # Expressions de la bouche que le modele rate (langue tiree en entier, levre non mordue) : le geste est redit en detail dans le prompt, pas dans la legende.
 # Gestes de la bouche que le modele de retouche rate quand ils sont dits tels quels (langue tiree en entier, levre non mordue) :
 # le geste (premier membre de l'expression) est redit en termes qu'il suit, le reste (regard) est garde. Essais du 19/11/2026.
-APPUIS = ((r"\b(bit|nibbl)\w*\b.*\blip", "shy smile with her lower lip tucked behind her upper teeth, only her upper teeth showing, both eyes open"),
+APPUIS = ((r"\b(bit|nibbl)\w*\b.*\blip", "the corner of her lower lip held between her teeth, flirty smile, both eyes open"),
           (r"\b(tongue|lick\w*)\b.*\blip", "her lips moistened and slightly parted, a small tongue tip barely peeking between her lips"))
 
 
