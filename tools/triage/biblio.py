@@ -810,7 +810,7 @@ class Biblio:
         if avec:  # avec sa LoRA, aucune etape de retouche : les LoRA de retouche gardees dans les reglages sont laissees de cote
             ed = []
         if (lo or avec) and not ed and quoi in ("face", "dos"):
-            if quoi == "dos" and not c["face"]["choix"]:
+            if quoi == "dos" and not c["face"]["choix"] and not avec:  # avec sa LoRA, le dos ne depend pas de la face (sa taille n'est alors pas redite)
                 raise ValueError("retenir d'abord son corps de face")
             vue = "front view, she stands straight facing the camera"
             if quoi == "dos":
