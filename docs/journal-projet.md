@@ -931,3 +931,17 @@ Voie refaite sur la methode de son corps de face : Z-Image dessine la planche en
 - la retouche recopie l'expression de l'image de tete quoi qu'on ecrive : la tete est maintenant prise dans la galerie d'expressions (l'image de l'expression demandee). Clin d'oeil, rire, moue, surprise, profil et regard ailleurs gardes (series 6, 7 et 9) ;
 - vues de dos : la tete y est posee aussi (sinon les cheveux sont ceux du dessin). Reussi en plan moyen, pas en pied (tete trop petite, cheveux restes ceux du dessin) : a ecarter au tri.
 Planches de comparaison : `data/inbox/p0004essai_planches_pose*.jpg`. La serie nue avec ses LoRA reste au proprietaire.
+
+## 19/11/2026 - Planches de Luz : la tete posee ne ressemble pas ; LoRA du visage d'abord
+
+- Serie 11 de Luz (nue, ses LoRA, lancee par le proprietaire, voie « corps dessine puis visage pose ») : aucune planche ressemblante
+  d'apres lui. Mesures sans regarder (ecart dessin / planche par bandes) : tete non remplacee sur 2 planches, image entiere changee
+  sur 1, tete remplacee sur 9. La preuve en habille sur le personnage d'essai (44 sur 45) ne valait pas pour ce cas. Voie abandonnee
+  pour le nu ; le correctif « visage repose en grand sur tous les plans » n'a pas ete mis en ligne.
+- Procede retenu, consigne dans `docs/apparence-personnage.md` : fiche, portrait, expressions, LoRA du visage, corps de reference,
+  planches nues puis habillees, tri, LoRA complete, verification.
+- Code : l'entrainement sans planche du corps gardee donne la LoRA du visage (`girls-ai-<slug>-visage-vN`, expressions gardees +
+  portrait retenu, legende des images refaites nettoyee) ; 60 passages au choix ; avec une LoRA de personnage, corps de face, de dos
+  et angles sont dessines directement (plus de tete posee) ; les planches dessinees redisent les traits du corps retenu.
+- Non essaye : rien de cela n'a tourne. L'entrainement de Luz (25 images, 60 passages, 54 min et 0,88 $ estimes) est lance par le
+  proprietaire depuis l'onglet LoRA. Aucune depense de ma part ; compteur du jour a 1,79 $ apres sa serie.
