@@ -1205,9 +1205,14 @@ class Biblio:
 
     def devis(self, slug, passages):
         """Duree et cout estimes d'un entrainement : 1 350 pas en 40 min sur la carte rapide (constate par le proprietaire), plus la mise en route."""
-        n = sum(1 for x in self._b(slug)["planches"].values() if x.get("garde"))
+        n = sum(1 for x in self._b(slug)["planches"].values() if x.get("garde")) + bool(self._portrait(slug))
         minutes = round(n * passages * 40 / 1350 + 10)
         return {"images": n, "minutes": minutes, "usd": round(minutes / 60 * 0.95 + 0.02, 2)}
+
+    def _portrait(self, slug):
+        """Le portrait retenu (personnage parti d'un portrait) : il entre toujours dans le jeu d'entrainement, c'est son visage de reference."""
+        n = str((self._b(slug).get("choix") or {}).get("visage") or "")
+        return n if n.startswith("v_") and (self.dir(slug) / n).is_file() else ""
 
     def entrainer(self, b):
         """Entraine une nouvelle version de la LoRA du personnage sur les planches gardees (pod a lui, supprime a la fin)."""
@@ -1224,18 +1229,30 @@ class Biblio:
         if dep and dep["jour"] + dv["usd"] > dep["plafond"]:
             raise ValueError(f"plafond du jour : {dv['usd']:.2f} $ estimés, il reste {dep['plafond'] - dep['jour']:.2f} $")
         ver = max([int(x["v"]) for x in bb["loras"]] or [0]) + 1
-        nom = f"girls-ai-{slug}-v{ver}"
+        # Aucune planche du corps gardee (seulement des expressions et le portrait) : c'est la LoRA de son visage, premiere etape
+        # d'un personnage ; les planches du corps seront dessinees avec elle, puis la LoRA complete entrainee sur le tout.
+        visage = not any(x.get("garde") and k.startswith("c_") for k, x in bb["planches"].items())
+        nom = f"girls-ai-{slug}-{'visage-' if visage else ''}v{ver}"
+        pv = self._prefixe_visage(p)
         jeu = self.at.data / "work" / f"girls-ai-train-{slug}"
         shutil.rmtree(jeu, ignore_errors=True)
         jeu.mkdir(parents=True)
         for k, x in bb["planches"].items():
             if x.get("garde"):
                 shutil.copy(self.fichier(slug, k), jeu / k)
-                (jeu / k).with_suffix(".txt").write_text(x.get("legende") or self._prefixe(p), encoding="utf-8")
+                leg = x.get("legende") or self._prefixe(p)
+                if "New photo of her: " in leg:  # image refaite : sa legende etait la consigne de retouche, on n'en garde que la description
+                    leg = pv + leg.split("New photo of her: ", 1)[1].split(". Natural smartphone photo")[0]
+                (jeu / k).with_suffix(".txt").write_text(leg, encoding="utf-8")
+        port = self._portrait(slug)
+        if port:
+            shutil.copy(self.fichier(slug, port), jeu / port)
+            (jeu / port).with_suffix(".txt").write_text(f"{pv}tight close-up headshot, her face fills the frame, eye-level, front view, she looks at the camera, "
+                                                         "relaxed friendly expression, in front of a plain light grey wall", encoding="utf-8")
         pre = self._prefixe(p)
         essais = [{"sortie": f"e_{ver}_{int(f * 10)}_{i + 1}", "prompt": f"{pre}vertical {e}{FIN}", "seed": 900 + i, "force": f} for i, e in enumerate(ESSAIS) for f in FORCES]
         log = self._lancer(slug, "entrainement", {"nom": nom, "images": str(jeu), "passages": passages, "delai_min": 80, "essais": essais}, len(essais), veille=False)
-        bb["loras"].append({"v": ver, "nom": nom, "etat": "en cours", "date": time.strftime("%d/%m/%Y %H:%M"), "passages": passages, "images": dv["images"],
+        bb["loras"].append({"v": ver, "nom": nom, "etat": "en cours", "date": time.strftime("%d/%m/%Y %H:%M"), "passages": passages, "images": dv["images"], "visage": visage,
                             "log": str(log), "fichier": "", "cout": None})
         self._ecrire(slug, bb)
         return {"lance": nom, **dv}
