@@ -744,9 +744,10 @@ class Biblio:
         if quoi != "reglages":  # "reglages" : la page garde ce qui vient d'etre saisi, sans rien lancer (admis pendant un calcul)
             self._libre()
         p, v, bb = self.at.perso(slug), self.vue(slug), self._b(slug)
-        if v["lora"]:
+        # la LoRA de son visage seul (nom en « -visage- ») ne tient pas son corps : il reste a faire, dessine avec elle
+        if v["lora"] and not any(x.get("en_place") and "-visage-" in x["nom"] for x in v["loras"]):
             raise ValueError("sans objet : sa LoRA tient déjà son corps")
-        if not v["visage"]["choix"]:
+        if not v["lora"] and not v["visage"]["choix"]:
             raise ValueError("choisir d'abord un portrait : son corps en est tiré")
         if "tenue" in b:
             bb["corps_tenue"] = _s(b.get("tenue"), 400)
