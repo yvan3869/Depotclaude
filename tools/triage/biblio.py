@@ -406,7 +406,7 @@ class Biblio:
                 "visage": {"images": vis, "choix": b["choix"].get("visage") if b["choix"].get("visage") in vis else ""},
                 "corps": {"face": {"images": num("k_"), "choix": b["choix"].get("corps") if b["choix"].get("corps") in noms else ""},
                           "dos": {"images": num("d_"), "choix": b["choix"].get("dos") if b["choix"].get("dos") in noms else ""},
-                          "angles": [{"nom": n, "vue": ANGLES[(int(n[2:-4]) - 1) % len(ANGLES)][0]} for n in num("a_")], "tenue": b.get("corps_tenue") or "", "loras": b.get("corps_loras") or [], "retouche": b.get("corps_retouche") or [], "nsfw": bool(b.get("corps_nsfw")),
+                          "angles": [{"nom": n, "vue": ANGLES[(int(n[2:-4]) - 1) % len(ANGLES)][0]} for n in num("a_")], "tenue": b.get("corps_tenue") or "", "loras": b.get("corps_loras") or [], "retouche": b.get("corps_retouche") or [], "nsfw": bool(b.get("corps_nsfw")), "force": b.get("corps_force") or "",
                           "avec_lora": [n for n in noms if n[:2] in ("k_", "d_", "a_") and (tach.get(n[:-4]) or {}).get("loras")], "variantes": "\n".join(b.get("corps_variantes") or [])},
                 "expressions": expr, "gardees": sum(1 for x in b["planches"].values() if x.get("garde")),
                 "banc": [{"cle": k, **x, "images": [n for n in noms if n.startswith(f"b_{k}_")], "clips": sorted(f.name for f in d.glob(f"bv_{k}_*.mp4"))}
@@ -732,7 +732,7 @@ class Biblio:
                    "prompt": f"headshot of {traits(s, pv)}. {pv}vertical tight close-up headshot, her face fills the frame, cropped at the base of the neck, "
                              f"eye-level, front view, she looks at the camera, relaxed friendly expression, in front of a plain light grey wall, "
                              f"the collar of a white crew-neck t-shirt barely visible at the bottom edge, soft natural daylight{FIN_PRES}"}
-                  for s in [s for s in range(1, 400) if s not in deja][:8]]
+                  for s in [s for s in range(1, 20000) if s not in deja][:8]]
         self._lancer(slug, "visage", {"taches": taches}, len(taches))
         return {"lance": len(taches)}
 
@@ -757,6 +757,12 @@ class Biblio:
             self._ecrire(slug, bb)
         if "loras" in b:  # LoRA choisies par le proprietaire : face et dos sont alors dessines par Z-Image avec elles, d'apres la description
             bb["corps_loras"] = [_s(x, 140) for x in b.get("loras") or [] if _s(x, 140)][:4]  # « nom » ou « nom:force »
+            self._ecrire(slug, bb)
+        if "force" in b:  # force de la LoRA de son visage pour ces images seulement (vide : la force adoptee)
+            try:
+                bb["corps_force"] = max(0.1, min(float(str(b.get("force")).replace(",", ".")), 2.0))
+            except ValueError:
+                bb.pop("corps_force", None)
             self._ecrire(slug, bb)
         if "nsfw" in b:  # images pour adultes : le mot nsfw suit la tenue dans chaque texte, comme pour les planches
             bb["corps_nsfw"] = bool(b.get("nsfw"))
@@ -806,6 +812,7 @@ class Biblio:
 
                 def tz(s):
                     return texte_angle((s - 1) % len(ANGLES), fiche, corps_, tenue)
+        fo = {"force": bb["corps_force"]} if v["lora"] and bb.get("corps_force") else {}
         avec = bool(v["lora"])  # elle a sa LoRA (celle du visage suffit) : Z-Image la dessine directement, avec les LoRA choisies ; aucune tete a poser
         if avec:  # avec sa LoRA, aucune etape de retouche : les LoRA de retouche gardees dans les reglages sont laissees de cote
             ed = []
@@ -818,14 +825,14 @@ class Biblio:
                 # (traits du portrait, yeux, bouche...) ; sinon elle se retourne. La taille est celle de la face retenue.
                 nf = c["face"]["choix"][2:-4]
                 taille = (", " + taille_corps(int(nf))) if nf.isdigit() and not re.search(r"waist|stomach|torso", fiche, re.I) else ""
-                taches = [{"sortie": f"{pre}{s}", "seed": base + 53 * s, "taille": [720, 1280], "lora": avec, "loras": lo,
+                taches = [{"sortie": f"{pre}{s}", "seed": base + 53 * s, "taille": [720, 1280], "lora": avec, "loras": lo, **fo,
                            "prompt": f"full-body photo of a woman seen from behind, rear view, she stands with her back to the camera, facing the wall, "
                                      f"her face is not visible, only the back of her head and her hair. {fiche}{taille}, {traits_corps(s, fiche, True)}, "
                                      f"vertical full-body shot from head to feet, eye-level, arms slightly away from her body, feet slightly apart, "
                                      f"{CORPS_POSE_DOS}, {tenue}, only one woman in the picture{FIN_LOIN}"}
                           for s in libres[:8]]
             else:
-                taches = [{"sortie": f"{pre}{s}", "seed": base + 53 * s, "taille": [720, 1280], "lora": avec, "loras": lo,
+                taches = [{"sortie": f"{pre}{s}", "seed": base + 53 * s, "taille": [720, 1280], "lora": avec, "loras": lo, **fo,
                            "prompt": f"full-body photo of a woman, {vue}. {fiche}, {traits_corps(s, fiche)}{plus(s)}, vertical full-body shot from head to feet, "
                                      f"eye-level, arms slightly away from her body, feet slightly apart, {CORPS_POSE}, {tenue}, only one woman in the picture{FIN_LOIN}"}
                           for s in libres[:8]]
@@ -853,7 +860,7 @@ class Biblio:
             nf, nd = c["face"]["choix"][2:-4], c["dos"]["choix"][2:-4]
             if (lo or avec) and not ed and nf.isdigit() and nd.isdigit():  # LoRA choisies : les angles aussi sont dessines par Z-Image avec elles, la vue en tete du texte
                 corps = f"{traits_corps(int(nf), fiche)}{plus(int(nf))}, {traits_corps(int(nd), fiche, True)}"
-                taches = [{"sortie": f"a_{s}", "seed": base + 61 * s, "taille": [720, 1280], "lora": avec, "loras": lo,
+                taches = [{"sortie": f"a_{s}", "seed": base + 61 * s, "taille": [720, 1280], "lora": avec, "loras": lo, **fo,
                            "prompt": texte_angle((s - 1) % len(ANGLES), fiche, corps, tenue)}
                           for s in range(libres[0], libres[0] + len(ANGLES))]
                 self._lancer(slug, "corps", {"taches": taches}, len(taches))
