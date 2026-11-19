@@ -256,12 +256,17 @@ EXPRESSIONS = (("Neutre", "neutral relaxed face, lips closed, looking at the cam
                ("Langue sur la lèvre", "tip of her tongue touching her upper lip, mischievous look at the camera"),
                ("Doigt sur la lèvre", "one fingertip resting on her lower lip, lips slightly parted, flirty look at the camera"))
 # Expressions de la bouche que le modele rate (langue tiree en entier, levre non mordue) : le geste est redit en detail dans le prompt, pas dans la legende.
-APPUIS = ((r"\b(bit|nibbl)\w*\b.*\blip", "her upper front teeth press softly on her lower lip, the lower lip is tucked under her teeth, her mouth is otherwise closed, both eyes open"),
-          (r"\b(tongue|lick\w*)\b.*\blip", "her mouth is barely open, only the small tip of her tongue shows and rests on the middle of her upper lip, her tongue does not stick out"))
+# Gestes de la bouche que le modele de retouche rate quand ils sont dits tels quels (langue tiree en entier, levre non mordue) :
+# le geste (premier membre de l'expression) est redit en termes qu'il suit, le reste (regard) est garde. Essais du 19/11/2026.
+APPUIS = ((r"\b(bit|nibbl)\w*\b.*\blip", "shy smile with her lower lip tucked behind her upper teeth, only her upper teeth showing, both eyes open"),
+          (r"\b(tongue|lick\w*)\b.*\blip", "her lips moistened and slightly parted, a small tongue tip barely peeking between her lips"))
 
 
 def appui(en):
-    return en + "".join(f", {d}" for m, d in APPUIS if re.search(m, en, re.I))
+    for m, d in APPUIS:
+        if re.search(m, en, re.I):
+            return ", ".join([d] + en.split(", ")[1:])
+    return en
 
 
 VUES = ("front view", "three-quarter view", "front view, head slightly tilted")
@@ -932,7 +937,8 @@ class Biblio:
                     f"eye-level, {VUES[(i + k) % len(VUES)]}, {x['en']}, {FONDS[(i + k) % len(FONDS)]} blurred behind her")
             nom = f"x_{x['cle']}_{k}"
             bb["planches"][nom + ".png"] = {"garde": False, "legende": f"{pre}{desc}"}
-            desc = desc.replace(x["en"], appui(x["en"]))
+            if ref:  # par retouche seulement : avec la LoRA, Z-Image recoit le texte tel quel
+                desc = desc.replace(x["en"], appui(x["en"]))
             t = {"sortie": nom, "seed": 7000 + 53 * i + k, "taille": [720, 1280]}
             t |= {"ref": ref, "prompt": (f"Change the facial expression of the woman in image 1. Her new expression: {appui(x['en'])}. The expression is strong and obvious, "
                                         f"clearly different from image 1: her mouth, eyes and eyebrows move accordingly. She stays the same woman: same "
