@@ -807,6 +807,8 @@ class Biblio:
                 def tz(s):
                     return texte_angle((s - 1) % len(ANGLES), fiche, corps_, tenue)
         avec = bool(v["lora"])  # elle a sa LoRA (celle du visage suffit) : Z-Image la dessine directement, avec les LoRA choisies ; aucune tete a poser
+        if avec:  # avec sa LoRA, aucune etape de retouche : les LoRA de retouche gardees dans les reglages sont laissees de cote
+            ed = []
         if (lo or avec) and not ed and quoi in ("face", "dos"):
             if quoi == "dos" and not c["face"]["choix"]:
                 raise ValueError("retenir d'abord son corps de face")
