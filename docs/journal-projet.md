@@ -959,3 +959,15 @@ Planches de comparaison : `data/inbox/p0004essai_planches_pose*.jpg`. La serie n
   La levre n'est pas mordue franchement : le modele de retouche ne sait pas faire mieux. Avec la LoRA du personnage (Z-Image) le
   texte reste tel quel, non essaye.
 - Essais sur `girls_ai_essai` seulement, 31 images, 0,17 $ ; compteur du jour a 2,06 $.
+
+## 20/11/2026 : corps de reference avec la LoRA du visage
+
+Corrections remontees par le proprietaire en construisant Luz (etape 5 de `docs/apparence-personnage.md`), aucune depense :
+
+- le corps de reference n'est plus refuse quand seule la LoRA du visage est en place (il l'etait : « sans objet ») ;
+- avec la LoRA, aucune etape de retouche (Qwen) : la section n'est plus proposee ;
+- le dos peut etre refait sans face retenue ;
+- les numeros d'essai ne s'arretent plus a 399 (les lots partaient vides, sans message) ; meme correction pour les portraits ;
+- « Reglages » : force de la LoRA du visage propre aux images du corps (vide : la force adoptee). Plus basse, l'image suit
+  mieux le texte et les LoRA en plus ; le visage ressemble moins, sans consequence ici (seules les formes passent aux planches).
+  Le pilote la recevait deja par tache (`force`). Non essaye par l'assistant : aucun personnage d'essai n'a de LoRA du visage.
