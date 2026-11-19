@@ -968,9 +968,17 @@ class Biblio:
         # Expressions de la galerie (celles de la fiche en tete), a tour de role, sur un cadrage sur deux qui n'en dit aucune :
         # le jeu d'entrainement garde une majorite de visages calmes, et la LoRA apprend que le visage bouge.
         exprs = [", ".join(y for y in en.split(", ") if not y.startswith("looking")) for _, fr, en, _ in self._expressions(p) if fr != "Neutre"]
+        cles = [h for h, fr, _, _ in self._expressions(p) if fr != "Neutre"]
+        fixes = {fr: h for h, fr, _, _ in self._expressions(p)}  # expressions dites par le cadrage lui-meme
+
+        def tete_de(cle):  # l'image de la galerie pour cette expression (gardee de preference, sinon la derniere) ; a defaut le portrait
+            im = next((x["images"] for x in v["expressions"] if x["cle"] == cle), [])
+            im = sorted(im, key=lambda y: (y["garde"], int(y["nom"][:-4].split("_")[2])))
+            return str(self.fichier(slug, im[-1]["nom"])) if im else None
         libres = 0
         for i in range(n):
             cadre, fond = CADRES[(i * 7 + serie) % len(CADRES)], FONDS[(i + serie) % len(FONDS)]
+            cle = fixes.get("Rire") if "laughs" in cadre else fixes.get("Grand sourire") if "big smile" in cadre else fixes.get("Sourire doux") if "soft smile" in cadre else None
             if "bed" in cadre:
                 fond = FONDS[1]
             peau = _peau(cadre)
@@ -978,6 +986,7 @@ class Biblio:
             if exprs and not re.search(r"neutral|smile|laugh", cadre):
                 if libres % 2 == 0:
                     cadre += ", " + exprs[(libres // 2 + serie) % len(exprs)]
+                    cle = cles[(libres // 2 + serie) % len(exprs)]
                 libres += 1
             habit = tenue or "wearing " + re.sub(r"^wearing ", "", tenues[(i + serie) % len(tenues)])
             desc = f"{cadre}, {fond}, {habit}" + (", nsfw" if b.get("nsfw") else "")
@@ -1000,9 +1009,16 @@ class Biblio:
                         continue
                     # comme pour son corps de face : la tete du portrait posee sur l'image entiere, puis, en pied, son visage repose en grand
                     # (workflows.poser_visage). L'expression et le port de tete restent ceux de la planche. La peau n'est pas redite : elle est celle du dessin.
-                    t |= {"ref": y, "tete": ref, "libre": True, "grand": "full-body" in cadre or "full body" in cadre, "depuis": f"y_{serie}_{i + 1:02d}",
+                    # L'expression : la retouche recopie celle de l'image 2 quoi qu'on ecrive. La tete est donc prise dans la galerie
+                    # d'expressions (l'image de cette expression-la) quand elle existe ; sinon dans le portrait, et la planche a son expression.
+                    xt = tete_de(cle) if cle else None
+                    port = (" Her head stays in profile, exactly as in image 1: she does not turn towards the camera." if "profile view" in cadre
+                            else " She keeps looking away, as in image 1: she does not look at the camera." if "looking away" in cadre else "")
+                    t |= {"ref": y, "tete": xt or ref, "libre": True, "grand": "full-body" in cadre or "full body" in cadre, "depuis": f"y_{serie}_{i + 1:02d}",
                           "prompt": "Replace the head of the woman in image 1 with the head of the woman from image 2: her face, her facial features and her whole hair "
-                                    "(same colour, same length, same cut as in image 2), keeping the expression, the gaze and the head position of image 1. "
+                                    "(same colour, same length, same cut as in image 2), "
+                                    + ("with the same facial expression as in image 2, keeping the gaze direction and the head position of image 1." if xt
+                                       else "keeping the expression, the gaze and the head position of image 1.") + port + " "
                                     "The skin tone of her face and the light on it match her body. Keep everything else of image 1 exactly unchanged: her body, "
                                     "her breasts, her skin tone, her pose, her clothing, the background, the light and the framing. Only one woman in the picture. Natural smartphone photo."}
             elif ref:
