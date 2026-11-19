@@ -784,7 +784,7 @@ class Biblio:
         elle, c = str(self.fichier(slug, v["visage"]["choix"])), v["corps"]
         pre, base = {"face": ("k_", 7000), "dos": ("d_", 8000), "angles": ("a_", 9000)}[quoi]
         deja = {int(f.stem[2:]) for f in self.dir(slug).glob(pre + "*.png") if f.stem[2:].isdigit()} | self._jetes(slug, pre)
-        libres = [s for s in range(1, 400) if s not in deja]
+        libres = [s for s in range(1, 20000) if s not in deja]
         tz = None  # texte Z-Image de l'image s (finition apres retouche)
         if quoi == "face":
             def tz(s):
@@ -863,6 +863,8 @@ class Biblio:
                                  f"same buttocks, same skin, same hair. New photo of her from another angle, from head to feet: vertical full-body shot, eye-level, "
                                  f"{ANGLES[(s - 1) % len(ANGLES)][1]}, {CORPS_POSE}. {tenue}. Only one woman in the picture. Natural smartphone photo."}
                       for s in range(libres[0], libres[0] + len(ANGLES))]
+        if not taches:
+            raise ValueError("aucun essai à lancer : prévenir l'assistant")
         n = len(taches)
         if lo and not ed and quoi == "face" and not avec:
             # Z-Image dessine le corps seul (ses LoRA et la fiche font les formes), puis la retouche repose la tete du portrait sur l'image
