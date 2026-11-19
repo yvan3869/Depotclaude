@@ -791,7 +791,8 @@ class Biblio:
 
                 def tz(s):
                     return texte_angle((s - 1) % len(ANGLES), fiche, corps_, tenue)
-        if lo and not ed and quoi in ("face", "dos"):
+        avec = bool(v["lora"])  # elle a sa LoRA (celle du visage suffit) : Z-Image la dessine directement, avec les LoRA choisies ; aucune tete a poser
+        if (lo or avec) and not ed and quoi in ("face", "dos"):
             if quoi == "dos" and not c["face"]["choix"]:
                 raise ValueError("retenir d'abord son corps de face")
             vue = "front view, she stands straight facing the camera"
@@ -800,14 +801,14 @@ class Biblio:
                 # (traits du portrait, yeux, bouche...) ; sinon elle se retourne. La taille est celle de la face retenue.
                 nf = c["face"]["choix"][2:-4]
                 taille = (", " + taille_corps(int(nf))) if nf.isdigit() and not re.search(r"waist|stomach|torso", fiche, re.I) else ""
-                taches = [{"sortie": f"{pre}{s}", "seed": base + 53 * s, "taille": [720, 1280], "lora": False, "loras": lo,
+                taches = [{"sortie": f"{pre}{s}", "seed": base + 53 * s, "taille": [720, 1280], "lora": avec, "loras": lo,
                            "prompt": f"full-body photo of a woman seen from behind, rear view, she stands with her back to the camera, facing the wall, "
                                      f"her face is not visible, only the back of her head and her hair. {fiche}{taille}, {traits_corps(s, fiche, True)}, "
                                      f"vertical full-body shot from head to feet, eye-level, arms slightly away from her body, feet slightly apart, "
                                      f"{CORPS_POSE_DOS}, {tenue}, only one woman in the picture{FIN_LOIN}"}
                           for s in libres[:8]]
             else:
-                taches = [{"sortie": f"{pre}{s}", "seed": base + 53 * s, "taille": [720, 1280], "lora": False, "loras": lo,
+                taches = [{"sortie": f"{pre}{s}", "seed": base + 53 * s, "taille": [720, 1280], "lora": avec, "loras": lo,
                            "prompt": f"full-body photo of a woman, {vue}. {fiche}, {traits_corps(s, fiche)}{plus(s)}, vertical full-body shot from head to feet, "
                                      f"eye-level, arms slightly away from her body, feet slightly apart, {CORPS_POSE}, {tenue}, only one woman in the picture{FIN_LOIN}"}
                           for s in libres[:8]]
@@ -833,9 +834,9 @@ class Biblio:
             face, dos = str(self.fichier(slug, c["face"]["choix"])), str(self.fichier(slug, c["dos"]["choix"]))
             libres = [s for s in libres if (s - 1) % len(ANGLES) == 0][:1]  # un tour complet des angles a la fois
             nf, nd = c["face"]["choix"][2:-4], c["dos"]["choix"][2:-4]
-            if lo and not ed and nf.isdigit() and nd.isdigit():  # LoRA choisies : les angles aussi sont dessines par Z-Image avec elles, la vue en tete du texte
+            if (lo or avec) and not ed and nf.isdigit() and nd.isdigit():  # LoRA choisies : les angles aussi sont dessines par Z-Image avec elles, la vue en tete du texte
                 corps = f"{traits_corps(int(nf), fiche)}{plus(int(nf))}, {traits_corps(int(nd), fiche, True)}"
-                taches = [{"sortie": f"a_{s}", "seed": base + 61 * s, "taille": [720, 1280], "lora": False, "loras": lo,
+                taches = [{"sortie": f"a_{s}", "seed": base + 61 * s, "taille": [720, 1280], "lora": avec, "loras": lo,
                            "prompt": texte_angle((s - 1) % len(ANGLES), fiche, corps, tenue)}
                           for s in range(libres[0], libres[0] + len(ANGLES))]
                 self._lancer(slug, "corps", {"taches": taches}, len(taches))
@@ -846,7 +847,7 @@ class Biblio:
                                  f"{ANGLES[(s - 1) % len(ANGLES)][1]}, {CORPS_POSE}. {tenue}. Only one woman in the picture. Natural smartphone photo."}
                       for s in range(libres[0], libres[0] + len(ANGLES))]
         n = len(taches)
-        if lo and not ed and quoi == "face":
+        if lo and not ed and quoi == "face" and not avec:
             # Z-Image dessine le corps seul (ses LoRA et la fiche font les formes), puis la retouche repose la tete du portrait sur l'image
             # entiere, puis le pilote repose son visage seul en grand (`poser_visage`, garde seulement s'il est reste a sa place).
             pose = []
@@ -975,6 +976,12 @@ class Biblio:
             im = next((x["images"] for x in v["expressions"] if x["cle"] == cle), [])
             im = sorted(im, key=lambda y: (y["garde"], int(y["nom"][:-4].split("_")[2])))
             return str(self.fichier(slug, im[-1]["nom"])) if im else None
+        # Son corps retenu (de face, de dos) : les traits tires au sort de ces deux images sont redits dans chaque planche dessinee
+        # avec sa LoRA ; sans cela le corps ne tiendrait qu'a la case Corps de la fiche et changerait d'une planche a l'autre.
+        nf, nd = (v["corps"][k]["choix"][2:-4] for k in ("face", "dos"))
+        fiche = self._prefixe_corps(p)
+        retenu = ", ".join(x for x in (traits_corps(int(nf), fiche) if nf.isdigit() else "", traits_corps(int(nd), fiche, True) if nd.isdigit() else "") if x)
+        retenu += ", " if retenu else ""
         libres = 0
         for i in range(n):
             cadre, fond = CADRES[(i * 7 + serie) % len(CADRES)], FONDS[(i + serie) % len(FONDS)]
@@ -1048,7 +1055,7 @@ class Biblio:
                          "finition": fin, "depuis": y,
                          "prompt": f"photo of a woman seen from behind, {self._prefixe_corps(p)}, vertical {desc}{fin_}" if de_dos else f"{pre}vertical {desc}{fin_}"}
             else:
-                t |= {"lora": True, "loras": [str(x) for x in b.get("loras") or []][:4], "prompt": f"{pre}vertical {desc}{fin_}"}
+                t |= {"lora": True, "loras": [str(x) for x in b.get("loras") or []][:4], "prompt": f"{pre}{retenu}vertical {desc}{fin_}"}
             taches.append(t)
         self._ecrire(slug, bb)
         self._lancer(slug, "planches", {"taches": taches, "reglages": {"tenue": tenue, "nsfw": bool(b.get("nsfw")), "loras": [str(x) for x in b.get("loras") or []][:4], "voie": "lora" if pose else "finie" if finie else ""} | ({"finition": fin} if finie else {}) | ({"retouche": ed} if ed else {})}, n)
