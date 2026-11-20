@@ -985,3 +985,10 @@ d'essai n'a de LoRA) : controles de syntaxe et enregistrement des reglages seule
   (image `y_…`), puis redessinee en partie par Z-Image seul, visage garde (`finir_planche`). Cout double. Raison : la
   LoRA de nu donne les formes mais lisse la peau, et la LoRA complete apprendrait cette peau ;
 - cadrages en pied : « from head to feet, her feet in the frame » (les pieds etaient coupes).
+
+Suite (nuit du 20 au 21/11) : la « peau refaite » en deux passes tachait toute la peau sur Luz, meme au plus bas (capture du
+proprietaire) ; sur le personnage d'essai, habille, a 0,2, rien de tel (serie 10) : cause non etablie. Elle est retiree et
+remplacee par « LoRA en plus retirees a la fin du dessin » : un seul dessin, les LoRA en plus aux premiers pas, puis Z-Image et
+la LoRA du personnage seuls aux 2, 3 ou 4 derniers pas sur 9 (`lacher`, `workflows.still_zimage`). Essai du graphe sur le
+personnage d'essai, sans LoRA, 3 images (0, 2, 4 pas) : images nettes et quasi identiques, donc la coupure ne laisse pas de
+defaut. L'effet avec de vraies LoRA n'est pas essaye. Depense : une serie de 24 planches habillees et 3 images sur le pod de veille.

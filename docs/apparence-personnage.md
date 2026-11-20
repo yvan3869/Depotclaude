@@ -22,7 +22,7 @@ Tout se passe dans l'atelier du personnage (Production, onglets Débuter, Corps,
 | 9 | **LoRA complète** (visage + corps) | toutes les images gardées, 30 passages | une LoRA « personnage », qui remplace celle du visage |
 | 10 | **Vérification** | images d'essai habillées à trois forces, puis une série par le propriétaire | adoption, ou retour à la précédente |
 
-Réglages des étapes 5 et 6 (personnage avec la LoRA du visage) : la force de sa LoRA se règle à part pour le corps de référence et pour chaque série ; les LoRA en plus ont chacune leur force ; une série reprend les réglages de la précédente ; « Peau refaite sans les LoRA en plus » redessine la peau par Z-Image seul après coup (visage gardé, coût doublé), à utiliser quand la LoRA de nu lisse la peau.
+Réglages des étapes 5 et 6 (personnage avec la LoRA du visage) : la force de sa LoRA se règle à part pour le corps de référence et pour chaque série ; les LoRA en plus ont chacune leur force ; une série reprend les réglages de la précédente ; « LoRA en plus retirées à la fin du dessin » laisse Z-Image et sa LoRA finir seuls les 2 à 4 derniers pas (même prix), à utiliser quand la LoRA de nu lisse la peau.
 
 ## Ce qui tient quoi
 
