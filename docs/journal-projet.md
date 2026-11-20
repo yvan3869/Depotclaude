@@ -971,3 +971,17 @@ Corrections remontees par le proprietaire en construisant Luz (etape 5 de `docs/
 - « Reglages » : force de la LoRA du visage propre aux images du corps (vide : la force adoptee). Plus basse, l'image suit
   mieux le texte et les LoRA en plus ; le visage ressemble moins, sans consequence ici (seules les formes passent aux planches).
   Le pilote la recevait deja par tache (`force`). Non essaye par l'assistant : aucun personnage d'essai n'a de LoRA du visage.
+
+## 20/11/2026 (suite) : « Nouvelle serie de planches » pour un personnage avec LoRA
+
+Retours du proprietaire sur les planches nues de Luz (etape 6), rien d'essaye par l'assistant (aucun personnage
+d'essai n'a de LoRA) : controles de syntaxe et enregistrement des reglages seulement.
+
+- LoRA en plus en tuiles avec leur force, comme pour le corps de reference ; force de sa LoRA propre a la serie ;
+- les reglages de la derniere serie (LoRA, forces, tenue, nombre) sont reproposes (`serie_reglages`) au lieu de revenir
+  a ceux du corps de reference ;
+- seule la LoRA du visage en place : la case Corps passe en tete du texte (identite, corps, allure, visage) ;
+- « Peau refaite sans les LoRA en plus » (legere 0,3, moyenne 0,4, forte 0,5) : la planche est dessinee avec les LoRA
+  (image `y_…`), puis redessinee en partie par Z-Image seul, visage garde (`finir_planche`). Cout double. Raison : la
+  LoRA de nu donne les formes mais lisse la peau, et la LoRA complete apprendrait cette peau ;
+- cadrages en pied : « from head to feet, her feet in the frame » (les pieds etaient coupes).
