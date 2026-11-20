@@ -32,7 +32,7 @@ def still(m, char, prompt, w, h, seed, prefix, steps=8):
     return g
 
 
-def still_zimage(m, char, prompt, w, h, seed, prefix, steps=9, loras=None, char_strength=None):
+def still_zimage(m, char, prompt, w, h, seed, prefix, steps=9, loras=None, char_strength=None, lacher=0):
     """Image fixe : Z-Image-Turbo + LoRA du personnage (entraine sur Z-Image base)."""
     g = {
         "unet": {"class_type": "UNETLoader", "inputs": {"unet_name": m["zimage"], "weight_dtype": "default"}},
@@ -49,9 +49,25 @@ def still_zimage(m, char, prompt, w, h, seed, prefix, steps=9, loras=None, char_
     # LoRA supplementaires choisis par l'utilisateur : ceux du plan (loras) s'ils sont donnes,
     # sinon ceux declares pour tous les plans (extra_loras_still).
     extras = loras if loras is not None else (char.get("extra_loras_still") or [])
+    base = src  # le modele avec la seule LoRA du personnage
     for i, extra in enumerate(extras):
         src = _lora(g, f"x{i}", src, extra["name"], extra.get("strength", 1.0))
     g["shift"] = {"class_type": "ModelSamplingAuraFlow", "inputs": {"model": [src, 0], "shift": 3.0}}
+    if 0 < lacher < steps:
+        # LoRA en plus lachees aux derniers pas : elles posent les formes aux premiers pas, puis Z-Image (et la LoRA du personnage)
+        # finit seul, la ou se decide le grain de la peau. Un seul dessin, coupe en deux.
+        g["shiftb"] = {"class_type": "ModelSamplingAuraFlow", "inputs": {"model": [base, 0], "shift": 3.0}}
+        k = {"noise_seed": seed, "steps": steps, "cfg": 1.0, "sampler_name": "res_multistep", "scheduler": "simple",
+             "positive": ["pos", 0], "negative": ["neg", 0]}
+        g["ks"] = {"class_type": "KSamplerAdvanced", "inputs": k | {
+            "model": ["shift", 0], "add_noise": "enable", "latent_image": ["lat", 0], "start_at_step": 0, "end_at_step": steps - lacher,
+            "return_with_leftover_noise": "enable"}}
+        g["ks2"] = {"class_type": "KSamplerAdvanced", "inputs": k | {
+            "model": ["shiftb", 0], "add_noise": "disable", "latent_image": ["ks", 0], "start_at_step": steps - lacher, "end_at_step": steps,
+            "return_with_leftover_noise": "disable"}}
+        g["dec"] = {"class_type": "VAEDecode", "inputs": {"samples": ["ks2", 0], "vae": ["vae", 0]}}
+        g["save"] = {"class_type": "SaveImage", "inputs": {"images": ["dec", 0], "filename_prefix": prefix}}
+        return g
     g["ks"] = {"class_type": "KSampler", "inputs": {
         "model": ["shift", 0], "seed": seed, "steps": steps, "cfg": 1.0, "sampler_name": "res_multistep",
         "scheduler": "simple", "positive": ["pos", 0], "negative": ["neg", 0], "latent_image": ["lat", 0], "denoise": 1.0}}

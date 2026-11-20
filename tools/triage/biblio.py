@@ -992,9 +992,9 @@ class Biblio:
             fo = {"force": max(0.1, min(float(str(b.get("force")).replace(",", ".")), 2.0))} if v["lora"] else {}
         except ValueError:
             fo = {}
-        try:  # peau refaite par Z-Image seul apres le dessin avec les LoRA (personnage avec LoRA) : part redessinee, 0 = non
-            refaite = float(b.get("peau") or 0)
-            refaite = min(max(refaite, 0.1), 0.6) if v["lora"] and refaite > 0 else 0
+        try:  # LoRA en plus lachees aux derniers pas (personnage avec LoRA) : nombre de pas finis sans elles, 0 = non
+            refaite = int(float(b.get("peau") or 0))
+            refaite = refaite if v["lora"] and 1 <= refaite <= 5 else 0
         except (TypeError, ValueError):
             refaite = 0
         # LoRA du modele de retouche (famille qwenedit du catalogue), au choix du proprietaire : elles ne vont qu'a l'etape de retouche.
@@ -1098,12 +1098,8 @@ class Biblio:
                          "prompt": f"photo of a woman seen from behind, {self._prefixe_corps(p)}, vertical {desc}{fin_}" if de_dos else f"{pre}vertical {desc}{fin_}"}
             else:
                 t |= fo | {"lora": True, "loras": [_lora_force(x) for x in b.get("loras") or []][:4], "prompt": f"{pre}{retenu}vertical {desc}{fin_}"}
-                if refaite:  # peau refaite : la planche dessinee avec les LoRA devient l'image intermediaire, redessinee en partie par Z-Image
-                    # seul (aucune LoRA), visage garde au pixel (workflows.finir_planche) : les formes restent, le grain de peau revient
-                    y = f"y_{serie}_{i + 1:02d}"
-                    taches.append(t | {"sortie": y})
-                    t = {"sortie": nom, "seed": t["seed"], "taille": t["taille"], "lora": False, "loras": [], "finir": str(self.dir(slug) / f"{y}.png"),
-                         "finition": refaite, "depuis": y, "prompt": t["prompt"].replace(fin_, FIN_PRES)}  # peau dite legerement : appuyee, elle sortait trop marquee
+                if refaite and t["loras"]:  # les LoRA en plus donnent les formes aux premiers pas, puis sont lachees : le grain de peau revient
+                    t["lacher"] = refaite
             taches.append(t)
         rg = ({"peau": refaite} if refaite else {}) | {"tenue": tenue, "nsfw": bool(b.get("nsfw")), "loras": [str(x) for x in b.get("loras") or []][:4], "voie": "lora" if pose else "finie" if finie else ""} | fo | ({"finition": fin} if finie else {}) | ({"retouche": ed} if ed else {})
         bb["serie_reglages"] = rg | {"n": n}  # la page les repropose tels quels pour la serie suivante
