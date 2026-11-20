@@ -408,7 +408,7 @@ class Biblio:
                           "dos": {"images": num("d_"), "choix": b["choix"].get("dos") if b["choix"].get("dos") in noms else ""},
                           "angles": [{"nom": n, "vue": ANGLES[(int(n[2:-4]) - 1) % len(ANGLES)][0]} for n in num("a_")], "tenue": b.get("corps_tenue") or "", "loras": b.get("corps_loras") or [], "retouche": b.get("corps_retouche") or [], "nsfw": bool(b.get("corps_nsfw")), "force": b.get("corps_force") or "",
                           "avec_lora": [n for n in noms if n[:2] in ("k_", "d_", "a_") and (tach.get(n[:-4]) or {}).get("loras")], "variantes": "\n".join(b.get("corps_variantes") or [])},
-                "expressions": expr, "gardees": sum(1 for x in b["planches"].values() if x.get("garde")),
+                "expressions": expr, "serie_reglages": b.get("serie_reglages"), "gardees": sum(1 for x in b["planches"].values() if x.get("garde")),
                 "banc": [{"cle": k, **x, "images": [n for n in noms if n.startswith(f"b_{k}_")], "clips": sorted(f.name for f in d.glob(f"bv_{k}_*.mp4"))}
                          for k, x in reversed(list((b.get("banc") or {}).items()))],
                 "departs": [n for n in noms if n.startswith("bd_")],
@@ -1094,8 +1094,10 @@ class Biblio:
             else:
                 t |= fo | {"lora": True, "loras": [_lora_force(x) for x in b.get("loras") or []][:4], "prompt": f"{pre}{retenu}vertical {desc}{fin_}"}
             taches.append(t)
+        rg = {"tenue": tenue, "nsfw": bool(b.get("nsfw")), "loras": [str(x) for x in b.get("loras") or []][:4], "voie": "lora" if pose else "finie" if finie else ""} | fo | ({"finition": fin} if finie else {}) | ({"retouche": ed} if ed else {})
+        bb["serie_reglages"] = rg | {"n": n}  # la page les repropose tels quels pour la serie suivante
         self._ecrire(slug, bb)
-        self._lancer(slug, "planches", {"taches": taches, "reglages": {"tenue": tenue, "nsfw": bool(b.get("nsfw")), "loras": [str(x) for x in b.get("loras") or []][:4], "voie": "lora" if pose else "finie" if finie else ""} | fo | ({"finition": fin} if finie else {}) | ({"retouche": ed} if ed else {})}, n)
+        self._lancer(slug, "planches", {"taches": taches, "reglages": rg}, n)
         return {"lance": n}
 
     def banc(self, b):
