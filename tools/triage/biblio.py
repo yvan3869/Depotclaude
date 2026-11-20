@@ -1083,7 +1083,7 @@ class Biblio:
                          "finition": fin, "depuis": y,
                          "prompt": f"photo of a woman seen from behind, {self._prefixe_corps(p)}, vertical {desc}{fin_}" if de_dos else f"{pre}vertical {desc}{fin_}"}
             else:
-                t |= {"lora": True, "loras": [str(x) for x in b.get("loras") or []][:4], "prompt": f"{pre}{retenu}vertical {desc}{fin_}"}
+                t |= {"lora": True, "loras": [_lora_force(x) for x in b.get("loras") or []][:4], "prompt": f"{pre}{retenu}vertical {desc}{fin_}"}
             taches.append(t)
         self._ecrire(slug, bb)
         self._lancer(slug, "planches", {"taches": taches, "reglages": {"tenue": tenue, "nsfw": bool(b.get("nsfw")), "loras": [str(x) for x in b.get("loras") or []][:4], "voie": "lora" if pose else "finie" if finie else ""} | ({"finition": fin} if finie else {}) | ({"retouche": ed} if ed else {})}, n)
