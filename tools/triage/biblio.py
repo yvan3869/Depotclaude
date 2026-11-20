@@ -994,7 +994,7 @@ class Biblio:
             fo = {}
         try:  # peau refaite par Z-Image seul apres le dessin avec les LoRA (personnage avec LoRA) : part redessinee, 0 = non
             refaite = float(b.get("peau") or 0)
-            refaite = min(max(refaite, 0.2), 0.6) if v["lora"] and refaite > 0 else 0
+            refaite = min(max(refaite, 0.1), 0.6) if v["lora"] and refaite > 0 else 0
         except (TypeError, ValueError):
             refaite = 0
         # LoRA du modele de retouche (famille qwenedit du catalogue), au choix du proprietaire : elles ne vont qu'a l'etape de retouche.
@@ -1103,7 +1103,7 @@ class Biblio:
                     y = f"y_{serie}_{i + 1:02d}"
                     taches.append(t | {"sortie": y})
                     t = {"sortie": nom, "seed": t["seed"], "taille": t["taille"], "lora": False, "loras": [], "finir": str(self.dir(slug) / f"{y}.png"),
-                         "finition": refaite, "depuis": y, "prompt": t["prompt"]}
+                         "finition": refaite, "depuis": y, "prompt": t["prompt"].replace(fin_, FIN_PRES)}  # peau dite legerement : appuyee, elle sortait trop marquee
             taches.append(t)
         rg = ({"peau": refaite} if refaite else {}) | {"tenue": tenue, "nsfw": bool(b.get("nsfw")), "loras": [str(x) for x in b.get("loras") or []][:4], "voie": "lora" if pose else "finie" if finie else ""} | fo | ({"finition": fin} if finie else {}) | ({"retouche": ed} if ed else {})
         bb["serie_reglages"] = rg | {"n": n}  # la page les repropose tels quels pour la serie suivante
