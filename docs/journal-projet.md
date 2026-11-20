@@ -992,3 +992,9 @@ remplacee par « LoRA en plus retirees a la fin du dessin » : un seul dessin, l
 la LoRA du personnage seuls aux 2, 3 ou 4 derniers pas sur 9 (`lacher`, `workflows.still_zimage`). Essai du graphe sur le
 personnage d'essai, sans LoRA, 3 images (0, 2, 4 pas) : images nettes et quasi identiques, donc la coupure ne laisse pas de
 defaut. L'effet avec de vraies LoRA n'est pas essaye. Depense : une serie de 24 planches habillees et 3 images sur le pod de veille.
+
+### 21/11/2026 : planches de Luz, reglage retenu
+
+- Etiquette verte « LoRA » sur les vignettes des planches dessinees avec des LoRA en plus ; la loupe redonne les LoRA des series en deux etapes.
+- Retour du proprietaire : le resultat est bon sur Luz. Reglage de ses dernieres series : LoRA du visage a 1,3, une LoRA en plus, « LoRA en plus retirees a la fin du dessin » sur Beaucoup (4 pas sur 9). Juge par lui, sur ses images ; je ne les ai pas regardees.
+- Aucune depense de ma part.
