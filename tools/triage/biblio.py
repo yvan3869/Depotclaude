@@ -412,7 +412,8 @@ class Biblio:
                 "banc": [{"cle": k, **x, "images": [n for n in noms if n.startswith(f"b_{k}_")], "clips": sorted(f.name for f in d.glob(f"bv_{k}_*.mp4"))}
                          for k, x in reversed(list((b.get("banc") or {}).items()))],
                 "departs": [n for n in noms if n.startswith("bd_")],
-                "planches": [{"nom": n, "garde": bool(b["planches"].get(n, {}).get("garde")), "legende": b["planches"].get(n, {}).get("legende", "")}
+                "planches": [{"nom": n, "garde": bool(b["planches"].get(n, {}).get("garde")), "legende": b["planches"].get(n, {}).get("legende", ""),
+                              "lora": bool((tach.get(n[:-4]) or {}).get("loras") or (tach.get(str((tach.get(n[:-4]) or {}).get("depuis") or "")) or {}).get("loras"))}
                              for n in noms if n.startswith("c_")],
                 "series": {s: series[s] for s in {n.split("_")[1] for n in noms if n.startswith("c_")} if s in series},
                 "loras": [{k: lo.get(k) for k in ("nom", "etat", "date", "passages", "images", "cout")} | {"en_place": bool(lo.get("fichier")) and lo.get("fichier") == g.get("lora"),
@@ -575,7 +576,7 @@ class Biblio:
         """Le texte reellement envoye pour une image (portrait, corps, expression, planche) ; vide pour une image creee avant qu'il soit conserve."""
         t = self._taches(b["slug"]).get(str(b.get("image") or "")[:-4]) or {}
         avant = self._taches(b["slug"]).get(str(t.get("depuis") or "")) or {}  # planche en deux etapes : le texte de la retouche qui precede
-        return {"prompt": t.get("prompt") or "", "retouche": bool(t.get("ref")), "avant": avant.get("prompt") or "", "loras": [{"nom": x["name"], "force": x.get("strength")} if isinstance(x, dict) else {"nom": str(x), "force": None} for x in t.get("loras") or []]}
+        return {"prompt": t.get("prompt") or "", "retouche": bool(t.get("ref")), "avant": avant.get("prompt") or "", "loras": [{"nom": x["name"], "force": x.get("strength")} if isinstance(x, dict) else {"nom": str(x), "force": None} for x in t.get("loras") or avant.get("loras") or []]}
 
     def refaire(self, b):
         """Une image de plus d'apres une image existante, avec le texte ajuste par le proprietaire : meme reference, meme graine,
