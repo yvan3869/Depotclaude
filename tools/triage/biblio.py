@@ -58,6 +58,26 @@ CADRES = (
     "medium shot, eye-level, she lies on her side on a bed, head on her hand, looking at the camera",
     "medium shot, high angle, she lies on her back on a bed, hair spread, looking at the camera",
 )
+# Cadrages « corps » : dos, trois quarts dos et postures variees, presque tous en pied. La liste ordinaire ne montre le dos que
+# deux fois sur vingt-quatre : une LoRA entrainee dessus connait mal le corps vu de derriere.
+CADRES_CORPS = (
+    "full-body shot from head to feet, her feet in the frame, eye-level, back view, she stands with her back to the camera, looking ahead",
+    "full-body shot from head to feet, her feet in the frame, eye-level, three-quarter back view, she stands, one hand on her hip, looking over her shoulder at the camera",
+    "three-quarter shot from head to knees, eye-level, back view, she stands, both hands in her hair",
+    "full-body shot from head to feet, her feet in the frame, eye-level, back view, she walks away from the camera",
+    "full-body shot from head to feet, her feet in the frame, eye-level, seen from behind, she kneels on a bed, looking over her shoulder at the camera",
+    "full-body shot from head to feet, her feet in the frame, eye-level, side view, she lies on her stomach on a bed, propped on her elbows, feet up",
+    "full-body shot from head to feet, her feet in the frame, eye-level, three-quarter view, she crouches, hands on her knees, looking at the camera",
+    "three-quarter shot from head to knees, eye-level, three-quarter back view, she stands, looking over her shoulder at the camera",
+    "full-body shot from head to feet, her feet in the frame, eye-level, back view, she stands on tiptoe, arms stretched above her head",
+    "full-body shot from head to feet, her feet in the frame, eye-level, profile view, she bends forward, hands on her knees",
+    "full-body shot from head to feet, her feet in the frame, eye-level, three-quarter back view, she sits on the floor, legs to the side, leaning on one hand",
+    "full-body shot from head to feet, her feet in the frame, eye-level, back view, she leans with both hands against a wall, looking over her shoulder",
+    "full-body shot from head to feet, her feet in the frame, eye-level, front view, she kneels upright, hands on her thighs, looking at the camera",
+    "full-body shot from head to feet, her feet in the frame, high angle, she lies on her side on a bed, her back to the camera, looking over her shoulder",
+    "full-body shot from head to feet, her feet in the frame, eye-level, profile view, she stretches, arms above her head",
+    "full-body shot from head to feet, her feet in the frame, slightly low angle, three-quarter back view, she stands, arms relaxed along her body",
+)
 FONDS = (
     "in a bright living room with a beige sofa, soft natural daylight",
     "in a bedroom with white sheets, morning light from a window",
@@ -1026,8 +1046,9 @@ class Biblio:
         retenu = ", ".join(x for x in (traits_corps(int(nf), fiche) if nf.isdigit() else "", traits_corps(int(nd), fiche, True) if nd.isdigit() else "") if x)
         retenu += ", " if retenu else ""
         libres = 0
+        cadres = CADRES_CORPS if b.get("angles") == "corps" else CADRES  # « corps » : dos et postures variees
         for i in range(n):
-            cadre, fond = CADRES[(i * 7 + serie) % len(CADRES)], FONDS[(i + serie) % len(FONDS)]
+            cadre, fond = cadres[(i * 7 + serie) % len(cadres)], FONDS[(i + serie) % len(FONDS)]
             cle = fixes.get("Rire") if "laughs" in cadre else fixes.get("Grand sourire") if "big smile" in cadre else fixes.get("Sourire doux") if "soft smile" in cadre else None
             if "bed" in cadre:
                 fond = FONDS[1]
@@ -1102,7 +1123,7 @@ class Biblio:
                 if refaite and t["loras"]:  # les LoRA en plus donnent les formes aux premiers pas, puis sont lachees : le grain de peau revient
                     t["lacher"] = refaite
             taches.append(t)
-        rg = ({"peau": refaite} if refaite else {}) | {"tenue": tenue, "nsfw": bool(b.get("nsfw")), "loras": [str(x) for x in b.get("loras") or []][:4], "voie": "lora" if pose else "finie" if finie else ""} | fo | ({"finition": fin} if finie else {}) | ({"retouche": ed} if ed else {})
+        rg = ({"peau": refaite} if refaite else {}) | ({"angles": "corps"} if cadres is CADRES_CORPS else {}) | {"tenue": tenue, "nsfw": bool(b.get("nsfw")), "loras": [str(x) for x in b.get("loras") or []][:4], "voie": "lora" if pose else "finie" if finie else ""} | fo | ({"finition": fin} if finie else {}) | ({"retouche": ed} if ed else {})
         bb["serie_reglages"] = rg | {"n": n}  # la page les repropose tels quels pour la serie suivante
         self._ecrire(slug, bb)
         self._lancer(slug, "planches", {"taches": taches, "reglages": rg}, n)
