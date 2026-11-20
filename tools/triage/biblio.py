@@ -998,6 +998,11 @@ class Biblio:
         tenues = [x["en"] for x in v["tenues"] if x["genre"] != "dessous"] or ["a white t-shirt and jeans"]
         serie = bb["series"] = int(bb.get("series") or 0) + 1
         pre, taches = self._prefixe(p), []
+        cs = self._cases(p)
+        if cs and any(x.get("en_place") and "-visage-" in x["nom"] for x in v["loras"]):
+            # seule la LoRA de son visage est en place : son corps ne tient qu'au texte. La case Corps passe devant (elle venait apres
+            # l'allure et le visage, vers le cinquantieme mot, et pesait peu) ; le visage, tenu par la LoRA, passe en dernier.
+            pre = ", ".join(x for x in (cs["identite"], cs["corps"], cs["allure"], cs["visage"]) if x) + ", "
         # Expressions de la galerie (celles de la fiche en tete), a tour de role, sur un cadrage sur deux qui n'en dit aucune :
         # le jeu d'entrainement garde une majorite de visages calmes, et la LoRA apprend que le visage bouge.
         exprs = [", ".join(y for y in en.split(", ") if not y.startswith("looking")) for _, fr, en, _ in self._expressions(p) if fr != "Neutre"]
