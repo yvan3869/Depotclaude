@@ -988,6 +988,10 @@ class Biblio:
         finie = bool(ref) and b.get("voie") == "finie"
         fin = min(max(float(b.get("finition") or 0.5), 0.2), 0.8)
         lo = [_lora_force(x) for x in b.get("loras") or []][:4] if pose or finie else []
+        try:  # force de sa LoRA pour cette serie seulement (vide : la force adoptee)
+            fo = {"force": max(0.1, min(float(str(b.get("force")).replace(",", ".")), 2.0))} if v["lora"] else {}
+        except ValueError:
+            fo = {}
         # LoRA du modele de retouche (famille qwenedit du catalogue), au choix du proprietaire : elles ne vont qu'a l'etape de retouche.
         cat = self.at._catalogue()
         ed = [str(x) for x in b.get("retouche") or [] if (cat.get(str(x)) or {}).get("famille") == "qwenedit"][:3] if ref else []
@@ -1083,10 +1087,10 @@ class Biblio:
                          "finition": fin, "depuis": y,
                          "prompt": f"photo of a woman seen from behind, {self._prefixe_corps(p)}, vertical {desc}{fin_}" if de_dos else f"{pre}vertical {desc}{fin_}"}
             else:
-                t |= {"lora": True, "loras": [_lora_force(x) for x in b.get("loras") or []][:4], "prompt": f"{pre}{retenu}vertical {desc}{fin_}"}
+                t |= fo | {"lora": True, "loras": [_lora_force(x) for x in b.get("loras") or []][:4], "prompt": f"{pre}{retenu}vertical {desc}{fin_}"}
             taches.append(t)
         self._ecrire(slug, bb)
-        self._lancer(slug, "planches", {"taches": taches, "reglages": {"tenue": tenue, "nsfw": bool(b.get("nsfw")), "loras": [str(x) for x in b.get("loras") or []][:4], "voie": "lora" if pose else "finie" if finie else ""} | ({"finition": fin} if finie else {}) | ({"retouche": ed} if ed else {})}, n)
+        self._lancer(slug, "planches", {"taches": taches, "reglages": {"tenue": tenue, "nsfw": bool(b.get("nsfw")), "loras": [str(x) for x in b.get("loras") or []][:4], "voie": "lora" if pose else "finie" if finie else ""} | fo | ({"finition": fin} if finie else {}) | ({"retouche": ed} if ed else {})}, n)
         return {"lance": n}
 
     def banc(self, b):
