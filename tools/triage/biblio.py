@@ -185,6 +185,41 @@ def _couvert(texte):
     return ", ".join(x for x in texte.split(", ") if x.strip() and not INTIME.search(x))
 
 
+# « Varier la tenue » : a texte egal, Z-Image redessine presque le meme vetement. Chaque planche tire une couleur, une matiere
+# et (sous-vetement, maillot) une coupe du haut, ajoutees apres la tenue saisie ; ce que la tenue dit deja n'est pas tire.
+COULEURS = ("black", "white", "red", "navy blue", "emerald green", "burgundy", "blush pink", "ivory", "lavender", "champagne",
+            "deep purple", "sky blue", "beige", "coral", "olive green", "charcoal grey")
+COULEUR_MOTS = re.compile(r"\b(black|white|red|blue|green|pink|ivory|purple|lavender|beige|grey|gray|yellow|orange|brown|gold|silver|"
+                          r"burgundy|coral|champagne|cream|navy|teal|turquoise|print|striped|floral|polka)\b", re.I)
+LINGE = re.compile(r"lingerie|\bbra\b|bralette|panties|underwear|thong|corset|bodysuit|teddy|negligee|babydoll|bustier", re.I)
+BAIN = re.compile(r"bikini|swimsuit|swimwear|monokini", re.I)
+MATIERES_LINGE = ("lace", "satin", "silk", "cotton", "microfiber", "velvet", "embroidered satin", "ribbed cotton")
+MATIERES = ("cotton", "linen", "satin", "silk", "knit", "denim", "jersey", "velvet")
+MATIERE_MOTS = re.compile(r"\b(lace|satin|silk|cotton|mesh|velvet|tulle|linen|knit|denim|jersey|leather|latex|wool|nylon|lycra)\b", re.I)
+COUPES_LINGE = ("balconette bra", "triangle bra", "push-up bra", "plunge bra", "bralette", "strapless bra", "full-cup bra", "longline bra")
+COUPES_BAIN = ("triangle bikini top", "bandeau bikini top", "halter bikini top", "underwire bikini top", "sporty bikini top")
+COUPE_MOTS = re.compile(r"balconette|triangle|push-up|plunge|bralette|strapless|bandeau|halter|underwire|longline|full-cup", re.I)
+
+
+def _varier(tenue, r):
+    """Couleur, matiere et coupe du haut tirees au sort (r : random.Random de la planche), ajoutees apres la tenue."""
+    linge, bain = LINGE.search(tenue), BAIN.search(tenue)
+    plus = [] if COULEUR_MOTS.search(tenue) else [r.choice(COULEURS)]
+    if not MATIERE_MOTS.search(tenue) and not bain:
+        plus.append(r.choice(MATIERES_LINGE if linge else MATIERES))
+    coupe = "" if COUPE_MOTS.search(tenue) else r.choice(COUPES_BAIN) if bain else r.choice(COUPES_LINGE) if linge else ""
+    return ", ".join(x for x in (tenue, " ".join(plus) and "in " + " ".join(plus), coupe) if x)
+
+
+def _couverte(tenue):
+    """Serie habillee, tenue avec un haut de sous-vetement ou de maillot : il est dit porte (sinon le modele le retire souvent)."""
+    if BAIN.search(tenue):
+        return "bikini top on, breasts covered by the bikini top"
+    if LINGE.search(tenue):
+        return "bra on, breasts covered by the bra"
+    return ""
+
+
 def _de_dos(chemin):
     """Image du corps ou la tete ne montre pas de visage : le dos, et l'angle de trois quarts dos."""
     m = re.fullmatch(r"([kda])_(\d+)\.png", Path(chemin).name)
@@ -1038,6 +1073,7 @@ class Biblio:
         seul_visage = bool(cs) and any(x.get("en_place") and "-visage-" in x["nom"] for x in v["loras"])
         # serie habillee : ni « serie pour adulte », ni tenue qui dit un etat sans vetement
         habille = not b.get("nsfw") and not INTIME.search(tenue)
+        varier = bool(b.get("varier"))
         if cs and any(x.get("en_place") and "-visage-" in x["nom"] for x in v["loras"]):
             # seule la LoRA de son visage est en place : son corps ne tient qu'au texte. La case Corps passe devant (elle venait apres
             # l'allure et le visage, vers le cinquantieme mot, et pesait peu) ; le visage, tenu par la LoRA, passe en dernier.
@@ -1073,6 +1109,10 @@ class Biblio:
                     cle = cles[(libres // 2 + serie) % len(exprs)]
                 libres += 1
             habit = tenue or "wearing " + re.sub(r"^wearing ", "", tenues[(i + serie) % len(tenues)])
+            if varier and tenue:
+                habit = _varier(habit, random.Random(7919 * serie + i))
+            if habille and _couverte(habit):
+                habit += ", " + _couverte(habit)
             desc = f"{cadre}, {fond}, {habit}" + (", nsfw" if b.get("nsfw") else "")
             nom = f"c_{serie}_{i + 1:02d}"
             bb["planches"][nom + ".png"] = {"garde": False, "legende": f"{pre}{desc}"}
@@ -1142,7 +1182,7 @@ class Biblio:
                 if refaite and t["loras"]:  # les LoRA en plus donnent les formes aux premiers pas, puis sont lachees : le grain de peau revient
                     t["lacher"] = refaite
             taches.append(t)
-        rg = ({"peau": refaite} if refaite else {}) | ({"angles": "corps"} if cadres is CADRES_CORPS else {}) | {"tenue": tenue, "nsfw": bool(b.get("nsfw")), "loras": [str(x) for x in b.get("loras") or []][:4], "voie": "lora" if pose else "finie" if finie else ""} | fo | ({"finition": fin} if finie else {}) | ({"retouche": ed} if ed else {})
+        rg = ({"peau": refaite} if refaite else {}) | ({"angles": "corps"} if cadres is CADRES_CORPS else {}) | ({"varier": True} if varier and tenue else {}) | {"tenue": tenue, "nsfw": bool(b.get("nsfw")), "loras": [str(x) for x in b.get("loras") or []][:4], "voie": "lora" if pose else "finie" if finie else ""} | fo | ({"finition": fin} if finie else {}) | ({"retouche": ed} if ed else {})
         bb["serie_reglages"] = rg | {"n": n}  # la page les repropose tels quels pour la serie suivante
         self._ecrire(slug, bb)
         self._lancer(slug, "planches", {"taches": taches, "reglages": rg}, n)
