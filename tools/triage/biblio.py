@@ -175,6 +175,16 @@ def traits_corps(s, fiche, dos=False):
     return ", ".join(x for x, deja in ((buste, r"breast|bust\b|chest|boobs|\bcup\b"), (taille, r"waist|stomach|torso|belly|abs\b")) if not re.search(deja, fiche, re.I)) or "natural proportions"
 
 
+# Serie habillee : ce que la fiche dit de ce qu'un vetement cache n'est pas redit, sinon le modele le montre (et retire le haut).
+INTIME = re.compile(r"nipple|areola|pubi[cs]|vulva|labia|pussy|vagina|genital|\banus|crotch|\bnude\b|naked|topless|bottomless|undress|unclothed|"
+                    r"\bbare\b|braless|no bra|shaved|hairless|trimmed|bush\b", re.I)
+
+
+def _couvert(texte):
+    """Le texte sans ses morceaux (entre virgules) qui parlent de ce qu'un vetement cache."""
+    return ", ".join(x for x in texte.split(", ") if x.strip() and not INTIME.search(x))
+
+
 def _de_dos(chemin):
     """Image du corps ou la tete ne montre pas de visage : le dos, et l'angle de trois quarts dos."""
     m = re.fullmatch(r"([kda])_(\d+)\.png", Path(chemin).name)
@@ -1025,6 +1035,9 @@ class Biblio:
         serie = bb["series"] = int(bb.get("series") or 0) + 1
         pre, taches = self._prefixe(p), []
         cs = self._cases(p)
+        seul_visage = bool(cs) and any(x.get("en_place") and "-visage-" in x["nom"] for x in v["loras"])
+        # serie habillee : ni « serie pour adulte », ni tenue qui dit un etat sans vetement
+        habille = not b.get("nsfw") and not INTIME.search(tenue)
         if cs and any(x.get("en_place") and "-visage-" in x["nom"] for x in v["loras"]):
             # seule la LoRA de son visage est en place : son corps ne tient qu'au texte. La case Corps passe devant (elle venait apres
             # l'allure et le visage, vers le cinquantieme mot, et pesait peu) ; le visage, tenu par la LoRA, passe en dernier.
@@ -1119,7 +1132,13 @@ class Biblio:
                          "finition": fin, "depuis": y,
                          "prompt": f"photo of a woman seen from behind, {self._prefixe_corps(p)}, vertical {desc}{fin_}" if de_dos else f"{pre}vertical {desc}{fin_}"}
             else:
-                t |= fo | {"lora": True, "loras": [_lora_force(x) for x in b.get("loras") or []][:4], "prompt": f"{pre}{retenu}vertical {desc}{fin_}"}
+                debut = f"{pre}{retenu}"
+                if habille:
+                    # habillee : les details intimes de la fiche sont tus, et la tenue est dite tot (apres l'identite), pas seulement a la fin
+                    # apres toute la description du corps : sinon le corps decrit comme nu l'emporte et le haut disparait
+                    debut = (", ".join(x for x in (cs["identite"], habit, _couvert(cs["corps"]), cs["allure"], cs["visage"], _couvert(retenu)) if x)
+                             if seul_visage else _couvert(debut)) + ", "
+                t |= fo | {"lora": True, "loras": [_lora_force(x) for x in b.get("loras") or []][:4], "prompt": f"{debut}vertical {desc}{fin_}"}
                 if refaite and t["loras"]:  # les LoRA en plus donnent les formes aux premiers pas, puis sont lachees : le grain de peau revient
                     t["lacher"] = refaite
             taches.append(t)
